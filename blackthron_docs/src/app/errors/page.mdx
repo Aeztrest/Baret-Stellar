@@ -1,0 +1,105 @@
+export const metadata = {
+  title: 'Errors',
+  description:
+    'HTTP status codes and error response formats returned by the Blackthorn API.',
+}
+
+# Errors
+
+The Blackthorn API uses standard HTTP status codes. When a request fails, the response body contains a JSON error object with a machine-readable code and a human-readable message. {{ className: 'lead' }}
+
+---
+
+## Status codes
+
+<Properties>
+  <Property name="200">
+    Request succeeded. The analysis completed — even if `safe: false`, a `200` means the API itself worked correctly.
+  </Property>
+  <Property name="400 Bad Request">
+    The request body was malformed or missing required fields. Check your JSON and parameter names.
+  </Property>
+  <Property name="401 Unauthorized">
+    Missing or invalid API key. Check your `X-API-Key` header.
+  </Property>
+  <Property name="402 Payment Required">
+    Keyless request with x402 payment required. The response includes payment instructions.
+  </Property>
+  <Property name="429 Too Many Requests">
+    Rate limit exceeded. Wait for the window to reset, or upgrade your plan.
+  </Property>
+  <Property name="500 Internal Server Error">
+    Something went wrong on the Blackthorn side. These are rare. If they persist, check the status page.
+  </Property>
+  <Property name="503 Service Unavailable">
+    The RPC node is unreachable or the service is temporarily unavailable.
+  </Property>
+</Properties>
+
+---
+
+## Error response format
+
+<Row>
+  <Col>
+
+    Every error response returns a JSON object with a consistent structure.
+
+    <Properties>
+      <Property name="error" type="string">
+        Machine-readable error code.
+      </Property>
+      <Property name="message" type="string">
+        Human-readable description of what went wrong.
+      </Property>
+      <Property name="details" type="object">
+        Optional additional context, such as which field failed validation.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col>
+
+    ```json {{ title: 'Error response' }}
+    {
+      "error": "INVALID_TRANSACTION",
+      "message": "Could not decode transaction: invalid base64 encoding.",
+      "details": {
+        "field": "transaction"
+      }
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Error codes
+
+<Properties>
+  <Property name="INVALID_TRANSACTION">
+    The `transaction` field could not be decoded or deserialized. Ensure it is a valid base64-encoded `VersionedTransaction`.
+  </Property>
+  <Property name="UNSUPPORTED_FORMAT">
+    Legacy transaction format is not supported. Only `VersionedTransaction` is accepted.
+  </Property>
+  <Property name="CLUSTER_UNAVAILABLE">
+    The specified cluster's RPC endpoint is unreachable. Try again or switch to a backup RPC.
+  </Property>
+  <Property name="SLOT_NOT_AVAILABLE">
+    The requested replay slot is no longer available on the RPC node.
+  </Property>
+  <Property name="BATCH_LIMIT_EXCEEDED">
+    Batch request contains more than 25 transactions.
+  </Property>
+  <Property name="MISSING_FIELD">
+    A required field is absent from the request body.
+  </Property>
+  <Property name="RATE_LIMIT_EXCEEDED">
+    Too many requests. Check the `X-RateLimit-Reset` header for when the window resets.
+  </Property>
+  <Property name="INVALID_API_KEY">
+    The provided API key does not exist or has been revoked.
+  </Property>
+</Properties>

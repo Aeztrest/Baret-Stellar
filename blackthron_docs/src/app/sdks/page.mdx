@@ -1,0 +1,167 @@
+export const metadata = {
+  title: 'SDKs & Integrations',
+  description:
+    'Integrate Blackthorn into wallets, browser extensions, AI agents, and any application using the REST API.',
+}
+
+export const sections = [
+  { title: 'Wallet Adapter SDK', id: 'wallet-adapter' },
+  { title: 'Browser Extension', id: 'browser-extension' },
+  { title: 'MCP Server', id: 'mcp-server' },
+  { title: 'REST API', id: 'rest-api' },
+]
+
+# SDKs & Integrations
+
+Blackthorn can be integrated at any layer of the Solana stack — wallet libraries, browser extensions, AI agents, or direct API calls from any language. {{ className: 'lead' }}
+
+---
+
+## Wallet Adapter SDK {{ id: 'wallet-adapter' }}
+
+The `@stellar-thorn/wallet-adapter` package wraps any Solana wallet's `signTransaction` function. When the user tries to sign, Blackthorn intercepts, analyzes, and either proceeds or throws a `TransactionBlockedError`.
+
+### Installation
+
+```bash
+npm install @stellar-thorn/wallet-adapter
+```
+
+### Usage
+
+```ts
+import { createBlackthornInterceptor } from '@stellar-thorn/wallet-adapter'
+
+const interceptor = createBlackthornInterceptor({
+  apiKey: process.env.BLACKTHORN_API_KEY,
+  apiUrl: 'https://api.blackthorn.io',
+  cluster: 'mainnet-beta',
+  policyProfile: 'strict',
+  onBlock: (analysis) => {
+    // Show a warning to the user
+    showBlockedModal(analysis.verdict)
+  },
+})
+
+// Wrap your existing wallet adapter
+const secureWallet = interceptor.wrap(wallet)
+
+// Now use secureWallet.signTransaction as normal
+// Blackthorn runs automatically before every signature
+```
+
+### Behavior
+
+<Properties>
+  <Property name="Safe transaction" type="pass">
+    Analysis returns `safe: true` — `signTransaction` proceeds as normal. Zero UX friction.
+  </Property>
+  <Property name="Blocked transaction" type="block">
+    Analysis returns `safe: false` — a `TransactionBlockedError` is thrown, or your `onBlock` callback is invoked.
+  </Property>
+  <Property name="API unavailable" type="fail-open">
+    If the Blackthorn API is unreachable, the request fails open — the transaction is not blocked. This is intentional to prevent service outages from disrupting users.
+  </Property>
+</Properties>
+
+---
+
+## Browser Extension {{ id: 'browser-extension' }}
+
+The Blackthorn Chrome extension (Manifest V3) automatically intercepts `signTransaction` calls from Phantom, Backpack, Solflare, and any wallet that injects a Solana provider into the browser.
+
+No code changes required in the dApp. The extension installs a content script that wraps the wallet's signing functions at the browser level.
+
+### Installation
+
+Install from the Chrome Web Store or load unpacked from `packages/browser-extension` for local testing.
+
+### Configuration
+
+Open the extension popup to configure:
+
+<Properties>
+  <Property name="API Endpoint" type="string">
+    Your Blackthorn API endpoint URL.
+  </Property>
+  <Property name="API Key" type="string">
+    Your API key. Stored in Chrome's local extension storage (not sent anywhere except your configured endpoint).
+  </Property>
+  <Property name="Auto-Block" type="toggle">
+    When enabled, blocked transactions are silently rejected. When disabled, a warning dialog is shown and the user can choose to proceed.
+  </Property>
+</Properties>
+
+---
+
+## MCP Server {{ id: 'mcp-server' }}
+
+Blackthorn implements the [Model Context Protocol](https://modelcontextprotocol.io/) so AI agents can call it as a tool directly.
+
+### Available tools
+
+<Properties>
+  <Property name="deltag_analyze" type="tool">
+    Analyze a transaction. Input: `transactionBase64`, `cluster`. Returns a markdown-formatted security report.
+  </Property>
+  <Property name="deltag_health" type="tool">
+    Check if the Blackthorn service is healthy and the RPC is reachable.
+  </Property>
+  <Property name="deltag_list_profiles" type="tool">
+    List available policy profiles and their descriptions.
+  </Property>
+</Properties>
+
+### Example agent prompt
+
+```
+"Is this transaction safe to sign?"
+→ deltag_analyze({ transactionBase64: "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg...", cluster: "mainnet-beta" })
+→ Returns: "## Analysis Result\n**Verdict:** ⛔ BLOCKED\n**Risk Level:** High\n**Reason:** Unlimited token approval detected..."
+```
+
+---
+
+## REST API {{ id: 'rest-api' }}
+
+The Blackthorn API is a plain HTTPS REST API. Any language that can make HTTP requests can integrate with it.
+
+<CodeGroup>
+
+```bash {{ title: 'cURL' }}
+curl -X POST https://api.blackthorn.io/v1/analyze \
+  -H "X-API-Key: {your-api-key}" \
+  -H "Content-Type: application/json" \
+  -d '{"transaction":"...","cluster":"mainnet-beta"}'
+```
+
+```js
+const res = await fetch('https://api.blackthorn.io/v1/analyze', {
+  method: 'POST',
+  headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ transaction: txBase64, cluster: 'mainnet-beta' }),
+})
+const { safe, verdict } = await res.json()
+```
+
+```python
+import httpx
+result = httpx.post(
+    'https://api.blackthorn.io/v1/analyze',
+    headers={'X-API-Key': API_KEY},
+    json={'transaction': tx_base64, 'cluster': 'mainnet-beta'},
+).json()
+```
+
+```go
+body, _ := json.Marshal(map[string]string{
+    "transaction": txBase64,
+    "cluster":     "mainnet-beta",
+})
+req, _ := http.NewRequest("POST", "https://api.blackthorn.io/v1/analyze", bytes.NewBuffer(body))
+req.Header.Set("X-API-Key", apiKey)
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)
+```
+
+</CodeGroup>

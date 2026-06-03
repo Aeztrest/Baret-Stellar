@@ -1,0 +1,33 @@
+{
+  "name": "@stellar-thorn/swig-guard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pre-flight transaction security guard for Swig smart wallets — every signature passes through BLACKTHORN simulation + user policy.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./policy": {
+      "types": "./dist/policy.d.ts",
+      "import": "./dist/policy.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@stellar/stellar-sdk": "^15.0.0"
+  },
+  "devDependencies": {
+    "@stellar/stellar-sdk": "^15.1.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,64 @@
+export const metadata = {
+  title: 'Authentication',
+  description:
+    'Blackthorn uses API key authentication. All requests must include your key in the X-API-Key header.',
+}
+
+# Authentication
+
+Every request to the Blackthorn API must include your API key. Blackthorn uses simple API key authentication — no OAuth flows, no token exchanges. {{ className: 'lead' }}
+
+## Getting your API key
+
+API keys are managed from the Blackthorn dashboard. Go to **Settings → API Keys** to create or rotate keys. Each key can be labeled and revoked independently.
+
+<Note>
+  Keep your API key secret. Never commit it to source control or expose it in
+  client-side code. If a key is compromised, rotate it immediately from the
+  dashboard.
+</Note>
+
+## Sending the API key
+
+Include your key in the `X-API-Key` request header on every call.
+
+```bash {{ title: 'Authenticated request' }}
+curl -X POST https://api.blackthorn.io/v1/analyze \
+  -H "X-API-Key: btk_live_xxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "transaction": "...", "cluster": "mainnet-beta" }'
+```
+
+## Pay-per-use with x402
+
+Blackthorn also supports the HTTP 402 micropayment protocol for keyless access. If you send a request without an API key, the server responds with `402 Payment Required` and a payment challenge. You pay per-analysis in USDC on Solana (~$0.001/request), the payment is verified on-chain, and the analysis proceeds.
+
+```bash {{ title: 'Keyless request — triggers 402 flow' }}
+curl -X POST https://api.blackthorn.io/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{ "transaction": "...", "cluster": "mainnet-beta" }'
+# → 402 Payment Required
+# → X-Payment-Scheme: x402
+# → X-Pay-To: <solana-address>
+# → X-Price-USDC: 0.001
+```
+
+Failed analyses are not charged.
+
+## Rate limits
+
+Rate limits are applied per API key based on your plan tier. Limits are communicated via standard HTTP response headers:
+
+<Properties>
+  <Property name="X-RateLimit-Limit" type="string">
+    Maximum number of requests allowed in the current window.
+  </Property>
+  <Property name="X-RateLimit-Remaining" type="string">
+    Requests remaining in the current window.
+  </Property>
+  <Property name="X-RateLimit-Reset" type="string">
+    Unix timestamp when the current window resets.
+  </Property>
+</Properties>
+
+When you exceed your rate limit, the API returns `429 Too Many Requests`.

@@ -1,0 +1,92 @@
+/*
+ * BLACKTHORN — Design Tokens
+ * The visual contract from docs/brand.md, materialized as CSS custom properties.
+ * Imported by every app that ships UI: apps/wallet, apps/extension, apps/showcase-*.
+ *
+ * Source of truth. Edit docs/brand.md first, then mirror here.
+ */
+
+:root {
+  /* ─── Surfaces ───────────────────────────────────── */
+  --bg:           #08080C;
+  --bg-elevated: #0F0F15;
+  --bg-card:     #13131A;
+  --bg-modal:    #16161D;
+
+  --line:         rgba(255, 255, 255, 0.06);
+  --line-strong:  rgba(255, 255, 255, 0.10);
+
+  /* ─── Text ───────────────────────────────────────── */
+  --text:        #FAFAFB;
+  --text-muted:  rgba(255, 255, 255, 0.55);
+  --text-faint:  rgba(255, 255, 255, 0.35);
+  --text-ghost:  rgba(255, 255, 255, 0.20);
+
+  /* ─── Brand accent — Monochrome (white-on-black) ────
+   * Wallet ships a pure black/white palette: icons, text, and
+   * primary surfaces stay white over a near-black canvas.
+   * Semantic colors (ok/warn/bad/live) are kept — risk states
+   * need visual differentiation. */
+  --accent:       #FFFFFF;
+  --accent-soft:  rgba(255, 255, 255, 0.78);
+  --accent-dim:   rgba(255, 255, 255, 0.08);
+  --accent-glow:  rgba(255, 255, 255, 0.18);
+
+  /* ─── Semantic accents ───────────────────────────── */
+  --ok:        #34D399;
+  --ok-dim:    rgba(52, 211, 153, 0.14);
+  --warn:      #FBBF24;
+  --warn-dim:  rgba(251, 191, 36, 0.14);
+  --bad:       #F87171;
+  --bad-dim:   rgba(248, 113, 113, 0.14);
+  --live:      #22D3EE;
+  --live-dim:  rgba(34, 211, 238, 0.14);
+
+  /* ─── Type scale ─────────────────────────────────── */
+  --display-2xl-size: 56px; --display-2xl-line: 1.04;
+  --display-xl-size:  44px; --display-xl-line:  1.10;
+  --display-l-size:   32px; --display-l-line:   1.12;
+  --display-m-size:   24px; --display-m-line:   1.20;
+  --text-l-size:      16px; --text-l-line:      1.50;
+  --text-m-size:      14px; --text-m-line:      1.50;
+  --text-s-size:      12px; --text-s-line:      1.45;
+  --text-xs-size:     11px; --text-xs-line:     1.40;
+  --mono-l-size:      14px; --mono-l-line:      1.40;
+  --mono-m-size:      12px; --mono-m-line:      1.40;
+
+  /* ─── Spacing rhythm ─────────────────────────────── */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-12: 48px;
+  --s-16: 64px;
+  --s-24: 96px;
+
+  /* ─── Radius ─────────────────────────────────────── */
+  --r-pill:   999px;
+  --r-input:  10px;
+  --r-card:   16px;
+  --r-modal:  20px;
+  --r-window: 24px;
+
+  /* ─── Motion ─────────────────────────────────────── */
+  --motion-fast:    180ms;
+  --motion-medium:  240ms;
+  --motion-slow:    280ms;
+  --motion-curve:   cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ─── Type stacks ────────────────────────────────── */
+  --font-sans: "Inter", "ui-sans-serif", "system-ui", "sans-serif";
+  --font-mono: "JetBrains Mono", "ui-monospace", "monospace";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-medium: 0ms;
+    --motion-slow: 0ms;
+  }
+}

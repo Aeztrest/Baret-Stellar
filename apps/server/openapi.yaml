@@ -1,0 +1,137 @@
+openapi: 3.0.3
+info:
+  title: DeltaG Analyze API
+  version: 1.0.0
+  description: |
+    Solana VersionedTransaction simulation and policy-based safety analysis.
+    Production servers may require `Authorization: Bearer <api-key>` or `x-api-key` on `/v1/*`
+    unless x402-only mode is enabled. See `LIMITATIONS.md` at repository root.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /health/ready:
+    get:
+      summary: Readiness (RPC + optional x402 facilitator)
+      responses:
+        "200":
+          description: All checks passed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          description: Degraded (missing RPC or failed checks)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+  /v1/analyze:
+    post:
+      summary: Analyze a base64 VersionedTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeRequest"
+      responses:
+        "200":
+          description: Policy decision and estimated deltas from simulation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeResponse"
+        "400":
+          description: Invalid body or transaction
+        "401":
+          description: Missing or invalid API key
+        "429":
+          description: Rate limit exceeded
+        "500":
+          description: Internal error or response validation failure
+        "502":
+          description: RPC or x402 facilitator error
+        "504":
+          description: RPC timeout
+components:
+  schemas:
+    AnalyzeRequest:
+      type: object
+      required:
+        - cluster
+        - transactionBase64
+      properties:
+        cluster:
+          type: string
+          enum: [mainnet-beta, devnet, testnet]
+        transactionBase64:
+          type: string
+          description: Base64-encoded Solana VersionedTransaction
+        policy:
+          type: object
+          description: Optional policy overrides (see server Zod schema)
+        userWallet:
+          type: string
+          description: Optional owner wallet for token account context
+        integratorRequestId:
+          type: string
+          maxLength: 256
+    AnalyzeResponse:
+      type: object
+      required:
+        - safe
+        - reasons
+        - estimatedChanges
+        - riskFindings
+        - simulationWarnings
+        - meta
+      properties:
+        safe:
+          type: boolean
+        reasons:
+          type: array
+          items:
+            type: string
+        estimatedChanges:
+          type: object
+        riskFindings:
+          type: array
+          items:
+            type: object
+        simulationWarnings:
+          type: array
+          items:
+            type: string
+        meta:
+          type: object
+    ReadyResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, degraded]
+        message:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              ok:
+                type: boolean
+              error:
+                type: string

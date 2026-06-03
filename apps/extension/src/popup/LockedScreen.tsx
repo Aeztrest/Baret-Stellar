@@ -1,0 +1,78 @@
+/**
+ * Locked screen — passphrase unlock for an existing wallet.
+ * Spec: docs/wallet-spec.md §11 (error-state copy "Wallet locked").
+ */
+
+import { useState } from "react";
+import { Lock, Eye, EyeOff } from "lucide-react";
+import { Mark } from "@stellar-thorn/ui";
+import { useRpc } from "../shared/state-context";
+
+export function LockedScreen() {
+  const rpc = useRpc();
+  const [passphrase, setPassphrase] = useState("");
+  const [show, setShow] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting || !passphrase) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await rpc.call("wallet.unlock", { passphrase });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center px-6 gap-6">
+      <div className="text-accent-soft">
+        <Mark size={36} />
+      </div>
+      <div className="text-center space-y-1">
+        <h1 className="text-lg font-extrabold tracking-tight">BLACKTHORN</h1>
+        <p className="text-text-faint text-xs">Enter your passphrase to unlock</p>
+      </div>
+
+      <form onSubmit={onSubmit} className="w-full space-y-3">
+        <div className="relative">
+          <input
+            type={show ? "text" : "password"}
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            autoFocus
+            placeholder="Passphrase"
+            className="input pr-10 font-sans"
+          />
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted p-1"
+            tabIndex={-1}
+          >
+            {show ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <button type="submit" disabled={submitting || !passphrase} className="btn-primary w-full">
+          <Lock size={13} />
+          {submitting ? "Unlocking…" : "Unlock"}
+        </button>
+        {error && (
+          <p className="text-bad text-xs px-1 py-2 rounded-input"
+             style={{ background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)" }}>
+            {error}
+          </p>
+        )}
+      </form>
+
+      <p className="text-text-faint text-[10px] text-center px-4">
+        Lost your passphrase? You'll need to reset and restore from your secret key.
+      </p>
+    </div>
+  );
+}

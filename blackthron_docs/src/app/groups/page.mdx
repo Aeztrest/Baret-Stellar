@@ -1,0 +1,168 @@
+export const metadata = {
+  title: 'Audit',
+  description:
+    'Query recent transaction analysis records and aggregate statistics. All analyses are automatically logged.',
+}
+
+export const sections = [
+  { title: 'Recent records', id: 'recent-records' },
+  { title: 'Aggregate statistics', id: 'aggregate-statistics' },
+  { title: 'Program audit', id: 'program-audit' },
+]
+
+# Audit
+
+Every transaction analyzed by Blackthorn is automatically logged to the audit trail. Use the audit endpoints to review recent decisions, monitor trends, and investigate specific programs. {{ className: 'lead' }}
+
+---
+
+## Recent records {{ tag: 'GET', label: '/v1/audit/recent', id: 'recent-records' }}
+
+<Row>
+  <Col>
+
+    Returns the most recent analysis records, ordered by analysis time descending.
+
+    ### Optional attributes
+
+    <Properties>
+      <Property name="limit" type="integer">
+        Number of records to return. Default `20`, maximum `100`.
+      </Property>
+      <Property name="cluster" type="string">
+        Filter by cluster: `mainnet-beta` or `devnet`.
+      </Property>
+      <Property name="safe" type="boolean">
+        Filter by verdict: `true` for safe transactions, `false` for blocked.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="GET" label="/v1/audit/recent">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://api.blackthorn.io/v1/audit/recent?limit=10&safe=false \
+      -H "X-API-Key: {your-api-key}"
+    ```
+
+    ```js
+    const records = await fetch(
+      'https://api.blackthorn.io/v1/audit/recent?limit=10&safe=false',
+      { headers: { 'X-API-Key': process.env.BLACKTHORN_API_KEY } }
+    ).then(r => r.json())
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "records": [
+        {
+          "id": "anl_01HZXYZ...",
+          "safe": false,
+          "riskLevel": "high",
+          "riskCodes": ["UNLIMITED_APPROVAL"],
+          "programs": ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"],
+          "cluster": "mainnet-beta",
+          "durationMs": 287,
+          "analyzedAt": "2025-05-04T14:23:01.000Z"
+        }
+      ],
+      "total": 1,
+      "hasMore": false
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Aggregate statistics {{ tag: 'GET', label: '/v1/audit/aggregate', id: 'aggregate-statistics' }}
+
+<Row>
+  <Col>
+
+    Returns rolled-up statistics across all analyzed transactions: total count, safe rate, most common risk codes, and average analysis duration.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="GET" label="/v1/audit/aggregate">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://api.blackthorn.io/v1/audit/aggregate \
+      -H "X-API-Key: {your-api-key}"
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "total": 14823,
+      "safe": 13102,
+      "blocked": 1721,
+      "safeRate": 0.884,
+      "avgDurationMs": 298,
+      "topRiskCodes": [
+        { "code": "UNKNOWN_PROGRAM", "count": 842 },
+        { "code": "UNLIMITED_APPROVAL", "count": 634 },
+        { "code": "SIMULATION_FAILED", "count": 201 }
+      ],
+      "clusterBreakdown": {
+        "mainnet-beta": 14102,
+        "devnet": 721
+      }
+    }
+    ```
+
+  </Col>
+</Row>
+
+---
+
+## Program audit {{ tag: 'GET', label: '/v1/audit/program/:programId', id: 'program-audit' }}
+
+<Row>
+  <Col>
+
+    Returns analysis statistics for a specific program address. Use this to understand how often a program appears in analyzed transactions and its associated risk profile.
+
+    ### Path parameters
+
+    <Properties>
+      <Property name="programId" type="string">
+        The base58-encoded Solana program address.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="GET" label="/v1/audit/program/:programId">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://api.blackthorn.io/v1/audit/program/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA \
+      -H "X-API-Key: {your-api-key}"
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "label": "SPL Token",
+      "knownSafe": true,
+      "appearances": 9841,
+      "blockedCount": 412,
+      "topRiskCodes": [
+        { "code": "UNLIMITED_APPROVAL", "count": 389 },
+        { "code": "DELEGATE_CHANGE", "count": 23 }
+      ]
+    }
+    ```
+
+  </Col>
+</Row>

@@ -1,0 +1,259 @@
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Rocket, Timer, Users, TrendingUp, ExternalLink } from "lucide-react";
+import { useWallet } from "../../wallet/context";
+import { SiteShell } from "../../components/SiteShell";
+import { ResultOverlay, type ResultState } from "../../blackthorn/ResultOverlay";
+import { RiskPreview } from "../../blackthorn/RiskPreview";
+import { buildScenario } from "../../blackthorn/transactions";
+
+const THEME = {
+  primary: "#8b5cf6",
+  accent: "#c4b5fd",
+  bg: "#0c0a14",
+  name: "LaunchPad",
+  logo: (
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black" style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}>
+      L
+    </div>
+  ),
+};
+
+export default function LaunchPad() {
+  const { connected, openWalletModal, walletAddress, adapter } = useWallet();
+  const [contribution, setContribution] = useState("500");
+  const [dangerous, setDangerous] = useState(false);
+  const [resultState, setResultState] = useState<ResultState>("idle");
+  const [signature, setSignature] = useState<string | null>(null);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [previewTx, setPreviewTx] = useState<string | null>(null);
+  const success = signature !== null;
+
+  const raised = dangerous ? 82000 : 1_240_000;
+  const goal = 2_000_000;
+  const pct = (raised / goal) * 100;
+  const scenarioLabel = dangerous
+    ? `Contribute ${contribution} USDC to a rug-pull launchpad (danger scenario)`
+    : `Contribute ${contribution} USDC to a vetted token launch`;
+
+  async function handleBuy() {
+    if (!connected || !walletAddress) { openWalletModal(); return; }
+    try {
+      const __built = await buildScenario(dangerous ? "launchpad-danger" : "launchpad-safe", walletAddress); const tx = __built.transactionXdr;
+      setPreviewTx(tx);
+    } catch (e) {
+      setResultState("error");
+      setResultMessage(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function sendViaBlackthorn() {
+    if (!previewTx) return;
+    setPreviewTx(null);
+    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    try {
+      const { signature: sig } = await adapter.signAndSendTransaction(previewTx);
+      setSignature(sig); setResultState("confirmed");
+    } catch (e) {
+      if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
+        setResultState("blocked"); setResultMessage(e.message);
+      } else {
+        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
+  const sendRaw = sendViaBlackthorn;
+
+  return (
+    <SiteShell
+      theme={THEME}
+      navLinks={[{ label: "Active Launches" }, { label: "Upcoming" }, { label: "Portfolio" }, { label: "Leaderboard" }]}
+    >
+      <ResultOverlay
+        state={resultState}
+        signature={signature}
+        message={resultMessage}
+        onClose={() => setResultState("idle")}
+      />
+
+      <div className="fixed inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(139,92,246,0.08) 0%, transparent 60%)" }} />
+
+      <div className="min-h-screen pb-24 px-4 py-12">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Project info */}
+            <div className="md:col-span-2 space-y-6">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
+                    {dangerous ? "💀" : "🚀"}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-2xl font-black text-white">{dangerous ? "ScamToken (SCAM)" : "NovaBridge (NOVA)"}</h1>
+                      {!dangerous && <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: "rgba(139,92,246,0.15)", color: "#a78bfa" }}>KYC Verified</span>}
+                    </div>
+                    <p className="text-sm text-white/40">
+                      {dangerous
+                        ? "Revolutionary memecoin with 1000x potential. First mover in the nothing market."
+                        : "Cross-chain Stellar bridge enabling seamless asset transfers across 12 networks. Audited by OtterSec."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Metrics */}
+                <div className="grid grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: "Token Price", value: dangerous ? "$0.0001" : "$0.05" },
+                    { label: "Hard Cap", value: "$2M" },
+                    { label: "Vesting", value: dangerous ? "None" : "12 months" },
+                    { label: "Audit", value: dangerous ? "None" : "OtterSec" },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="glass rounded-xl p-3">
+                      <p className="text-xs text-white/30">{label}</p>
+                      <p className="text-sm font-bold text-white mt-0.5">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Raise progress */}
+                <div className="glass rounded-2xl p-5 space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/50">Raised</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white">${raised.toLocaleString()}</span>
+                      <span className="text-white/30">/ ${goal.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="h-3 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+                      className="h-full rounded-full"
+                      style={{ background: dangerous ? "#ef4444" : "linear-gradient(90deg,#8b5cf6,#6d28d9)" }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-white/30">
+                    <span>{pct.toFixed(1)}% filled</span>
+                    <div className="flex items-center gap-1"><Timer size={11} /> <span>3 days left</span></div>
+                  </div>
+                </div>
+
+                {/* Team / tokenomics */}
+                <div className="glass rounded-2xl p-5">
+                  <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4">Tokenomics</h3>
+                  <div className="space-y-2">
+                    {(dangerous
+                      ? [
+                          { label: "Team (no vesting)", pct: 87, color: "#ef4444" },
+                          { label: "Sale", pct: 8, color: "#f97316" },
+                          { label: "Liquidity", pct: 5, color: "#a855f7" },
+                        ]
+                      : [
+                          { label: "Public Sale", pct: 20, color: "#8b5cf6" },
+                          { label: "Team (24mo vesting)", pct: 15, color: "#6d28d9" },
+                          { label: "Ecosystem", pct: 35, color: "#7c3aed" },
+                          { label: "Liquidity", pct: 30, color: "#a78bfa" },
+                        ]
+                    ).map(({ label, pct: p, color }) => (
+                      <div key={label} className="flex items-center gap-3">
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                          <div className="h-full rounded-full" style={{ width: `${p}%`, background: color }} />
+                        </div>
+                        <span className="text-xs text-white/40 w-36 text-right">{label} {p}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Buy panel */}
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+              <div className="glass rounded-2xl p-5 sticky top-24 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Rocket size={16} style={{ color: "#8b5cf6" }} />
+                  <h2 className="font-bold text-white text-sm">Participate</h2>
+                </div>
+
+                <div className="p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)" }}>
+                  <p className="text-xs text-white/30 mb-2">Contribution (USDC)</p>
+                  <input
+                    type="number"
+                    value={contribution}
+                    onChange={(e) => setContribution(e.target.value)}
+                    className="w-full bg-transparent text-2xl font-bold text-white outline-none"
+                  />
+                  <div className="flex gap-1.5 mt-2">
+                    {["100", "500", "1000"].map((v) => (
+                      <button key={v} onClick={() => setContribution(v)} className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors" style={{ background: "rgba(139,92,246,0.15)", color: "#a78bfa" }}>
+                        ${v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  {[
+                    { label: "You get", value: dangerous ? `${(parseFloat(contribution || "0") / 0.0001 / 1000).toFixed(0)}K SCAM` : `${(parseFloat(contribution || "0") / 0.05).toFixed(0)} NOVA` },
+                    { label: "Min / Max", value: "$100 / $10,000" },
+                    { label: "Lock period", value: dangerous ? "None" : "3 months" },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex justify-between">
+                      <span className="text-white/40">{label}</span>
+                      <span className="font-semibold text-white">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {success ? (
+                  <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full py-3.5 rounded-xl text-center font-bold text-violet-300 text-sm" style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)" }}>
+                    ✓ ${contribution} Invested
+                  </motion.div>
+                ) : (
+                  <button onClick={handleBuy} className="w-full py-3.5 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110" style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}>
+                    {connected ? "Contribute Now" : "Connect Wallet"}
+                  </button>
+                )}
+
+                {!dangerous && (
+                  <a href="#" className="flex items-center justify-center gap-1.5 text-xs text-white/25 hover:text-white/50 transition-colors">
+                    View audit report <ExternalLink size={11} />
+                  </a>
+                )}
+              </div>
+
+              {/* Social proof */}
+              <div className="mt-4 glass rounded-2xl p-4 flex items-center gap-3">
+                <Users size={14} className="text-violet-400" />
+                <span className="text-xs text-white/40"><strong className="text-white">{dangerous ? "12" : "3,847"}</strong> participants</span>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Demo toggle */}
+          <div className="mt-12 flex justify-center">
+            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <span className="text-xs text-white/30">Simulate rug pull project</span>
+              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#ef4444" : "rgba(255,255,255,0.1)" }}>
+                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
+              </button>
+              {dangerous && <span className="text-xs text-red-400 font-medium">⚠ Danger mode</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <RiskPreview
+        open={previewTx !== null}
+        transactionXdr={previewTx}
+        userWallet={walletAddress ?? null}
+        scenarioLabel={scenarioLabel}
+        onClose={() => setPreviewTx(null)}
+        onProceedWithBlackthorn={sendViaBlackthorn}
+        onProceedRaw={sendRaw}
+      />
+    </SiteShell>
+  );
+}

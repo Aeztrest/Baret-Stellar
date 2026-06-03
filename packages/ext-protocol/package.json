@@ -1,0 +1,20 @@
+{
+  "name": "@stellar-thorn/ext-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types + envelope helpers for the BLACKTHORN extension message bus. Used by background, popup, options, content scripts, and inpage provider.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

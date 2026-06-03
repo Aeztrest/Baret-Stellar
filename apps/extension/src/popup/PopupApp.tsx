@@ -1,0 +1,88 @@
+/**
+ * Popup root. Picks which surface to show based on wallet phase, then
+ * delegates to the appropriate tab.
+ * Spec: docs/wallet-spec.md §3.
+ */
+
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useRpc, useWalletContext } from "../shared/state-context";
+import { LockedScreen } from "./LockedScreen";
+import { UninitializedScreen } from "./UninitializedScreen";
+import { TopStrip } from "./TopStrip";
+import { TabBar, type PopupTab } from "./TabBar";
+import { Home } from "./Home";
+import { Activity } from "./Activity";
+import { Allowances } from "./Allowances";
+import { Settings } from "./Settings";
+import { SignRequest } from "./SignRequest";
+import { ConnectApproval } from "./ConnectApproval";
+
+export function PopupApp() {
+  const { state, loading, error } = useWalletContext();
+  const rpc = useRpc();
+  const [tab, setTab] = useState<PopupTab>("home");
+  const [pendingKind, setPendingKind] = useState<string | null>(null);
+
+  // When phase=signing, the head of the queue may be a transaction OR a
+  // connect-approval. Poll the queue head so the popup routes to the right
+  // screen — SignRequest for txs/messages, ConnectApproval for connect.
+  useEffect(() => {
+    if (state?.phase !== "signing") { setPendingKind(null); return; }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const r = await rpc.call("tx.peekRequest", undefined as never);
+        if (cancelled) return;
+        setPendingKind(r?.kind ?? null);
+      } catch { /* ignore */ }
+    };
+    void tick();
+    const t = setInterval(tick, 600);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [state?.phase, rpc]);
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 size={20} className="animate-spin text-accent-soft" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center px-6 text-center gap-3">
+        <p className="text-bad text-sm font-semibold">Couldn't reach background</p>
+        <p className="text-text-muted text-xs">{error}</p>
+        <p className="text-text-faint text-[10px] mt-3">Try closing and reopening the popup.</p>
+      </div>
+    );
+  }
+
+  if (!state || state.phase === "uninitialized") return <UninitializedScreen />;
+  if (state.phase === "locked") return <LockedScreen />;
+  if (state.phase === "signing") {
+    if (pendingKind === "connect") return <ConnectApproval />;
+    return <SignRequest />;
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      <TopStrip
+        state={state}
+        onOpenAccount={() => { /* T22: account picker sheet */ }}
+        onOpenSettings={() => setTab("settings")}
+      />
+
+      <div className="flex-1 flex flex-col min-h-0">
+        {tab === "home"       && <Home />}
+        {tab === "activity"   && <Activity />}
+        {tab === "allowances" && <Allowances />}
+        {tab === "settings"   && <Settings />}
+      </div>
+
+      <TabBar active={tab} onChange={setTab} alertCount={state.alertsUnread} />
+    </div>
+  );
+}

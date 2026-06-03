@@ -1,0 +1,54 @@
+# DeltaGuard: API + demo arayüzü
+#
+# Çalıştır (repo kökü):
+#   docker compose up --build
+#
+# Arayüz: http://SUNUCU_IP:5173
+# API (doğrudan curl): http://SUNUCU_IP:18080 — içeride 8080; host 8080 Coolify vb. ile çakışmasın diye 18080.
+# Güvenlik duvarı: 5173 ve 18080 (veya DELTAG_HOST_API_PORT) açık olmalı.
+#
+# Kimlik doğrulama: varsayılan API anahtarı "docker-demo-key" (DELTAG_API_KEYS ile değiştirin).
+
+name: deltaguard
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:${DELTAG_HOST_API_PORT:-18080}:8080"
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      LOG_LEVEL: info
+      DELTAG_API_KEYS: ${DELTAG_API_KEYS:-docker-demo-key}
+      RPC_MAINNET_BETA: ${RPC_MAINNET_BETA:-https://api.mainnet-beta.solana.com}
+      RPC_DEVNET: ${RPC_DEVNET:-https://api.devnet.solana.com}
+      RPC_TESTNET: ${RPC_TESTNET:-https://api.testnet.solana.com}
+      X402_ENABLED: ${X402_ENABLED:-false}
+      DELTAG_TRUST_PROXY: "true"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:${DELTAG_HOST_WEB_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy

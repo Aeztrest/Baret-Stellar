@@ -1,0 +1,43 @@
+import { Guides } from '@/components/Guides'
+import { Resources } from '@/components/Resources'
+import { HeroPattern } from '@/components/HeroPattern'
+
+export const metadata = {
+  title: 'Blackthorn API',
+  description:
+    'Pre-signature transaction security for Solana. Simulate, analyze, and block dangerous transactions before they are signed.',
+}
+
+export const sections = [
+  { title: 'Guides', id: 'guides' },
+  { title: 'API Reference', id: 'resources' },
+]
+
+<HeroPattern />
+
+# Blackthorn API
+
+Blackthorn is a pre-signature transaction security layer for Solana. Before a user signs, Blackthorn simulates the transaction, runs 7 independent risk detectors, evaluates your policy rules, and returns a clear `safe: true/false` verdict with full findings. {{ className: 'lead' }}
+
+<div className="not-prose mt-6 mb-16 flex gap-3">
+  <Button href="/quickstart" arrow="right">
+    <>Quickstart</>
+  </Button>
+  <Button href="/authentication" variant="outline">
+    <>Get API Key</>
+  </Button>
+</div>
+
+## How it works {{ anchor: false }}
+
+Every request to `/v1/analyze` goes through the same pipeline: decode the transaction, resolve Address Lookup Tables, fetch live account states from RPC, simulate execution without broadcasting, then run 7 specialized detectors in parallel. The policy engine evaluates your configured rules against the findings and returns a final verdict — all before any signature is requested. {{ className: 'lead' }}
+
+<div className="not-prose">
+  <Button href="/contacts" variant="text" arrow="right">
+    <>Analyze your first transaction</>
+  </Button>
+</div>
+
+<Guides />
+
+<Resources />

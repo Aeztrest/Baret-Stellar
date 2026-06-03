@@ -1,0 +1,150 @@
+export const metadata = {
+  title: 'Quickstart',
+  description:
+    'Analyze your first Solana transaction with Blackthorn in under 2 minutes.',
+}
+
+# Quickstart
+
+This guide takes you from zero to your first transaction analysis in under 2 minutes. All you need is an API key and a base64-encoded Solana transaction. {{ className: 'lead' }}
+
+<Note>
+  Before making requests, grab your API key from the Blackthorn dashboard under
+  **Settings → API Keys**. Pass it as the `X-API-Key` header on every request.
+</Note>
+
+## Analyze a transaction
+
+Send a `POST` request to `/v1/analyze` with your transaction encoded as base64. Blackthorn will simulate it, run 7 risk detectors, and return a verdict.
+
+<CodeGroup tag="POST" label="/v1/analyze">
+
+```bash {{ title: 'cURL' }}
+curl -X POST https://api.blackthorn.io/v1/analyze \
+  -H "X-API-Key: {your-api-key}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
+    "cluster": "mainnet-beta"
+  }'
+```
+
+```js
+const response = await fetch('https://api.blackthorn.io/v1/analyze', {
+  method: 'POST',
+  headers: {
+    'X-API-Key': process.env.BLACKTHORN_API_KEY,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    transaction: serializedTxBase64,
+    cluster: 'mainnet-beta',
+  }),
+})
+
+const result = await response.json()
+console.log(result.safe) // true or false
+```
+
+```python
+import httpx
+
+response = httpx.post(
+    'https://api.blackthorn.io/v1/analyze',
+    headers={'X-API-Key': API_KEY},
+    json={
+        'transaction': serialized_tx_base64,
+        'cluster': 'mainnet-beta',
+    }
+)
+
+result = response.json()
+print(result['safe'])  # True or False
+```
+
+</CodeGroup>
+
+## Understanding the response
+
+A successful analysis returns a JSON object with the verdict and full findings.
+
+```json {{ title: 'Example response' }}
+{
+  "safe": false,
+  "riskLevel": "high",
+  "confidence": "high",
+  "verdict": "Transaction blocked by policy: unlimited token approval detected.",
+  "interpretation": "Token approval granting unlimited spending authority to an unverified program.",
+  "balanceChanges": [
+    { "account": "7xKX...", "solDelta": -0.000005, "tokens": [] }
+  ],
+  "detectors": {
+    "simulation": { "status": "success", "findings": [] },
+    "program": { "findings": [] },
+    "cpi": { "depth": 2, "findings": [] },
+    "reputation": { "findings": [] },
+    "compute": { "units": 45000, "findings": [] },
+    "delta": {
+      "findings": [
+        {
+          "code": "UNLIMITED_APPROVAL",
+          "severity": "high",
+          "message": "Token approval grants unlimited spending authority."
+        }
+      ]
+    },
+    "token2022": { "findings": [] }
+  },
+  "policy": {
+    "blocked": true,
+    "rule": "blockApprovalChanges",
+    "reason": "Unlimited token approval detected"
+  },
+  "durationMs": 312
+}
+```
+
+## Key response fields
+
+<Properties>
+  <Property name="safe" type="boolean">
+    The final verdict. `false` means the policy engine blocked the transaction.
+  </Property>
+  <Property name="riskLevel" type="string">
+    Overall risk level: `none`, `low`, `medium`, `high`, or `critical`.
+  </Property>
+  <Property name="confidence" type="string">
+    Analysis confidence: `high`, `medium`, or `low`. Low confidence means simulation data was incomplete.
+  </Property>
+  <Property name="verdict" type="string">
+    Human-readable explanation of the decision.
+  </Property>
+  <Property name="interpretation" type="string">
+    Plain-language description of what the transaction does.
+  </Property>
+  <Property name="balanceChanges" type="array">
+    Simulated SOL and token balance changes per account.
+  </Property>
+  <Property name="detectors" type="object">
+    Per-detector findings. Each detector runs independently.
+  </Property>
+  <Property name="policy" type="object">
+    Which policy rule triggered the block decision, if any.
+  </Property>
+  <Property name="durationMs" type="number">
+    Total analysis time in milliseconds.
+  </Property>
+</Properties>
+
+## What's next?
+
+<div className="not-prose">
+  <Button href="/authentication" variant="text" arrow="right">
+    <>Learn about authentication</>
+  </Button>
+</div>
+
+- [Analyze multiple transactions at once](/conversations)
+- [Stream results in real time](/messages)
+- [Configure your policy rules](/webhooks)
+- [Understand the 7 risk detectors](/pagination)

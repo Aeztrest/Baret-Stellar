@@ -1,0 +1,114 @@
+export const metadata = {
+  title: 'Replay',
+  description:
+    'Re-simulate a Solana transaction at a specific historical slot to see what the analysis would have returned at that point in time.',
+}
+
+export const sections = [
+  { title: 'Replay a transaction', id: 'replay-a-transaction' },
+]
+
+# Replay
+
+The replay endpoint re-runs a transaction simulation at a specific historical slot. Use it to audit past analysis decisions, reproduce incidents, or test how your policy configuration would have evaluated historical transactions. {{ className: 'lead' }}
+
+---
+
+## Replay a transaction {{ tag: 'POST', label: '/v1/replay', id: 'replay-a-transaction' }}
+
+<Row>
+  <Col>
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="transaction" type="string">
+        Base64-encoded serialized Solana `VersionedTransaction`.
+      </Property>
+      <Property name="cluster" type="string">
+        Solana cluster: `mainnet-beta` or `devnet`.
+      </Property>
+      <Property name="slot" type="number">
+        The slot number at which to replay the simulation. Must be recent enough that the RPC node still has state for it (typically within the last few epochs).
+      </Property>
+    </Properties>
+
+    ### Optional attributes
+
+    <Properties>
+      <Property name="policy" type="object">
+        Inline policy rules to evaluate against the replayed analysis. Useful for testing what a new policy configuration would have done.
+      </Property>
+      <Property name="policyProfile" type="string">
+        Pre-configured policy profile: `strict`, `defi-permissive`, or `monitor-only`.
+      </Property>
+    </Properties>
+
+    The response structure is identical to a standard `/v1/analyze` response, with an additional `slot` field indicating which slot was used for simulation.
+
+    <Note>
+      Replay uses the Solana RPC `simulateTransaction` with the `minContextSlot`
+      parameter set to your requested slot. If the RPC node no longer has state
+      for that slot, the request will fail with a `SLOT_NOT_AVAILABLE` error.
+    </Note>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="POST" label="/v1/replay">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://api.blackthorn.io/v1/replay \
+      -H "X-API-Key: {your-api-key}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
+        "cluster": "mainnet-beta",
+        "slot": 285741234
+      }'
+    ```
+
+    ```js
+    const result = await fetch('https://api.blackthorn.io/v1/replay', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': process.env.BLACKTHORN_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transaction: serializedTxBase64,
+        cluster: 'mainnet-beta',
+        slot: 285741234,
+      }),
+    }).then(r => r.json())
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "safe": false,
+      "riskLevel": "high",
+      "verdict": "Transaction blocked: reputation match on program address.",
+      "interpretation": "Token transfer to a program associated with a known wallet drainer.",
+      "slot": 285741234,
+      "detectors": {
+        "reputation": {
+          "findings": [
+            {
+              "code": "KNOWN_BAD_ACTOR",
+              "severity": "critical",
+              "address": "DrainerXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "category": "wallet-drainer",
+              "label": "Notorious Drainer v4"
+            }
+          ]
+        }
+      },
+      "durationMs": 445,
+      "analyzedAt": "2025-05-04T14:30:00.000Z"
+    }
+    ```
+
+  </Col>
+</Row>

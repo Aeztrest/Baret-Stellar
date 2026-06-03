@@ -1,0 +1,47 @@
+{
+  "name": "@stellar-thorn/extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "BLACKTHORN — Stellar smart-wallet browser extension. Chrome MV3 + Firefox.",
+  "scripts": {
+    "dev": "vite",
+    "build:chrome": "vite build --mode chrome",
+    "build:firefox": "vite build --mode firefox",
+    "build": "pnpm build:chrome && pnpm build:firefox && pnpm pack:downloads",
+    "pack:downloads": "node scripts/pack-downloads.mjs",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@stellar-thorn/ext-protocol": "workspace:*",
+    "@stellar-thorn/swig-guard": "workspace:*",
+    "@stellar-thorn/ui": "workspace:*",
+    "@stellar/stellar-sdk": "^15.1.0",
+    "bip39": "^3.1.0",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.468.0",
+    "passkey-kit": "^0.12.0",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "tweetnacl": "^1.0.3",
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.31",
+    "@types/chrome": "^0.0.287",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@types/webextension-polyfill": "^0.12.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-node-polyfills": "^0.22.0"
+  }
+}

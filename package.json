@@ -1,0 +1,28 @@
+{
+  "name": "blackthorn-stellar",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm --filter @stellar-thorn/server build",
+    "build:server": "pnpm --filter @stellar-thorn/server build",
+    "build:wallet": "pnpm --filter @stellar-thorn/wallet build",
+    "build:extension": "pnpm --filter @stellar-thorn/extension build",
+    "build:showcase": "pnpm --filter @stellar-thorn/showcase build",
+    "build:guard": "pnpm --filter @stellar-thorn/swig-guard build",
+
+    "dev": "pnpm --filter @stellar-thorn/server dev",
+    "dev:server": "pnpm --filter @stellar-thorn/server dev",
+    "dev:wallet": "pnpm --filter @stellar-thorn/wallet dev",
+    "dev:extension": "pnpm --filter @stellar-thorn/extension dev",
+    "dev:showcase": "pnpm --filter @stellar-thorn/showcase dev",
+    "dev:all": "pnpm -r --parallel --filter @stellar-thorn/server --filter @stellar-thorn/wallet --filter @stellar-thorn/showcase dev",
+
+    "typecheck": "pnpm -r --parallel typecheck",
+    "test": "pnpm --filter @stellar-thorn/server test",
+    "lint": "pnpm --filter @stellar-thorn/server lint",
+
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  }
+}

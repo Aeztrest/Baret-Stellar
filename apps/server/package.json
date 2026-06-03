@@ -1,0 +1,35 @@
+{
+  "name": "@stellar-thorn/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "x402-setup": "tsx src/scripts/x402-setup.ts"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "10.3.0",
+    "@stellar/stellar-sdk": "^15.1.0",
+    "@x402/core": "~2.14.0",
+    "@x402/stellar": "~2.14.0",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.1",
+    "passkey-kit": "^0.12.0",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

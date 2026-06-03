@@ -1,0 +1,196 @@
+export const metadata = {
+  title: 'Analyze Transaction',
+  description:
+    'Submit a Solana transaction for pre-signature security analysis. Returns a safe/unsafe verdict with full findings.',
+}
+
+export const sections = [
+  { title: 'The analysis object', id: 'the-analysis-object' },
+  { title: 'Analyze a transaction', id: 'analyze-a-transaction' },
+]
+
+# Analyze Transaction
+
+The core of Blackthorn. Submit a base64-encoded Solana transaction and receive a comprehensive security analysis before it's signed or broadcast. {{ className: 'lead' }}
+
+---
+
+## The analysis object {{ id: 'the-analysis-object' }}
+
+Every call to `/v1/analyze` returns an analysis object with the following structure.
+
+### Properties
+
+<Properties>
+  <Property name="safe" type="boolean">
+    The final policy verdict. `false` means the policy engine blocked this transaction.
+  </Property>
+  <Property name="riskLevel" type="string">
+    Aggregate risk level: `none`, `low`, `medium`, `high`, or `critical`.
+  </Property>
+  <Property name="confidence" type="string">
+    Analysis confidence: `high`, `medium`, or `low`. Lower confidence means simulation data was incomplete (e.g., account state could not be fetched).
+  </Property>
+  <Property name="verdict" type="string">
+    Human-readable explanation of the block decision, or a summary if no block was triggered.
+  </Property>
+  <Property name="interpretation" type="string">
+    Plain-language description of what the transaction does: "Jupiter swap of 1.5 SOL to USDC", "Token approval to unknown program", etc.
+  </Property>
+  <Property name="balanceChanges" type="array">
+    Simulated SOL and token balance changes per account, derived from pre/post simulation state.
+  </Property>
+  <Property name="detectors" type="object">
+    Per-detector results. Each key is a detector name with its findings and metadata.
+  </Property>
+  <Property name="policy" type="object">
+    The policy evaluation result: which rule matched, the triggered action (`block` or `warn`), and the reason string.
+  </Property>
+  <Property name="programs" type="array">
+    All program IDs called in the transaction, including CPI-invoked programs.
+  </Property>
+  <Property name="cpiTree" type="object">
+    The full cross-program invocation tree showing call depth and relationships.
+  </Property>
+  <Property name="durationMs" type="number">
+    Total analysis duration in milliseconds.
+  </Property>
+  <Property name="analyzedAt" type="timestamp">
+    ISO 8601 timestamp of when the analysis was performed.
+  </Property>
+</Properties>
+
+---
+
+## Analyze a transaction {{ tag: 'POST', label: '/v1/analyze', id: 'analyze-a-transaction' }}
+
+<Row>
+  <Col>
+
+    Submit a Solana transaction for analysis. The transaction must be base64-encoded and in VersionedTransaction format.
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="transaction" type="string">
+        Base64-encoded serialized Solana `VersionedTransaction`.
+      </Property>
+      <Property name="cluster" type="string">
+        Solana cluster to analyze against: `mainnet-beta` or `devnet`.
+      </Property>
+    </Properties>
+
+    ### Optional attributes
+
+    <Properties>
+      <Property name="policy" type="object">
+        Inline policy rules for this request. Overrides any global policy settings. See [Policy Engine](/webhooks).
+      </Property>
+      <Property name="policyProfile" type="string">
+        Pre-configured policy profile: `strict`, `defi-permissive`, or `monitor-only`.
+      </Property>
+      <Property name="walletAddress" type="string">
+        The user's wallet address. Used for audit trail attribution (optional).
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="POST" label="/v1/analyze">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://api.blackthorn.io/v1/analyze \
+      -H "X-API-Key: {your-api-key}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
+        "cluster": "mainnet-beta",
+        "policyProfile": "strict"
+      }'
+    ```
+
+    ```js
+    const result = await fetch('https://api.blackthorn.io/v1/analyze', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': process.env.BLACKTHORN_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transaction: serializedTxBase64,
+        cluster: 'mainnet-beta',
+        policyProfile: 'strict',
+      }),
+    }).then(r => r.json())
+
+    if (!result.safe) {
+      throw new Error(result.verdict)
+    }
+    ```
+
+    ```python
+    import httpx
+
+    result = httpx.post(
+        'https://api.blackthorn.io/v1/analyze',
+        headers={'X-API-Key': API_KEY},
+        json={
+            'transaction': serialized_tx_base64,
+            'cluster': 'mainnet-beta',
+            'policyProfile': 'strict',
+        }
+    ).json()
+
+    if not result['safe']:
+        raise Exception(result['verdict'])
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "safe": false,
+      "riskLevel": "high",
+      "confidence": "high",
+      "verdict": "Transaction blocked: unlimited token approval to unverified program.",
+      "interpretation": "Token approval granting unlimited USDC spending authority.",
+      "balanceChanges": [
+        {
+          "account": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+          "solDelta": -0.000005,
+          "tokens": []
+        }
+      ],
+      "detectors": {
+        "simulation": { "status": "success", "findings": [] },
+        "program": { "findings": [] },
+        "cpi": { "depth": 1, "findings": [] },
+        "reputation": { "findings": [] },
+        "compute": { "units": 12000, "findings": [] },
+        "delta": {
+          "findings": [
+            {
+              "code": "UNLIMITED_APPROVAL",
+              "severity": "high",
+              "message": "Token approval grants unlimited spending authority to TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA."
+            }
+          ]
+        },
+        "token2022": { "findings": [] }
+      },
+      "policy": {
+        "blocked": true,
+        "rule": "blockApprovalChanges",
+        "reason": "Unlimited token approval detected"
+      },
+      "programs": [
+        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+      ],
+      "durationMs": 287,
+      "analyzedAt": "2025-05-04T14:23:01.000Z"
+    }
+    ```
+
+  </Col>
+</Row>
