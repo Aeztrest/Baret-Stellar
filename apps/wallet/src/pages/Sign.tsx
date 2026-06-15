@@ -170,12 +170,12 @@ export function Sign() {
 
   /* ─── render ─── */
 
-  if (walletPhase === "loading") return <PopupShell><p className="text-sm text-white/50">Loading wallet…</p></PopupShell>;
+  if (walletPhase === "loading") return <PopupShell><p className="text-sm text-ink-500">Loading wallet…</p></PopupShell>;
   if (walletPhase === "unprovisioned") {
-    return <PopupShell><Centered><p className="text-sm text-white">No wallet — open the wallet to create one.</p></Centered></PopupShell>;
+    return <PopupShell><Centered><p className="text-sm text-ink-900">No wallet — open the wallet to create one.</p></Centered></PopupShell>;
   }
   if (!request) {
-    return <PopupShell><Centered><p className="text-sm text-white/50">Waiting for dApp request…</p></Centered></PopupShell>;
+    return <PopupShell><Centered><p className="text-sm text-ink-500">Waiting for dApp request…</p></Centered></PopupShell>;
   }
 
   return (
@@ -186,8 +186,8 @@ export function Sign() {
         {phase === "evaluating" && (
           <div className="glass rounded-2xl p-10 flex flex-col items-center gap-3 text-center">
             <Loader2 size={22} className="animate-spin text-accent-soft" />
-            <p className="text-sm text-white/70">Simulating with BLACKTHORN…</p>
-            <p className="text-xs text-white/35">Wrapping with Swig · running policy checks</p>
+            <p className="text-sm text-ink-600">Simulating with Baret…</p>
+            <p className="text-xs text-ink-400">Wrapping with Swig · running policy checks</p>
           </div>
         )}
 
@@ -213,17 +213,17 @@ export function Sign() {
 
         {phase === "done" && (
           <div className="glass rounded-2xl p-8 text-center space-y-2"
-            style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.25)" }}>
-            <ShieldCheck size={28} className="mx-auto text-emerald-400" />
-            <p className="font-bold text-emerald-300 text-sm">Signed & returned to dApp</p>
+            style={{ background: "#ecfdf5", border: "1px solid rgba(16,185,129,0.3)" }}>
+            <ShieldCheck size={28} className="mx-auto text-emerald-600" />
+            <p className="font-bold text-emerald-600 text-sm">Signed & returned to dApp</p>
           </div>
         )}
 
         {phase === "error" && (
           <div className="glass rounded-2xl p-5 space-y-2"
-            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.25)" }}>
-            <div className="flex items-center gap-2"><AlertTriangle size={14} className="text-red-400" /><p className="font-semibold text-red-300 text-sm">Could not complete</p></div>
-            <p className="text-xs text-red-200/75 break-words">{error}</p>
+            style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.3)" }}>
+            <div className="flex items-center gap-2"><AlertTriangle size={14} className="text-[#DC2626]" /><p className="font-semibold text-[#DC2626] text-sm">Could not complete</p></div>
+            <p className="text-xs text-[#DC2626]/80 break-words">{error}</p>
             <button onClick={() => reject(error ?? "Internal error")} className="btn-ghost w-full">Close</button>
           </div>
         )}
@@ -239,13 +239,13 @@ function Header({ request }: { request: SignRequestMessage }) {
         <Globe size={13} className="text-accent-soft" />
         <span className="text-xs font-mono text-accent-soft truncate">{request.origin}</span>
       </div>
-      <h1 className="text-xl font-bold text-white">
+      <h1 className="text-xl font-display font-bold text-ink-900">
         {request.appName ?? "App"} requests a signature
       </h1>
-      <p className="text-xs text-white/45">
+      <p className="text-xs text-ink-500">
         {request.mode === "signAndSend"
-          ? "BLACKTHORN simulates this tx, then signs and broadcasts on your behalf."
-          : "BLACKTHORN simulates and signs; the dApp broadcasts."}
+          ? "Baret simulates this tx, then signs and broadcasts on your behalf."
+          : "Baret simulates and signs; the dApp broadcasts."}
       </p>
     </div>
   );

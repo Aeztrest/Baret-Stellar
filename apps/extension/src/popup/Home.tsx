@@ -73,7 +73,7 @@ export function Home() {
         className="rounded-card p-5 relative overflow-hidden"
         style={{
           background:
-            "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015))",
+            "linear-gradient(135deg, rgba(255,107,0,0.08), rgba(255,107,0,0.015))",
           border: "1px solid var(--line)",
         }}
       >
@@ -211,9 +211,9 @@ function ActionButton({
       onClick={onClick}
       disabled={!onClick || loading}
       className="flex flex-col items-center gap-1 py-2.5 rounded-input transition-all
-                 hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed"
+                 hover:bg-black/[0.06] disabled:opacity-50 disabled:cursor-not-allowed"
       style={{
-        background: "rgba(255,255,255,0.025)",
+        background: "rgba(20,20,20,0.03)",
         border: "1px solid var(--line)",
       }}
     >

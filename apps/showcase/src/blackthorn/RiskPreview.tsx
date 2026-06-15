@@ -1,12 +1,12 @@
 /**
  * RiskPreview — pre-sign analysis overlay rendered ON THE SITE before the
- * wallet popup opens. Calls BLACKTHORN's analyze server with the candidate
+ * wallet popup opens. Calls Baret's analyze server with the candidate
  * transaction, surfaces the verdict + reasons + balance deltas + findings,
  * and lets the user decide:
  *
- *   - "Sign with BLACKTHORN" → the existing wallet flow (wallet popup runs
+ *   - "Sign with Baret" → the existing wallet flow (wallet popup runs
  *     the same analysis a second time as authoritative gatekeeper).
- *   - "Send without protection" → bypasses BLACKTHORN entirely and just
+ *   - "Send without protection" → bypasses Baret entirely and just
  *     signs+sends via the connected wallet. Lets visitors viscerally
  *     compare a guarded site vs a vanilla one.
  *
@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck, ShieldX, AlertTriangle, X, Loader2, Zap, EyeOff,
-  ArrowDownRight, ArrowUpRight,
+  ArrowDownRight, ArrowUpRight, HardHat,
 } from "lucide-react";
 import { analyzeTransactionForPreview, type AnalysisResult, type RiskFinding } from "./analyze";
 
@@ -63,7 +63,7 @@ export function RiskPreview({
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={onClose}
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(8px)" }}
+          style={{ background: "rgba(20,20,20,0.45)", backdropFilter: "blur(8px)" }}
         >
           <motion.div
             initial={{ scale: 0.94, opacity: 0, y: 12 }}
@@ -71,40 +71,41 @@ export function RiskPreview({
             exit={{ scale: 0.94, opacity: 0, y: 12 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl overflow-hidden"
-            style={{ background: "#0b0b10", border: "1px solid rgba(255,255,255,0.08)" }}
+            className="w-full max-w-md rounded-2xl overflow-hidden bg-white shadow-lift"
+            style={{ border: "1px solid rgba(20,20,20,0.10)" }}
           >
-            <header className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-white/55">
-                <ShieldCheck size={12} className="text-white/70" />
-                <span className="uppercase tracking-wider font-semibold">BLACKTHORN pre-sign</span>
+            <div className="hazard h-1" aria-hidden />
+            <header className="px-5 py-4 border-b border-ink-900/8 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-ink-600">
+                <HardHat size={13} className="text-brand-500" />
+                <span className="uppercase tracking-wider font-bold">Baret pre-sign</span>
               </div>
-              <button onClick={onClose} className="text-white/30 hover:text-white/70">
+              <button onClick={onClose} className="text-ink-300 hover:text-ink-700">
                 <X size={16} />
               </button>
             </header>
 
             <div className="px-5 pt-4 pb-2">
-              <p className="text-[10px] uppercase tracking-wider text-white/35 font-semibold">Action</p>
-              <p className="text-sm text-white/85 mt-0.5 mb-3">{scenarioLabel}</p>
+              <p className="text-[10px] uppercase tracking-wider text-ink-400 font-bold">Action</p>
+              <p className="text-sm text-ink-800 mt-0.5 mb-3">{scenarioLabel}</p>
             </div>
 
             <div className="px-5 pb-3 space-y-3">
               {loading && (
-                <div className="rounded-xl p-4 flex items-center gap-2.5 text-sm text-white/55"
-                     style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <Loader2 size={14} className="animate-spin text-white/70" />
+                <div className="rounded-xl p-4 flex items-center gap-2.5 text-sm text-ink-500"
+                     style={{ background: "rgba(20,20,20,0.03)", border: "1px solid rgba(20,20,20,0.08)" }}>
+                  <Loader2 size={14} className="animate-spin text-brand-500" />
                   Simulating + running 25+ risk detectors…
                 </div>
               )}
 
               {error && (
                 <div className="rounded-xl p-3 text-xs flex items-start gap-2"
-                     style={{ background: "rgba(248,113,113,0.08)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.25)" }}>
+                     style={{ background: "rgba(255,107,0,0.07)", color: "#C24E02", border: "1px solid rgba(255,107,0,0.35)" }}>
                   <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                   <div>
                     <p className="font-semibold mb-0.5">Analyze server unreachable</p>
-                    <p className="text-white/40 text-[11px] break-all">{error}</p>
+                    <p className="text-ink-500 text-[11px] break-all">{error}</p>
                   </div>
                 </div>
               )}
@@ -114,34 +115,34 @@ export function RiskPreview({
               {result && <Findings findings={result.riskFindings} />}
             </div>
 
-            <footer className="px-5 py-4 border-t border-white/5 bg-white/[0.015] space-y-2">
+            <footer className="px-5 py-4 border-t border-ink-900/8 bg-bone space-y-2">
               <CompareBar verdict={verdict} loading={loading} />
 
               <div className="flex gap-2">
                 <button
                   onClick={() => { void onProceedRaw(); }}
-                  className="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.7)" }}
-                  title="Bypass BLACKTHORN — sign + send without firewall"
+                  className="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 text-ink-600"
+                  style={{ background: "#fff", border: "1px solid rgba(20,20,20,0.14)" }}
+                  title="Bypass Baret — sign + send without firewall"
                 >
                   <EyeOff size={11} /> Send without protection
                 </button>
                 <button
                   onClick={() => { void onProceedWithBlackthorn(); }}
                   disabled={loading}
-                  className="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+                  className="flex-1 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                   style={{
-                    background: blocked ? "rgba(248,113,113,0.18)" : advisory ? "rgba(251,191,36,0.18)" : "white",
-                    color: blocked ? "#fca5a5" : advisory ? "#fbbf24" : "#000",
-                    border: blocked ? "1px solid rgba(248,113,113,0.35)" : advisory ? "1px solid rgba(251,191,36,0.35)" : "1px solid white",
+                    background: blocked ? "rgba(255,107,0,0.12)" : advisory ? "rgba(255,136,56,0.14)" : "#141414",
+                    color: blocked ? "#C24E02" : advisory ? "#993E06" : "#fff",
+                    border: blocked ? "1px solid rgba(255,107,0,0.45)" : advisory ? "1px solid rgba(255,136,56,0.45)" : "1px solid #141414",
                   }}
                 >
-                  <Zap size={11} />
-                  {blocked ? "Sign anyway with BLACKTHORN" : advisory ? "Sign with BLACKTHORN" : "Sign with BLACKTHORN"}
+                  <Zap size={11} className={blocked || advisory ? "" : "text-brand-400"} />
+                  {blocked ? "Sign anyway with Baret" : "Sign with Baret"}
                 </button>
               </div>
-              <p className="text-[10px] text-white/35 leading-snug px-1">
-                "Sign with BLACKTHORN" routes through the extension popup, where the
+              <p className="text-[10px] text-ink-400 leading-snug px-1">
+                "Sign with Baret" routes through the extension popup, where the
                 same checks fire as the wallet's authoritative gatekeeper. "Without
                 protection" sends directly through the wallet, no firewall — shown
                 for demo comparison only.
@@ -159,9 +160,9 @@ export function RiskPreview({
 function Verdict({ result }: { result: AnalysisResult }) {
   const decision = result.decision;
   const tone =
-    decision === "block"    ? { bg: "rgba(248,113,113,0.07)", border: "rgba(248,113,113,0.30)", color: "#fca5a5", label: "BLOCKED by your policy", Icon: ShieldX }
-  : decision === "advisory" ? { bg: "rgba(251,191,36,0.07)", border: "rgba(251,191,36,0.30)", color: "#fbbf24", label: "Sign with caution",        Icon: AlertTriangle }
-                            : { bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.30)", color: "#34d399", label: "Safe to sign",              Icon: ShieldCheck };
+    decision === "block"    ? { bg: "rgba(255,107,0,0.08)",  border: "rgba(255,107,0,0.45)",  color: "#C24E02", label: "BLOCKED by your policy", Icon: ShieldX }
+  : decision === "advisory" ? { bg: "rgba(255,136,56,0.08)", border: "rgba(255,136,56,0.40)", color: "#993E06", label: "Sign with caution",       Icon: AlertTriangle }
+                            : { bg: "rgba(16,185,129,0.07)", border: "rgba(16,185,129,0.35)", color: "#059669", label: "Safe to sign",             Icon: ShieldCheck };
   const Icon = tone.Icon;
   return (
     <div className="rounded-xl p-3.5 flex gap-3"
@@ -170,7 +171,7 @@ function Verdict({ result }: { result: AnalysisResult }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold" style={{ color: tone.color }}>{tone.label}</p>
         {result.reasons.length > 0 && (
-          <ul className="text-[11px] text-white/65 mt-1 space-y-0.5">
+          <ul className="text-[11px] text-ink-600 mt-1 space-y-0.5">
             {result.reasons.slice(0, 3).map((r, i) => (
               <li key={i} className="leading-snug">· {r}</li>
             ))}
@@ -193,8 +194,8 @@ function Changes({ result }: { result: AnalysisResult }) {
 
   return (
     <div className="rounded-xl p-3"
-         style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
-      <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold mb-2">What changes</p>
+         style={{ background: "rgba(20,20,20,0.03)", border: "1px solid rgba(20,20,20,0.08)" }}>
+      <p className="text-[10px] uppercase tracking-wider text-ink-400 font-bold mb-2">What changes</p>
       <div className="space-y-1.5 text-[11px]">
         {native.map((n, i) => (
           <DeltaRow key={`xlm-${i}`}
@@ -245,11 +246,11 @@ function formatXlmDelta(stroopsStr: string): string {
 function DeltaRow({ label, value, negative, warn }: {
   label: string; value: string; negative?: boolean; warn?: boolean;
 }) {
-  const color = warn ? "#fbbf24" : negative ? "#fca5a5" : "#34d399";
+  const color = warn ? "#993E06" : negative ? "#C24E02" : "#059669";
   const Arrow = negative ? ArrowUpRight : ArrowDownRight;
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="font-mono text-white/55 truncate">{label}</span>
+      <span className="font-mono text-ink-500 truncate">{label}</span>
       <span className="font-mono shrink-0 flex items-center gap-1" style={{ color }}>
         <Arrow size={11} />{value}
       </span>
@@ -261,8 +262,8 @@ function Findings({ findings }: { findings: RiskFinding[] }) {
   if (findings.length === 0) return null;
   return (
     <div className="rounded-xl p-3 space-y-1.5"
-         style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
-      <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+         style={{ background: "rgba(20,20,20,0.03)", border: "1px solid rgba(20,20,20,0.08)" }}>
+      <p className="text-[10px] uppercase tracking-wider text-ink-400 font-bold">
         Findings ({findings.length})
       </p>
       {findings.map((f, i) => <FindingRow key={i} finding={f} />)}
@@ -272,22 +273,22 @@ function Findings({ findings }: { findings: RiskFinding[] }) {
 
 function FindingRow({ finding }: { finding: RiskFinding }) {
   const tone =
-    finding.severity === "critical" || finding.severity === "high" ? "#fca5a5"
-  : finding.severity === "medium"                                  ? "#fbbf24"
-                                                                   : "rgba(255,255,255,0.45)";
+    finding.severity === "critical" || finding.severity === "high" ? "#C24E02"
+  : finding.severity === "medium"                                  ? "#993E06"
+                                                                   : "#6B6862";
   return (
-    <div className="rounded-lg px-2.5 py-2 flex items-start gap-2"
-         style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
+    <div className="rounded-lg px-2.5 py-2 flex items-start gap-2 bg-white"
+         style={{ border: "1px solid rgba(20,20,20,0.07)" }}>
       <span className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{ background: tone }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="font-mono text-[10px] font-semibold" style={{ color: tone }}>{finding.code}</span>
           <span className="text-[9px] uppercase tracking-wider font-bold px-1 py-px rounded"
-                style={{ background: "rgba(255,255,255,0.06)", color: tone }}>
+                style={{ background: "rgba(20,20,20,0.06)", color: tone }}>
             {finding.severity}
           </span>
         </div>
-        <p className="text-[11px] text-white/65 mt-0.5 leading-relaxed">{finding.message}</p>
+        <p className="text-[11px] text-ink-600 mt-0.5 leading-relaxed">{finding.message}</p>
       </div>
     </div>
   );
@@ -299,15 +300,15 @@ function CompareBar({ verdict, loading }: { verdict: AnalysisResult["decision"];
   const withoutMsg = "no checks · signs immediately";
   return (
     <div className="grid grid-cols-2 gap-2 text-[10px]">
-      <div className="rounded-lg p-2 flex flex-col"
-           style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
-        <span className="text-white/35 uppercase tracking-wider font-semibold">Without BLACKTHORN</span>
-        <span className="text-white/75 mt-0.5">{withoutMsg}</span>
+      <div className="rounded-lg p-2 flex flex-col bg-white"
+           style={{ border: "1px solid rgba(20,20,20,0.08)" }}>
+        <span className="text-ink-400 uppercase tracking-wider font-bold">Without Baret</span>
+        <span className="text-ink-600 mt-0.5">{withoutMsg}</span>
       </div>
       <div className="rounded-lg p-2 flex flex-col"
-           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}>
-        <span className="text-white/35 uppercase tracking-wider font-semibold">With BLACKTHORN</span>
-        <span className="text-white mt-0.5">{withMsg}</span>
+           style={{ background: "rgba(255,107,0,0.07)", border: "1px solid rgba(255,107,0,0.35)" }}>
+        <span className="text-brand-700 uppercase tracking-wider font-bold">With Baret</span>
+        <span className="text-ink-900 font-semibold mt-0.5">{withMsg}</span>
       </div>
     </div>
   );

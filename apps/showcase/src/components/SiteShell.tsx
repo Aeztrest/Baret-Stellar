@@ -1,8 +1,8 @@
 /**
- * SiteShell — common chrome (nav + content slot + Blackthorn badge) shared
- * by every showcase dApp site. Sits inside the global WalletProvider in
- * App.tsx, so `useWallet()` is always available and the picker modal lives
- * in one place.
+ * SiteShell — common chrome (nav + content slot + Baret badge) shared
+ * by every showcase dApp site. Light-theme variant: each fake dApp keeps
+ * its own accent color (`theme.primary`) on a white/bone canvas so the
+ * whole showcase reads as one product family.
  */
 
 import { type ReactNode } from "react";
@@ -32,20 +32,20 @@ function NavBar({ theme, navLinks }: { theme: SiteTheme; navLinks?: Props["navLi
     <nav
       className="fixed top-0 inset-x-0 z-40 flex items-center justify-between px-6 py-4"
       style={{
-        background: `${theme.bg}cc`,
+        background: "rgba(255,255,255,0.85)",
         backdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: "1px solid rgba(20,20,20,0.08)",
       }}
     >
       <div className="flex items-center gap-8">
         <div className="flex items-center gap-2.5">
           {theme.logo}
-          <span className="font-bold text-white">{theme.name}</span>
+          <span className="font-bold text-ink-900">{theme.name}</span>
         </div>
         {navLinks && (
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((l) => (
-              <a key={l.label} href={l.href ?? "#"} className="text-sm text-white/50 hover:text-white/80 transition-colors">
+              <a key={l.label} href={l.href ?? "#"} className="text-sm text-ink-400 hover:text-ink-900 transition-colors">
                 {l.label}
               </a>
             ))}
@@ -54,11 +54,14 @@ function NavBar({ theme, navLinks }: { theme: SiteTheme; navLinks?: Props["navLi
       </div>
       <div className="flex items-center gap-3">
         {connected ? (
-          <button onClick={disconnect} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium glass hover:bg-white/8 transition-all">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <ShieldCheck size={11} className="text-emerald-400/80" />
-            <span className="font-mono text-xs text-white/70">{shortAddress}</span>
-            <ChevronDown size={12} className="text-white/30" />
+          <button
+            onClick={disconnect}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-white border border-ink-900/12 hover:border-ink-900/30 shadow-card transition-all"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <ShieldCheck size={11} className="text-emerald-600" />
+            <span className="font-mono text-xs text-ink-600">{shortAddress}</span>
+            <ChevronDown size={12} className="text-ink-300" />
           </button>
         ) : (
           <button
@@ -80,11 +83,14 @@ function NavBar({ theme, navLinks }: { theme: SiteTheme; navLinks?: Props["navLi
 export function SiteShell({ theme, children, navLinks }: Props) {
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen text-ink-900"
       style={{ "--site-primary": theme.primary, "--site-accent": theme.accent ?? theme.primary, "--site-bg": theme.bg, background: theme.bg } as React.CSSProperties}
     >
-      <Link to="/" className="fixed top-4 left-4 z-50 flex items-center gap-1.5 text-xs text-white/20 hover:text-white/50 transition-colors">
-        <ArrowLeft size={12} />
+      <Link
+        to="/"
+        className="fixed bottom-5 left-5 z-50 flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-2 rounded-full bg-ink-900/90 hover:bg-ink-900 shadow-lift transition-colors"
+      >
+        <ArrowLeft size={12} className="text-brand-400" />
         Showcase
       </Link>
       <NavBar theme={theme} navLinks={navLinks} />

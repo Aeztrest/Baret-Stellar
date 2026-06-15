@@ -129,7 +129,7 @@ export function SiteDetailPage() {
       <div className="flex items-start gap-4">
         <div
           className="w-12 h-12 rounded-input flex items-center justify-center shrink-0"
-          style={{ background: blocked ? "var(--bad-dim)" : "rgba(255,255,255,0.04)", border: "1px solid var(--line)" }}
+          style={{ background: blocked ? "var(--bad-dim)" : "rgba(20,20,20,0.045)", border: "1px solid var(--line)" }}
         >
           {blocked
             ? <ShieldOff size={20} className="text-bad" />
@@ -262,7 +262,7 @@ function ToggleRow({
         style={{
           background: checked
             ? (dangerColor ? "var(--bad)" : "var(--accent)")
-            : "rgba(255,255,255,0.10)",
+            : "rgba(20,20,20,0.14)",
         }}
       >
         <span
@@ -271,7 +271,7 @@ function ToggleRow({
             left: checked ? "calc(100% - 22px)" : "2px",
             width: "20px",
             height: "20px",
-            background: checked ? "#000" : "var(--text)",
+            background: checked ? "#fff" : "var(--text)",
           }}
         />
       </button>
@@ -285,7 +285,7 @@ function AllowanceRow({ a }: { a: AllowanceSnapshot }) {
     a.status === "paused"  ? "pill-warn" :
                              "pill-bad";
   return (
-    <div className="p-3 rounded-input" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid var(--line)" }}>
+    <div className="p-3 rounded-input" style={{ background: "rgba(20,20,20,0.03)", border: "1px solid var(--line)" }}>
       <div className="flex items-center justify-between mb-2">
         <p className="font-mono text-xs text-text-muted truncate">{shortAddr(a.asset)}</p>
         <span className={`pill ${statusPill}`}>{a.status}</span>

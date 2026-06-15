@@ -35,7 +35,7 @@ export function LockedScreen() {
         <Mark size={36} />
       </div>
       <div className="text-center space-y-1">
-        <h1 className="text-lg font-extrabold tracking-tight">BLACKTHORN</h1>
+        <h1 className="text-lg font-extrabold tracking-tight">Baret</h1>
         <p className="text-text-faint text-xs">Enter your passphrase to unlock</p>
       </div>
 

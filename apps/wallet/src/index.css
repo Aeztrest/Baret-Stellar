@@ -2,27 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Baret wallet — white-first, safety-orange + ink-black.
+ * Mirrors packages/ui/src/tokens.css.
+ */
+
 @layer base {
   html, body, #root { height: 100%; }
   body {
-    @apply bg-bg text-white antialiased;
+    @apply bg-bg text-ink-900 antialiased;
     font-feature-settings: "cv11", "ss01";
   }
   *::-webkit-scrollbar { width: 8px; height: 8px; }
   *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 4px; }
-  *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+  *::-webkit-scrollbar-thumb { background: rgba(20,20,20,0.10); border-radius: 4px; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(20,20,20,0.18); }
+  ::selection { background: rgba(255,107,0,0.25); }
 }
 
 @layer components {
   .glass {
-    background: rgba(255, 255, 255, 0.025);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(20, 20, 20, 0.09);
     backdrop-filter: blur(8px);
   }
   .glass-strong {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(20, 20, 20, 0.12);
     backdrop-filter: blur(12px);
   }
   .btn {
@@ -30,23 +36,39 @@
   }
   .btn-primary {
     @apply btn text-white;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    background: linear-gradient(135deg, #FF6B00, #EA5E00);
+    box-shadow: 0 4px 14px -2px rgba(255, 107, 0, 0.30);
   }
-  .btn-primary:hover { filter: brightness(1.1); }
-  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; box-shadow: none; }
   .btn-ghost {
-    @apply btn glass text-white/85 hover:bg-white/5;
+    @apply btn text-ink-800 bg-white;
+    border: 1px solid rgba(20, 20, 20, 0.14);
   }
+  .btn-ghost:hover { background: #FAF8F4; border-color: rgba(20, 20, 20, 0.28); }
   .btn-danger {
-    @apply btn text-red-300;
-    background: rgba(239,68,68,0.1);
-    border: 1px solid rgba(239,68,68,0.25);
+    @apply btn;
+    color: #DC2626;
+    background: rgba(220, 38, 38, 0.07);
+    border: 1px solid rgba(220, 38, 38, 0.25);
   }
   .input {
-    @apply w-full px-3.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-white text-sm font-mono outline-none transition-colors;
+    @apply w-full px-3.5 py-2.5 rounded-xl bg-white text-ink-900 text-sm font-mono outline-none transition-colors;
+    border: 1px solid rgba(20, 20, 20, 0.14);
   }
-  .input:focus { border-color: rgba(99,102,241,0.5); background: rgba(255,255,255,0.04); }
+  .input:focus { border-color: #FF6B00; }
+  .input::placeholder { color: rgba(20, 20, 20, 0.30); }
   .label {
-    @apply block text-[10px] uppercase tracking-wider text-white/40 font-semibold mb-1.5;
+    @apply block text-[10px] uppercase tracking-wider text-ink-400 font-semibold mb-1.5;
+  }
+  /* standard light card */
+  .card {
+    @apply rounded-2xl bg-white;
+    border: 1px solid rgba(20, 20, 20, 0.09);
+    box-shadow: 0 1px 2px rgba(20, 20, 20, 0.05), 0 4px 16px -4px rgba(20, 20, 20, 0.06);
+  }
+  /* Baret signature: hazard stripe (orange/ink diagonals) */
+  .hazard {
+    background: repeating-linear-gradient(135deg, #141414 0 12px, #ff6b00 12px 24px);
   }
 }

@@ -2,58 +2,154 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Baret design system — white-first, safety-orange + ink-black.
+ * Heading face: Space Grotesk (font-display). Body: Inter. Code: JetBrains Mono.
+ */
+
 @layer base {
   * {
     box-sizing: border-box;
   }
+  :root {
+    --brand: #ff6b00;
+    --ink: #141414;
+    --paper: #ffffff;
+    --bone: #faf8f4;
+  }
   body {
     @apply font-sans antialiased;
-    background: #090909;
-    color: #f4f4f5;
+    background: var(--paper);
+    color: var(--ink);
     min-height: 100vh;
+  }
+  ::selection {
+    background: rgba(255, 107, 0, 0.25);
   }
 }
 
 @layer utilities {
+  /* ── signature motif: hazard stripe (orange/ink diagonals) ── */
+  .hazard {
+    background: repeating-linear-gradient(
+      135deg,
+      #141414 0 12px,
+      #ff6b00 12px 24px
+    );
+  }
+  .hazard-soft {
+    background: repeating-linear-gradient(
+      135deg,
+      rgba(20, 20, 20, 0.08) 0 12px,
+      rgba(255, 107, 0, 0.16) 12px 24px
+    );
+  }
+
+  /* blueprint grid backdrop for light sections */
+  .blueprint {
+    background-image:
+      linear-gradient(rgba(20, 20, 20, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20, 20, 20, 0.045) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
   .text-gradient {
-    background: linear-gradient(135deg, var(--site-primary), var(--site-accent, #fff));
+    background: linear-gradient(135deg, var(--site-primary, #ff6b00), var(--site-accent, #141414));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  /* light glass card (kept for legacy class names used across sites) */
   .glass {
-    background: rgba(255,255,255,0.04);
+    background: rgba(255, 255, 255, 0.78);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(20, 20, 20, 0.09);
   }
   .glass-hover {
     @apply glass transition-all duration-200;
   }
   .glass-hover:hover {
-    background: rgba(255,255,255,0.07);
-    border-color: rgba(255,255,255,0.14);
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(20, 20, 20, 0.18);
   }
+
   .site-bg {
-    background: var(--site-bg, #090909);
+    background: var(--site-bg, #ffffff);
   }
   .site-primary {
-    color: var(--site-primary, #6366f1);
+    color: var(--site-primary, #ff6b00);
   }
   .site-border {
-    border-color: var(--site-primary, #6366f1);
+    border-color: var(--site-primary, #ff6b00);
   }
+
   .btn-primary {
-    background: var(--site-primary, #6366f1);
+    background: var(--site-primary, #ff6b00);
     color: #fff;
     @apply px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200;
   }
   .btn-primary:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.06);
     transform: translateY(-1px);
   }
   .btn-primary:active {
     transform: translateY(0);
   }
-  .scrollbar-none::-webkit-scrollbar { display: none; }
-  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Baret brand buttons */
+  .btn-ink {
+    @apply inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold transition-all;
+    background: #141414;
+    color: #fff;
+  }
+  .btn-ink:hover {
+    background: #2b2926;
+  }
+  .btn-brand {
+    @apply inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold transition-all;
+    background: #ff6b00;
+    color: #fff;
+    box-shadow: 0 4px 14px -2px rgba(255, 107, 0, 0.35);
+  }
+  .btn-brand:hover {
+    background: #ea5e00;
+    transform: translateY(-1px);
+  }
+  .btn-brand:active {
+    transform: translateY(0);
+  }
+  .btn-outline {
+    @apply inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-semibold transition-all;
+    border: 1px solid rgba(20, 20, 20, 0.16);
+    color: #141414;
+    background: #fff;
+  }
+  .btn-outline:hover {
+    border-color: rgba(20, 20, 20, 0.34);
+    background: #faf8f4;
+  }
+
+  /* standard light card */
+  .card {
+    @apply rounded-2xl bg-white;
+    border: 1px solid rgba(20, 20, 20, 0.09);
+    box-shadow: 0 1px 2px rgba(20, 20, 20, 0.05), 0 4px 16px -4px rgba(20, 20, 20, 0.06);
+  }
+  .card-hover {
+    @apply card transition-all duration-200;
+  }
+  .card-hover:hover {
+    border-color: rgba(255, 107, 0, 0.45);
+    box-shadow: 0 2px 4px rgba(20, 20, 20, 0.06), 0 16px 40px -12px rgba(20, 20, 20, 0.14);
+    transform: translateY(-2px);
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

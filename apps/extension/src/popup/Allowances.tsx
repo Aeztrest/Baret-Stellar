@@ -1,6 +1,6 @@
 /**
  * Popup Allowances tab — active grants with rolling cap progress and one-tap
- * pause/revoke. The visual heart of the BLACKTHORN wedge.
+ * pause/revoke. The visual heart of the Baret wedge.
  * Spec: docs/wallet-spec.md §5.
  */
 
@@ -63,7 +63,7 @@ export function Allowances() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-2">
         <div className="w-10 h-10 rounded-card flex items-center justify-center text-text-faint"
-             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--line)" }}>
+             style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
           <Shield size={16} />
         </div>
         <p className="text-sm text-text-muted mt-1">No active grants</p>
@@ -122,14 +122,14 @@ function Card({ a, busy, onPause, onUnpause, onRevoke }: {
       <div className="flex gap-1.5 pt-1">
         {a.status === "active" && (
           <button onClick={onPause} disabled={busy}
-                  className="flex-1 px-2.5 py-1.5 rounded-input text-[11px] text-text-muted hover:text-text hover:bg-white/[0.04] transition-colors flex items-center justify-center gap-1.5"
+                  className="flex-1 px-2.5 py-1.5 rounded-input text-[11px] text-text-muted hover:text-text hover:bg-black/[0.05] transition-colors flex items-center justify-center gap-1.5"
                   style={{ border: "1px solid var(--line)" }}>
             <Pause size={11} /> Pause
           </button>
         )}
         {a.status === "paused" && (
           <button onClick={onUnpause} disabled={busy}
-                  className="flex-1 px-2.5 py-1.5 rounded-input text-[11px] text-text-muted hover:text-text hover:bg-white/[0.04] transition-colors flex items-center justify-center gap-1.5"
+                  className="flex-1 px-2.5 py-1.5 rounded-input text-[11px] text-text-muted hover:text-text hover:bg-black/[0.05] transition-colors flex items-center justify-center gap-1.5"
                   style={{ border: "1px solid var(--line)" }}>
             <Play size={11} /> Resume
           </button>
@@ -157,7 +157,7 @@ function CapRow({ label, pct, spent, cap }: { label: string; pct: number; spent:
           {spent.toFixed(2)} / {cap.toFixed(2)}
         </span>
       </div>
-      <div className="h-1 rounded-pill overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+      <div className="h-1 rounded-pill overflow-hidden" style={{ background: "rgba(20,20,20,0.055)" }}>
         <div className="h-full rounded-pill transition-all" style={{ width: `${pct}%`, background: fillColor }} />
       </div>
     </div>

@@ -60,7 +60,7 @@ export function SettingsOpt() {
         </button>
       </Section>
 
-      <p className="text-[10px] text-text-faint text-center">BLACKTHORN · v0.1.0 · open source · MIT</p>
+      <p className="text-[10px] text-text-faint text-center">Baret · v0.1.0 · open source · MIT</p>
     </div>
   );
 }

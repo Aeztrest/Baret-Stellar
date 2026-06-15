@@ -14,10 +14,10 @@ export default defineManifest(({ mode }) => {
 
   return {
     manifest_version: 3,
-    name: "BLACKTHORN — Smart Wallet",
-    short_name: "BLACKTHORN",
+    name: "Baret — Smart Wallet",
+    short_name: "Baret",
     version: pkg.version,
-    description: "The Stellar smart wallet that watches what happens after you sign.",
+    description: "The hard hat for your Stellar wallet — every transaction simulated, explained, and blocked when dangerous.",
 
     icons: {
       "16":  "icons/16.png",

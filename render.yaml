@@ -1,0 +1,39 @@
+# Render Blueprint — ücretsiz backend (apps/server, Fastify API)
+# Kullanım: render.com → New → Blueprint → bu repoyu seç. Render bu dosyayı okur.
+# Free plan: 15 dk hareketsizlikte uykuya dalar, ilk istekte ~30 sn soğuk başlangıç olur.
+services:
+  - type: web
+    name: blackthorn-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    # Render PORT env'ini otomatik verir; sunucu config'i PORT'u okuyor (apps/server/src/config/index.ts).
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @stellar-thorn/server build
+    startCommand: node apps/server/dist/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: STELLAR_NETWORK
+        value: testnet
+      # Zorunlu — bunlar olmadan sunucu açılışta çöker (config zod şeması .url() ister)
+      - key: STELLAR_HORIZON_URL
+        value: https://horizon-testnet.stellar.org
+      - key: STELLAR_SOROBAN_RPC_URL
+        value: https://soroban-testnet.stellar.org
+      # Reverse proxy arkasında gerçek istemci IP + rate limit
+      - key: DELTAG_TRUST_PROXY
+        value: "true"
+      # Frontend (apps/showcase/src/blackthorn/analyze.ts) sabit "dev-key-change-me" gönderiyor.
+      # Demo'nun açık çalışması için aynısını ver; özel anahtarla kısıtlamak istersen Render
+      # panelinden değiştir ve frontend'deki API_KEY'i de güncelle.
+      - key: DELTAG_API_KEYS
+        value: dev-key-change-me
+      # x402 ödeme akışı kapalı (ücretsiz demo). Açmak istersen docs/ + .env.example'a bak.
+      - key: X402_ENABLED
+        value: "false"

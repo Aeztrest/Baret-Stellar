@@ -21,7 +21,7 @@ function shortAddr(s: string | null): string {
 export function TopStrip({ state, onOpenAccount, onOpenSettings }: Props) {
   return (
     <div className="h-14 px-4 flex items-center justify-between border-b border-line shrink-0">
-      <button onClick={onOpenAccount} className="flex items-center gap-2 text-left hover:bg-white/[0.03] px-2 py-1 rounded-input">
+      <button onClick={onOpenAccount} className="flex items-center gap-2 text-left hover:bg-black/[0.04] px-2 py-1 rounded-input">
         <div className="w-7 h-7 rounded-input bg-accent-dim flex items-center justify-center text-accent-soft">
           <Mark size={14} />
         </div>
@@ -39,7 +39,7 @@ export function TopStrip({ state, onOpenAccount, onOpenSettings }: Props) {
         <button
           onClick={onOpenSettings}
           aria-label="Settings"
-          className="w-8 h-8 rounded-input flex items-center justify-center text-text-faint hover:text-text hover:bg-white/[0.03]"
+          className="w-8 h-8 rounded-input flex items-center justify-center text-text-faint hover:text-text hover:bg-black/[0.04]"
         >
           <SettingsIcon size={14} />
         </button>

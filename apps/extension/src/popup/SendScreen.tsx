@@ -90,7 +90,7 @@ export function SendScreen({
         <p className="font-semibold text-sm">Send XLM</p>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-input hover:bg-white/5"
+          className="p-1.5 rounded-input hover:bg-black/5"
         >
           <X size={16} />
         </button>
@@ -156,7 +156,7 @@ export function SendScreen({
                   disabled={balanceXlm === null || balanceXlm <= 0}
                   className="text-[10px] text-text-faint hover:text-text disabled:opacity-40 px-2 py-0.5 rounded-input"
                   style={{
-                    background: "rgba(255,255,255,0.04)",
+                    background: "rgba(20,20,20,0.045)",
                     border: "1px solid var(--line)",
                   }}
                 >

@@ -113,7 +113,7 @@ export function HomeOpt() {
         className="rounded-card p-6 relative overflow-hidden"
         style={{
           background:
-            "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015))",
+            "linear-gradient(135deg, rgba(255,107,0,0.08), rgba(255,107,0,0.015))",
           border: "1px solid var(--line)",
         }}
       >
@@ -175,7 +175,7 @@ export function HomeOpt() {
       </section>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <Link to="/policies" className="card hover:bg-white/[0.025] transition-colors">
+        <Link to="/policies" className="card hover:bg-black/[0.03] transition-colors">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield size={14} className="text-accent-soft" />
@@ -186,7 +186,7 @@ export function HomeOpt() {
           <PolicySummary policy={policy} />
         </Link>
 
-        <Link to="/sites" className="card hover:bg-white/[0.025] transition-colors">
+        <Link to="/sites" className="card hover:bg-black/[0.03] transition-colors">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Clock size={14} className="text-accent-soft" />

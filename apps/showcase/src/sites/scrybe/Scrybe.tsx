@@ -1,9 +1,9 @@
 /**
  * Scrybe — pay-per-question oracle, x402 over Stellar testnet.
  *
- * This is BLACKTHORN's flagship demo. The user types a question, the merchant
+ * This is Baret's flagship demo. The user types a question, the merchant
  * server responds HTTP 402 with PaymentRequirements, this page builds the
- * matching USDC transfer transaction, the connected wallet signs it (BLACKTHORN
+ * matching USDC transfer transaction, the connected wallet signs it (Baret
  * runs pre-sign analysis + policy here), the signed payload is replayed to the
  * merchant, the merchant forwards to PayAI's facilitator which co-signs + lands
  * the tx on-chain, and the answer comes back with the on-chain proof.
@@ -16,8 +16,8 @@ import { useState, useEffect, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
-  ArrowLeft, Sparkles, ExternalLink, Coins, ShieldCheck, AlertTriangle,
-  Loader2, Send, ChevronRight, ChevronDown, Lock, Copy, Check, Wallet,
+  ArrowLeft, Sparkles, ExternalLink, ShieldCheck, AlertTriangle,
+  Loader2, Zap, ChevronDown, Lock, Copy, Check, Wallet,
 } from "lucide-react";
 import { useWallet } from "../../wallet/context";
 import {
@@ -139,7 +139,7 @@ export default function Scrybe() {
       }
 
       // 3 + 4. Build the x402 payment and have the wallet sign the Soroban
-      // AUTH ENTRY (SEP-43) — not the whole transaction. BLACKTHORN runs its
+      // AUTH ENTRY (SEP-43) — not the whole transaction. BARET runs its
       // pre-sign analysis on the auth entry here. The facilitator rebuilds,
       // fee-bumps and submits the transaction itself.
       update({ phase: "signing" });
@@ -212,21 +212,20 @@ export default function Scrybe() {
   }
 
   return (
-    <div className="min-h-screen text-white" style={{ background: "#08070d" }}>
-      <Link to="/" className="fixed top-4 left-4 z-50 flex items-center gap-1.5 text-xs text-white/30 hover:text-white/70 transition-colors">
+    <div className="min-h-screen text-ink-900 bg-paper">
+      <Link to="/" className="fixed top-4 left-4 z-50 flex items-center gap-1.5 text-xs text-ink-900/40 hover:text-ink-900/80 transition-colors">
         <ArrowLeft size={12} /> Showcase
       </Link>
 
-      <header className="border-b border-white/5 sticky top-0 backdrop-blur-md z-30" style={{ background: "rgba(8,7,13,0.78)" }}>
+      <header className="border-b border-ink-900/10 sticky top-0 backdrop-blur-md z-30 bg-paper/85">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                 style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
-              <Sparkles size={14} className="text-white" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-ink-900">
+              <Zap size={14} className="text-brand-500" />
             </div>
             <div>
-              <h1 className="font-bold tracking-tight">Scrybe</h1>
-              <p className="text-[10px] text-white/40 leading-none mt-0.5">Pay-per-question oracle</p>
+              <h1 className="font-display font-bold tracking-tight">Scrybe</h1>
+              <p className="text-[10px] text-ink-900/45 leading-none mt-0.5">Pay-per-question oracle</p>
             </div>
           </div>
 
@@ -234,24 +233,21 @@ export default function Scrybe() {
             {connected ? (
               <button
                 onClick={() => void disconnect()}
-                className="flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-medium"
-                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#86efac" }}
+                className="flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-600/25"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 {shortAddress}
               </button>
             ) : (
               <button
                 onClick={openWalletModal}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium hover:bg-white/10"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)" }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-bone text-ink-900/70 border border-ink-900/12 hover:bg-ink-900/[0.04]"
               >
                 <Lock size={10} /> Connect wallet
               </button>
             )}
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium"
-                  style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", color: "#c4b5fd" }}>
-              <Coins size={10} /> $0.001/q
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-medium bg-brand-50 text-brand-700 border border-brand-500/20">
+              $0.001/q
             </span>
           </div>
         </div>
@@ -261,13 +257,11 @@ export default function Scrybe() {
         {history.length === 0 && (
           <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-7">
             <div>
-              <h2 className="text-4xl sm:text-5xl font-black tracking-tight leading-[1.05]">
+              <h2 className="font-display text-4xl sm:text-5xl font-black tracking-tight leading-[1.05]">
                 Pay $0.001.<br />
-                <span style={{ background: "linear-gradient(135deg,#a78bfa,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                  Get an answer.
-                </span>
+                <span className="text-brand-500">Get an answer.</span>
               </h2>
-              <p className="text-white/50 mt-3 leading-relaxed max-w-xl">
+              <p className="text-ink-900/55 mt-3 leading-relaxed max-w-xl">
                 Pay-per-question oracle running the HTTP&nbsp;402 protocol on Stellar testnet.
                 Your wallet pays — under your caps — and answers settle on-chain.
               </p>
@@ -279,12 +273,9 @@ export default function Scrybe() {
                   key={s}
                   onClick={() => void submit(s)}
                   disabled={pending}
-                  className="text-left px-4 py-3.5 rounded-xl text-sm transition-all disabled:opacity-50"
-                  style={{ background: "#13111a", border: "1px solid rgba(255,255,255,0.06)" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(167,139,250,0.35)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.06)"; }}
+                  className="text-left px-4 py-3.5 rounded-xl text-sm transition-all disabled:opacity-50 bg-paper border border-ink-900/10 shadow-card hover:border-brand-500/40 hover:shadow-lift"
                 >
-                  <span className="text-white/80">{s}</span>
+                  <span className="text-ink-900/80">{s}</span>
                 </button>
               ))}
             </div>
@@ -316,8 +307,7 @@ export default function Scrybe() {
 
       <form
         onSubmit={onSubmit}
-        className="fixed bottom-0 inset-x-0 border-t border-white/5 backdrop-blur-md"
-        style={{ background: "rgba(8,7,13,0.92)" }}
+        className="fixed bottom-0 inset-x-0 border-t border-ink-900/10 backdrop-blur-md bg-paper/92"
       >
         <div className="max-w-3xl mx-auto px-6 py-3.5 flex items-center gap-3">
           <input
@@ -325,16 +315,15 @@ export default function Scrybe() {
             onChange={(e) => setQuestion(e.target.value)}
             placeholder={connected ? "Ask Scrybe a question…" : "Connect a wallet first, then ask…"}
             disabled={pending}
-            className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 outline-none focus:border-violet-400/50 focus:bg-white/8 transition-all placeholder:text-white/25 disabled:opacity-60"
+            className="flex-1 px-4 py-3 rounded-xl bg-bone border border-ink-900/12 text-ink-900 outline-none focus:border-brand-500/50 focus:bg-paper transition-all placeholder:text-ink-900/35 disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={pending || !question.trim()}
-            className="px-4 py-3 rounded-xl text-sm font-semibold disabled:opacity-30 transition-all flex items-center gap-2 text-white"
-            style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}
+            className="px-4 py-3 rounded-xl text-sm font-semibold disabled:opacity-30 transition-all flex items-center gap-2 text-white bg-ink-900 hover:bg-ink-800"
           >
             {connected
-              ? <><Send size={13} /> Pay $0.001 · Ask</>
+              ? <><Zap size={13} className="text-brand-500" /> Pay $0.001 · Ask</>
               : <><Lock size={13} /> Connect · Ask</>}
           </button>
         </div>
@@ -353,9 +342,9 @@ function ConversationEntry({ entry, walletAddress, onSetupTrustline, onRetry }: 
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-3">
-        <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-white/50 shrink-0">you</div>
-        <p className="pt-1 text-white/90 leading-relaxed">{entry.question}</p>
+      <div className="flex items-start gap-3 justify-end">
+        <p className="pt-1 rounded-2xl rounded-tr-sm bg-ink-900 text-white px-4 py-2.5 leading-relaxed max-w-[80%]">{entry.question}</p>
+        <div className="w-7 h-7 rounded-full bg-ink-900/8 flex items-center justify-center text-[10px] text-ink-900/55 shrink-0">you</div>
       </div>
 
       {entry.phase === "setup" && (
@@ -373,12 +362,11 @@ function ConversationEntry({ entry, walletAddress, onSetupTrustline, onRetry }: 
 
       {entry.answer && (
         <div className="flex items-start gap-3">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-               style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
-            <Sparkles size={11} className="text-white" />
+          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-ink-900">
+            <Sparkles size={11} className="text-brand-500" />
           </div>
           <div className="flex-1">
-            <p className="text-white/95 leading-relaxed">{entry.answer}</p>
+            <p className="rounded-2xl rounded-tl-sm bg-bone text-ink-900 px-4 py-2.5 leading-relaxed">{entry.answer}</p>
             {entry.settlement && (
               <SettlementReceipt
                 signature={entry.settlement}
@@ -393,9 +381,9 @@ function ConversationEntry({ entry, walletAddress, onSetupTrustline, onRetry }: 
 
       {entry.phase === "error" && (
         <div className="ml-10 flex items-start gap-2 text-sm rounded-lg p-3"
-             style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)" }}>
-          <AlertTriangle size={14} className="text-red-400 mt-0.5 shrink-0" />
-          <span className="text-red-300/90">{entry.error}</span>
+             style={{ background: "rgba(232,71,10,0.08)", border: "1px solid rgba(232,71,10,0.22)" }}>
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" style={{ color: "#E8470A" }} />
+          <span style={{ color: "#E8470A" }}>{entry.error}</span>
         </div>
       )}
     </div>
@@ -406,14 +394,13 @@ function ProgressStep({ entry }: { entry: AnswerEntry }) {
   const PHASES: Array<{ key: Phase; label: string }> = [
     { key: "asking",    label: "Asking the oracle" },
     { key: "paywalled", label: "Building $0.001 USDC payment" },
-    { key: "signing",   label: "BLACKTHORN reviewing + signing" },
+    { key: "signing",   label: "Baret reviewing + signing" },
     { key: "settling",  label: "Settling on Stellar" },
   ];
   const idx = PHASES.findIndex((p) => p.key === entry.phase);
 
   return (
-    <div className="ml-10 rounded-lg p-3 space-y-1.5"
-         style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="ml-10 rounded-lg p-3 space-y-1.5 bg-bone border border-ink-900/10">
       {PHASES.map((p, i) => {
         const done = i < idx;
         const active = i === idx;
@@ -421,14 +408,14 @@ function ProgressStep({ entry }: { entry: AnswerEntry }) {
           <div key={p.key} className="flex items-center gap-2.5 text-xs">
             <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
                   style={{
-                    background: done ? "rgba(34,197,94,0.18)" : active ? "rgba(167,139,250,0.18)" : "rgba(255,255,255,0.06)",
+                    background: done ? "rgba(5,150,105,0.14)" : active ? "rgba(255,107,0,0.14)" : "rgba(20,20,20,0.06)",
                   }}>
-              {done ? <span className="text-[9px] text-emerald-400">✓</span>
-                : active ? <Loader2 size={9} className="animate-spin text-violet-300" />
-                : <span className="text-[8px] text-white/30">{i + 1}</span>}
+              {done ? <span className="text-[9px] text-emerald-600">✓</span>
+                : active ? <Loader2 size={9} className="animate-spin" style={{ color: "#FF6B00" }} />
+                : <span className="text-[8px] text-ink-900/35">{i + 1}</span>}
             </span>
             <span style={{
-              color: active ? "rgba(255,255,255,0.92)" : done ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.3)",
+              color: active ? "rgba(20,20,20,0.92)" : done ? "rgba(20,20,20,0.55)" : "rgba(20,20,20,0.35)",
               fontWeight: active ? 600 : 400,
             }}>
               {p.label}
@@ -448,19 +435,18 @@ function SettlementReceipt({ signature, payer, network, elapsedMs }: {
   const explorer = `https://stellar.expert/explorer/testnet/tx/${signature}?cluster=${cluster}`;
 
   return (
-    <div className="mt-3 rounded-xl p-3 text-xs flex items-start gap-2"
-         style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)" }}>
-      <ShieldCheck size={14} className="text-emerald-400 mt-0.5 shrink-0" />
+    <div className="mt-3 rounded-xl p-3 text-xs flex items-start gap-2 bg-emerald-50 border border-emerald-600/20">
+      <ShieldCheck size={14} className="text-emerald-600 mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-emerald-300/90 font-medium mb-1">
+        <p className="text-emerald-700 font-medium mb-1">
           Paid · settled on {cluster} in {(elapsedMs / 1000).toFixed(1)}s
         </p>
         <a href={explorer} target="_blank" rel="noopener noreferrer"
-           className="font-mono text-[11px] text-emerald-200/70 hover:text-emerald-200 inline-flex items-center gap-1 break-all">
+           className="font-mono text-[11px] text-emerald-700/80 hover:text-emerald-800 inline-flex items-center gap-1 break-all">
           {signature.slice(0, 12)}…{signature.slice(-8)} <ExternalLink size={10} className="shrink-0" />
         </a>
         {payer && (
-          <p className="text-[10px] text-white/30 mt-1 font-mono break-all">
+          <p className="text-[10px] text-ink-900/40 mt-1 font-mono break-all">
             from {payer.slice(0, 12)}…{payer.slice(-6)}
           </p>
         )}
@@ -472,28 +458,26 @@ function SettlementReceipt({ signature, payer, network, elapsedMs }: {
 function HowItWorksDisclosure() {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-xl"
-         style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="rounded-xl bg-paper border border-ink-900/10 shadow-card">
       <button
         onClick={() => setOpen((s) => !s)}
-        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-white/[0.02]"
+        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-ink-900/[0.02] rounded-xl"
       >
-        <span className="text-xs uppercase tracking-wider text-white/45 font-semibold">How it works</span>
-        <ChevronDown size={12} className={`text-white/30 transition-transform ${open ? "" : "-rotate-90"}`} />
+        <span className="text-xs uppercase tracking-wider text-ink-900/50 font-semibold">How it works</span>
+        <ChevronDown size={12} className={`text-ink-900/35 transition-transform ${open ? "" : "-rotate-90"}`} />
       </button>
       {open && (
         <div className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           {[
             { n: "01", t: "Ask",     b: "Page requests the answer" },
             { n: "02", t: "402",     b: "Server demands USDC payment" },
-            { n: "03", t: "Sign",    b: "BLACKTHORN validates + signs" },
+            { n: "03", t: "Sign",    b: "Baret validates + signs" },
             { n: "04", t: "Settle",  b: "PayAI broadcasts on testnet" },
           ].map((s) => (
-            <div key={s.n} className="rounded-lg p-2.5"
-                 style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="text-[9px] text-white/30 font-mono">{s.n}</p>
-              <p className="text-[12px] font-bold mt-0.5">{s.t}</p>
-              <p className="text-[10px] text-white/45 mt-0.5 leading-snug">{s.b}</p>
+            <div key={s.n} className="rounded-lg p-2.5 bg-bone border border-ink-900/8">
+              <p className="text-[9px] text-brand-700 font-mono">{s.n}</p>
+              <p className="text-[12px] font-bold mt-0.5 text-ink-900">{s.t}</p>
+              <p className="text-[10px] text-ink-900/50 mt-0.5 leading-snug">{s.b}</p>
             </div>
           ))}
         </div>
@@ -521,55 +505,50 @@ function SetupCard({ entry, walletAddress, onSetupTrustline, onRetry }: {
   const needsTrustline = entry.needs === "trustline";
 
   return (
-    <div className="ml-10 rounded-xl p-4 space-y-3"
-         style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.22)" }}>
+    <div className="ml-10 rounded-xl p-4 space-y-3 bg-brand-50 border border-brand-500/25">
       <div className="flex items-center gap-2">
-        <Wallet size={14} className="text-violet-300" />
-        <p className="text-sm font-semibold text-white/90">
+        <Wallet size={14} className="text-brand-600" />
+        <p className="text-sm font-semibold text-ink-900">
           {needsTrustline ? "One-time wallet setup" : "Add testnet USDC"}
         </p>
       </div>
 
       {needsTrustline ? (
         <>
-          <p className="text-xs text-white/55 leading-relaxed">
+          <p className="text-xs text-ink-900/60 leading-relaxed">
             Your wallet doesn't trust USDC yet, so it can't hold or spend it.
             Establish the trustline once — a tiny on-chain change your wallet signs.
           </p>
           <button
             onClick={onSetupTrustline}
             disabled={entry.setupBusy}
-            className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}
+            className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50 bg-ink-900 hover:bg-ink-800"
           >
             {entry.setupBusy
-              ? <><Loader2 size={13} className="animate-spin" /> Establishing trustline…</>
+              ? <><Loader2 size={13} className="animate-spin text-brand-500" /> Establishing trustline…</>
               : <>Add USDC trustline</>}
           </button>
         </>
       ) : (
         <>
-          <p className="text-xs text-white/55 leading-relaxed">
+          <p className="text-xs text-ink-900/60 leading-relaxed">
             Trustline ready. Grab a little testnet USDC for the address below, then retry.
           </p>
           {walletAddress && (
-            <div className="flex items-center gap-2 rounded-lg px-3 py-2"
-                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <code className="flex-1 text-[11px] text-white/70 font-mono break-all">{walletAddress}</code>
-              <button onClick={copy} className="shrink-0 text-white/50 hover:text-white/90" title="Copy address">
-                {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-paper border border-ink-900/10">
+              <code className="flex-1 text-[11px] text-ink-900/70 font-mono break-all">{walletAddress}</code>
+              <button onClick={copy} className="shrink-0 text-ink-900/50 hover:text-ink-900/90" title="Copy address">
+                {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
               </button>
             </div>
           )}
           <div className="flex gap-2">
             <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer"
-               className="flex-1 px-3 py-2.5 rounded-lg text-sm font-medium text-center text-white/90 inline-flex items-center justify-center gap-1.5"
-               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+               className="flex-1 px-3 py-2.5 rounded-lg text-sm font-medium text-center text-ink-900/80 inline-flex items-center justify-center gap-1.5 bg-paper border border-ink-900/12 hover:bg-ink-900/[0.03]">
               Open Circle faucet <ExternalLink size={11} />
             </a>
             <button onClick={onRetry}
-               className="flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold text-white"
-               style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
+               className="flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold text-white bg-ink-900 hover:bg-ink-800">
               I've funded · Retry
             </button>
           </div>
@@ -602,7 +581,7 @@ function friendlyError(msg: string): string {
     return "You declined the signature. No money moved.";
   }
   if (m.includes("no sign") || msg.includes("NO_SIGN_TRANSACTION")) {
-    return "Your wallet doesn't support partial signing. Reconnect with BLACKTHORN or Freighter.";
+    return "Your wallet doesn't support partial signing. Reconnect with Baret or Freighter.";
   }
   return msg;
 }

@@ -85,7 +85,7 @@ function passphraseFor(network: string): NetworksType {
  * We bridge to the wallet through a custom `authorizeEntry` callback rather
  * than passing `signAuthEntry` to the SDK directly: the SDK's `signAuthEntry`
  * path hands the wallet a `HashIdPreimage` and expects a raw signature back,
- * but Freighter-style wallets (incl. BLACKTHORN) take a full
+ * but Freighter-style wallets (incl. BARET) take a full
  * `SorobanAuthorizationEntry` and return a signed entry. Passing the preimage
  * to such a wallet fails with `unknown SorobanCredentialsType member for value
  * 9`. The callback hands the wallet the full entry — its native convention.

@@ -8,7 +8,7 @@
  * an attacker address, Soroban allowance grants to unknown contracts.
  *
  * The returned XDR is unsigned; the demo wallet signs + submits (or, when
- * `Sign with BLACKTHORN` is chosen, the extension popup signs after running
+ * `Sign with BARET` is chosen, the extension popup signs after running
  * the same analyze pipeline a second time as authoritative gatekeeper).
  */
 
@@ -28,12 +28,12 @@ import {
 } from "@stellar/stellar-sdk";
 
 export type ScenarioId =
-  | "solswap-safe"
-  | "solswap-danger"
+  | "novaswap-safe"
+  | "novaswap-danger"
   | "pixeldrop-safe"
   | "pixeldrop-danger"
-  | "solyield-safe"
-  | "solyield-warn"
+  | "orbityield-safe"
+  | "orbityield-warn"
   | "claimhub-safe"
   | "claimhub-danger"
   | "launchpad-safe"
@@ -97,7 +97,7 @@ export async function buildScenario(
   });
 
   switch (scenario) {
-    case "solswap-safe":
+    case "novaswap-safe":
       return finish(
         builder
           .addOperation(
@@ -107,11 +107,11 @@ export async function buildScenario(
               amount: "0.0001000",
             }),
           )
-          .addMemo(Memo.text("solswap:safe-quote")),
-        "SolSwap: 0.0001 XLM self-payment quote",
+          .addMemo(Memo.text("novaswap:safe-quote")),
+        "NovaSwap: 0.0001 XLM self-payment quote",
       );
 
-    case "solswap-danger":
+    case "novaswap-danger":
       return finish(
         builder
           .addOperation(
@@ -122,8 +122,8 @@ export async function buildScenario(
               u32Arg(99_999_999),
             ]),
           )
-          .addMemo(Memo.text("solswap:danger-approve")),
-        "SolSwap: unlimited Soroban approve to a stranger contract",
+          .addMemo(Memo.text("novaswap:danger-approve")),
+        "NovaSwap: unlimited Soroban approve to a stranger contract",
       );
 
     case "pixeldrop-safe":
@@ -153,7 +153,7 @@ export async function buildScenario(
         "PixelDrop: unlimited trustline to an untrusted issuer",
       );
 
-    case "solyield-safe":
+    case "orbityield-safe":
       return finish(
         builder
           .addOperation(
@@ -162,11 +162,11 @@ export async function buildScenario(
               i128Arg("10000000"),
             ]),
           )
-          .addMemo(Memo.text("solyield:deposit-1xlm")),
-        "SolYield: deposit 1 XLM into staking",
+          .addMemo(Memo.text("orbityield:deposit-1xlm")),
+        "OrbitYield: deposit 1 XLM into staking",
       );
 
-    case "solyield-warn":
+    case "orbityield-warn":
       return finish(
         builder
           .addOperation(
@@ -175,8 +175,8 @@ export async function buildScenario(
               i128Arg("1000000000"),
             ]),
           )
-          .addMemo(Memo.text("solyield:deposit-100xlm")),
-        "SolYield: deposit 100 XLM (large position warns on resource fee)",
+          .addMemo(Memo.text("orbityield:deposit-100xlm")),
+        "OrbitYield: deposit 100 XLM (large position warns on resource fee)",
       );
 
     case "claimhub-safe":

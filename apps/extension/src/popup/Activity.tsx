@@ -42,7 +42,7 @@ export function Activity() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-2">
         <div className="w-10 h-10 rounded-card flex items-center justify-center text-text-faint"
-             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--line)" }}>
+             style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
           <Clock size={16} />
         </div>
         <p className="text-sm text-text-muted mt-1">No activity yet</p>
@@ -66,8 +66,8 @@ function Row({ entry, cluster }: { entry: HistoryEntry; cluster: string }) {
   const decisionTone = entry.decision === "allow" ? "ok" : "bad";
   return (
     <article
-      className="rounded-input p-2.5 flex items-start gap-2.5 hover:bg-white/[0.02] transition-colors"
-      style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--line)" }}
+      className="rounded-input p-2.5 flex items-start gap-2.5 hover:bg-black/[0.03] transition-colors"
+      style={{ background: "rgba(20,20,20,0.025)", border: "1px solid var(--line)" }}
     >
       <span className={`dot dot-${decisionTone} mt-1.5 shrink-0`} />
       <div className="flex-1 min-w-0">

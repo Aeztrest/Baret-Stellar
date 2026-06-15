@@ -10,9 +10,11 @@
     "typecheck": "echo 'wallet typecheck skipped (Stellar port deferred — see apps/extension)' && exit 0"
   },
   "dependencies": {
+    "@solana/web3.js": "^1.95.0",
     "@stellar-thorn/swig-guard": "workspace:*",
     "@stellar-thorn/wallet-adapter": "workspace:*",
     "@stellar/stellar-sdk": "^15.1.0",
+    "@swig-wallet/classic": "^2.1.0",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
     "passkey-kit": "^0.12.0",

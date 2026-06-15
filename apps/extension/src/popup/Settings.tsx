@@ -35,14 +35,14 @@ export function Settings() {
       </Section>
 
       <Section>
-        <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] text-left">
+        <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
           <div className="flex items-center gap-2">
             <Lock size={13} className="text-text-faint" />
             <span className="text-sm">Lock wallet now</span>
           </div>
           <ChevronRight size={13} className="text-text-faint" />
         </button>
-        <button onClick={() => openOptions()} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] text-left">
+        <button onClick={() => openOptions()} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
           <div className="flex items-center gap-2">
             <ExternalLink size={13} className="text-text-faint" />
             <span className="text-sm">Open full settings</span>
@@ -52,7 +52,7 @@ export function Settings() {
       </Section>
 
       <Section danger>
-        <button onClick={onReset} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] text-left">
+        <button onClick={onReset} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
           <div className="flex items-center gap-2 text-bad">
             <Trash2 size={13} />
             <span className="text-sm">Reset wallet…</span>
@@ -61,7 +61,7 @@ export function Settings() {
         </button>
       </Section>
 
-      <p className="text-[10px] text-text-faint text-center mt-auto pt-3">BLACKTHORN · v0.1.0 · open source</p>
+      <p className="text-[10px] text-text-faint text-center mt-auto pt-3">Baret · v0.1.0 · open source</p>
     </div>
   );
 }
@@ -82,7 +82,7 @@ function Section({ children, danger }: { children: React.ReactNode; danger?: boo
 
 function Row({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] text-left">
+    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
       <div className="flex flex-col gap-0.5">
         <span className="text-xs text-text-faint">{label}</span>
         <span className="text-sm">{value}</span>

@@ -19,7 +19,7 @@ function RequireWallet({ children }: { children: React.ReactNode }) {
   const isPopupRoute = POPUP_PATHS.has(loc.pathname);
 
   if (phase === "loading") {
-    return <div className="min-h-screen flex items-center justify-center text-white/40 text-sm">Loading wallet…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-ink-400 text-sm">Loading wallet…</div>;
   }
   // Popup routes handle their own "no wallet" state — don't redirect them.
   if (isPopupRoute) return <>{children}</>;

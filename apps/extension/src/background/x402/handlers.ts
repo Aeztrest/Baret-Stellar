@@ -224,7 +224,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
       };
     }
     await appendHistory({
-      type: "dapp",
+      type: "x402",
       signature: null,
       origin,
       summary: `Auto-paid x402 · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`,

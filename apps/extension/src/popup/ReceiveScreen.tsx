@@ -45,7 +45,7 @@ export function ReceiveScreen({ address, network, onClose }: Props) {
     <div className="absolute inset-0 z-30 flex flex-col" style={{ background: "var(--bg)" }}>
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--line)" }}>
         <p className="font-semibold text-sm">Receive</p>
-        <button onClick={onClose} className="p-1.5 rounded-input hover:bg-white/5">
+        <button onClick={onClose} className="p-1.5 rounded-input hover:bg-black/5">
           <X size={16} />
         </button>
       </div>
@@ -58,7 +58,7 @@ export function ReceiveScreen({ address, network, onClose }: Props) {
 
         <div
           className="rounded-card p-4 flex items-center justify-center"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--line)" }}
+          style={{ background: "rgba(20,20,20,0.045)", border: "1px solid var(--line)" }}
         >
           {qrDataUrl
             ? <img src={qrDataUrl} alt="Wallet address QR" className="w-56 h-56" />
@@ -70,7 +70,7 @@ export function ReceiveScreen({ address, network, onClose }: Props) {
           <button
             onClick={onCopy}
             className="w-full text-left p-3 rounded-input font-mono text-[11px] break-all flex items-start gap-2 group"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--line)" }}
+            style={{ background: "rgba(20,20,20,0.045)", border: "1px solid var(--line)" }}
           >
             <span className="flex-1 text-text-muted group-hover:text-text">{address}</span>
             {copied

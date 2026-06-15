@@ -143,7 +143,7 @@ function offlineResult(reason: string): AnalysisResult {
   return {
     decision: "advisory",
     safe: false,
-    reasons: [`Couldn't reach Blackthorn: ${reason}`],
+    reasons: [`Couldn't reach BARET: ${reason}`],
     riskFindings: [
       {
         code: "ANALYZE_UNREACHABLE",

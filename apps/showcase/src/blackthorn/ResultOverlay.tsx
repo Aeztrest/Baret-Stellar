@@ -21,7 +21,7 @@ export function ResultOverlay({ state, signature, message, onClose }: Props) {
           exit={{ opacity: 0 }}
           onClick={state !== "awaiting" ? onClose : undefined}
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(8px)" }}
+          style={{ background: "rgba(20,20,20,0.45)", backdropFilter: "blur(8px)" }}
         >
           <motion.div
             initial={{ scale: 0.94, opacity: 0, y: 12 }}
@@ -29,8 +29,8 @@ export function ResultOverlay({ state, signature, message, onClose }: Props) {
             exit={{ scale: 0.94, opacity: 0, y: 12 }}
             transition={{ type: "spring", stiffness: 340, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl p-7 text-center"
-            style={{ background: "#111114", border: "1px solid rgba(255,255,255,0.09)" }}
+            className="w-full max-w-md rounded-2xl p-7 text-center bg-white shadow-lift"
+            style={{ border: "1px solid rgba(20,20,20,0.10)" }}
           >
             {state === "awaiting" && <Awaiting />}
             {state === "confirmed" && <Confirmed signature={signature ?? null} onClose={onClose} />}
@@ -47,17 +47,17 @@ function Awaiting() {
   return (
     <div className="space-y-4">
       <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}>
-        <Loader2 size={22} className="animate-spin text-indigo-300" />
+        style={{ background: "rgba(255,107,0,0.10)", border: "1px solid rgba(255,107,0,0.35)" }}>
+        <Loader2 size={22} className="animate-spin text-brand-500" />
       </div>
       <div>
-        <p className="text-lg font-bold text-white">Approve in your BLACKTHORN wallet</p>
-        <p className="text-xs text-white/55 mt-1.5 leading-relaxed">
-          We've opened the wallet popup. It's simulating this transaction with BLACKTHORN
+        <p className="text-lg font-bold text-ink-900">Approve in your Baret wallet</p>
+        <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
+          We've opened the wallet popup. It's simulating this transaction with Baret
           and checking your policy. Approve there to continue.
         </p>
       </div>
-      <p className="text-[10px] text-white/30">Don't see a popup? Allow popups for this site.</p>
+      <p className="text-[10px] text-ink-400">Don't see a popup? Allow popups for this site.</p>
     </div>
   );
 }
@@ -66,20 +66,20 @@ function Confirmed({ signature, onClose }: { signature: string | null; onClose: 
   return (
     <div className="space-y-4">
       <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)" }}>
-        <ShieldCheck size={24} className="text-emerald-400" />
+        style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.35)" }}>
+        <ShieldCheck size={24} className="text-emerald-600" />
       </div>
       <div>
-        <p className="text-lg font-bold text-emerald-300">Transaction confirmed</p>
-        <p className="text-xs text-white/55 mt-1.5">BLACKTHORN approved + your wallet signed.</p>
+        <p className="text-lg font-bold text-emerald-600">Transaction confirmed</p>
+        <p className="text-xs text-ink-500 mt-1.5">Baret approved + your wallet signed.</p>
       </div>
       {signature && (
         <a href={`https://stellar.expert/explorer/testnet/tx/${signature}?cluster=testnet`} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-emerald-300 hover:text-white transition-colors">
+          className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-ink-900 transition-colors font-semibold">
           View on Stellar Explorer <ExternalLink size={11} />
         </a>
       )}
-      <button onClick={onClose} className="block mx-auto text-xs text-white/40 hover:text-white pt-2">Close</button>
+      <button onClick={onClose} className="block mx-auto text-xs text-ink-400 hover:text-ink-900 pt-2">Close</button>
     </div>
   );
 }
@@ -88,21 +88,21 @@ function Blocked({ message, onClose }: { message: string | null; onClose: () => 
   return (
     <div className="space-y-4">
       <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
-        <ShieldX size={24} className="text-red-400" />
+        style={{ background: "rgba(255,107,0,0.10)", border: "1px solid rgba(255,107,0,0.40)" }}>
+        <ShieldX size={24} className="text-brand-600" />
       </div>
       <div>
-        <p className="text-lg font-bold text-red-300">Blocked at the wallet</p>
-        <p className="text-xs text-white/55 mt-1.5 leading-relaxed">
-          BLACKTHORN's policy refused to sign this transaction. Your funds never moved.
+        <p className="text-lg font-bold text-brand-600">Blocked at the wallet</p>
+        <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
+          Baret's policy refused to sign this transaction. Your funds never moved.
         </p>
       </div>
       {message && (
-        <p className="text-[11px] text-white/45 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
+        <p className="text-[11px] text-ink-500 px-3 py-2 rounded-lg" style={{ background: "rgba(20,20,20,0.04)" }}>
           {message}
         </p>
       )}
-      <button onClick={onClose} className="block mx-auto text-xs text-white/40 hover:text-white pt-2">Close</button>
+      <button onClick={onClose} className="block mx-auto text-xs text-ink-400 hover:text-ink-900 pt-2">Close</button>
     </div>
   );
 }
@@ -111,17 +111,17 @@ function ErrorState({ message, onClose }: { message: string | null; onClose: () 
   return (
     <div className="space-y-4">
       <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)" }}>
-        <ShieldX size={24} className="text-amber-400" />
+        style={{ background: "rgba(20,20,20,0.05)", border: "1px solid rgba(20,20,20,0.18)" }}>
+        <ShieldX size={24} className="text-ink-600" />
       </div>
-      <p className="text-lg font-bold text-amber-300">Couldn't reach the wallet</p>
+      <p className="text-lg font-bold text-ink-900">Couldn't reach the wallet</p>
       {message && (
-        <p className="text-[11px] text-white/55 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
+        <p className="text-[11px] text-ink-500 px-3 py-2 rounded-lg" style={{ background: "rgba(20,20,20,0.04)" }}>
           {message}
         </p>
       )}
-      <p className="text-xs text-white/45">Make sure the wallet is running at <code>localhost:5180</code> and popups are allowed.</p>
-      <button onClick={onClose} className="block mx-auto text-xs text-white/40 hover:text-white pt-2">Close</button>
+      <p className="text-xs text-ink-400">Make sure the wallet is running at <code>localhost:5180</code> and popups are allowed.</p>
+      <button onClick={onClose} className="block mx-auto text-xs text-ink-400 hover:text-ink-900 pt-2">Close</button>
     </div>
   );
 }

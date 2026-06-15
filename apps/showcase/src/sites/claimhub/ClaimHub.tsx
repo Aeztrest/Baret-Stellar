@@ -8,13 +8,13 @@ import { RiskPreview } from "../../blackthorn/RiskPreview";
 import { buildScenario } from "../../blackthorn/transactions";
 
 const THEME = {
-  primary: "#f59e0b",
-  accent: "#fcd34d",
-  bg: "#0f0c00",
+  primary: "#E8470A",
+  accent: "#FF6B00",
+  bg: "#FFFFFF",
   name: "ClaimHub",
   logo: (
-    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black" style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}>
-      C
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: "linear-gradient(135deg,#FF6B00,#E8470A)" }}>
+      <Gift size={15} />
     </div>
   ),
 };
@@ -85,16 +85,16 @@ export default function ClaimHub() {
         onClose={() => setResultState("idle")}
       />
 
-      <div className="fixed inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(245,158,11,0.07) 0%, transparent 60%)" }} />
+      <div className="fixed inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(232,71,10,0.06) 0%, transparent 60%)" }} />
 
       <div className="min-h-screen pb-24 px-4 py-12">
         <div className="max-w-2xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}>
-              <Gift size={28} style={{ color: "#f59e0b" }} />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lift" style={{ background: "linear-gradient(135deg,#FF6B00,#E8470A)" }}>
+              <Gift size={28} />
             </div>
-            <h1 className="text-4xl font-black text-white mb-3">SOLANA Airdrop</h1>
-            <p className="text-white/40">Community distribution — check if your wallet is eligible for the SOLANA ecosystem reward program.</p>
+            <h1 className="text-4xl font-display font-black text-ink-900 mb-3">Stellar Airdrop</h1>
+            <p className="text-ink-500">Community distribution — check if your wallet is eligible for the Stellar ecosystem reward program.</p>
           </motion.div>
 
           {/* Stats */}
@@ -104,57 +104,57 @@ export default function ClaimHub() {
               { icon: Gift, label: "Total Distribution", value: "50M TOKEN" },
               { icon: Clock, label: "Claim Deadline", value: "14 days" },
             ].map(({ icon: Icon, label, value }) => (
-              <div key={label} className="glass rounded-2xl p-4 text-center">
-                <Icon size={16} className="mx-auto mb-2" style={{ color: "#f59e0b" }} />
-                <p className="text-lg font-black text-white">{value}</p>
-                <p className="text-xs text-white/30 mt-0.5">{label}</p>
+              <div key={label} className="card rounded-2xl p-4 text-center">
+                <Icon size={16} className="mx-auto mb-2" style={{ color: "#E8470A" }} />
+                <p className="text-lg font-display font-black text-ink-900">{value}</p>
+                <p className="text-xs text-ink-500 mt-0.5">{label}</p>
               </div>
             ))}
           </div>
 
           {/* Claim card */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(245,158,11,0.2)", background: "#14110a" }}>
-            <div className="p-6 border-b border-white/5">
-              <h2 className="font-bold text-white mb-1">Check Eligibility</h2>
-              <p className="text-xs text-white/30">Connect your wallet to verify your allocation</p>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-ink-900/10">
+              <h2 className="font-display font-bold text-ink-900 mb-1">Check Eligibility</h2>
+              <p className="text-xs text-ink-500">Connect your wallet to verify your allocation</p>
             </div>
 
             <div className="p-6 space-y-4">
               {!checked ? (
-                <button onClick={handleCheck} className="w-full py-4 rounded-xl font-bold text-white transition-all hover:brightness-110" style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}>
+                <button onClick={handleCheck} className="w-full py-4 rounded-xl font-bold text-white transition-colors hover:brightness-95" style={{ background: "#E8470A" }}>
                   {connected ? "Check My Wallet" : "Connect Wallet to Check"}
                 </button>
               ) : (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
-                    <CheckCircle size={20} style={{ color: "#f59e0b" }} />
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-600/20">
+                    <CheckCircle size={20} className="text-emerald-600" />
                     <div>
-                      <p className="text-sm font-semibold text-white">Wallet eligible!</p>
-                      <p className="text-xs text-white/40 font-mono">{shortAddress}</p>
+                      <p className="text-sm font-semibold text-ink-900">Wallet eligible!</p>
+                      <p className="text-xs text-ink-500 font-mono">{shortAddress}</p>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl space-y-3" style={{ background: "rgba(255,255,255,0.03)" }}>
+                  <div className="p-4 rounded-xl space-y-3 bg-brand-50 border border-brand-700/15">
                     <div className="flex justify-between text-sm">
-                      <span className="text-white/40">Your allocation</span>
-                      <span className="font-bold text-white">2,500 TOKEN</span>
+                      <span className="text-ink-500">Your allocation</span>
+                      <span className="font-bold text-brand-700">2,500 TOKEN</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-white/40">USD Value</span>
-                      <span className="font-semibold text-amber-400">≈ $250.00</span>
+                      <span className="text-ink-500">USD Value</span>
+                      <span className="font-semibold text-brand-700">≈ $250.00</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-white/40">Merkle proof</span>
-                      <span className="text-xs font-mono text-white/40">0x4f3a...8c2d</span>
+                      <span className="text-ink-500">Merkle proof</span>
+                      <span className="text-xs font-mono text-ink-500">0x4f3a...8c2d</span>
                     </div>
                   </div>
 
                   {success ? (
-                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full py-4 rounded-xl text-center font-bold text-amber-400" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full py-4 rounded-xl text-center font-bold text-emerald-600 bg-emerald-50 border border-emerald-600/25">
                       ✓ 2,500 TOKEN Claimed!
                     </motion.div>
                   ) : (
-                    <button onClick={handleClaim} className="w-full py-4 rounded-xl font-bold text-white transition-all hover:brightness-110" style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}>
+                    <button onClick={handleClaim} className="w-full py-4 rounded-xl font-bold text-white transition-colors hover:brightness-95" style={{ background: "#E8470A" }}>
                       Claim 2,500 TOKEN
                     </button>
                   )}
@@ -165,12 +165,12 @@ export default function ClaimHub() {
 
           {/* Demo toggle */}
           <div className="mt-8 flex justify-center">
-            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <span className="text-xs text-white/30">Simulate phishing claim</span>
-              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#ef4444" : "rgba(255,255,255,0.1)" }}>
-                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
+            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-bone border border-ink-900/10">
+              <span className="text-xs text-ink-600">Simulate phishing claim</span>
+              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#ef4444" : "rgba(20,20,20,0.12)" }}>
+                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-card transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
               </button>
-              {dangerous && <span className="text-xs text-red-400 font-medium">⚠ Danger mode</span>}
+              {dangerous && <span className="text-xs text-red-500 font-medium">⚠ Danger mode</span>}
             </div>
           </div>
         </div>

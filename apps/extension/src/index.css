@@ -31,7 +31,7 @@
 
 @layer components {
   .glass {
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(255, 255, 255, 0.82);
     border: 1px solid var(--line);
     backdrop-filter: blur(8px);
   }
@@ -43,32 +43,35 @@
   .btn-primary {
     @apply btn;
     background: var(--accent);
-    color: #000;
+    color: #fff;
+    box-shadow: 0 4px 14px -2px rgba(255, 107, 0, 0.30);
   }
-  .btn-primary:hover { filter: brightness(0.92); }
-  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+  .btn-primary:hover { background: var(--accent-soft); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; box-shadow: none; }
 
   .btn-ghost {
-    @apply btn glass;
+    @apply btn;
+    background: var(--bg-elevated);
+    border: 1px solid var(--line-strong);
     color: var(--text);
   }
-  .btn-ghost:hover { background: rgba(255,255,255,0.05); }
+  .btn-ghost:hover { background: var(--bg); border-color: rgba(20,20,20,0.28); }
 
   .btn-danger {
     @apply btn;
     background: var(--bad-dim);
     color: var(--bad);
-    border: 1px solid rgba(248, 113, 113, 0.25);
+    border: 1px solid rgba(220, 38, 38, 0.25);
   }
 
   .input {
     @apply w-full px-3.5 py-2.5 rounded-input text-sm font-mono outline-none;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--line);
+    background: var(--bg-elevated);
+    border: 1px solid var(--line-strong);
     color: var(--text);
     transition: all var(--motion-fast) var(--motion-curve);
   }
-  .input:focus { border-color: rgba(255,255,255,0.45); background: rgba(255,255,255,0.05); }
+  .input:focus { border-color: var(--accent); background: var(--bg-elevated); }
 
   .label {
     display: block;
@@ -85,6 +88,12 @@
     border: 1px solid var(--line);
     border-radius: var(--r-card);
     padding: 24px;
+    box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04), 0 4px 16px -4px rgba(20, 20, 20, 0.05);
+  }
+
+  /* Baret signature: hazard stripe (orange/ink diagonals) */
+  .hazard {
+    background: repeating-linear-gradient(135deg, #141414 0 12px, #ff6b00 12px 24px);
   }
 
   .pill {

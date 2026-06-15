@@ -202,7 +202,7 @@ async function signMessage(
 /* ────────────── Provider object ────────────── */
 
 export const blackthornStellar = {
-  name: "BLACKTHORN" as const,
+  name: "BARET" as const,
   icon: ICON_DATA_URL,
   isConnected,
   requestAccess,

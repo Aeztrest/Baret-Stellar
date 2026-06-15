@@ -130,7 +130,7 @@ export class WalletStandardBridge {
   ): Promise<{ signedAuthEntry: string; signerAddress: string }> {
     if (typeof this.provider.signAuthEntry !== "function") {
       throw new WalletStandardBridgeError(
-        `${this.provider.name} doesn't support signAuthEntry — reconnect with a SEP-43 wallet (BLACKTHORN or Freighter).`,
+        `${this.provider.name} doesn't support signAuthEntry — reconnect with a SEP-43 wallet (BARET or Freighter).`,
         "NO_SIGN_AUTH_ENTRY",
       );
     }
@@ -185,7 +185,7 @@ export class WalletStandardBridge {
  * registers as `window.blackthornStellar`; Freighter is detected via the
  * `@stellar/freighter-api` package, which talks to the extension over its
  * own bridge. Returns a stable list the picker can render — the demo's
- * "without BLACKTHORN" comparison stands up only when at least one other
+ * "without BARET" comparison stands up only when at least one other
  * Stellar wallet is present.
  */
 export function discoverStellarProviders(): StellarWalletProvider[] {

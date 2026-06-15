@@ -102,14 +102,14 @@ export function Send() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-          <SendIcon size={20} className="text-accent-soft" /> Send
+        <h1 className="text-2xl font-black font-display text-ink-900 tracking-tight flex items-center gap-2">
+          <SendIcon size={20} className="text-accent" /> Send
         </h1>
-        <p className="text-white/45 text-sm mt-1">Every transaction passes BLACKTHORN's policy gate before signing.</p>
+        <p className="text-ink-500 text-sm mt-1">Every transaction passes Baret's policy gate before signing.</p>
       </div>
 
       {phase === "form" && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 space-y-5">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-6 space-y-5">
           <div>
             <label className="label">Recipient</label>
             <input value={recipient} onChange={(e) => setRecipient(e.target.value.trim())}
@@ -125,24 +125,24 @@ export function Send() {
             </div>
           </div>
           <button onClick={review} disabled={!recipient || !amount} className="btn-primary w-full disabled:opacity-50">
-            <ShieldCheck size={13} /> Review with BLACKTHORN
+            <ShieldCheck size={13} /> Review with Baret
           </button>
-          <p className="text-[10px] text-white/35 text-center">No signature is created until you confirm on the next screen.</p>
+          <p className="text-[10px] text-ink-400 text-center">No signature is created until you confirm on the next screen.</p>
         </motion.div>
       )}
 
       {phase === "reviewing" && (
-        <div className="glass rounded-2xl p-12 flex flex-col items-center gap-3 text-center">
-          <Loader2 size={24} className="animate-spin text-accent-soft" />
-          <p className="text-sm text-white/70">Building & simulating transaction…</p>
-          <p className="text-xs text-white/35">Wrapping with your Swig wallet · running policy check</p>
+        <div className="card p-12 flex flex-col items-center gap-3 text-center">
+          <Loader2 size={24} className="animate-spin text-accent" />
+          <p className="text-sm text-ink-700">Building & simulating transaction…</p>
+          <p className="text-xs text-ink-400">Wrapping with your Swig wallet · running policy check</p>
         </div>
       )}
 
       {(phase === "review" || phase === "sending") && evaluation && (
         <div className="space-y-4">
           <AnalysisReport result={evaluation.analysis} />
-          <div className="glass rounded-2xl p-4 flex gap-3">
+          <div className="card p-4 flex gap-3">
             <button onClick={cancelBlocked} className="btn-ghost flex-1">
               {evaluation.decision === "block" ? "Acknowledge & log" : "Cancel"}
             </button>
@@ -158,14 +158,14 @@ export function Send() {
       {phase === "done" && signature && (
         <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           className="rounded-2xl p-6 text-center space-y-4"
-          style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.25)" }}>
-          <ShieldCheck size={32} className="mx-auto text-emerald-400" />
+          style={{ background: "#ecfdf5", border: "1px solid rgba(5,150,105,0.3)" }}>
+          <ShieldCheck size={32} className="mx-auto text-emerald-600" />
           <div>
-            <p className="text-lg font-bold text-emerald-300">Transaction confirmed</p>
-            <p className="text-xs text-emerald-200/70 mt-1">Sent {amount} SOL · BLACKTHORN-protected</p>
+            <p className="text-lg font-bold text-emerald-700">Transaction confirmed</p>
+            <p className="text-xs text-emerald-700/80 mt-1">Sent {amount} SOL · Baret-protected</p>
           </div>
           <a href={explorerUrl("tx", signature)} target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-emerald-300 hover:text-white">
+            className="inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900">
             View on Solana Explorer <ExternalLink size={11} />
           </a>
           <div className="pt-2">
@@ -176,9 +176,9 @@ export function Send() {
 
       {phase === "error" && (
         <div className="rounded-2xl p-5 space-y-3"
-          style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.25)" }}>
-          <p className="font-semibold text-red-300">Couldn't complete the send</p>
-          <p className="text-xs text-red-200/70 break-words">{error}</p>
+          style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.25)" }}>
+          <p className="font-semibold text-[#DC2626]">Couldn't complete the send</p>
+          <p className="text-xs text-[#DC2626]/80 break-words">{error}</p>
           <button onClick={reset} className="btn-ghost">Start over</button>
         </div>
       )}

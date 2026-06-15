@@ -32,7 +32,7 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      style={{ background: "rgba(20,20,20,0.45)", backdropFilter: "blur(6px)" }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

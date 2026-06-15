@@ -1,5 +1,5 @@
 /**
- * Sign request surface — full BLACKTHORN pre-sign analysis flow.
+ * Sign request surface — full Baret pre-sign analysis flow.
  *
  * Pulls the pending sign request from background, fetches the structured
  * analysis (transaction kind only), renders the AnalysisReport, and resolves
@@ -52,7 +52,7 @@ export function SignRequest() {
     return () => { cancelled = true; clearInterval(t); };
   }, [rpc]);
 
-  // Run BLACKTHORN analysis as soon as we have a request.
+  // Run Baret analysis as soon as we have a request.
   useEffect(() => {
     if (!request) return;
     let cancelled = false;
@@ -97,7 +97,7 @@ export function SignRequest() {
         {analyzing && !analysis && (
           <div className="card !p-5 flex flex-col items-center gap-2.5 text-center">
             <Loader2 size={18} className="animate-spin text-accent-soft" />
-            <p className="text-text-muted text-xs">Simulating with BLACKTHORN…</p>
+            <p className="text-text-muted text-xs">Simulating with Baret…</p>
             <p className="text-text-faint text-[10px]">Decompiling instructions, running policy checks.</p>
           </div>
         )}
@@ -166,7 +166,7 @@ function Footer({
     <footer className="p-3 border-t border-line flex flex-col gap-2 shrink-0 bg-bg-elevated">
       {analysis?.offline && (
         <div className="text-[10px] text-warn px-2 leading-relaxed">
-          BLACKTHORN couldn't reach the analyzer. You're signing without protection.
+          Baret couldn't reach the analyzer. You're signing without protection.
         </div>
       )}
 

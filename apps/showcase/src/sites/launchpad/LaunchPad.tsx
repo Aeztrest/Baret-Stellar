@@ -8,13 +8,13 @@ import { RiskPreview } from "../../blackthorn/RiskPreview";
 import { buildScenario } from "../../blackthorn/transactions";
 
 const THEME = {
-  primary: "#8b5cf6",
-  accent: "#c4b5fd",
-  bg: "#0c0a14",
+  primary: "#C24E02",
+  accent: "#FF6B00",
+  bg: "#FFF9F4",
   name: "LaunchPad",
   logo: (
-    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black" style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}>
-      L
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: "linear-gradient(135deg,#FF6B00,#C24E02)" }}>
+      <Rocket size={15} />
     </div>
   ),
 };
@@ -76,24 +76,24 @@ export default function LaunchPad() {
         onClose={() => setResultState("idle")}
       />
 
-      <div className="fixed inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(139,92,246,0.08) 0%, transparent 60%)" }} />
+      <div className="fixed inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255,107,0,0.07) 0%, transparent 60%)" }} />
 
-      <div className="min-h-screen pb-24 px-4 py-12">
+      <div className="min-h-screen pb-24 px-4 py-12 text-ink-900">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-3 gap-8">
             {/* Project info */}
             <div className="md:col-span-2 space-y-6">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: dangerous ? "rgba(239,68,68,0.1)" : "rgba(255,107,0,0.12)", border: dangerous ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(255,107,0,0.25)" }}>
                     {dangerous ? "💀" : "🚀"}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-2xl font-black text-white">{dangerous ? "ScamToken (SCAM)" : "NovaBridge (NOVA)"}</h1>
-                      {!dangerous && <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: "rgba(139,92,246,0.15)", color: "#a78bfa" }}>KYC Verified</span>}
+                      <h1 className="text-2xl font-display font-bold text-ink-900">{dangerous ? "ScamToken (SCAM)" : "NovaBridge (NOVA)"}</h1>
+                      {!dangerous && <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: "rgba(255,107,0,0.12)", color: "#C24E02" }}>KYC Verified</span>}
                     </div>
-                    <p className="text-sm text-white/40">
+                    <p className="text-sm text-ink-500">
                       {dangerous
                         ? "Revolutionary memecoin with 1000x potential. First mover in the nothing market."
                         : "Cross-chain Stellar bridge enabling seamless asset transfers across 12 networks. Audited by OtterSec."}
@@ -109,59 +109,59 @@ export default function LaunchPad() {
                     { label: "Vesting", value: dangerous ? "None" : "12 months" },
                     { label: "Audit", value: dangerous ? "None" : "OtterSec" },
                   ].map(({ label, value }) => (
-                    <div key={label} className="glass rounded-xl p-3">
-                      <p className="text-xs text-white/30">{label}</p>
-                      <p className="text-sm font-bold text-white mt-0.5">{value}</p>
+                    <div key={label} className="bg-bone rounded-xl border border-ink-900/10 p-3">
+                      <p className="text-xs text-ink-500">{label}</p>
+                      <p className="text-sm font-bold text-ink-900 mt-0.5">{value}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Raise progress */}
-                <div className="glass rounded-2xl p-5 space-y-3">
+                <div className="card p-5 space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-white/50">Raised</span>
+                    <span className="text-ink-500">Raised</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white">${raised.toLocaleString()}</span>
-                      <span className="text-white/30">/ ${goal.toLocaleString()}</span>
+                      <span className="font-bold text-ink-900">${raised.toLocaleString()}</span>
+                      <span className="text-ink-400">/ ${goal.toLocaleString()}</span>
                     </div>
                   </div>
-                  <div className="h-3 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <div className="h-3 rounded-full overflow-hidden" style={{ background: "rgba(20,20,20,0.08)" }}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${pct}%` }}
                       transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
                       className="h-full rounded-full"
-                      style={{ background: dangerous ? "#ef4444" : "linear-gradient(90deg,#8b5cf6,#6d28d9)" }}
+                      style={{ background: dangerous ? "#ef4444" : "linear-gradient(90deg,#FF6B00,#C24E02)" }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-white/30">
+                  <div className="flex justify-between text-xs text-ink-400">
                     <span>{pct.toFixed(1)}% filled</span>
                     <div className="flex items-center gap-1"><Timer size={11} /> <span>3 days left</span></div>
                   </div>
                 </div>
 
                 {/* Team / tokenomics */}
-                <div className="glass rounded-2xl p-5">
-                  <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4">Tokenomics</h3>
+                <div className="card p-5">
+                  <h3 className="text-sm font-semibold text-ink-500 uppercase tracking-wider mb-4">Tokenomics</h3>
                   <div className="space-y-2">
                     {(dangerous
                       ? [
                           { label: "Team (no vesting)", pct: 87, color: "#ef4444" },
                           { label: "Sale", pct: 8, color: "#f97316" },
-                          { label: "Liquidity", pct: 5, color: "#a855f7" },
+                          { label: "Liquidity", pct: 5, color: "#fca5a5" },
                         ]
                       : [
-                          { label: "Public Sale", pct: 20, color: "#8b5cf6" },
-                          { label: "Team (24mo vesting)", pct: 15, color: "#6d28d9" },
-                          { label: "Ecosystem", pct: 35, color: "#7c3aed" },
-                          { label: "Liquidity", pct: 30, color: "#a78bfa" },
+                          { label: "Public Sale", pct: 20, color: "#FF6B00" },
+                          { label: "Team (24mo vesting)", pct: 15, color: "#C24E02" },
+                          { label: "Ecosystem", pct: 35, color: "#FF8A33" },
+                          { label: "Liquidity", pct: 30, color: "#FFB37A" },
                         ]
                     ).map(({ label, pct: p, color }) => (
                       <div key={label} className="flex items-center gap-3">
-                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "rgba(20,20,20,0.08)" }}>
                           <div className="h-full rounded-full" style={{ width: `${p}%`, background: color }} />
                         </div>
-                        <span className="text-xs text-white/40 w-36 text-right">{label} {p}%</span>
+                        <span className="text-xs text-ink-500 w-36 text-right">{label} {p}%</span>
                       </div>
                     ))}
                   </div>
@@ -171,23 +171,23 @@ export default function LaunchPad() {
 
             {/* Buy panel */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-              <div className="glass rounded-2xl p-5 sticky top-24 space-y-4">
+              <div className="card p-5 sticky top-24 space-y-4">
                 <div className="flex items-center gap-2">
-                  <Rocket size={16} style={{ color: "#8b5cf6" }} />
-                  <h2 className="font-bold text-white text-sm">Participate</h2>
+                  <Rocket size={16} style={{ color: "#C24E02" }} />
+                  <h2 className="font-bold text-ink-900 text-sm">Participate</h2>
                 </div>
 
-                <div className="p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)" }}>
-                  <p className="text-xs text-white/30 mb-2">Contribution (USDC)</p>
+                <div className="p-4 rounded-xl bg-bone border border-ink-900/10">
+                  <p className="text-xs text-ink-500 mb-2">Contribution (USDC)</p>
                   <input
                     type="number"
                     value={contribution}
                     onChange={(e) => setContribution(e.target.value)}
-                    className="w-full bg-transparent text-2xl font-bold text-white outline-none"
+                    className="w-full bg-transparent text-2xl font-bold text-ink-900 outline-none"
                   />
                   <div className="flex gap-1.5 mt-2">
                     {["100", "500", "1000"].map((v) => (
-                      <button key={v} onClick={() => setContribution(v)} className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors" style={{ background: "rgba(139,92,246,0.15)", color: "#a78bfa" }}>
+                      <button key={v} onClick={() => setContribution(v)} className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors" style={{ background: "rgba(255,107,0,0.12)", color: "#C24E02" }}>
                         ${v}
                       </button>
                     ))}
@@ -201,45 +201,45 @@ export default function LaunchPad() {
                     { label: "Lock period", value: dangerous ? "None" : "3 months" },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex justify-between">
-                      <span className="text-white/40">{label}</span>
-                      <span className="font-semibold text-white">{value}</span>
+                      <span className="text-ink-500">{label}</span>
+                      <span className="font-semibold text-ink-900">{value}</span>
                     </div>
                   ))}
                 </div>
 
                 {success ? (
-                  <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full py-3.5 rounded-xl text-center font-bold text-violet-300 text-sm" style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)" }}>
+                  <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full py-3.5 rounded-xl text-center font-bold text-sm" style={{ background: "rgba(255,107,0,0.1)", border: "1px solid rgba(255,107,0,0.25)", color: "#C24E02" }}>
                     ✓ ${contribution} Invested
                   </motion.div>
                 ) : (
-                  <button onClick={handleBuy} className="w-full py-3.5 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110" style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}>
+                  <button onClick={handleBuy} className="w-full py-3.5 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110" style={{ background: "#C24E02" }}>
                     {connected ? "Contribute Now" : "Connect Wallet"}
                   </button>
                 )}
 
                 {!dangerous && (
-                  <a href="#" className="flex items-center justify-center gap-1.5 text-xs text-white/25 hover:text-white/50 transition-colors">
+                  <a href="#" className="flex items-center justify-center gap-1.5 text-xs text-ink-400 hover:text-ink-700 transition-colors">
                     View audit report <ExternalLink size={11} />
                   </a>
                 )}
               </div>
 
               {/* Social proof */}
-              <div className="mt-4 glass rounded-2xl p-4 flex items-center gap-3">
-                <Users size={14} className="text-violet-400" />
-                <span className="text-xs text-white/40"><strong className="text-white">{dangerous ? "12" : "3,847"}</strong> participants</span>
+              <div className="mt-4 card p-4 flex items-center gap-3">
+                <Users size={14} style={{ color: "#C24E02" }} />
+                <span className="text-xs text-ink-500"><strong className="text-ink-900">{dangerous ? "12" : "3,847"}</strong> participants</span>
               </div>
             </motion.div>
           </div>
 
           {/* Demo toggle */}
           <div className="mt-12 flex justify-center">
-            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <span className="text-xs text-white/30">Simulate rug pull project</span>
-              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#ef4444" : "rgba(255,255,255,0.1)" }}>
-                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
+            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-bone border border-ink-900/10">
+              <span className="text-xs text-ink-500">Simulate rug pull project</span>
+              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#ef4444" : "rgba(20,20,20,0.15)" }}>
+                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-card transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
               </button>
-              {dangerous && <span className="text-xs text-red-400 font-medium">⚠ Danger mode</span>}
+              {dangerous && <span className="text-xs text-red-600 font-medium">⚠ Danger mode</span>}
             </div>
           </div>
         </div>

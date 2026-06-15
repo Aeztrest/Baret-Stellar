@@ -24,15 +24,15 @@ export function Home() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-white tracking-tight">Welcome back</h1>
-        <p className="text-white/45 text-sm mt-1">Your wallet is guarded by BLACKTHORN — every signature is simulated first.</p>
+        <h1 className="text-3xl font-black font-display text-ink-900 tracking-tight">Welcome back</h1>
+        <p className="text-ink-500 text-sm mt-1">Your wallet is guarded by Baret — every signature is simulated first.</p>
       </div>
 
-      {/* Balance hero */}
-      <div className="rounded-3xl p-6 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(99,102,241,0.04))", border: "1px solid rgba(99,102,241,0.25)" }}>
-        <p className="text-[10px] uppercase tracking-wider text-accent-soft/80 font-semibold mb-2">{balanceLabel}</p>
-        <p className="text-5xl font-black text-white">
+      {/* Balance hero — deliberate dark inspection console on the light page */}
+      <div className="card !bg-ink-900 !border-ink-900 rounded-3xl p-6 relative overflow-hidden">
+        <div className="hazard h-1 absolute top-0 left-0 right-0" />
+        <p className="text-[10px] uppercase tracking-wider text-accent font-semibold mb-2 mt-1">{balanceLabel}</p>
+        <p className="text-5xl font-black font-display text-white">
           {balance === null ? "—" : balance.toFixed(4)}
           <span className="text-2xl text-white/40 font-bold ml-2">SOL</span>
         </p>
@@ -51,15 +51,15 @@ export function Home() {
 
       {/* Two-up: policy summary + recent activity */}
       <div className="grid md:grid-cols-2 gap-5">
-        <div className="glass rounded-2xl p-5">
+        <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <ShieldCheck size={14} className="text-accent-soft" />
-              <h2 className="font-bold text-white text-sm">Active policy</h2>
+              <ShieldCheck size={14} className="text-accent" />
+              <h2 className="font-bold text-ink-900 text-sm">Active policy</h2>
             </div>
-            <Link to="/policies" className="text-xs text-white/40 hover:text-white">Edit →</Link>
+            <Link to="/policies" className="text-xs text-ink-500 hover:text-accent">Edit →</Link>
           </div>
-          <ul className="space-y-2 text-xs text-white/65">
+          <ul className="space-y-2 text-xs text-ink-600">
             <PolicyRow label="Max loss per tx" value={policy.maxLossPercent != null ? `${policy.maxLossPercent}%` : "Unset"} />
             <PolicyRow label="Block risky programs" value={policy.blockRiskyPrograms ? "On" : "Off"} />
             <PolicyRow label="Block unknown programs" value={policy.blockUnknownProgramExposure ? "On" : "Off"} />
@@ -68,25 +68,25 @@ export function Home() {
           </ul>
         </div>
 
-        <div className="glass rounded-2xl p-5">
+        <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Clock size={14} className="text-accent-soft" />
-              <h2 className="font-bold text-white text-sm">Recent activity</h2>
+              <Clock size={14} className="text-accent" />
+              <h2 className="font-bold text-ink-900 text-sm">Recent activity</h2>
             </div>
-            <Link to="/history" className="text-xs text-white/40 hover:text-white">All →</Link>
+            <Link to="/history" className="text-xs text-ink-500 hover:text-accent">All →</Link>
           </div>
           {history.length === 0 ? (
-            <p className="text-xs text-white/40 py-6 text-center">No activity yet — try a Send to see BLACKTHORN in action.</p>
+            <p className="text-xs text-ink-400 py-6 text-center">No activity yet — try a Send to see Baret in action.</p>
           ) : (
             <ul className="space-y-1.5">
               {history.map((h) => (
                 <li key={h.id} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${h.decision === "allow" ? "bg-emerald-400" : "bg-red-400"}`} />
-                    <span className="text-white/70 truncate">{h.label}</span>
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${h.decision === "allow" ? "bg-emerald-600" : "bg-[#DC2626]"}`} />
+                    <span className="text-ink-700 truncate">{h.label}</span>
                   </div>
-                  <span className="text-white/30 shrink-0 ml-2">{relativeTime(h.createdAt)}</span>
+                  <span className="text-ink-400 shrink-0 ml-2">{relativeTime(h.createdAt)}</span>
                 </li>
               ))}
             </ul>
@@ -94,16 +94,15 @@ export function Home() {
         </div>
       </div>
 
-      <Link to="/policies" className="glass-strong rounded-2xl p-5 flex items-center gap-4 hover:bg-white/[0.04] transition-colors group">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: "rgba(99,102,241,0.15)" }}>
-          <ShieldCheck size={16} className="text-accent-soft" />
+      <Link to="/policies" className="card p-5 flex items-center gap-4 hover:shadow-lift transition-shadow group">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-accent-dim">
+          <ShieldCheck size={16} className="text-accent" />
         </div>
         <div className="flex-1">
-          <p className="font-bold text-white text-sm">Customize your protection</p>
-          <p className="text-xs text-white/50">Tune every BLACKTHORN rule — loss caps, program allowlists, approval blocks.</p>
+          <p className="font-bold text-ink-900 text-sm">Customize your protection</p>
+          <p className="text-xs text-ink-500">Tune every Baret rule — loss caps, program allowlists, approval blocks.</p>
         </div>
-        <ArrowRight size={14} className="text-white/30 group-hover:text-white/80 transition-colors" />
+        <ArrowRight size={14} className="text-ink-300 group-hover:text-accent transition-colors" />
       </Link>
     </div>
   );
@@ -112,8 +111,8 @@ export function Home() {
 function PolicyRow({ label, value }: { label: string; value: string }) {
   return (
     <li className="flex justify-between">
-      <span className="text-white/40">{label}</span>
-      <span className="text-white/85 font-medium">{value}</span>
+      <span className="text-ink-400">{label}</span>
+      <span className="text-ink-800 font-medium">{value}</span>
     </li>
   );
 }

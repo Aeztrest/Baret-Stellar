@@ -12,9 +12,9 @@ import { Hub } from "./components/Hub";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WalletProvider } from "./wallet/context";
 
-const SolSwap   = lazy(() => import("./sites/solswap/SolSwap"));
+const NovaSwap  = lazy(() => import("./sites/novaswap/NovaSwap"));
 const PixelDrop = lazy(() => import("./sites/pixeldrop/PixelDrop"));
-const SolYield  = lazy(() => import("./sites/solyield/SolYield"));
+const OrbitYield = lazy(() => import("./sites/orbityield/OrbitYield"));
 const ClaimHub  = lazy(() => import("./sites/claimhub/ClaimHub"));
 const LaunchPad = lazy(() => import("./sites/launchpad/LaunchPad"));
 const Scrybe       = lazy(() => import("./sites/scrybe/Scrybe"));
@@ -32,9 +32,9 @@ function RouteShell({ children }: { children: React.ReactNode }) {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center text-white/40" style={{ background: "#08080C" }}>
+    <div className="min-h-screen flex items-center justify-center text-ink-400" style={{ background: "#FAF8F4" }}>
       <div className="flex items-center gap-2 text-sm">
-        <Loader2 size={14} className="animate-spin" />
+        <Loader2 size={14} className="animate-spin text-brand-500" />
         Loading…
       </div>
     </div>
@@ -44,16 +44,16 @@ function LoadingScreen() {
 export default function App() {
   return (
     <ErrorBoundary fallbackLabel="The showcase root crashed.">
-      <WalletProvider appName="BLACKTHORN Showcase">
+      <WalletProvider appName="Baret Showcase">
         <BrowserRouter>
           <Routes>
             <Route path="/"          element={<RouteShell><Hub /></RouteShell>} />
             <Route path="/showcase"  element={<RouteShell><Hub /></RouteShell>} />
             <Route path="/home"      element={<RouteShell><HomePage /></RouteShell>} />
             <Route path="/docs"      element={<RouteShell><DocsPage /></RouteShell>} />
-            <Route path="/solswap"   element={<RouteShell><SolSwap /></RouteShell>} />
+            <Route path="/novaswap"  element={<RouteShell><NovaSwap /></RouteShell>} />
             <Route path="/pixeldrop" element={<RouteShell><PixelDrop /></RouteShell>} />
-            <Route path="/solyield"  element={<RouteShell><SolYield /></RouteShell>} />
+            <Route path="/orbityield" element={<RouteShell><OrbitYield /></RouteShell>} />
             <Route path="/claimhub"  element={<RouteShell><ClaimHub /></RouteShell>} />
             <Route path="/launchpad" element={<RouteShell><LaunchPad /></RouteShell>} />
             <Route path="/scrybe"    element={<RouteShell><Scrybe /></RouteShell>} />

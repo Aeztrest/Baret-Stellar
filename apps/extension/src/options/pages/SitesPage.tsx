@@ -138,12 +138,12 @@ function SiteCard({ site }: { site: SiteSummary }) {
   return (
     <Link
       to={`/sites/${b64}`}
-      className="card flex items-center gap-4 hover:bg-white/[0.025] transition-colors"
+      className="card flex items-center gap-4 hover:bg-black/[0.03] transition-colors"
     >
       <div
         className="w-10 h-10 rounded-input flex items-center justify-center shrink-0"
         style={{
-          background: site.blocked ? "var(--bad-dim)" : "rgba(255,255,255,0.04)",
+          background: site.blocked ? "var(--bad-dim)" : "rgba(20,20,20,0.045)",
           border: "1px solid var(--line)",
         }}
       >

@@ -19,7 +19,7 @@ export function UninitializedScreen() {
     <div className="h-full flex flex-col px-6 py-8 gap-5">
       <div className="text-accent-soft flex items-center gap-2">
         <Mark size={20} />
-        <span className="font-bold text-xs tracking-tight">BLACKTHORN</span>
+        <span className="font-bold text-xs tracking-tight">Baret</span>
       </div>
 
       <div className="space-y-2">

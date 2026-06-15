@@ -30,39 +30,39 @@ export function Topbar() {
   };
 
   return (
-    <header className="h-16 px-6 flex items-center justify-between border-b border-white/[0.05] shrink-0">
+    <header className="h-16 px-6 flex items-center justify-between border-b border-ink-900/10 bg-bg-elevated shrink-0">
       <div className="flex items-center gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Smart Wallet</p>
+          <p className="text-[10px] uppercase tracking-wider text-ink-400 font-semibold">Smart Wallet</p>
           <button onClick={onCopy} className="flex items-center gap-2 group text-left">
-            <span className="font-mono text-sm text-white/90">{shortAddr(displayAddr)}</span>
+            <span className="font-mono text-sm text-ink-900">{shortAddr(displayAddr)}</span>
             {copied
-              ? <Check size={12} className="text-emerald-400" />
-              : <Copy size={12} className="text-white/30 group-hover:text-white/60 transition-colors" />}
+              ? <Check size={12} className="text-emerald-600" />
+              : <Copy size={12} className="text-ink-300 group-hover:text-ink-600 transition-colors" />}
           </button>
         </div>
-        <div className="h-8 w-px bg-white/[0.08]" />
+        <div className="h-8 w-px bg-ink-900/10" />
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Status</p>
+          <p className="text-[10px] uppercase tracking-wider text-ink-400 font-semibold">Status</p>
           <span className="text-sm flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${phase === "ready" ? "bg-emerald-400" : "bg-amber-400"}`} />
-            <span className="text-white/85">{status}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${phase === "ready" ? "bg-emerald-500" : "bg-accent"}`} />
+            <span className="text-ink-800">{status}</span>
           </span>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
         <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Balance</p>
-          <p className="text-sm font-bold text-white">
+          <p className="text-[10px] uppercase tracking-wider text-ink-400 font-semibold">Balance</p>
+          <p className="text-sm font-bold text-ink-900">
             {balanceLabel === null ? "—" : balanceLabel.toFixed(4)}
-            <span className="text-white/40 font-medium ml-1">SOL</span>
+            <span className="text-ink-400 font-medium ml-1">SOL</span>
           </p>
         </div>
         <button
           onClick={onRefresh}
           disabled={refreshing}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.05] transition-colors disabled:opacity-50"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-400 hover:text-ink-800 hover:bg-ink-900/[0.05] transition-colors disabled:opacity-50"
           title="Refresh balance"
         >
           <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
@@ -71,8 +71,8 @@ export function Topbar() {
           href={explorerUrl("address", displayAddr)}
           target="_blank"
           rel="noreferrer"
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.05] transition-colors"
-          title="Open in Solana Explorer"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-400 hover:text-ink-800 hover:bg-ink-900/[0.05] transition-colors"
+          title="Open in explorer"
         >
           <ExternalLink size={13} />
         </a>

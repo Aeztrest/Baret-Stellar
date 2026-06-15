@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  ShieldCheck,
+  HardHat,
   Zap,
   Loader2,
   Download,
@@ -23,7 +23,7 @@ interface Props {
   available: StellarWalletProvider[];
 }
 
-const BLACKTHORN_NAME = "BLACKTHORN";
+const BARET_NAME = "BARET";
 
 export function WalletModal({
   open,
@@ -50,8 +50,8 @@ export function WalletModal({
     setTimeout(() => setRescanning(false), 350);
   }, []);
 
-  const blackthorn = available.find((w) => w.name === BLACKTHORN_NAME);
-  const others = available.filter((w) => w.name !== BLACKTHORN_NAME);
+  const baret = available.find((w) => w.name === BARET_NAME);
+  const others = available.filter((w) => w.name !== BARET_NAME);
 
   return (
     <AnimatePresence>
@@ -62,7 +62,7 @@ export function WalletModal({
           exit={{ opacity: 0 }}
           onClick={onClose}
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(8px)" }}
+          style={{ background: "rgba(20,20,20,0.45)", backdropFilter: "blur(8px)" }}
         >
           <motion.div
             initial={{ scale: 0.92, opacity: 0, y: 12 }}
@@ -70,26 +70,24 @@ export function WalletModal({
             exit={{ scale: 0.92, opacity: 0, y: 12 }}
             transition={{ type: "spring", stiffness: 340, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl overflow-hidden"
-            style={{
-              background: "#111114",
-              border: "1px solid rgba(255,255,255,0.09)",
-            }}
+            className="w-full max-w-sm rounded-2xl overflow-hidden bg-white shadow-lift"
+            style={{ border: "1px solid rgba(20,20,20,0.10)" }}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-              <h2 className="font-semibold text-sm text-white">Connect Wallet</h2>
+            <div className="hazard h-1" aria-hidden />
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ink-900/8">
+              <h2 className="font-bold text-sm text-ink-900">Connect Wallet</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={rescan}
                   disabled={rescanning}
                   title="Re-scan for registered wallets"
-                  className="text-white/30 hover:text-white/80 transition-colors p-0.5"
+                  className="text-ink-300 hover:text-ink-700 transition-colors p-0.5"
                 >
                   <RotateCw size={14} className={rescanning ? "animate-spin" : ""} />
                 </button>
                 <button
                   onClick={onClose}
-                  className="text-white/30 hover:text-white/70"
+                  className="text-ink-300 hover:text-ink-700"
                 >
                   <X size={16} />
                 </button>
@@ -97,72 +95,68 @@ export function WalletModal({
             </div>
 
             <div className="p-4 space-y-3">
-              {blackthorn ? (
+              {baret ? (
                 <button
-                  onClick={() => onConnect(blackthorn)}
+                  onClick={() => onConnect(baret)}
                   disabled={connecting}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl text-left transition-all hover:bg-white/5 disabled:opacity-60"
+                  className="w-full flex items-center gap-3 p-4 rounded-xl text-left transition-all hover:bg-brand-50 disabled:opacity-60"
                   style={{
-                    background: "rgba(99,102,241,0.08)",
-                    border: "1px solid rgba(99,102,241,0.35)",
+                    background: "rgba(255,107,0,0.06)",
+                    border: "1px solid rgba(255,107,0,0.45)",
                   }}
                 >
                   <WalletIcon
-                    icon={blackthorn.icon}
-                    fallback={<ShieldCheck size={16} className="text-white" />}
+                    icon={baret.icon}
+                    fallback={<HardHat size={16} className="text-white" />}
                     variant="primary"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-bold text-white">
-                        BLACKTHORN Wallet
+                      <p className="text-sm font-bold text-ink-900">
+                        Baret Wallet
                       </p>
                       <span
-                        className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold"
-                        style={{
-                          background: "rgba(99,102,241,0.2)",
-                          color: "#a5b4fc",
-                        }}
+                        className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold bg-brand-500 text-white"
                       >
                         Recommended
                       </span>
                     </div>
-                    <p className="text-xs text-white/50 mt-0.5">
+                    <p className="text-xs text-ink-500 mt-0.5">
                       Pre-flight simulation + live monitoring on Stellar
                     </p>
                   </div>
                   {connecting ? (
-                    <Loader2 size={11} className="animate-spin text-accent-soft" />
+                    <Loader2 size={11} className="animate-spin text-brand-500" />
                   ) : (
-                    <Zap size={11} className="text-accent-soft" />
+                    <Zap size={11} className="text-brand-500" />
                   )}
                 </button>
               ) : (
-                <BlackthornMissing othersCount={others.length} />
+                <BaretMissing othersCount={others.length} />
               )}
 
               {others.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-semibold px-1 mb-1.5">
-                    {blackthorn ? "Other wallets" : "Wallets we did detect"}
+                  <p className="text-[10px] uppercase tracking-wider text-ink-400 font-bold px-1 mb-1.5">
+                    {baret ? "Other wallets" : "Wallets we did detect"}
                   </p>
                   {others.map((w) => (
                     <button
                       key={w.name}
                       onClick={() => onConnect(w)}
                       disabled={connecting}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all hover:bg-white/5"
-                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all hover:bg-bone"
+                      style={{ border: "1px solid rgba(20,20,20,0.08)" }}
                     >
                       <WalletIcon
                         icon={w.icon}
                         fallback={
-                          <span className="text-sm font-bold">{w.name[0]}</span>
+                          <span className="text-sm font-bold text-ink-700">{w.name[0]}</span>
                         }
                       />
-                      <p className="text-sm text-white flex-1">{w.name}</p>
-                      <span className="text-[10px] text-white/30">
-                        No BLACKTHORN protection
+                      <p className="text-sm text-ink-900 flex-1">{w.name}</p>
+                      <span className="text-[10px] text-ink-400">
+                        No Baret protection
                       </span>
                     </button>
                   ))}
@@ -171,8 +165,8 @@ export function WalletModal({
             </div>
 
             <div className="px-5 pb-5 space-y-2">
-              <p className="text-xs text-white/45 leading-relaxed">
-                BLACKTHORN sits between this site and your signature. Every
+              <p className="text-xs text-ink-400 leading-relaxed">
+                Baret sits between this site and your signature. Every
                 Stellar transaction is preflighted, policy-checked, and surfaced
                 at the wallet level — not on this page.
               </p>
@@ -184,46 +178,46 @@ export function WalletModal({
   );
 }
 
-function BlackthornMissing({ othersCount }: { othersCount: number }) {
+function BaretMissing({ othersCount }: { othersCount: number }) {
   const likelyInstalled = othersCount > 0;
   return (
     <div className="space-y-2">
       <div
         className="rounded-xl p-4"
         style={{
-          background: "rgba(99,102,241,0.08)",
-          border: "1px solid rgba(99,102,241,0.35)",
+          background: "rgba(255,107,0,0.06)",
+          border: "1px solid rgba(255,107,0,0.45)",
         }}
       >
         <div className="flex items-center gap-2 mb-2">
-          <ShieldCheck size={14} className="text-indigo-300" />
-          <p className="text-sm font-bold text-white">
-            BLACKTHORN not detected
+          <HardHat size={14} className="text-brand-600" />
+          <p className="text-sm font-bold text-ink-900">
+            Baret not detected
           </p>
         </div>
         {likelyInstalled ? (
-          <div className="space-y-2.5 text-xs text-white/65 leading-relaxed">
+          <div className="space-y-2.5 text-xs text-ink-600 leading-relaxed">
             <p>
-              We see other Stellar wallets but not BLACKTHORN. The extension is
+              We see other Stellar wallets but not Baret. The extension is
               probably installed but didn't register itself on this page.
             </p>
             <div
               className="rounded-lg p-2.5 space-y-1"
               style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(20,20,20,0.04)",
+                border: "1px solid rgba(20,20,20,0.08)",
               }}
             >
-              <p className="text-white/85 font-semibold text-[11px]">
+              <p className="text-ink-900 font-semibold text-[11px]">
                 Quick fix:
               </p>
-              <ol className="text-[11px] text-white/65 space-y-0.5 list-decimal list-inside">
+              <ol className="text-[11px] text-ink-600 space-y-0.5 list-decimal list-inside">
                 <li>
                   Open the extensions page (
                   <span className="font-mono">about:debugging</span> or{" "}
                   <span className="font-mono">chrome://extensions</span>)
                 </li>
-                <li>Remove the old BLACKTHORN entry</li>
+                <li>Remove the old Baret entry</li>
                 <li>
                   Load the latest build (
                   <span className="font-mono">apps/extension/dist</span> or
@@ -235,17 +229,16 @@ function BlackthornMissing({ othersCount }: { othersCount: number }) {
             <div className="flex gap-2 pt-1">
               <a
                 href="/install"
-                className="btn-primary !text-xs !py-2 flex-1 flex items-center justify-center gap-1.5"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-brand-500 text-white hover:bg-brand-600 transition-colors"
               >
                 <Download size={11} /> Download latest
               </a>
               <button
                 onClick={() => window.location.reload()}
-                className="px-3 py-2 rounded-lg text-xs flex items-center gap-1.5"
+                className="px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 text-ink-600"
                 style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "rgba(255,255,255,0.7)",
+                  background: "rgba(20,20,20,0.04)",
+                  border: "1px solid rgba(20,20,20,0.10)",
                 }}
               >
                 <AlertCircle size={11} /> Reload page
@@ -254,12 +247,12 @@ function BlackthornMissing({ othersCount }: { othersCount: number }) {
           </div>
         ) : (
           <a href="/install" className="block mt-2">
-            <div className="flex items-center gap-2 text-xs text-white/65">
+            <div className="flex items-center gap-2 text-xs text-ink-600">
               <Download size={12} />
               <span>
                 Get one-click install · works in Chrome, Brave, Edge, Firefox
               </span>
-              <ChevronRight size={12} className="ml-auto text-white/40" />
+              <ChevronRight size={12} className="ml-auto text-ink-400" />
             </div>
           </a>
         )}
@@ -288,8 +281,8 @@ function WalletIcon({
         borderRadius: radius,
         background:
           variant === "primary"
-            ? "linear-gradient(135deg,#6366f1,#4f46e5)"
-            : "rgba(255,255,255,0.05)",
+            ? "linear-gradient(135deg,#FF6B00,#C24E02)"
+            : "rgba(20,20,20,0.06)",
       }}
     >
       {icon ? (

@@ -55,10 +55,10 @@ export function Policies() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Shield size={20} className="text-accent-soft" /> Policies
+          <h1 className="text-2xl font-black font-display text-ink-900 tracking-tight flex items-center gap-2">
+            <Shield size={20} className="text-accent" /> Policies
           </h1>
-          <p className="text-white/45 text-sm mt-1">Rules BLACKTHORN enforces on every transaction your wallet signs.</p>
+          <p className="text-ink-500 text-sm mt-1">Rules Baret enforces on every transaction your wallet signs.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={onReset} className="btn-ghost"><RotateCcw size={12} /> Discard</button>
@@ -74,8 +74,8 @@ export function Policies() {
         <div className="flex flex-wrap gap-2">
           {POLICY_TEMPLATES.map((t) => (
             <button key={t.id} onClick={() => applyTemplate(t.id)}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors text-white/80 hover:text-white"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors text-ink-700 hover:text-accent"
+              style={{ background: "rgba(20,20,20,0.03)", border: "1px solid rgba(20,20,20,0.08)" }}
               title={t.description}>
               {t.name}
             </button>
@@ -84,14 +84,14 @@ export function Policies() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-white/[0.06]">
+      <div className="flex gap-1 border-b border-ink-900/[0.1]">
         {[
           { id: "form" as Tab, label: "Visual editor" },
           { id: "json" as Tab, label: "Raw JSON" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
-              tab === t.id ? "text-white border-accent" : "text-white/40 border-transparent hover:text-white/70"
+              tab === t.id ? "text-ink-900 border-accent" : "text-ink-400 border-transparent hover:text-ink-700"
             }`}>
             {t.label}
           </button>
@@ -108,7 +108,7 @@ export function Policies() {
           />
           <PolicyToggle
             title="Block risky programs"
-            help="Reject if the tx invokes a program flagged as risky by BLACKTHORN's reputation database."
+            help="Reject if the tx invokes a program flagged as risky by Baret's reputation database."
             value={!!policy.blockRiskyPrograms}
             onChange={(v) => update("blockRiskyPrograms", v)}
           />
@@ -162,7 +162,7 @@ export function Policies() {
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs text-white/50">
+          <div className="flex items-center gap-2 text-xs text-ink-500">
             <FileCode size={12} /> Edit raw policy JSON. Schema mirrors apps/server/src/domain/policy.ts.
           </div>
           <textarea value={json} onChange={(e) => setJson(e.target.value)}
@@ -174,7 +174,7 @@ export function Policies() {
 
       {error && (
         <div className="rounded-xl px-4 py-3 text-xs flex items-start gap-2"
-          style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}>
+          style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.25)", color: "#DC2626" }}>
           <AlertTriangle size={13} className="mt-0.5" />
           <div>
             <p className="font-semibold">Cannot save policy</p>
@@ -188,14 +188,14 @@ export function Policies() {
 
 function PolicyToggle({ title, help, value, onChange }: { title: string; help: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="glass rounded-xl p-4 flex items-start gap-4">
+    <div className="card p-4 flex items-start gap-4">
       <div className="flex-1">
-        <p className="font-semibold text-white text-sm">{title}</p>
-        <p className="text-xs text-white/45 mt-1 leading-relaxed">{help}</p>
+        <p className="font-semibold text-ink-900 text-sm">{title}</p>
+        <p className="text-xs text-ink-500 mt-1 leading-relaxed">{help}</p>
       </div>
       <button onClick={() => onChange(!value)}
         className="relative w-10 h-5 rounded-full transition-colors shrink-0"
-        style={{ background: value ? "#6366f1" : "rgba(255,255,255,0.1)" }}>
+        style={{ background: value ? "#FF6B00" : "rgba(20,20,20,0.14)" }}>
         <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
           style={{ transform: value ? "translateX(21px)" : "translateX(2px)" }} />
       </button>
@@ -208,17 +208,17 @@ function PolicyNumber({ title, help, unit, value, onChange, min, max, step }: {
   onChange: (v: number | null) => void; min?: number; max?: number; step?: number;
 }) {
   return (
-    <div className="glass rounded-xl p-4">
+    <div className="card p-4">
       <div className="flex items-center justify-between mb-2 gap-3">
         <div className="flex-1">
-          <p className="font-semibold text-white text-sm">{title}</p>
-          <p className="text-xs text-white/45 mt-1 leading-relaxed">{help}</p>
+          <p className="font-semibold text-ink-900 text-sm">{title}</p>
+          <p className="text-xs text-ink-500 mt-1 leading-relaxed">{help}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <input type="number" value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
             min={min} max={max} step={step} placeholder="—"
             className="input w-24 text-right" />
-          {unit && <span className="text-xs text-white/40">{unit}</span>}
+          {unit && <span className="text-xs text-ink-400">{unit}</span>}
         </div>
       </div>
     </div>
@@ -227,10 +227,10 @@ function PolicyNumber({ title, help, unit, value, onChange, min, max, step }: {
 
 function PolicyText({ title, help, value, onChange }: { title: string; help: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="glass rounded-xl p-4 space-y-2">
+    <div className="card p-4 space-y-2">
       <div>
-        <p className="font-semibold text-white text-sm">{title}</p>
-        <p className="text-xs text-white/45 mt-1 leading-relaxed">{help}</p>
+        <p className="font-semibold text-ink-900 text-sm">{title}</p>
+        <p className="text-xs text-ink-500 mt-1 leading-relaxed">{help}</p>
       </div>
       <input value={value} onChange={(e) => onChange(e.target.value.trim())}
         placeholder="Mint address (base58)" className="input" />

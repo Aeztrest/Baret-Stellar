@@ -126,7 +126,7 @@ export function Onboarding() {
       <div className="border-b border-line">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
           <div className="text-accent-soft"><Mark size={20} /></div>
-          <span className="font-extrabold text-sm tracking-tight">BLACKTHORN</span>
+          <span className="font-extrabold text-sm tracking-tight">Baret</span>
           <div className="flex-1" />
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5, 6, 7].map((i) => (
@@ -396,7 +396,7 @@ function StepBackup({
           </button>
         </div>
         <div className="font-mono text-xs break-all min-h-[3.5rem] px-3 py-3 rounded-input"
-             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--line)" }}>
+             style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
           {revealed ? secret : "•".repeat(80)}
         </div>
         <button onClick={onCopy} disabled={!revealed} className="btn-ghost w-full disabled:opacity-50">
@@ -501,7 +501,7 @@ function StepPolicy({
         <Globe size={26} className="mx-auto text-accent-soft" />
         <h2 className="text-2xl font-extrabold tracking-tight">Pick your default policy</h2>
         <p className="text-text-muted text-sm max-w-md mx-auto">
-          BLACKTHORN enforces these rules on every signature. Tweak any time in Policies.
+          Baret enforces these rules on every signature. Tweak any time in Policies.
         </p>
       </div>
 
@@ -514,7 +514,7 @@ function StepPolicy({
               onClick={() => onChoose(t.id)}
               className="w-full text-left p-4 rounded-card transition-colors"
               style={{
-                background: active ? "rgba(61,109,255,0.06)" : "rgba(255,255,255,0.025)",
+                background: active ? "rgba(255,107,0,0.07)" : "rgba(20,20,20,0.03)",
                 border: active ? "1px solid rgba(61,109,255,0.5)" : "1px solid var(--line)",
               }}
             >
@@ -545,7 +545,7 @@ function StepDone({ walletAddress, onEnter }: { walletAddress: string; onEnter: 
       <div className="space-y-2">
         <h2 className="text-3xl font-extrabold tracking-tight">You're protected.</h2>
         <p className="text-text-muted max-w-md mx-auto">
-          Your smart wallet is live on devnet. Every signature from here on passes through BLACKTHORN.
+          Your smart wallet is live on devnet. Every signature from here on passes through Baret.
         </p>
       </div>
 

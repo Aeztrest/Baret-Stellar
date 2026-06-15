@@ -53,19 +53,17 @@ export function Onboarding() {
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       {/* Top progress bar */}
-      <div className="border-b border-white/[0.05]">
+      <div className="border-b border-ink-900/[0.06]">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)" }}>
-            <ShieldCheck size={14} className="text-white" />
-          </div>
-          <span className="font-bold text-sm text-white tracking-tight">BLACKTHORN Wallet</span>
+          <svg width={28} height={28} viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#141414"/><path d="M8 19.5a8 8 0 0 1 16 0Z" fill="#FF6B00"/><rect x="14.6" y="9" width="2.8" height="5.2" rx="1.4" fill="#FFFFFF"/><rect x="6" y="20.4" width="20" height="2.6" rx="1.3" fill="#FF6B00"/></svg>
+          <span className="font-display font-bold text-sm text-ink-900 tracking-tight">Baret Wallet</span>
           <div className="flex-1" />
           <div className="flex items-center gap-1">
             {STEPS.slice(0, -1).map((_, i) => (
               <div
                 key={i}
                 className="h-1 w-8 rounded-full transition-colors"
-                style={{ background: i <= stepIndex ? "#6366f1" : "rgba(255,255,255,0.08)" }}
+                style={{ background: i <= stepIndex ? "#FF6B00" : "rgba(20,20,20,0.08)" }}
               />
             ))}
           </div>
@@ -136,13 +134,13 @@ export function Onboarding() {
 
             {error && (
               <div className="mt-5 px-4 py-3 rounded-xl text-xs flex items-start gap-2"
-                style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}>
+                style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.3)", color: "#DC2626" }}>
                 <AlertTriangle size={13} className="shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="font-semibold">Something went wrong</p>
                   <p className="opacity-90">{error}</p>
                 </div>
-                <button onClick={() => setError(null)} className="text-red-300/60 hover:text-red-300">×</button>
+                <button onClick={() => setError(null)} className="text-[#DC2626]/60 hover:text-[#DC2626]">×</button>
               </div>
             )}
           </motion.div>
@@ -156,15 +154,16 @@ export function Onboarding() {
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
-    <div className="text-center space-y-8">
+    <div className="card overflow-hidden">
+      <div className="hazard h-1.5" />
+      <div className="p-8 text-center space-y-8">
       <div className="space-y-4">
-        <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(99,102,241,0.05))", border: "1px solid rgba(99,102,241,0.3)" }}>
-          <ShieldCheck size={28} className="text-accent-soft" />
+        <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center">
+          <svg width={64} height={64} viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#141414"/><path d="M8 19.5a8 8 0 0 1 16 0Z" fill="#FF6B00"/><rect x="14.6" y="9" width="2.8" height="5.2" rx="1.4" fill="#FFFFFF"/><rect x="6" y="20.4" width="20" height="2.6" rx="1.3" fill="#FF6B00"/></svg>
         </div>
-        <h1 className="text-3xl font-black text-white">A wallet that protects you<br />before you sign.</h1>
-        <p className="text-white/55 max-w-md mx-auto leading-relaxed">
-          BLACKTHORN simulates every transaction on Solana before it touches your keys.
+        <h1 className="text-3xl font-display font-bold text-ink-900">A wallet that protects you<br />before you sign.</h1>
+        <p className="text-ink-500 max-w-md mx-auto leading-relaxed">
+          Baret simulates every transaction on Solana before it touches your keys.
           Risky? Blocked at the wallet level — not at the dApp's mercy.
         </p>
       </div>
@@ -177,8 +176,8 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         ].map(({ icon: Icon, title, body }) => (
           <div key={title} className="glass rounded-xl p-4 text-left">
             <Icon size={16} className="text-accent-soft mb-2.5" />
-            <p className="text-sm font-bold text-white mb-1">{title}</p>
-            <p className="text-xs text-white/45 leading-relaxed">{body}</p>
+            <p className="text-sm font-bold text-ink-900 mb-1">{title}</p>
+            <p className="text-xs text-ink-500 leading-relaxed">{body}</p>
           </div>
         ))}
       </div>
@@ -187,23 +186,24 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         Get Started
         <ArrowRight size={14} />
       </button>
-      <p className="text-[10px] text-white/30">Devnet only · Demo wallet · Keypair stays in this browser</p>
+      <p className="text-[10px] text-ink-400">Devnet only · Demo wallet · Keypair stays in this browser</p>
+      </div>
     </div>
   );
 }
 
 function CreateStep({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
   return (
-    <div className="space-y-6 text-center">
+    <div className="card p-8 space-y-6 text-center">
       <div className="space-y-3">
         <KeyRound size={28} className="mx-auto text-accent-soft" />
-        <h2 className="text-2xl font-bold text-white">Create your keypair</h2>
-        <p className="text-white/55 max-w-md mx-auto">
+        <h2 className="text-2xl font-display font-bold text-ink-900">Create your keypair</h2>
+        <p className="text-ink-500 max-w-md mx-auto">
           We generate a fresh Ed25519 keypair locally in your browser. It never leaves this device.
           The next step shows you how to back it up.
         </p>
       </div>
-      <div className="glass rounded-2xl p-5 max-w-md mx-auto text-left text-xs space-y-2 text-white/60">
+      <div className="glass rounded-2xl p-5 max-w-md mx-auto text-left text-xs space-y-2 text-ink-600">
         <p>• A 256-bit private key, generated via the browser's crypto random source</p>
         <p>• Stored only in <code className="text-accent-soft">localStorage</code> on this domain</p>
         <p>• Used to authorize spending from your Swig smart wallet</p>
@@ -229,21 +229,21 @@ function BackupStep({ identity, onNext }: { identity: WalletIdentity; onNext: ()
   };
 
   return (
-    <div className="space-y-6">
+    <div className="card p-8 space-y-6">
       <div className="text-center space-y-3">
-        <h2 className="text-2xl font-bold text-white">Back up your secret key</h2>
-        <p className="text-white/55 max-w-md mx-auto">
+        <h2 className="text-2xl font-display font-bold text-ink-900">Back up your secret key</h2>
+        <p className="text-ink-500 max-w-md mx-auto">
           This is the only proof you own this wallet. If you lose it, it's gone forever — there's no recovery.
         </p>
       </div>
 
       <div className="rounded-2xl p-5"
-        style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)" }}>
+        style={{ background: "rgba(180,83,9,0.08)", border: "1px solid rgba(180,83,9,0.25)" }}>
         <div className="flex items-start gap-3">
-          <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
+          <AlertTriangle size={16} className="text-[#B45309] mt-0.5 shrink-0" />
           <div className="space-y-1 text-sm">
-            <p className="font-semibold text-amber-300">Treat this like cash</p>
-            <p className="text-amber-200/70 text-xs leading-relaxed">
+            <p className="font-semibold text-[#B45309]">Treat this like cash</p>
+            <p className="text-[#B45309]/80 text-xs leading-relaxed">
               Anyone with this key can spend your wallet. Don't share it. Don't paste it into websites.
               Save it offline if possible.
             </p>
@@ -254,15 +254,15 @@ function BackupStep({ identity, onNext }: { identity: WalletIdentity; onNext: ()
       <div className="glass rounded-2xl p-5 space-y-3">
         <div className="flex items-center justify-between">
           <label className="label">Secret key (base64, 64 bytes)</label>
-          <button onClick={() => setRevealed(!revealed)} className="text-xs text-accent-soft hover:text-white transition-colors">
+          <button onClick={() => setRevealed(!revealed)} className="text-xs text-accent-soft hover:text-ink-900 transition-colors">
             {revealed ? "Hide" : "Reveal"}
           </button>
         </div>
-        <div className="font-mono text-xs px-3 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06] break-all min-h-[3.5rem]">
+        <div className="font-mono text-xs px-3 py-3 rounded-lg bg-ink-900/[0.03] border border-ink-900/[0.08] break-all min-h-[3.5rem] text-ink-800">
           {revealed ? secretB64 : "•".repeat(80)}
         </div>
         <button onClick={onCopy} disabled={!revealed} className="btn-ghost w-full disabled:opacity-50">
-          {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+          {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
           {copied ? "Copied" : "Copy to clipboard"}
         </button>
       </div>
@@ -291,29 +291,29 @@ function FundStep(props: {
   const enoughFunds = (authorityBalance ?? 0) >= 0.05;
 
   return (
-    <div className="space-y-6">
+    <div className="card p-8 space-y-6">
       <div className="text-center space-y-3">
         <Droplet size={26} className="mx-auto text-accent-soft" />
-        <h2 className="text-2xl font-bold text-white">Fund your authority key</h2>
-        <p className="text-white/55 max-w-md mx-auto">
+        <h2 className="text-2xl font-display font-bold text-ink-900">Fund your authority key</h2>
+        <p className="text-ink-500 max-w-md mx-auto">
           We need a tiny bit of devnet SOL to create your smart wallet on-chain (rent-exempt deposit + a fee).
         </p>
       </div>
 
       <div className="glass rounded-2xl p-5 space-y-3">
         <div className="flex justify-between text-xs">
-          <span className="text-white/40">Authority address</span>
-          <span className="font-mono text-white/70 truncate max-w-[16rem]">{identity.authority.publicKey.toBase58()}</span>
+          <span className="text-ink-400">Authority address</span>
+          <span className="font-mono text-ink-600 truncate max-w-[16rem]">{identity.authority.publicKey.toBase58()}</span>
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-white/40">Current balance</span>
-          <span className="font-mono text-white">{authorityBalance === null ? "—" : `${authorityBalance.toFixed(4)} SOL`}</span>
+          <span className="text-ink-400">Current balance</span>
+          <span className="font-mono text-ink-900">{authorityBalance === null ? "—" : `${authorityBalance.toFixed(4)} SOL`}</span>
         </div>
       </div>
 
       {airdropResult && (
         <div className="rounded-xl px-4 py-3 text-xs flex items-start gap-2"
-          style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.18)", color: "#6ee7b7" }}>
+          style={{ background: "#ecfdf5", border: "1px solid rgba(16,185,129,0.3)", color: "#059669" }}>
           <Sparkles size={13} className="mt-0.5" />
           <div className="space-y-0.5">
             <p>Received {airdropResult.amountSol} devnet SOL</p>
@@ -332,7 +332,7 @@ function FundStep(props: {
         <button onClick={onCheckBalance} disabled={busy} className="btn-ghost">Refresh balance</button>
       </div>
 
-      <p className="text-[10px] text-white/35 text-center">
+      <p className="text-[10px] text-ink-400 text-center">
         Public devnet airdrop is rate-limited. If it fails, try{" "}
         <a className="underline" href="https://faucet.solana.com" target="_blank" rel="noreferrer">faucet.solana.com</a>.
       </p>
@@ -351,17 +351,17 @@ function ProvisionStep({ busy, progress, onProvision }: { busy: boolean; progres
   // Auto-fire on mount
   useEffect(() => { if (!busy) onProvision(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   return (
-    <div className="text-center space-y-6">
+    <div className="card p-8 text-center space-y-6">
       <div className="space-y-3">
         <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-          style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)" }}>
+          style={{ background: "rgba(255,107,0,0.12)", border: "1px solid rgba(255,107,0,0.25)" }}>
           <div className="w-6 h-6 border-2 border-accent-soft/30 border-t-accent-soft rounded-full animate-spin" />
         </div>
-        <h2 className="text-2xl font-bold text-white">Provisioning smart wallet</h2>
-        <p className="text-white/55 max-w-md mx-auto text-sm">
+        <h2 className="text-2xl font-display font-bold text-ink-900">Provisioning smart wallet</h2>
+        <p className="text-ink-500 max-w-md mx-auto text-sm">
           Submitting the Swig PDA creation transaction to devnet. This usually takes a few seconds.
         </p>
-        <p className="text-xs text-white/40">{progress ?? "Working…"}</p>
+        <p className="text-xs text-ink-400">{progress ?? "Working…"}</p>
       </div>
     </div>
   );
@@ -373,10 +373,10 @@ function PolicyStep(props: {
   onNext: () => void;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="card p-8 space-y-6">
       <div className="text-center space-y-3">
-        <h2 className="text-2xl font-bold text-white">Pick your default policy</h2>
-        <p className="text-white/55 max-w-md mx-auto">
+        <h2 className="text-2xl font-display font-bold text-ink-900">Pick your default policy</h2>
+        <p className="text-ink-500 max-w-md mx-auto">
           The wallet enforces these rules on every signature. You can fine-tune them later in Settings.
         </p>
       </div>
@@ -388,14 +388,14 @@ function PolicyStep(props: {
             <button key={t.id} onClick={() => props.onSelect(t.id)}
               className="w-full text-left p-4 rounded-xl transition-colors"
               style={{
-                background: active ? "rgba(99,102,241,0.08)" : "rgba(255,255,255,0.02)",
-                border: active ? "1px solid rgba(99,102,241,0.45)" : "1px solid rgba(255,255,255,0.06)",
+                background: active ? "rgba(255,107,0,0.08)" : "rgba(20,20,20,0.02)",
+                border: active ? "1px solid rgba(255,107,0,0.45)" : "1px solid rgba(20,20,20,0.08)",
               }}>
               <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-white">{t.name}</span>
+                <span className="font-bold text-ink-900">{t.name}</span>
                 {active && <Check size={14} className="text-accent-soft" />}
               </div>
-              <p className="text-xs text-white/55 leading-relaxed">{t.description}</p>
+              <p className="text-xs text-ink-500 leading-relaxed">{t.description}</p>
             </button>
           );
         })}
@@ -412,15 +412,15 @@ function PolicyStep(props: {
 
 function DoneStep({ onEnter }: { onEnter: () => void }) {
   return (
-    <div className="text-center space-y-6">
+    <div className="card p-8 text-center space-y-6">
       <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)" }}>
-        <Check size={28} className="text-emerald-400" />
+        style={{ background: "#ecfdf5", border: "1px solid rgba(16,185,129,0.3)" }}>
+        <Check size={28} className="text-emerald-600" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-3xl font-black text-white">You're protected.</h2>
-        <p className="text-white/55 max-w-md mx-auto">
-          Your smart wallet is live on devnet. Every transaction will pass through BLACKTHORN before signing.
+        <h2 className="text-3xl font-display font-bold text-ink-900">You're protected.</h2>
+        <p className="text-ink-500 max-w-md mx-auto">
+          Your smart wallet is live on devnet. Every transaction will pass through Baret before signing.
         </p>
       </div>
       <button onClick={onEnter} className="btn-primary px-6 py-3 mx-auto">

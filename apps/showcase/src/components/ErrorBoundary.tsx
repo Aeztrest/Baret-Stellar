@@ -1,7 +1,7 @@
 /**
  * Top-level error boundary for the showcase.
  *
- * Replaces silent black screens — when a child route or component throws
+ * Replaces silent blank screens — when a child route or component throws
  * during render, we surface the error text + stack + a "Reset" button
  * instead of crashing into a blank document. Critical for dev: without
  * this, a single typo anywhere in the tree shows nothing in the DOM.
@@ -42,23 +42,23 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div
-        className="min-h-screen flex items-center justify-center p-6 text-white"
-        style={{ background: "#08080C" }}
+        className="min-h-screen flex items-center justify-center p-6 text-ink-900"
+        style={{ background: "#FAF8F4" }}
       >
         <div
-          className="max-w-2xl w-full rounded-2xl p-6"
-          style={{ background: "#111114", border: "1px solid rgba(248,113,113,0.25)" }}
+          className="max-w-2xl w-full rounded-2xl p-6 bg-white shadow-lift"
+          style={{ border: "1px solid rgba(255,107,0,0.4)" }}
         >
           <div className="flex items-center gap-3 mb-4">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.35)" }}
+              style={{ background: "rgba(255,107,0,0.12)", border: "1px solid rgba(255,107,0,0.4)" }}
             >
-              <AlertTriangle size={18} className="text-red-400" />
+              <AlertTriangle size={18} className="text-brand-600" />
             </div>
             <div>
               <h1 className="font-bold text-lg">Something broke</h1>
-              <p className="text-white/45 text-xs mt-0.5">
+              <p className="text-ink-400 text-xs mt-0.5">
                 {this.props.fallbackLabel ?? "A component crashed during render."}
               </p>
             </div>
@@ -66,19 +66,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
           <pre
             className="text-xs font-mono p-3 rounded-lg overflow-auto max-h-64 mb-4"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ background: "rgba(20,20,20,0.04)", border: "1px solid rgba(20,20,20,0.08)" }}
           >
-            <span className="text-red-300">{error.name}: {error.message}</span>
+            <span className="text-brand-700">{error.name}: {error.message}</span>
             {info?.componentStack && (
               <>
                 {"\n\n"}
-                <span className="text-white/40">{info.componentStack.trim()}</span>
+                <span className="text-ink-500">{info.componentStack.trim()}</span>
               </>
             )}
             {error.stack && (
               <>
                 {"\n\n"}
-                <span className="text-white/30">{error.stack}</span>
+                <span className="text-ink-400">{error.stack}</span>
               </>
             )}
           </pre>
@@ -86,15 +86,13 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="flex gap-2">
             <button
               onClick={this.reset}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "white", color: "black" }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-ink-900 text-white hover:bg-ink-700"
             >
               <RotateCcw size={13} /> Reset
             </button>
             <button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-ink-900/15 text-ink-700 hover:bg-bone"
             >
               Reload page
             </button>

@@ -1,5 +1,5 @@
 /**
- * Policies editor — production policy DSL UI for BLACKTHORN.
+ * Policies editor — production policy DSL UI for Baret.
  *
  * Three modes:
  *  1. Risk profile — one-click Strict / Balanced / Permissive presets.
@@ -99,7 +99,7 @@ export function PoliciesPage() {
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight">Policies</h1>
         <p className="text-text-muted text-sm mt-1">
-          The firewall BLACKTHORN runs on every signature. Changes apply on the next request.
+          The firewall Baret runs on every signature. Changes apply on the next request.
         </p>
       </div>
 
@@ -117,7 +117,7 @@ export function PoliciesPage() {
                 onClick={() => applyTemplate(t.policy)}
                 className="text-left p-3.5 rounded-card transition-all relative group"
                 style={{
-                  background: active ? "rgba(255,255,255,0.06)" : "var(--bg-card)",
+                  background: active ? "rgba(20,20,20,0.07)" : "var(--bg-card)",
                   border: `1px solid ${active ? "var(--accent)" : "var(--line)"}`,
                   boxShadow: active ? "0 0 0 1px var(--accent)" : "none",
                 }}
@@ -141,13 +141,13 @@ export function PoliciesPage() {
       <section
         className="rounded-card p-4"
         style={{
-          background: autoApprove ? "rgba(255,255,255,0.05)" : "var(--bg-card)",
+          background: autoApprove ? "rgba(20,20,20,0.055)" : "var(--bg-card)",
           border: `1px solid ${autoApprove ? "var(--accent-glow)" : "var(--line)"}`,
         }}
       >
         <div className="flex items-start gap-3">
           <div className="shrink-0 w-9 h-9 rounded-input flex items-center justify-center"
-            style={{ background: autoApprove ? "var(--accent)" : "rgba(255,255,255,0.06)" }}>
+            style={{ background: autoApprove ? "var(--accent)" : "rgba(20,20,20,0.07)" }}>
             {autoApprove ? <Zap size={16} className="text-black" /> : <Lock size={16} className="text-text-faint" />}
           </div>
           <div className="min-w-0 flex-1">
@@ -212,7 +212,7 @@ export function PoliciesPage() {
 function CapChip({ label, value }: { label: string; value: number | undefined }) {
   return (
     <span className="text-[10px] px-2 py-0.5 rounded-pill font-mono"
-      style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}>
+      style={{ background: "rgba(20,20,20,0.07)", color: "var(--text-muted)" }}>
       {value === undefined ? "∞" : value} USDC <span className="text-text-faint">{label}</span>
     </span>
   );
@@ -234,7 +234,7 @@ function ModeTab({ active, onClick, icon: Icon, children }: { active: boolean; o
       onClick={onClick}
       className="flex items-center gap-1.5 px-3 py-1.5 rounded-input text-xs font-semibold transition-colors"
       style={{
-        background: active ? "rgba(255,255,255,0.06)" : "transparent",
+        background: active ? "rgba(20,20,20,0.07)" : "transparent",
         border: `1px solid ${active ? "var(--line-strong)" : "var(--line)"}`,
         color: active ? "var(--text)" : "var(--text-faint)",
       }}
@@ -295,7 +295,7 @@ function FormEditor({ draft, set }: { draft: GuardPolicy; set: <K extends keyof 
       </Group>
 
       <Group icon={Bell} title="Behavioral alerts" subtitle="Post-sign monitoring.">
-        <BoolField label="Drift alerts" hint="Alert when a tx is signed without going through BLACKTHORN."
+        <BoolField label="Drift alerts" hint="Alert when a tx is signed without going through Baret."
           value={draft.driftAlerts} onChange={(v) => set("driftAlerts", v)} />
         <BoolField label="Verify-orphan alerts" hint="x402 verify request but no settle in window."
           value={draft.verifyOrphanAlerts} onChange={(v) => set("verifyOrphanAlerts", v)} />
@@ -312,7 +312,7 @@ function Group({ icon: Icon, title, subtitle, children }: { icon: typeof Sliders
   return (
     <section className="card !p-0 overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-3" style={{ borderBottom: "1px solid var(--line)" }}>
-        <div className="w-7 h-7 rounded-input flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
+        <div className="w-7 h-7 rounded-input flex items-center justify-center shrink-0" style={{ background: "rgba(20,20,20,0.055)" }}>
           <Icon size={13} className="text-text-muted" />
         </div>
         <div>
@@ -349,14 +349,14 @@ function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
       role="switch"
       aria-checked={on}
       className="relative w-11 h-[26px] rounded-full transition-colors shrink-0"
-      style={{ background: on ? "var(--accent)" : "rgba(255,255,255,0.12)" }}
+      style={{ background: on ? "var(--accent)" : "rgba(20,20,20,0.16)" }}
     >
       <span
         className="absolute top-[3px] rounded-full transition-all"
         style={{
           left: on ? "calc(100% - 23px)" : "3px",
           width: "20px", height: "20px",
-          background: on ? "#000" : "var(--text)",
+          background: on ? "#fff" : "var(--text)",
         }}
       />
     </button>
@@ -373,7 +373,7 @@ function NumberField({ label, hint, value, onChange, min, max, step, suffix, las
   return (
     <Row label={label} hint={hint} last={last} control={
       <div className="flex items-center rounded-input overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--line)" }}>
+        style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
         <input
           type="number"
           inputMode="decimal"
@@ -427,7 +427,7 @@ function JsonEditor({ draft, setDraft }: { draft: GuardPolicy; setDraft: (p: Gua
         spellCheck={false}
         className="w-full font-mono text-[11px] p-3 rounded-input outline-none"
         style={{
-          background: "rgba(255,255,255,0.03)",
+          background: "rgba(20,20,20,0.035)",
           border: `1px solid ${parseError ? "var(--bad)" : "var(--line)"}`,
           minHeight: "320px",
           color: "var(--text)",

@@ -38,7 +38,7 @@ export function SidebarOpt() {
             <Mark size={16} />
           </div>
           <div>
-            <p className="font-extrabold text-sm tracking-tight text-text">BLACKTHORN</p>
+            <p className="font-extrabold text-sm tracking-tight text-text">Baret</p>
             <p className="text-[10px] text-text-faint leading-none mt-0.5 uppercase tracking-wider">Devnet</p>
           </div>
         </div>
@@ -64,7 +64,7 @@ export function SidebarOpt() {
               `flex items-center gap-3 px-3 py-2 rounded-input text-sm transition-colors ${
                 isActive
                   ? "bg-accent-dim text-text"
-                  : "text-text-muted hover:text-text hover:bg-white/[0.03]"
+                  : "text-text-muted hover:text-text hover:bg-black/[0.04]"
               }`
             }
           >
@@ -78,14 +78,14 @@ export function SidebarOpt() {
         {state?.phase === "ready" && (
           <button
             onClick={onLock}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-input text-sm text-text-faint hover:text-text hover:bg-white/[0.03] transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-input text-sm text-text-faint hover:text-text hover:bg-black/[0.04] transition-colors"
           >
             <Lock size={13} />
             Lock wallet
           </button>
         )}
         <p className="text-[10px] text-text-faint px-3 py-2 leading-relaxed">
-          Every signature passes through BLACKTHORN before your keys are touched.
+          Every signature passes through Baret before your keys are touched.
         </p>
       </div>
     </aside>

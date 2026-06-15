@@ -105,12 +105,12 @@ export function ConnectApproval() {
         </section>
 
         <label className="flex items-start gap-3 px-3 py-2.5 rounded-input cursor-pointer"
-               style={{ background: "rgba(255,255,255,0.025)", border: "1px solid var(--line)" }}>
+               style={{ background: "rgba(20,20,20,0.03)", border: "1px solid var(--line)" }}>
           <input
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="mt-0.5 accent-white"
+            className="mt-0.5 accent-[#FF6B00]"
           />
           <span className="text-xs leading-snug">
             <span className="text-text font-semibold">Trust this site for next time</span>

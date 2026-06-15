@@ -1,6 +1,13 @@
+/**
+ * Baret brand chrome — logo mark, header, footer, light backdrop.
+ *
+ * Identity: "Baret" = hard hat. White-first surfaces, safety-orange (#FF6B00)
+ * accents, ink-black (#141414) type. Signature motif: the hazard stripe.
+ */
+
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Shield, ArrowRight, Github, Menu, X as XIcon } from "lucide-react";
+import { ArrowRight, Github, Menu, X as XIcon } from "lucide-react";
 
 export const SOCIAL_GITHUB = "https://github.com/Aeztrest/DeltaProtokol";
 export const SOCIAL_X      = "https://x.com/blackthornxyz";
@@ -12,35 +19,51 @@ const NAV_LINKS = [
   { label: "Install",   to: "/install" },
 ];
 
-export function Logo({ size = 8 }: { size?: number }) {
-  const px = size * 4;
+/** The Baret hard-hat mark. Ink tile, orange dome + brim, white rib. */
+export function BaretMark({ size = 32 }: { size?: number }) {
   return (
-    <span
-      className="relative grid place-items-center rounded-lg border border-white/15 bg-white/5"
-      style={{ width: px, height: px }}
-    >
-      <Shield size={px * 0.45} className="text-white" strokeWidth={2.4} />
-      <span className="absolute inset-0 rounded-lg ring-1 ring-white/10" />
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
+      <rect width="32" height="32" rx="8" fill="#141414" />
+      <path d="M8 19.5a8 8 0 0 1 16 0Z" fill="#FF6B00" />
+      <rect x="14.6" y="9" width="2.8" height="5.2" rx="1.4" fill="#FFFFFF" />
+      <rect x="6" y="20.4" width="20" height="2.6" rx="1.3" fill="#FF6B00" />
+    </svg>
+  );
+}
+
+/** Logo = mark only (kept name/signature compatible with old call sites). */
+export function Logo({ size = 8 }: { size?: number }) {
+  return <BaretMark size={size * 4} />;
+}
+
+/** Wordmark: BARET in display face with an orange full stop. */
+export function Wordmark({ className = "" }: { className?: string }) {
+  return (
+    <span className={`font-display font-bold tracking-[0.14em] text-ink-900 ${className}`}>
+      BARET<span className="text-brand-500">.</span>
     </span>
   );
 }
 
+/** Thin hazard-stripe rule — Baret's signature divider. */
+export function HazardRule({ className = "" }: { className?: string }) {
+  return <div aria-hidden className={`hazard h-1.5 w-full ${className}`} />;
+}
+
+/** Light blueprint-grid backdrop with a soft orange glow at the top. */
 export function BackdropGrid() {
   return (
     <div aria-hidden className="fixed inset-0 pointer-events-none -z-0">
       <div
-        className="absolute inset-0 opacity-[0.18]"
+        className="absolute inset-0 blueprint"
         style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage:        "radial-gradient(ellipse at 50% 0%, black 25%, transparent 70%)",
-          WebkitMaskImage:  "radial-gradient(ellipse at 50% 0%, black 25%, transparent 70%)",
+          maskImage:       "radial-gradient(ellipse at 50% 0%, black 25%, transparent 70%)",
+          WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, black 25%, transparent 70%)",
         }}
       />
       <div
-        className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full"
-        style={{ background: "radial-gradient(closest-side, rgba(255,255,255,0.12), transparent 70%)" }}
+        className="absolute -top-48 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] rounded-full"
+        style={{ background: "radial-gradient(closest-side, rgba(255,107,0,0.10), transparent 70%)" }}
       />
     </div>
   );
@@ -67,15 +90,15 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
     <header
       className="fixed top-0 inset-x-0 z-50 transition-all duration-300"
       style={{
-        background:     scrolled ? "rgba(0,0,0,0.72)" : "transparent",
+        background:     scrolled ? "rgba(255,255,255,0.85)" : "transparent",
         backdropFilter: scrolled ? "blur(14px)" : "none",
-        borderBottom:   scrolled ? "1px solid rgba(255,255,255,0.06)" : "1px solid transparent",
+        borderBottom:   scrolled ? "1px solid rgba(20,20,20,0.08)" : "1px solid transparent",
       }}
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/home" className="flex items-center gap-2.5">
-          <Logo />
-          <span className="font-black tracking-[0.18em] text-sm">BLACKTHORN</span>
+          <BaretMark />
+          <Wordmark className="text-sm" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
@@ -87,10 +110,10 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
               <Link
                 key={l.label}
                 to={l.to}
-                className={`px-3.5 py-2 rounded-lg text-sm transition-colors ${
+                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
                   active
-                    ? "text-white bg-white/[0.06]"
-                    : "text-white/65 hover:text-white hover:bg-white/[0.04]"
+                    ? "text-ink-900 bg-ink-900/[0.06]"
+                    : "text-ink-500 hover:text-ink-900 hover:bg-ink-900/[0.04]"
                 }`}
               >
                 {l.label}
@@ -103,14 +126,14 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
           {headerCta && (
             <Link
               to={headerCta.to}
-              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-white text-black hover:bg-white/90 transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold bg-ink-900 text-white hover:bg-ink-700 transition-colors"
             >
-              {headerCta.label} <ArrowRight size={14} />
+              {headerCta.label} <ArrowRight size={14} className="text-brand-400" />
             </Link>
           )}
           <button
             onClick={() => setOpen((v) => !v)}
-            className="md:hidden w-10 h-10 grid place-items-center rounded-lg border border-white/10 hover:bg-white/5"
+            className="md:hidden w-10 h-10 grid place-items-center rounded-lg border border-ink-900/15 text-ink-900 hover:bg-ink-900/5"
             aria-label="Menu"
           >
             {open ? <XIcon size={16} /> : <Menu size={16} />}
@@ -119,14 +142,14 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
       </div>
 
       {open && (
-        <div className="md:hidden border-t border-white/5 bg-black/90 backdrop-blur-xl">
+        <div className="md:hidden border-t border-ink-900/10 bg-white/95 backdrop-blur-xl">
           <div className="px-6 py-4 space-y-1">
             {NAV_LINKS.map((l) => (
               <Link
                 key={l.label}
                 to={l.to}
                 onClick={() => setOpen(false)}
-                className="block px-3 py-2 rounded-lg text-sm text-white/75 hover:bg-white/5"
+                className="block px-3 py-2 rounded-lg text-sm text-ink-600 hover:bg-ink-900/5 hover:text-ink-900"
               >
                 {l.label}
               </Link>
@@ -148,51 +171,56 @@ export function XGlyph({ size = 13 }: { size?: number }) {
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-white/6 px-6 py-12 relative">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-        <div className="flex items-center gap-3">
-          <Logo />
-          <div>
-            <p className="font-black tracking-[0.18em] text-sm">BLACKTHORN</p>
-            <p className="text-xs text-white/40 mt-0.5">The Stellar wallet that watches what happens after you sign.</p>
+    <footer className="relative bg-ink-900 text-white">
+      <HazardRule />
+      <div className="px-6 py-12">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+          <div className="flex items-center gap-3">
+            <BaretMark />
+            <div>
+              <p className="font-display font-bold tracking-[0.14em] text-sm">
+                BARET<span className="text-brand-500">.</span>
+              </p>
+              <p className="text-xs text-white/45 mt-0.5">The hard hat for your Stellar wallet.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {NAV_LINKS.map((l) => (
+              <Link
+                key={l.label}
+                to={l.to}
+                className="text-xs text-white/55 hover:text-white px-3 py-1.5 rounded-md hover:bg-white/[0.06]"
+              >
+                {l.label}
+              </Link>
+            ))}
+            <span className="hidden md:inline-block w-px h-4 bg-white/15 mx-2" />
+            <a
+              href={SOCIAL_GITHUB}
+              target="_blank" rel="noreferrer"
+              aria-label="GitHub"
+              className="w-9 h-9 grid place-items-center rounded-lg border border-white/15 text-white/70 hover:text-white hover:border-brand-500 transition-colors"
+            >
+              <Github size={14} />
+            </a>
+            <a
+              href={SOCIAL_X}
+              target="_blank" rel="noreferrer"
+              aria-label="X (Twitter)"
+              className="w-9 h-9 grid place-items-center rounded-lg border border-white/15 text-white/70 hover:text-white hover:border-brand-500 transition-colors"
+            >
+              <XGlyph />
+            </a>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.label}
-              to={l.to}
-              className="text-xs text-white/55 hover:text-white px-3 py-1.5 rounded-md hover:bg-white/[0.04]"
-            >
-              {l.label}
-            </Link>
-          ))}
-          <span className="hidden md:inline-block w-px h-4 bg-white/10 mx-2" />
-          <a
-            href={SOCIAL_GITHUB}
-            target="_blank" rel="noreferrer"
-            aria-label="GitHub"
-            className="w-9 h-9 grid place-items-center rounded-lg border border-white/10 hover:bg-white/5 hover:border-white/25 transition-colors"
-          >
-            <Github size={14} />
-          </a>
-          <a
-            href={SOCIAL_X}
-            target="_blank" rel="noreferrer"
-            aria-label="X (Twitter)"
-            className="w-9 h-9 grid place-items-center rounded-lg border border-white/10 hover:bg-white/5 hover:border-white/25 transition-colors"
-          >
-            <XGlyph />
-          </a>
+        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-[11px] text-white/40">
+          <p>© {new Date().getFullYear()} Baret. Built for the Colosseum hackathon.</p>
+          <p className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" /> Testnet · MIT licensed
+          </p>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-[11px] text-white/35">
-        <p>© {new Date().getFullYear()} BLACKTHORN. Built for the Colosseum hackathon.</p>
-        <p className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Devnet · MIT licensed
-        </p>
       </div>
     </footer>
   );
