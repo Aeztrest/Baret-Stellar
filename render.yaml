@@ -8,7 +8,9 @@ services:
     plan: free
     region: frankfurt
     # Render PORT env'ini otomatik verir; sunucu config'i PORT'u okuyor (apps/server/src/config/index.ts).
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @stellar-thorn/server build
+    # --prod=false şart: NODE_ENV=production olduğunda pnpm devDeps'i (typescript, @types/node) atlar
+    # ve tsc derlemesi "Cannot find name 'node:fs'" ile çöker. Bu flag onları zorla kurar.
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --prod=false && pnpm --filter @stellar-thorn/server build
     startCommand: node apps/server/dist/index.js
     healthCheckPath: /health
     autoDeploy: true
