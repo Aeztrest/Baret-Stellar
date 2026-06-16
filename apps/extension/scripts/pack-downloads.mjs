@@ -11,7 +11,28 @@
 import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { deflateRawSync, crc32 } from "node:zlib";
+import { deflateRawSync } from "node:zlib";
+
+// Self-contained CRC-32 (ISO-HDLC, same output as zlib.crc32). zlib.crc32 only
+// exists on Node >= 22.2, so building on older runtimes (e.g. Vercel/Render
+// Node 20) would crash with "crc32 is not a function". This works everywhere.
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const EXTENSION_ROOT = join(__dirname, "..");
