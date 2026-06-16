@@ -5,7 +5,7 @@
   "buildCommand": "pnpm --filter @stellar-thorn/wallet-adapter build && pnpm --filter @stellar-thorn/extension build && pnpm --filter @stellar-thorn/showcase build",
   "outputDirectory": "apps/showcase/dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://blackthorn-api.onrender.com/:path*" },
+    { "source": "/api/:path*", "destination": "https://baret-stellar.onrender.com/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
