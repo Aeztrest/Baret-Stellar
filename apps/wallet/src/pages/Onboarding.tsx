@@ -12,10 +12,8 @@ import {
   ArrowRight,
   AlertTriangle,
 } from "lucide-react";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Buffer } from "buffer";
 import { useWallet, type WalletIdentity } from "../wallet/state";
-import { getConnection } from "../wallet/connection";
+import { explorerUrl } from "../wallet/connection";
 import { POLICY_TEMPLATES, type PolicyTemplateId } from "@stellar-thorn/swig-guard";
 import { writePolicy } from "../storage/policy-store";
 
@@ -25,20 +23,20 @@ const STEPS: Step[] = ["welcome", "create", "backup", "fund", "provision", "poli
 
 export function Onboarding() {
   const nav = useNavigate();
-  const { identity, session, createWallet, provision, airdrop, refresh, authorityBalance } = useWallet();
+  const { identity, provisioned, createWallet, provision, fund, refresh, authorityBalance } = useWallet();
   const [step, setStep] = useState<Step>("welcome");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [airdropResult, setAirdropResult] = useState<{ amountSol: number; signature: string } | null>(null);
+  const [fundResult, setFundResult] = useState<{ hash: string | null } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<PolicyTemplateId>("balanced");
 
   // If a wallet already exists when user lands here (edge case), advance accordingly.
   useEffect(() => {
     if (step === "welcome" && identity) {
-      setStep(session ? "policy" : "fund");
+      setStep(provisioned ? "policy" : "fund");
     }
-  }, [identity, session, step]);
+  }, [identity, provisioned, step]);
 
   const stepIndex = STEPS.indexOf(step);
 
@@ -96,11 +94,11 @@ export function Onboarding() {
               <FundStep
                 identity={identity}
                 authorityBalance={authorityBalance}
-                airdropResult={airdropResult}
+                fundResult={fundResult}
                 busy={busy}
-                onAirdrop={() => safeRun(async () => {
-                  const r = await airdrop();
-                  setAirdropResult({ amountSol: r.amountSol, signature: r.signature });
+                onFund={() => safeRun(async () => {
+                  const r = await fund();
+                  setFundResult({ hash: r.hash });
                 })}
                 onCheckBalance={() => safeRun(async () => { await refresh(); })}
                 onNext={() => next("provision")}
@@ -163,7 +161,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         </div>
         <h1 className="text-3xl font-display font-bold text-ink-900">A wallet that protects you<br />before you sign.</h1>
         <p className="text-ink-500 max-w-md mx-auto leading-relaxed">
-          Baret simulates every transaction on Solana before it touches your keys.
+          Baret simulates every transaction on Stellar before it touches your keys.
           Risky? Blocked at the wallet level — not at the dApp's mercy.
         </p>
       </div>
@@ -172,7 +170,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         {[
           { icon: ShieldCheck, title: "Pre-flight Sim", body: "Every tx runs in a sandbox first" },
           { icon: KeyRound, title: "Your Policies", body: "You set the rules, not the dApp" },
-          { icon: Sparkles, title: "Smart Wallet", body: "Built on Swig — open & extensible" },
+          { icon: Sparkles, title: "Smart Wallet", body: "Built on Soroban — open & extensible" },
         ].map(({ icon: Icon, title, body }) => (
           <div key={title} className="glass rounded-xl p-4 text-left">
             <Icon size={16} className="text-accent-soft mb-2.5" />
@@ -186,7 +184,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         Get Started
         <ArrowRight size={14} />
       </button>
-      <p className="text-[10px] text-ink-400">Devnet only · Demo wallet · Keypair stays in this browser</p>
+      <p className="text-[10px] text-ink-400">Testnet only · Demo wallet · Keypair stays in this browser</p>
       </div>
     </div>
   );
@@ -206,7 +204,7 @@ function CreateStep({ busy, onCreate }: { busy: boolean; onCreate: () => void })
       <div className="glass rounded-2xl p-5 max-w-md mx-auto text-left text-xs space-y-2 text-ink-600">
         <p>• A 256-bit private key, generated via the browser's crypto random source</p>
         <p>• Stored only in <code className="text-accent-soft">localStorage</code> on this domain</p>
-        <p>• Used to authorize spending from your Swig smart wallet</p>
+        <p>• Used to authorize spending from your smart wallet</p>
       </div>
       <button onClick={onCreate} disabled={busy} className="btn-primary px-6 py-3 mx-auto">
         {busy ? "Generating…" : "Generate keypair"}
@@ -219,12 +217,9 @@ function CreateStep({ busy, onCreate }: { busy: boolean; onCreate: () => void })
 function BackupStep({ identity, onNext }: { identity: WalletIdentity; onNext: () => void }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const secretB64 = useMemo(
-    () => Buffer.from(identity.authority.secretKey).toString("base64"),
-    [identity.authority.secretKey],
-  );
+  const secret = useMemo(() => identity.authority.secret(), [identity.authority]);
   const onCopy = async () => {
-    try { await navigator.clipboard.writeText(secretB64); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    try { await navigator.clipboard.writeText(secret); setCopied(true); setTimeout(() => setCopied(false), 1500); }
     catch { /* ignore */ }
   };
 
@@ -253,13 +248,13 @@ function BackupStep({ identity, onNext }: { identity: WalletIdentity; onNext: ()
 
       <div className="glass rounded-2xl p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <label className="label">Secret key (base64, 64 bytes)</label>
+          <label className="label">Secret key (Stellar S… seed)</label>
           <button onClick={() => setRevealed(!revealed)} className="text-xs text-accent-soft hover:text-ink-900 transition-colors">
             {revealed ? "Hide" : "Reveal"}
           </button>
         </div>
         <div className="font-mono text-xs px-3 py-3 rounded-lg bg-ink-900/[0.03] border border-ink-900/[0.08] break-all min-h-[3.5rem] text-ink-800">
-          {revealed ? secretB64 : "•".repeat(80)}
+          {revealed ? secret : "•".repeat(56)}
         </div>
         <button onClick={onCopy} disabled={!revealed} className="btn-ghost w-full disabled:opacity-50">
           {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
@@ -280,15 +275,15 @@ function BackupStep({ identity, onNext }: { identity: WalletIdentity; onNext: ()
 function FundStep(props: {
   identity: WalletIdentity | null;
   authorityBalance: number | null;
-  airdropResult: { amountSol: number; signature: string } | null;
+  fundResult: { hash: string | null } | null;
   busy: boolean;
-  onAirdrop: () => void;
+  onFund: () => void;
   onCheckBalance: () => void;
   onNext: () => void;
 }) {
-  const { identity, authorityBalance, airdropResult, busy, onAirdrop, onCheckBalance, onNext } = props;
+  const { identity, authorityBalance, fundResult, busy, onFund, onCheckBalance, onNext } = props;
   if (!identity) return null;
-  const enoughFunds = (authorityBalance ?? 0) >= 0.05;
+  const enoughFunds = (authorityBalance ?? 0) >= 5;
 
   return (
     <div className="card p-8 space-y-6">
@@ -296,28 +291,29 @@ function FundStep(props: {
         <Droplet size={26} className="mx-auto text-accent-soft" />
         <h2 className="text-2xl font-display font-bold text-ink-900">Fund your authority key</h2>
         <p className="text-ink-500 max-w-md mx-auto">
-          We need a tiny bit of devnet SOL to create your smart wallet on-chain (rent-exempt deposit + a fee).
+          We need a little testnet XLM to activate your account on-chain (base reserve + fees).
+          Friendbot funds testnet accounts for free.
         </p>
       </div>
 
       <div className="glass rounded-2xl p-5 space-y-3">
         <div className="flex justify-between text-xs">
           <span className="text-ink-400">Authority address</span>
-          <span className="font-mono text-ink-600 truncate max-w-[16rem]">{identity.authority.publicKey.toBase58()}</span>
+          <span className="font-mono text-ink-600 truncate max-w-[16rem]">{identity.address}</span>
         </div>
         <div className="flex justify-between text-xs">
           <span className="text-ink-400">Current balance</span>
-          <span className="font-mono text-ink-900">{authorityBalance === null ? "—" : `${authorityBalance.toFixed(4)} SOL`}</span>
+          <span className="font-mono text-ink-900">{authorityBalance === null ? "—" : `${authorityBalance.toFixed(4)} XLM`}</span>
         </div>
       </div>
 
-      {airdropResult && (
+      {fundResult && (
         <div className="rounded-xl px-4 py-3 text-xs flex items-start gap-2"
           style={{ background: "#ecfdf5", border: "1px solid rgba(16,185,129,0.3)", color: "#059669" }}>
           <Sparkles size={13} className="mt-0.5" />
           <div className="space-y-0.5">
-            <p>Received {airdropResult.amountSol} devnet SOL</p>
-            <a href={`https://explorer.solana.com/tx/${airdropResult.signature}?cluster=devnet`} target="_blank" rel="noreferrer"
+            <p>Funded with testnet XLM via Friendbot</p>
+            <a href={explorerUrl("account", identity.address)} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-1 underline opacity-80 hover:opacity-100">
               View on explorer <ExternalLink size={10} />
             </a>
@@ -326,15 +322,15 @@ function FundStep(props: {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <button onClick={onAirdrop} disabled={busy} className="btn-primary disabled:cursor-wait">
-          {busy ? "Requesting…" : "Request Devnet Airdrop"}
+        <button onClick={onFund} disabled={busy} className="btn-primary disabled:cursor-wait">
+          {busy ? "Funding…" : "Fund via Friendbot"}
         </button>
         <button onClick={onCheckBalance} disabled={busy} className="btn-ghost">Refresh balance</button>
       </div>
 
       <p className="text-[10px] text-ink-400 text-center">
-        Public devnet airdrop is rate-limited. If it fails, try{" "}
-        <a className="underline" href="https://faucet.solana.com" target="_blank" rel="noreferrer">faucet.solana.com</a>.
+        Testnet only. If Friendbot is busy, try{" "}
+        <a className="underline" href="https://laboratory.stellar.org/#account-creator?network=test" target="_blank" rel="noreferrer">the Stellar Laboratory</a>.
       </p>
 
       <div className="text-center">
@@ -359,7 +355,7 @@ function ProvisionStep({ busy, progress, onProvision }: { busy: boolean; progres
         </div>
         <h2 className="text-2xl font-display font-bold text-ink-900">Provisioning smart wallet</h2>
         <p className="text-ink-500 max-w-md mx-auto text-sm">
-          Submitting the Swig PDA creation transaction to devnet. This usually takes a few seconds.
+          Resolving your smart wallet on testnet. This usually takes a few seconds.
         </p>
         <p className="text-xs text-ink-400">{progress ?? "Working…"}</p>
       </div>
@@ -420,7 +416,7 @@ function DoneStep({ onEnter }: { onEnter: () => void }) {
       <div className="space-y-2">
         <h2 className="text-3xl font-display font-bold text-ink-900">You're protected.</h2>
         <p className="text-ink-500 max-w-md mx-auto">
-          Your smart wallet is live on devnet. Every transaction will pass through Baret before signing.
+          Your smart wallet is live on testnet. Every transaction will pass through Baret before signing.
         </p>
       </div>
       <button onClick={onEnter} className="btn-primary px-6 py-3 mx-auto">

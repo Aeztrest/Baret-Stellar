@@ -79,13 +79,13 @@ The Blackthorn API uses standard HTTP status codes. When a request fails, the re
 
 <Properties>
   <Property name="INVALID_TRANSACTION">
-    The `transaction` field could not be decoded or deserialized. Ensure it is a valid base64-encoded `VersionedTransaction`.
+    The `transaction` field could not be decoded or deserialized. Ensure it is a valid base64-encoded `TransactionEnvelope XDR`.
   </Property>
   <Property name="UNSUPPORTED_FORMAT">
-    Legacy transaction format is not supported. Only `VersionedTransaction` is accepted.
+    Legacy transaction format is not supported. Only `TransactionEnvelope XDR` is accepted.
   </Property>
-  <Property name="CLUSTER_UNAVAILABLE">
-    The specified cluster's RPC endpoint is unreachable. Try again or switch to a backup RPC.
+  <Property name="NETWORK_UNAVAILABLE">
+    The specified network's RPC endpoint is unreachable. Try again or switch to a backup RPC.
   </Property>
   <Property name="SLOT_NOT_AVAILABLE">
     The requested replay slot is no longer available on the RPC node.

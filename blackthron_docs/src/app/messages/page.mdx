@@ -24,10 +24,10 @@ The streaming endpoint runs the same analysis pipeline as `/v1/analyze` but emit
 
     <Properties>
       <Property name="transaction" type="string">
-        Base64-encoded serialized Solana `VersionedTransaction`.
+        Base64-encoded serialized Stellar `TransactionEnvelope XDR`.
       </Property>
-      <Property name="cluster" type="string">
-        Solana cluster: `mainnet-beta` or `devnet`.
+      <Property name="network" type="string">
+        Stellar network: `pubnet` or `testnet`.
       </Property>
     </Properties>
 
@@ -58,7 +58,7 @@ The streaming endpoint runs the same analysis pipeline as `/v1/analyze` but emit
       },
       body: JSON.stringify({
         transaction: serializedTxBase64,
-        cluster: 'mainnet-beta',
+        network: 'pubnet',
       }),
     })
 
@@ -88,7 +88,7 @@ The streaming endpoint runs the same analysis pipeline as `/v1/analyze` but emit
         'POST',
         'https://api.blackthorn.io/v1/analyze/stream',
         headers={'X-API-Key': API_KEY},
-        json={'transaction': tx_base64, 'cluster': 'mainnet-beta'},
+        json={'transaction': tx_base64, 'network': 'pubnet'},
     ) as r:
         for line in r.iter_lines():
             if line.startswith('data: '):
@@ -125,7 +125,7 @@ The streaming endpoint runs the same analysis pipeline as `/v1/analyze` but emit
 
 ```json {{ title: 'Example SSE stream' }}
 event: simulation
-data: {"status":"success","balanceChanges":[{"account":"7xKX...","solDelta":-0.000005}]}
+data: {"status":"success","balanceChanges":[{"account":"7xKX...","xlmDelta":-0.000005}]}
 
 event: detector
 data: {"name":"program","findings":[]}

@@ -31,7 +31,7 @@ const resources: Array<Resource> = [
     href: '/contacts',
     name: 'Analyze Transaction',
     description:
-      'Submit a base64-encoded Solana transaction and receive a safe/unsafe verdict with detailed risk findings.',
+      'Submit a base64-encoded Stellar transaction and receive a safe/unsafe verdict with detailed risk findings.',
     icon: BoltIcon,
     pattern: {
       y: 16,

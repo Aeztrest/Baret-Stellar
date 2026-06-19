@@ -39,7 +39,7 @@ export function SidebarOpt() {
           </div>
           <div>
             <p className="font-extrabold text-sm tracking-tight text-text">Baret</p>
-            <p className="text-[10px] text-text-faint leading-none mt-0.5 uppercase tracking-wider">Devnet</p>
+            <p className="text-[10px] text-text-faint leading-none mt-0.5 uppercase tracking-wider">Testnet</p>
           </div>
         </div>
       </div>

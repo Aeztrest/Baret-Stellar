@@ -1,25 +1,25 @@
-# BLACKTHORN / DeltaG — Proje Özeti
+# BLACKTHORN — Proje Özeti
 
-Bu doküman projedeki her şeyi, her fikri ve her parçayı sade bir dille anlatır. Kod bilmek gerekmez.
+Bu doküman projedeki her şeyi sade bir dille anlatır. Kod bilmek gerekmez.
 
 ---
 
 ## Tek Cümlede Ne Bu?
 
-Stellar'da bir işlem imzalanmadan önce otomatik olarak kontrol eden, "bu güvenli mi yoksa tehlikeli mi?" sorusuna gerekçeli cevap veren bir güvenlik altyapısı.
+Stellar'da bir işlem imzalanmadan önce onu simüle edip "bu güvenli mi yoksa tehlikeli mi?" sorusuna gerekçeli cevap veren bir güvenlik altyapısı.
 
 ---
 
 ## Problem Ne?
 
-Stellar'da bir kullanıcı bir siteye girdiğinde "Approve" butonuna basar. Ama:
+Stellar'da bir kullanıcı bir dApp'e girip "Onayla"ya bastığında:
 
 - Arka planda ne olduğunu göremez
-- Hangi programlar çağrılıyor bilinmez
-- Token'larının başka birine yetki verilip verilmediği anlaşılmaz
-- Sahte site olup olmadığı anlaşılmaz
+- Hangi Soroban kontratlarının çağrıldığını bilmez
+- Token'ları için birine harcama yetkisi (allowance) verilip verilmediğini anlamaz
+- Bir trustline'ın değiştirildiğini, hesabının merge edildiğini ya da imza yetkilerinin elinden alındığını fark etmez
 
-Sonuç: Wallet drainer, rug pull, phishing saldırıları her gün insanları mağdur ediyor.
+Sonuç: wallet drainer, rug pull ve phishing saldırıları insanları mağdur ediyor.
 
 ---
 
@@ -28,364 +28,283 @@ Sonuç: Wallet drainer, rug pull, phishing saldırıları her gün insanları ma
 ```
 Kullanıcı imzalamak üzere  →  Blackthorn devreye girer
                                ↓
-                        İşlemi simüle eder
-                        (gerçekten göndermeden)
+              İşlemi Soroban preflight + Horizon ile simüle eder
+                       (gerçekten göndermeden)
                                ↓
-                    7 risk dedektörü çalıştırır
+                  Bağımsız risk dedektörlerini çalıştırır
                                ↓
-                     Policy kurallarını değerlendirir
+                   Policy kurallarını değerlendirir
                                ↓
-                   "Güvenli" veya "Tehlikeli" + gerekçe
+              "safe: true/false" + gerekçeler + bakiye değişimleri
 ```
 
-Her şey imza atılmadan önce olur. Tehlikeli çıkarsa işlem bloklanır.
+Her şey imza atılmadan önce olur. Tehlikeli çıkarsa işlem wallet seviyesinde bloklanır — dApp'in insafına kalmaz.
 
 ---
 
-## Proje Yapısı — Ne Var Ne Yok?
+## Proje Yapısı — Ne Var?
 
-Proje bir "monorepo" olarak düzenlenmiş. Yani birden fazla uygulama tek bir klasörde yan yana duruyor.
+Monorepo (pnpm workspace). Tüm paket adları `@stellar-thorn/*`.
 
 ```
-BLACKTHORN/
-│
+BaretStellar/
 ├── apps/
-│   ├── server/          ← Ana API motoru. Her şeyin kalbi burası.
-│   ├── dashboard/       ← Yönetim paneli (Next.js). İstatistik, audit, risk görünümü.
-│   ├── web/             ← Demo arayüz (React). DeltaG UI adıyla geçiyor.
-│   └── protocol-ts/     ← Protokol dokümantasyon sitesi (MDX formatında).
+│   ├── server/      ← Ana analiz API motoru (Fastify + TypeScript). Her şeyin kalbi.
+│   ├── extension/   ← Chrome MV3 + Firefox tarayıcı eklentisi (akıllı cüzdan + dApp koruması).
+│   ├── showcase/    ← Demo galerisi — gerçek tehdit senaryolarını canlandıran sahte siteler.
+│   └── wallet/      ← Bağımsız React akıllı cüzdan demosu (Baret policy ile korumalı).
 │
 ├── packages/
-│   ├── wallet-adapter/  ← Wallet geliştiricileri için hazır SDK.
-│   └── browser-extension/ ← Chrome eklentisi. Her sitede otomatik devreye giriyor.
+│   ├── swig-guard/         ← Cüzdan/dApp geliştiricileri için pre-sign guard SDK'sı (@stellar-thorn/swig-guard).
+│   ├── blackthorn-adapter/ ← dApp ↔ cüzdan postMessage köprüsü (@stellar-thorn/wallet-adapter).
+│   ├── ext-protocol/       ← Eklenti mesaj-yolu tipleri ve yardımcıları.
+│   ├── showcase-ui/         ← Showcase siteleri için ortak UI iskeleti (navbar, footer, connect modal).
+│   └── ui/                  ← Tasarım token'ları + paylaşılan React bileşenleri (görsel kimlik kaynağı).
 │
-├── blackthorn_testlab/  ← Aktif test ortamı. Adım adım API test arayüzü. (port 3200)
-├── blackthorn_docs/     ← Dokümantasyon sitesi.
-├── deltag-testlab/      ← Eski test ortamı. Artık kullanılmıyor (deprecated).
-└── stitch_extract/      ← Tasarım mockup'ları ve design system dokümanı.
+├── contracts/       ← Soroban kontratları (payment-guard, Rust).
+├── docker-compose.yml · render.yaml · vercel.json
+└── pnpm-workspace.yaml
 ```
 
----
-
-## Ana Motor — Nasıl Çalışıyor?
-
-### Adım Adım Bir İşlemin Yolculuğu
-
-1. **İstek gelir:** Kullanıcının imzalamak üzere olduğu işlem, base64 formatında API'ye gönderilir.
-2. **Decode edilir:** Binary formata çevrilir, içi okunabilir hale gelir.
-3. **ALT çözülür:** Bazı modern Stellar işlemlerinde adresler "Lookup Table" içinde saklanır. Bunlar RPC'den çekilerek tamamlanır.
-4. **Hesap durumları alınır:** İşlemdeki tüm hesapların mevcut bakiyeleri RPC'den çekilir.
-5. **Simülasyon çalışır:** "Bu işlem gerçek olsaydı ne olurdu?" sorusu Stellar RPC'ye sorulur. İmza gerekmez.
-6. **Bakiye değişimleri hesaplanır:** XLM ve token değişimleri simülasyon öncesi/sonrası karşılaştırılarak bulunur.
-7. **CPI ağacı çıkarılır:** Hangi program hangi programı çağırdı? Tüm zincir görünür hale gelir.
-8. **İşlem anlamlandırılır:** "Bu bir Jupiter swap'i", "Bu bir token transferi" gibi insan dilinde özet üretilir.
-9. **7 risk dedektörü çalışır.**
-10. **Policy motoru karar verir:** Güvenli mi, değil mi?
-11. **Öneri motoru çalışır:** "Bunu şöyle yapsan daha iyi olur" önerileri eklenir.
-12. **Audit kaydı tutulur:** Her analiz sonucu istatistikler için saklanır.
-13. **Yanıt döner:** `safe: true/false` + nedenler + bulgular + bakiye değişimleri.
+**Teknoloji:** Fastify (API), `@stellar/stellar-sdk` (Horizon + Soroban), Zod (doğrulama), React + Vite (cüzdan/showcase/eklenti UI'ları), `@x402/stellar` (ödeme).
 
 ---
 
-## 7 Risk Dedektörü
+## Ana Motor — Bir İşlemin Yolculuğu
 
-Her biri bağımsız çalışır ve kendi bulgularını üretir.
+`POST /v1/analyze` isteği `transactionXdr` (base64 Stellar `TransactionEnvelope`) aldığında:
 
-### 1. Simülasyon Dedektörü
-Simülasyon zaten başarısızsa işlem gerçekte de çalışmaz. En basit ama en önemli kontrol.
+1. **Decode:** `decodeStellarTransactionXdr()` — XDR çözülür, iç işlem (`unwrapInnerTransaction`) açılır.
+2. **Hesap toplama:** `collectTxAccounts()` — işlemin dokunduğu hesaplar (G…), kontratlar (C…) ve varlıklar bulunur.
+3. **Simülasyon:** `StellarSimulator.simulate()` —
+   - Horizon'dan tüm hesapların **mevcut durumu** (bakiye, signer'lar, trustline'lar) paralel çekilir
+   - Soroban op'ları varsa **preflight** (`simulateTransaction`) çalıştırılır → kaynak ücreti + diagnostic event'ler
+4. **Bakiye değişimi:** `extractEstimatedChanges()` — simülasyon öncesi/sonrası karşılaştırılarak native XLM, varlık, trustline ve Soroban allowance değişimleri çıkarılır.
+5. **Soroban auth ağacı:** `parseSorobanAuthTree()` — hangi auth entry hangi kontrata yetki veriyor.
+6. **İşlem özeti:** `decodeTransactionOperations()` — op'lar insan diline çevrilir ("payment", "changeTrust", "invokeHostFunction"…).
+7. **Risk dedektörleri:** `runRiskDetection()` — tüm dedektörler sırayla çalışır.
+8. **Policy kararı:** `evaluatePolicy()` — bulgular + kullanıcı policy'si değerlendirilir, ek policy bulguları üretilir.
+9. **Öneriler:** `generateSuggestions()` — varsa "şöyle yapsan daha güvenli" notları.
+10. **Audit:** sonuç in-memory audit kaydına yazılır.
+11. **Yanıt:** `safe: true/false` + gerekçeler + bulgular + tahmini bakiye değişimleri + meta (network, confidence).
 
-### 2. Program Dedektörü
-- **Tehlikeli liste kontrolü:** Önceden işaretlenmiş kötü programlar çağrılıyor mu?
-- **Bilinmeyen program kontrolü:** Güvenli listede olmayan bir program çağrılıyorsa kullanıcı uyarılır.
+---
 
-### 3. CPI Dedektörü
-CPI (Cross-Program Invocation), bir programın başka bir programı çağırması. Örneğin bir swap aggregatörü arka planda 5 farklı program çağırabilir. Bu dedektör:
-- CPI derinliği 4'ü geçerse uyarır
-- CPI zincirinin içinde gizli tehlikeli program varsa yakalar (görünür olmasa bile)
+## Risk Dedektörleri
 
-### 4. Reputation Dedektörü
-Bilinen kötü aktörlerin veritabanı. Drainer programları, phishing adresleri, exploit edilmiş programlar. İşlemdeki herhangi bir adres bu listede varsa bulgu üretilir.
+`apps/server/src/risk/detectors/` — her biri bağımsız çalışır, kendi bulgularını üretir.
 
-### 5. Compute Dedektörü
-Bir işlem çok fazla hesaplama gücü kullanıyorsa (1.2 milyon compute unit üzeri), bu bir exploit işareti veya network sorununa yol açacak bir durum olabilir.
+| Dedektör | Ne yakalar | Örnek bulgu kodları |
+|----------|-----------|----------------------|
+| **simulation** | Soroban preflight başarısız mı; sadece-classic tx (preflight yok) | `SIMULATION_FAILED`, `LOW_CONFIDENCE_INCOMPLETE_DATA` |
+| **programs (contracts)** | Tehlikeli listedeki kontrat; bilinen-güvenli listede olmayan kontrat | `RISKY_CONTRACT_INTERACTION`, `UNKNOWN_CONTRACT_EXPOSURE` |
+| **reputation** | İşlemdeki adres/kontrat reputation veritabanında işaretli mi | `KNOWN_MALICIOUS_ADDRESS` |
+| **deltas** | Trustline açma/kaldırma; Soroban allowance grant; sınırsız allowance/trustline | `TRUSTLINE_CHANGE_DETECTED`, `TRUSTLINE_REMOVED`, `SOROBAN_ALLOWANCE_GRANTED`, `SOROBAN_ALLOWANCE_UNLIMITED`, `UNLIMITED_TRUSTLINE` |
+| **cpi** | Soroban auth ağacı çok derin (≥5) ya da çok fazla invocation (≥20) | `DEEP_SUB_INVOCATION_NESTING`, `HIGH_OPERATION_COUNT` |
+| **compute** | Soroban min kaynak ücreti ya da base fee policy eşiğini aşıyor | `EXCESSIVE_RESOURCE_FEE`, `EXCESSIVE_BASE_FEE` |
+| **x402** | Ödeme tx'inde memo eksik; varlık allowlist dışı; hedef/varlık uyuşmazlığı | `X402_MEMO_MISSING`, `X402_NON_CANONICAL_ASSET`, `X402_DESTINATION_MISMATCH`, `X402_ASSET_MISMATCH` |
 
-### 6. Delta Dedektörü
-- **Approval/Delegate tespiti:** Token'larınızı başkasının harcamasına izin veriliyorsa (sınırsız approve), yüksek riskli bulgu üretir.
-- **Eksik veri kontrolü:** Analiz için yeterli bilgi yoksa güven seviyesi düşürülür.
-
-### 7. Token-2022 Dedektörü
-Stellar'nın yeni token standardı (Token-2022), tehlikeli ekler içerebilir:
-- **TransferHook:** Her token transferinde özel kod çalıştırır. Kötü niyetli olursa token'ı geri çalabilir.
-- **PermanentDelegate:** Token sahibi olmadan token'ları hareket ettirebilen kalıcı yetkili.
+Ek olarak **policy motoru** kendi bulgularını üretir: `ESTIMATED_LOSS_EXCEEDS_MAX`, `POST_BALANCE_TOO_LOW`, `LOSS_PERCENT_UNAVAILABLE`.
 
 ---
 
 ## Policy Motoru — Karar Nasıl Verilir?
 
-Risk dedektörleri bulguları topladıktan sonra policy motoru devreye girer. Bu motor konfigüre edilebilir.
+Bulgular toplandıktan sonra policy motoru karar verir. Policy basit bir nesnedir (boolean/number alanlar):
 
-### Temel Kurallar (Boolean)
-
-| Kural | Ne Yapar |
+| Kural | Ne yapar |
 |-------|----------|
-| `blockRiskyPrograms` | Tehlikeli listedeki program çağrılıyorsa blokla |
-| `blockApprovalChanges` | Token approve değişikliği varsa blokla |
-| `blockDelegateChanges` | Token delegate değişikliği varsa blokla |
-| `blockUnknownProgramExposure` | Bilinmeyen program varsa blokla |
-| `maxLossPercent` | XLM kaybı bu yüzdeyi aşarsa blokla |
-| `minPostUsdcBalance` | İşlem sonrası USDC bakiyesi bu miktarın altına düşerse blokla |
-| `requireSuccessfulSimulation` | Simülasyon başarısız olursa blokla |
+| `requireSuccessfulSimulation` | Soroban preflight başarısızsa blokla (varsayılan: açık) |
+| `blockRiskyContracts` | Tehlikeli listedeki kontrata dokunuluyorsa blokla |
+| `blockUnknownContractExposure` | Bilinen-güvenli listede olmayan kontrat varsa blokla |
+| `blockSorobanAllowanceGrants` | Soroban `approve` (allowance) varsa blokla |
+| `blockTrustlineChanges` / `blockUnlimitedTrustlines` | Trustline değişimi / sınırsız trustline'ı blokla |
+| `blockAccountMerge` | `accountMerge` op'unu blokla (native drain primitifi) |
+| `blockSignerChanges` / `blockMasterKeyRemoval` | İmza seti / eşik değişimini, master-key kaldırmayı blokla |
+| `maxLossPercent` | Tahmini XLM kaybı bu yüzdeyi aşarsa blokla |
+| `minPostUsdcBalance` / `minPostAsset` | İşlem sonrası varlık bakiyesi minimumun altına düşerse blokla |
+| `allowWarnings` | Açıksa orta-seviye uyarılar tek başına bloklamaz |
+| x402: `requireMemo`, `maxResourceFeeStroops`, `maxBaseFeeStroops`, `allowedAssets` | Ödeme tx'i kuralları |
 
-### DSL Kural Dili
+### Hazır şablonlar (swig-guard)
 
-Daha gelişmiş senaryolar için bir kural dili var. Örnek:
+- **Strict (Katı):** her şüpheli aktiviteyi blokla, dar x402 caps.
+- **Balanced (Dengeli):** üretim varsayılanı — drain'leri ve yetkisiz allowance'ları blokla, bilinmeyen kontratlara izin ver.
+- **Permissive (Esnek):** sadece ölümcül sonuçları blokla.
 
-```
-Eğer: simulation.status = "failed"
-Aksiyon: block
-Sebep: "Simulation did not succeed"
-Öncelik: 100
-```
-
-Desteklenen operatörler: `eq`, `neq`, `gt`, `lt`, `in`, `contains`, `exists` ve daha fazlası.
-
-### Hazır Profiller
-
-- **Strict (Katı):** Simülasyon başarısızsa veya herhangi bir yüksek risk varsa blokla.
-- **DeFi Permissive (Esnek):** Sadece bilinen kötü aktörler varsa blokla; XLM kaybı %50'yi aşarsa uyar.
-- **Monitor Only (Sadece İzle):** Hiçbir zaman bloklamaz, her şeyi raporlar.
+> Not: Sunucuda ayrıca MCP profilleri için ikincil bir kural DSL'i (`strict` / `defi-permissive` / `monitor-only`, operatörler: eq/neq/gt/lt/in/contains/exists) vardır; ana analiz yolu yukarıdaki nesne-policy'sini kullanır.
 
 ---
 
-## Showcase — 5 Demo Senaryo
+## Showcase — Demo Senaryolar
 
-`apps/showcase` klasöründe 5 ayrı "sahte site" var. Her biri gerçek bir Stellar tehdit senaryosunu canlandırıyor. Bunları açıp Blackthorn'un tehdidi nasıl yakaladığını görebilirsin.
+`apps/showcase/src/sites/` — her biri gerçek bir Stellar tehdit senaryosunu canlandıran sahte bir site. Her sitenin "safe" ve "danger" varyantı var.
 
-| Site | Senaryo | Blackthorn Ne Yakalar? |
-|------|---------|----------------------|
-| **SolSwap** | Token swap | Fund drain, bilinmeyen program |
-| **PixelDrop** | NFT mint | Wallet drainer, token authority çalınması |
-| **SolYield** | Liquid staking | Doğrulanmamış havuz, unstake yolu yok |
-| **ClaimHub** | Airdrop claim | Phishing, sınırsız token approval |
-| **LaunchPad** | Token launch | Rug pull, mint authority, LP lock yok |
-
----
-
-## TestLab — Adım Adım Test Ortamı
-
-`blackthorn_testlab/` aktif test ortamıdır (port 3200). Yazılım bilmeden bile kullanılabilir.
-
-10 adımlık akış:
-
-1. **Ortam kontrolü** — API sağlıklı mı?
-2. **Swig Wallet** — Smart wallet bağlantısı ve policy kurulumu
-3. **Senaryo üret** — Test için gerçek bir Stellar işlemi hazırla
-4. **Analyze** — Ana karar motoru çalıştır, sonucu gör
-5. **Batch** — Birden fazla işlemi aynı anda test et
-6. **SSE Stream** — Sonuçları canlı event akışı olarak izle
-7. **Replay** — Aynı işlemi farklı bir slot'ta yeniden simüle et
-8. **Audit** — Geçmiş analizleri ve istatistikleri gör
-9. **MCP** — AI agent araç testleri
-10. **x402** — Ödeme kapısı testi
+| Site | Senaryo | Blackthorn ne yakalar |
+|------|---------|------------------------|
+| **novaswap** | Token swap (XLM → USDC) | Drainer pattern, kötü swap rotası |
+| **pixeldrop** | NFT mint | Drainer / honeypot mint |
+| **orbityield** | Staking / yield | Doğrulanmamış havuz (warn) |
+| **claimhub** | Airdrop claim | Phishing + sınırsız token allowance |
+| **launchpad** | Token satışı | Rug-pull launchpad |
+| **scrybe** | Soru-başına oracle | x402 ödeme akışı (HTTP 402 → USDC imzası → on-chain kanıt) — Baret her ödemeyi analiz eder |
 
 ---
 
-## Wallet Adapter SDK
+## Browser Extension (Chrome / Firefox)
 
-Wallet geliştiricileri için hazır bir entegrasyon paketi.
+`apps/extension/` — Chrome MV3 + Firefox. Stellar **Wallet Standard** sağlayıcısı + **x402 interceptor** olarak çalışır.
 
-**DeltaGClient:** Doğrudan API çağrısı yapmak için.
+- **background:** hesap durumu, IndexedDB kalıcılığı, zincir monitörü
+- **popup:** 360×600 araç çubuğu (bakiye, hızlı işlemler, Activity / Allowances / Settings sekmeleri)
+- **options:** tam cüzdan arayüzü
+- **inpage:** `window.stellar` Wallet Standard API'si + HTTP 402 yanıtlarını yakalayıp USDC ödemesi kuran x402 interceptor
 
-**createDeltaGInterceptor:** Wallet'ın `signTransaction` fonksiyonunu sarmalar. Kullanıcı imzalamak istediğinde otomatik olarak Blackthorn analizi çalışır:
-- Güvenliyse: imzalama devam eder
-- Tehlikeliyse: `TransactionBlockedError` fırlatılır ya da callback çağrılır
-- API çalışmazsa: fail-open (bloklamaz, sadece geçer)
-
----
-
-## Browser Extension (Chrome Eklentisi)
-
-`packages/browser-extension/` — Herhangi bir Stellar dApp'inde çalışır. Kurulumdan sonra:
-
-- Phantom, Backpack, Solflare gibi wallet'ların `signTransaction` fonksiyonunu otomatik olarak sarar
-- Kullanıcı herhangi bir sitede imzalamak istediğinde Blackthorn devreye girer
-- Ayarlar popup'ından API endpoint, API key ve auto-block toggle'ı var
-
-**Nasıl çalışır (teknik olmayan açıklama):** Eklenti, tarayıcıdaki her sayfada gizlice bekler. Wallet eklentisi yüklendiğinde ona "imzalamadan önce bana sor" der. Blackthorn'dan onay gelirse imzalama devam eder, gelmezse durur.
+Her imza talebi swig-guard üzerinden Blackthorn analizine girer; riskli işlemler dApp'te değil, cüzdanda bloklanır.
 
 ---
 
-## MCP Server — AI Agent Entegrasyonu
+## Wallet (Bağımsız Demo Cüzdan)
 
-MCP (Model Context Protocol), yapay zeka agentlarının araç olarak kullanabileceği bir standart protokol.
+`apps/wallet/` — port 5180'de çalışan bağımsız React Stellar akıllı cüzdanı. `@stellar/stellar-sdk` kullanır, swig-guard ile pre-sign analiz, wallet-adapter ile dApp bağlantısı yapar.
 
-Blackthorn bu protokolü destekliyor. Bir AI agent şöyle çağırabilir:
+Sayfalar: `onboarding`, `home`, `send`, `receive`, `history`, `policies`, `settings`, `connect`, `sign`. Testnet'te Friendbot ile fonlanır; akıllı cüzdan adresi şimdilik authority adresinin placeholder'ıdır (Soroban kontrat entegrasyonu işaretli TODO).
 
-```
-"Bu transaction güvenli mi?"
-→ deltag_analyze({ transactionBase64: "...", cluster: "mainnet-beta" })
-→ Sonuç: markdown formatında güvenlik raporu
-```
+---
 
-Üç araç var:
-- `deltag_analyze` — işlem analiz et
-- `deltag_health` — servis sağlıklı mı?
-- `deltag_list_profiles` — policy profilleri listele
+## swig-guard — Geliştirici SDK'sı
+
+`packages/swig-guard` — cüzdan/dApp geliştiricilerinin imzadan önce işlem değerlendirmesi için kullandığı paket.
+
+- **`TransactionGuard`** — `evaluate({ transactionXdr, userWallet, policy })` → `{ decision, blockingReasons, analysis, transactionXdr }`. `prepare()` blokta `GuardBlockedError` fırlatır.
+- **`analyzeTransaction(cfg, req)`** — Blackthorn `/v1/analyze`'a HTTP istemcisi.
+- **`AnalysisResult`** — `safe`, `reasons`, `estimatedChanges` (native/assets/trustlines/allowances), `riskFindings`.
+- **`GuardPolicy` + şablonlar** (STRICT / BALANCED / PERMISSIVE).
+- SDK-free tutulur — cüzdan UI'ları Stellar SDK'sını import etmeden tüketebilir.
 
 ---
 
 ## x402 Ödeme Sistemi
 
-HTTP 402 "Payment Required" protokolü üzerine kurulu mikro ödeme sistemi.
+HTTP 402 "Payment Required" üzerine kurulu mikro-ödeme akışı (Stellar exact scheme).
 
-**Akış:**
-1. API key olmadan istek gelir
-2. Sunucu "402 — Ödeme gerekli" döner
-3. Kullanıcı Stellar üzerinden ödeme yapar (USDC cinsinden, istek başı ~$0.001)
-4. PayAI facilitator ödemeyi doğrular
-5. Analiz çalışır
-6. Analiz başarılıysa ödeme kesinleştirilir
+1. API key olmadan istek gelir → sunucu **402 + PaymentRequirements** döner
+2. Kullanıcı Stellar üzerinden USDC öder (klasik asset ya da Soroban SAC)
+3. Facilitator ödemeyi doğrular (`X402_FACILITATOR_URL`)
+4. Analiz çalışır; başarılıysa ödeme kesinleştirilir (settlement)
 
-Başarısız analiz için para çekilmez.
+Ağ kimliği: `stellar:testnet` / `stellar:pubnet`. Demo: `GET /demo/scrybe?q=…`.
 
 ---
 
-## Dashboard
+## MCP — AI Agent Entegrasyonu
 
-`apps/dashboard/` — Next.js tabanlı yönetim paneli.
-
-4 bölüm var:
-- **Overview:** Sağlık durumu, toplam analiz sayısı, safe oranı
-- **Audit:** Son analiz kayıtları tablosu
-- **Risk:** Risk analytics görünümü
-- **Area chart:** Zaman bazlı analiz grafiği
-
-Canlı API bağlantısıyla çalışır; her yenileme backend'den veri çeker.
-
----
-
-## Tasarım Sistemi — The Sentinel Protocol
-
-`stitch_extract/stitch/deltag_sentinel/DESIGN.md` dosyasında detaylı bir tasarım sistemi var.
-
-**Felsefe: "Cyber-Tactile Intelligence"**
-
-- Ekran düz bir tuval değil, verinin içine baktığın bir terminal gibi
-- Koyu lacivert arka plan (`#060e20`), elektrik mavisi vurgular
-- Çizgi yok — sınırlar renk geçişiyle tanımlanır
-- Güvenli = cyan ışıma, Riskli = mavi-çelik, Tehlikeli = kırmızı
-- Space Grotesk (başlıklar) + Inter (metin) font ikilisi
-- Asimetrik layoutlar (dar sidebar + geniş içerik alanı)
+Sunucu Model Context Protocol'ü destekler (`/mcp/tools`, `/mcp/call`). Üç araç:
+- `blackthorn_analyze` — işlem analiz et
+- `blackthorn_health` — servis sağlıklı mı
+- `blackthorn_list_profiles` — policy profillerini listele
 
 ---
 
 ## Audit Trail
 
-Her analiz sonucu otomatik kaydedilir:
-- Kim sordu (wallet adresi, opsiyonel)
-- Hangi cluster
-- Karar: safe mi değil mi?
-- Hangi risk kodları çıktı
-- Hangi programlar çağrıldı
-- Ne kadar sürdü
-
-Son 10.000 kayıt bellekte tutulur. Şu an persistent storage (veritabanı) yok — sunucu yeniden başlatılırsa sıfırlanır.
-
----
-
-## Sınırlılıklar — Neyi Garantilemiyor?
-
-- Simülasyon gerçek yürütmeyi garantilemez. Network koşulları, blockhash süresi dolması, priority fee farklılıkları sonucu değiştirebilir.
-- Sadece Transaction formatı destekleniyor (legacy format desteklenmiyor).
-- En fazla 64 hesap simülasyona dahil ediliyor. Daha fazlası varsa analiz eksik kalabilir ve güven seviyesi düşürülür.
-- Bilinmeyen veya yeni program davranışları tespit edilemeyebilir.
-- x402 ödemesi doğrulandıktan sonra ama analiz başarısız olursa ödeme kesinleştirilmez ama verified durumda kalır.
+Her analiz sonucu otomatik kaydedilir: zaman, network, karar (safe?), confidence, risk kodları, dokunulan kontratlar, birincil aksiyon, (varsa) kullanıcı cüzdanı, süre. Son **10.000** kayıt **bellekte** tutulur — kalıcı veritabanı yok, sunucu yeniden başlarsa sıfırlanır.
 
 ---
 
 ## API — Uç Nokta Özeti
 
-| Yöntem | Adres | Ne Yapar |
+| Yöntem | Adres | Ne yapar |
 |--------|-------|----------|
-| GET | `/health` | Sunucu ayakta mı? |
-| GET | `/health/ready` | RPC ve bağımlılıklar hazır mı? |
+| GET | `/health` | Sunucu ayakta mı |
+| GET | `/health/ready` | Horizon (ve varsa x402 facilitator) hazır mı |
 | POST | `/v1/analyze` | Tek işlem analizi |
-| POST | `/v1/analyze/batch` | Toplu analiz (max 25 işlem) |
+| POST | `/v1/analyze/batch` | Toplu analiz (max 25) |
 | POST | `/v1/analyze/stream` | Canlı sonuç akışı (SSE) |
-| POST | `/v1/replay` | Belirli bir slot'ta simülasyon |
+| POST | `/v1/replay` | Simülasyonu yeniden çalıştır (bilgilendirici) |
 | GET | `/v1/audit/recent` | Son analiz kayıtları |
 | GET | `/v1/audit/aggregate` | Toplam istatistikler |
-| GET | `/v1/audit/program/:id` | Program bazlı audit |
-| GET | `/mcp/tools` | AI agent araç listesi |
-| POST | `/mcp/call` | AI agent araç çağrısı |
+| GET | `/v1/audit/contract/:address` | Kontrat bazlı audit |
+| GET / POST | `/mcp/tools` · `/mcp/call` | AI agent araçları |
+| GET | `/demo/scrybe` | x402 demo paywall |
 
 ---
 
 ## Ortam Değişkenleri — Kritikler
 
-| Değişken | Ne İşe Yarar |
+| Değişken | Ne işe yarar |
 |----------|-------------|
-| `RPC_MAINNET_BETA` | Mainnet RPC adresi |
-| `RPC_DEVNET` | Devnet RPC adresi |
-| `DELTAG_API_KEYS` | API erişim anahtarları (virgülle ayrılmış) |
-| `RISKY_PROGRAM_IDS` | Tehlikeli program adresleri |
-| `KNOWN_SAFE_PROGRAM_IDS` | Güvenli program adresleri |
-| `X402_ENABLED` | x402 ödeme kapısı açık mı? |
-| `X402_PAY_TO` | Ödemelerin gideceği Stellar adresi |
+| `STELLAR_NETWORK` | `testnet` (varsayılan) veya `pubnet` |
+| `STELLAR_HORIZON_URL` | **Zorunlu** — Horizon API endpoint'i |
+| `STELLAR_SOROBAN_RPC_URL` | **Zorunlu** — Soroban RPC endpoint'i |
+| `DELTAG_API_KEYS` | API erişim anahtarları (virgülle) |
+| `RISKY_CONTRACT_IDS` | Tehlikeli Soroban kontrat id'leri (C…) |
+| `KNOWN_SAFE_CONTRACT_IDS` | Güvenli kontrat allowlist'i |
+| `X402_ENABLED` / `X402_PAY_TO` | x402 ödeme kapısı + alıcı Stellar adresi |
+
+`STELLAR_HORIZON_URL` veya `STELLAR_SOROBAN_RPC_URL` yoksa sunucu açılışta çöker. Tam liste: `apps/server/.env.example`.
 
 ---
 
-## Docker ile Çalıştırma
-
-```bash
-docker compose up --build -d
-```
-
-| Servis | Port |
-|--------|------|
-| API | 18080 |
-| Web UI | 5173 |
-| TestLab | 3200 |
-
----
-
-## Yerel Geliştirme
+## Çalıştırma
 
 ```bash
 pnpm install
-pnpm dev           # API → :8080
-pnpm dev:showcase  # Showcase demo siteleri → :5174
-pnpm dev:web       # DeltaG UI → :5173
-pnpm dev:dashboard # Yönetim paneli
-pnpm dev:testlab   # TestLab → :3200
-pnpm dev:all       # Hepsini paralel başlat
-pnpm test          # Unit testler
+
+# Yerel geliştirme
+pnpm dev            # server API → :8080
+pnpm dev:wallet     # cüzdan → :5180
+pnpm dev:showcase   # showcase demoları
+pnpm dev:extension  # eklenti (watch build)
+pnpm dev:all        # server + wallet + showcase paralel
+
+pnpm typecheck      # tüm paketler
+pnpm test           # server testleri
+
+# Docker (yalnızca API)
+pnpm docker:up      # → http://localhost:18080
 ```
+
+Üretim: sunucu **Render** (`render.yaml`), showcase **Vercel** (`vercel.json`).
 
 ---
 
-## Mevcut Durum — Ne Var, Ne Eksik?
+## Tasarım Sistemi — BLACKTHORN
 
-### Tamamlanmış
-- Ana API motoru (tüm 7 dedektör, policy engine, DSL)
-- Batch ve SSE streaming analiz
-- Simulation Replay
-- Audit trail (in-memory)
-- Reputation database
-- MCP server
-- x402 ödeme entegrasyonu
-- Wallet Adapter SDK
-- Browser Extension (Chrome MV3)
-- TestLab (10 adımlı test akışı)
-- Dashboard (monitoring paneli)
-- Showcase siteleri (5 adet)
-- Swig smart wallet entegrasyonu
-- Dokümantasyon sitesi
-- Docker compose
+Kaynak: `docs/brand.md` + `packages/ui/src/tokens.css`.
+
+- **Felsefe:** "Calm. Technical. Candid." — *"The hard hat for your Stellar wallet."*
+- **Renkler:** beyaz/açık yüzeyler (`#FAF8F4` bone, `#FFFFFF` paper), güvenlik turuncusu vurgu (`#FF6B00`), mürekkep-siyahı metin (`#141414`); anlamsal: yeşil/amber/kırmızı/cyan.
+- **Tipografi:** Inter (başlık/metin) + JetBrains Mono (adres/kod).
+
+---
+
+## Sınırlılıklar
+
+- Simülasyon gerçek yürütmeyi garantilemez — ağ koşulları, zaman sınırı (timeBounds) dolması, ücret değişimleri sonucu değiştirebilir.
+- Yalnızca Stellar `TransactionEnvelope` (base64 XDR) desteklenir.
+- En fazla `MAX_SIMULATION_OPERATIONS` (varsayılan 20) hesap ön-duruma alınır; daha fazlası varsa analiz eksik kalabilir ve confidence düşürülür.
+- Audit verisi yalnızca bellektedir (kalıcı depolama yok).
+- Akıllı cüzdan adresi şu an placeholder — gerçek Soroban smart-wallet kontrat entegrasyonu yapılmamıştır.
+
+---
+
+## Mevcut Durum
+
+### Çalışıyor
+- Ana analiz motoru (tüm dedektörler + policy + öneri motoru)
+- Batch + SSE streaming, simülasyon replay
+- Audit trail (in-memory), reputation database
+- MCP server (3 araç)
+- x402 ödeme entegrasyonu (Stellar exact scheme)
+- swig-guard SDK + wallet-adapter köprüsü
+- Browser extension (Chrome MV3 + Firefox)
+- Bağımsız demo cüzdan (Stellar'a taşındı)
+- Showcase siteleri (6 senaryo) — Vercel'de
+- Soroban payment-guard kontratı (`contracts/`)
 
 ### Eksik / Geliştirilebilir
-- Audit verisi için kalıcı depolama (veritabanı — şu an sadece bellekte)
-- `apps/web` (DeltaG UI) tam geliştirilmemiş görünüyor
-- `apps/protocol-ts` protokol dokümantasyon sitesi içerik açısından şablon
-- Reputation database genişletilmesi (şu an seed verisiyle başlıyor)
-- Multi-instance deployment için shared rate limiting (şu an IP bazlı, tek sunucu için)
+- Audit için kalıcı depolama (şu an yalnızca bellek)
+- Wallet'ta gerçek Soroban smart-wallet kontrat entegrasyonu (şu an placeholder)
+- Reputation database'in genişletilmesi (seed verisiyle başlıyor)
+- Çok-instance dağıtım için paylaşılan rate limiting (şu an IP bazlı, tek sunucu)

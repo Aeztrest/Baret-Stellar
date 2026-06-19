@@ -7,17 +7,14 @@
     "dev": "vite --port 5180",
     "build": "tsc && vite build",
     "preview": "vite preview --port 5180",
-    "typecheck": "echo 'wallet typecheck skipped (Stellar port deferred — see apps/extension)' && exit 0"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.95.0",
     "@stellar-thorn/swig-guard": "workspace:*",
     "@stellar-thorn/wallet-adapter": "workspace:*",
     "@stellar/stellar-sdk": "^15.1.0",
-    "@swig-wallet/classic": "^2.1.0",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
-    "passkey-kit": "^0.12.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -52,7 +52,7 @@ const SHOWCASE: SiteSpec[] = [
     name: "PixelDrop",
     category: "NFT",
     tagline: "Generative NFT mint",
-    description: "A Cyber Phantoms mint page. Behind the artwork sits a SetAuthority instruction that drains every token in your wallet.",
+    description: "A Cyber Phantoms mint page. Behind the artwork sits a hidden authorization change that drains every asset in your wallet.",
     catches: [
       "SetAuthority on unrelated token accounts",
       "Wallet-drainer pattern signature",

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Send as SendIcon, ArrowRight, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
-import { LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import { StrKey } from "@stellar/stellar-sdk";
 import type { GuardEvaluation } from "@stellar-thorn/swig-guard";
 import { useWallet } from "../wallet/state";
-import { getConnection, explorerUrl } from "../wallet/connection";
+import { explorerUrl } from "../wallet/connection";
+import { buildPaymentXdr, signAndMaybeSubmit } from "../wallet/stellar-tx";
 import { getGuard } from "../blackthorn/guard";
 import { readPolicy } from "../storage/policy-store";
 import { appendHistory, makeEntryId } from "../storage/history-store";
@@ -13,42 +14,42 @@ import { AnalysisReport } from "../components/AnalysisReport";
 type Phase = "form" | "reviewing" | "review" | "sending" | "done" | "error";
 
 export function Send() {
-  const { session, provision, refresh, identity } = useWallet();
+  const { identity, provision, refresh } = useWallet();
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("0.01");
   const [evaluation, setEvaluation] = useState<GuardEvaluation | null>(null);
   const [phase, setPhase] = useState<Phase>("form");
   const [error, setError] = useState<string | null>(null);
-  const [signature, setSignature] = useState<string | null>(null);
+  const [hash, setHash] = useState<string | null>(null);
 
   const reset = () => {
-    setEvaluation(null); setPhase("form"); setError(null); setSignature(null);
+    setEvaluation(null); setPhase("form"); setError(null); setHash(null);
   };
 
   const review = async () => {
+    if (!identity) return;
     setError(null);
-    let recipientKey: PublicKey;
-    try { recipientKey = new PublicKey(recipient); }
-    catch { setError("Recipient is not a valid Solana address"); return; }
 
-    const lamports = Math.round(parseFloat(amount || "0") * LAMPORTS_PER_SOL);
-    if (!Number.isFinite(lamports) || lamports <= 0) { setError("Amount must be greater than 0"); return; }
+    if (!StrKey.isValidEd25519PublicKey(recipient)) {
+      setError("Recipient is not a valid Stellar address (expected G…).");
+      return;
+    }
+    const amt = parseFloat(amount || "0");
+    if (!Number.isFinite(amt) || amt <= 0) { setError("Amount must be greater than 0"); return; }
 
     setPhase("reviewing");
     try {
-      const sess = await provision();  // ensure on-chain Swig
-      const transferIx = SystemProgram.transfer({
-        fromPubkey: sess.walletAddress,
-        toPubkey: recipientKey,
-        lamports,
+      await provision(); // ensure smart wallet resolved + funded
+      const transactionXdr = await buildPaymentXdr({
+        source: identity.address,
+        destination: recipient,
+        amountXlm: amount,
+        memo: "blackthorn:send",
       });
       const guard = getGuard();
       const result = await guard.evaluate({
-        innerInstructions: [transferIx],
-        swig: sess.swig,
-        roleId: sess.roleId,
-        feePayer: sess.authority.publicKey,
-        userWallet: sess.walletAddress,
+        transactionXdr,
+        userWallet: identity.address,
         policy: readPolicy(),
       });
       setEvaluation(result);
@@ -60,20 +61,20 @@ export function Send() {
   };
 
   const sign = async () => {
-    if (!evaluation || !session) return;
+    if (!evaluation || !identity) return;
     setPhase("sending");
     setError(null);
     try {
-      evaluation.transaction.sign([session.authority]);
-      const conn = getConnection();
-      const sig = await conn.sendTransaction(evaluation.transaction, { maxRetries: 3 });
-      const block = await conn.getLatestBlockhash("confirmed");
-      await conn.confirmTransaction({ signature: sig, blockhash: block.blockhash, lastValidBlockHeight: block.lastValidBlockHeight }, "confirmed");
-      setSignature(sig);
+      const { hash: txHash } = await signAndMaybeSubmit(
+        evaluation.transactionXdr,
+        identity.authority,
+        true,
+      );
+      setHash(txHash);
       appendHistory({
         id: makeEntryId(), createdAt: new Date().toISOString(),
-        label: `Send ${amount} SOL to ${recipient.slice(0, 4)}…${recipient.slice(-4)}`,
-        decision: "allow", signature: sig, reasons: evaluation.analysis.reasons,
+        label: `Send ${amount} XLM to ${recipient.slice(0, 4)}…${recipient.slice(-4)}`,
+        decision: "allow", signature: txHash, reasons: evaluation.analysis.reasons,
         findings: evaluation.analysis.riskFindings, estimatedChanges: evaluation.analysis.estimatedChanges,
         broadcast: true,
       });
@@ -89,7 +90,7 @@ export function Send() {
     if (!evaluation) return;
     appendHistory({
       id: makeEntryId(), createdAt: new Date().toISOString(),
-      label: `Blocked: send ${amount} SOL to ${recipient.slice(0, 4)}…${recipient.slice(-4)}`,
+      label: `Blocked: send ${amount} XLM to ${recipient.slice(0, 4)}…${recipient.slice(-4)}`,
       decision: "block", signature: null, reasons: evaluation.blockingReasons,
       findings: evaluation.analysis.riskFindings, estimatedChanges: evaluation.analysis.estimatedChanges,
       broadcast: false,
@@ -113,10 +114,10 @@ export function Send() {
           <div>
             <label className="label">Recipient</label>
             <input value={recipient} onChange={(e) => setRecipient(e.target.value.trim())}
-              placeholder="Solana address (base58)" className="input" />
+              placeholder="Stellar address (G…)" className="input" />
           </div>
           <div>
-            <label className="label">Amount (SOL)</label>
+            <label className="label">Amount (XLM)</label>
             <div className="flex gap-2">
               <input type="number" min="0" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} className="input flex-1" />
               {["0.01", "0.1", "0.5"].map((v) => (
@@ -135,7 +136,7 @@ export function Send() {
         <div className="card p-12 flex flex-col items-center gap-3 text-center">
           <Loader2 size={24} className="animate-spin text-accent" />
           <p className="text-sm text-ink-700">Building & simulating transaction…</p>
-          <p className="text-xs text-ink-400">Wrapping with your Swig wallet · running policy check</p>
+          <p className="text-xs text-ink-400">Building Stellar payment · running policy check</p>
         </div>
       )}
 
@@ -155,19 +156,21 @@ export function Send() {
         </div>
       )}
 
-      {phase === "done" && signature && (
+      {phase === "done" && (
         <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           className="rounded-2xl p-6 text-center space-y-4"
           style={{ background: "#ecfdf5", border: "1px solid rgba(5,150,105,0.3)" }}>
           <ShieldCheck size={32} className="mx-auto text-emerald-600" />
           <div>
             <p className="text-lg font-bold text-emerald-700">Transaction confirmed</p>
-            <p className="text-xs text-emerald-700/80 mt-1">Sent {amount} SOL · Baret-protected</p>
+            <p className="text-xs text-emerald-700/80 mt-1">Sent {amount} XLM · Baret-protected</p>
           </div>
-          <a href={explorerUrl("tx", signature)} target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900">
-            View on Solana Explorer <ExternalLink size={11} />
-          </a>
+          {hash && (
+            <a href={explorerUrl("tx", hash)} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900">
+              View on Stellar Explorer <ExternalLink size={11} />
+            </a>
+          )}
           <div className="pt-2">
             <button onClick={reset} className="btn-ghost">Send another</button>
           </div>

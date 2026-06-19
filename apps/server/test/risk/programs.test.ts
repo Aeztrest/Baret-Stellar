@@ -1,29 +1,53 @@
 import { describe, expect, it } from "vitest";
-import { PublicKey } from "@solana/web3.js";
-import { detectProgramFindings } from "../../src/risk/detectors/programs.js";
+import { detectContractFindings } from "../../src/risk/detectors/programs.js";
 import { loadConfig } from "../../src/config/index.js";
 
-describe("detectProgramFindings", () => {
-  it("flags programs on risky list", () => {
-    const risky = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const RISKY_CONTRACT = "CARISKYCONTRACT000000000000000000000000000000000000000000";
+const SAFE_CONTRACT = "CBSAFECONTRACT0000000000000000000000000000000000000000000";
+const OTHER_CONTRACT = "CCOTHERCONTRACT000000000000000000000000000000000000000000";
+
+const TEST_ENV = {
+  ...process.env,
+  NODE_ENV: "test",
+  STELLAR_NETWORK: "testnet",
+  STELLAR_HORIZON_URL: "https://horizon-testnet.stellar.org",
+  STELLAR_SOROBAN_RPC_URL: "https://soroban-testnet.stellar.org",
+};
+
+describe("detectContractFindings", () => {
+  it("flags contracts on the risky list", () => {
     const config = loadConfig({
-      ...process.env,
-      NODE_ENV: "test",
-      RISKY_PROGRAM_IDS: risky.toBase58(),
+      ...TEST_ENV,
+      RISKY_CONTRACT_IDS: RISKY_CONTRACT,
     });
-    const findings = detectProgramFindings([risky], config);
-    expect(findings.some((f) => f.code === "RISKY_PROGRAM_INTERACTION")).toBe(true);
+    const findings = detectContractFindings({
+      contractAddresses: [RISKY_CONTRACT],
+      config,
+    });
+    expect(findings.some((f) => f.code === "RISKY_CONTRACT_INTERACTION")).toBe(true);
   });
 
-  it("flags unknown programs when known-safe set is non-empty", () => {
-    const token = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-    const random = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
+  it("flags unknown contracts when the known-safe set is non-empty", () => {
     const config = loadConfig({
-      ...process.env,
-      NODE_ENV: "test",
-      KNOWN_SAFE_PROGRAM_IDS: token.toBase58(),
+      ...TEST_ENV,
+      KNOWN_SAFE_CONTRACT_IDS: SAFE_CONTRACT,
     });
-    const findings = detectProgramFindings([random], config);
-    expect(findings.some((f) => f.code === "UNKNOWN_PROGRAM_EXPOSURE")).toBe(true);
+    const findings = detectContractFindings({
+      contractAddresses: [OTHER_CONTRACT],
+      config,
+    });
+    expect(findings.some((f) => f.code === "UNKNOWN_CONTRACT_EXPOSURE")).toBe(true);
+  });
+
+  it("does not flag a known-safe contract", () => {
+    const config = loadConfig({
+      ...TEST_ENV,
+      KNOWN_SAFE_CONTRACT_IDS: SAFE_CONTRACT,
+    });
+    const findings = detectContractFindings({
+      contractAddresses: [SAFE_CONTRACT],
+      config,
+    });
+    expect(findings).toHaveLength(0);
   });
 });

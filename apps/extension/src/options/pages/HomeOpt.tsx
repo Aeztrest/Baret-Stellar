@@ -78,7 +78,11 @@ export function HomeOpt() {
     setAirdropMsg(null);
     try {
       const r = await rpc.call("wallet.airdrop", undefined as never);
-      setAirdropMsg(`Received ${r.amountXlm} testnet XLM`);
+      setAirdropMsg(
+        r.amountXlm > 0
+          ? `Received ${r.amountXlm} testnet XLM`
+          : "Account already funded on testnet",
+      );
       await refresh();
     } catch (err) {
       setAirdropError(err instanceof Error ? err.message : String(err));

@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'Batch Analysis',
   description:
-    'Analyze up to 25 Solana transactions in a single request. Each transaction is evaluated independently.',
+    'Analyze up to 25 Stellar transactions in a single request. Each transaction is evaluated independently.',
 }
 
 export const sections = [
@@ -26,10 +26,10 @@ Submit up to 25 transactions in a single API call. Each transaction is analyzed 
         Array of transaction objects. Maximum 25 items per request.
       </Property>
       <Property name="transactions[].transaction" type="string">
-        Base64-encoded serialized Solana `VersionedTransaction`.
+        Base64-encoded serialized Stellar `TransactionEnvelope XDR`.
       </Property>
-      <Property name="transactions[].cluster" type="string">
-        Solana cluster: `mainnet-beta` or `devnet`.
+      <Property name="transactions[].network" type="string">
+        Stellar network: `pubnet` or `testnet`.
       </Property>
     </Properties>
 
@@ -61,11 +61,11 @@ Submit up to 25 transactions in a single API call. Each transaction is analyzed 
         "transactions": [
           {
             "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-            "cluster": "mainnet-beta"
+            "network": "pubnet"
           },
           {
             "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-            "cluster": "mainnet-beta"
+            "network": "pubnet"
           }
         ],
         "policyProfile": "strict"
@@ -82,7 +82,7 @@ Submit up to 25 transactions in a single API call. Each transaction is analyzed 
       body: JSON.stringify({
         transactions: pendingTxs.map(tx => ({
           transaction: tx.serializedBase64,
-          cluster: 'mainnet-beta',
+          network: 'pubnet',
         })),
         policyProfile: 'strict',
       }),
@@ -100,7 +100,7 @@ Submit up to 25 transactions in a single API call. Each transaction is analyzed 
           "safe": true,
           "riskLevel": "none",
           "verdict": "Transaction is safe.",
-          "interpretation": "Jupiter swap: 1.5 SOL → 180 USDC",
+          "interpretation": "DEX swap: 1.5 XLM → 180 USDC",
           "durationMs": 210
         },
         {

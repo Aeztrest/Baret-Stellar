@@ -73,7 +73,7 @@ export function History() {
                       safe: e.decision === "allow",
                       reasons: e.reasons,
                       riskFindings: e.findings,
-                      estimatedChanges: e.estimatedChanges ?? { sol: [], tokens: [], approvals: [], delegates: [] },
+                      estimatedChanges: e.estimatedChanges ?? { native: [], assets: [], trustlines: [], allowances: [] },
                       simulationWarnings: [],
                     }} />
                   </div>

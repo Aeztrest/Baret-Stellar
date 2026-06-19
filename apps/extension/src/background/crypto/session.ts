@@ -7,9 +7,8 @@
  * and dispatches `wallet.locked`.
  *
  * Stellar build: secret bytes are the 32-byte ed25519 seed used by
- * `Keypair.fromRawEd25519Seed`. Stellar's signing key has the same shape
- * as Solana's first 32 secretKey bytes, so the cipher / KDF code stays
- * unchanged from the Solana build.
+ * `Keypair.fromRawEd25519Seed`. The cipher / KDF code operates on the
+ * Stellar ed25519 secret seed.
  */
 
 import { Keypair } from "@stellar/stellar-sdk";

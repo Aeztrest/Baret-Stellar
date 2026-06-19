@@ -1,7 +1,7 @@
 # Demo Video Script (~ 2 minutes)
 
 A tight, narration-led walkthrough of the BLACKTHORN extension catching a
-malicious transaction at the wallet layer. Recorded on devnet against the
+malicious transaction at the wallet layer. Recorded on testnet against the
 local server + showcase.
 
 ---
@@ -35,26 +35,27 @@ Reset BLACKTHORN's history before recording so the Activity tab is clean
 
 ### 0:00 — 0:15 · Hook
 
-**Camera:** Phantom approval modal still frame (or any wallet's "Confirm
-transaction" screen with raw program IDs). Voice-over over a quick fade-in.
+**Camera:** A Stellar wallet (e.g. Freighter) approval modal still frame (or
+any wallet's "Confirm transaction" screen with a raw contract/operation
+list). Voice-over over a quick fade-in.
 
-> "This is what every Solana wallet shows you before you sign. A program ID,
-> an account list, a Confirm button. You're trusting the dApp to be honest.
-> Nine times out of ten it is. The tenth time, you lose your wallet."
+> "This is what every Stellar wallet shows you before you sign. A
+> contract/operation list, a Confirm button. You're trusting the dApp to be
+> honest. Nine times out of ten it is. The tenth time, you lose your wallet."
 
 ### 0:15 — 0:30 · The wedge
 
 **Camera:** Cut to BLACKTHORN's options home — the smart wallet hero balance
 + active policy summary + Authority key card.
 
-> "BLACKTHORN is a Solana wallet built on the open-source Swig protocol,
-> with three layers nothing else has: pre-flight simulation, a stateful
-> grants ledger, and a live monitor that watches what happens after you
-> sign. Devnet today, mainnet ready when you are."
+> "BLACKTHORN is a Stellar smart wallet with the open-source BLACKTHORN
+> guard, with three layers nothing else has: pre-flight simulation, a
+> stateful grants ledger, and a live monitor that watches what happens after
+> you sign. Testnet today, pubnet ready when you are."
 
 ### 0:30 — 0:55 · The benign sign
 
-**Camera:** Showcase site. Click "SolSwap." Click "Connect Wallet." Modal
+**Camera:** Showcase site. Click "StellarSwap." Click "Connect Wallet." Modal
 shows BLACKTHORN — Recommended. Click it.
 
 > "Wallet Standard discovery — any dApp picks BLACKTHORN up the moment
@@ -83,7 +84,7 @@ Popup re-renders. This time the hero is **red**: Blocked by your policy.
 
 Pause on the findings list. Read one out loud:
 
-> "BLACKTHORN sees the transaction routes through an unverified program
+> "BLACKTHORN sees the transaction routes through an unverified contract
 > with a 92 % loss to a wallet I've never seen. The dApp's price preview
 > said 137 USDC. The actual transfer is a drain."
 
@@ -116,9 +117,9 @@ realistic allowance row with rolling caps.)
 
 **Camera:** Back to the wallet's options home. Pull-back shot.
 
-> "Solana doesn't have a wallet that does this. We built one. The protocol
+> "Stellar doesn't have a wallet that does this. We built one. The protocol
 > is open source. The spec, the simulation engine, the policy DSL — all on
-> GitHub. Try it on devnet. Bring your dApp."
+> GitHub. Try it on testnet. Bring your dApp."
 
 End card: BLACKTHORN logo + GitHub URL.
 
@@ -132,14 +133,15 @@ Tap these as they appear in the narration:
 - *"Wallet Standard auto-discovery"* (0:30)
 - *"Same dApp. Same Connect button. Different outcome."* (0:55)
 - *"BLACKTHORN refused at the wallet — not the page."* (1:25)
-- *"Devnet · Open source · github.com/Aeztrest/BLACKTHORN"* (2:00)
+- *"Testnet · Open source · github.com/Aeztrest/BLACKTHORN"* (2:00)
 
 ---
 
 ## Fallbacks
 
-- **Devnet airdrop fails on first take?** Pre-fund the demo wallet from
-  faucet.solana.com before recording so the onboarding step is instant.
+- **Testnet funding fails on first take?** Pre-fund the demo wallet from
+  Friendbot (Stellar Laboratory) before recording so the onboarding step is
+  instant.
 - **No x402 paywall to demo?** Skip the Allowances live-cap segment; the
   Activity feed alone is enough to show the ledger story.
 - **Audio length?** The script clocks ~140 spoken seconds. If it runs over

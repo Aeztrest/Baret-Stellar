@@ -1,12 +1,12 @@
 /**
- * PayAI x402 facilitator HTTP client (devnet by default).
+ * PayAI x402 facilitator HTTP client (testnet by default).
  *
  * Three endpoints we care about:
  *   GET  /supported   — published signers + supported networks
  *   POST /verify      — facilitator validates a signed PaymentPayload
- *   POST /settle      — facilitator co-signs (slot 0 = feePayer) + broadcasts
+ *   POST /settle      — facilitator sponsors the fee bump + broadcasts
  *
- * No SDK dependency — plain fetch. Spec is `coinbase/x402` + `PayAINetwork/x402-solana`.
+ * No SDK dependency — plain fetch. Spec is the x402 spec (`coinbase/x402`) + `@x402/stellar`.
  */
 
 const DEFAULT_FACILITATOR_URL = "https://facilitator.payai.network";
@@ -20,7 +20,7 @@ export interface PaymentRequirementsLike {
   payTo: string;
   maxTimeoutSeconds: number;
   extra: {
-    /** Stellar facilitators publish `sponsorBy`; older Solana facilitators use `feePayer`. */
+    /** Stellar facilitators publish `sponsorBy`. */
     sponsorBy?: string;
     feePayer?: string;
     memo?: string;

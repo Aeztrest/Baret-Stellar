@@ -29,8 +29,8 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
       <Property name="limit" type="integer">
         Number of records to return. Default `20`, maximum `100`.
       </Property>
-      <Property name="cluster" type="string">
-        Filter by cluster: `mainnet-beta` or `devnet`.
+      <Property name="network" type="string">
+        Filter by network: `pubnet` or `testnet`.
       </Property>
       <Property name="safe" type="boolean">
         Filter by verdict: `true` for safe transactions, `false` for blocked.
@@ -65,7 +65,7 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
           "riskLevel": "high",
           "riskCodes": ["UNLIMITED_APPROVAL"],
           "programs": ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"],
-          "cluster": "mainnet-beta",
+          "network": "pubnet",
           "durationMs": 287,
           "analyzedAt": "2025-05-04T14:23:01.000Z"
         }
@@ -111,9 +111,9 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
         { "code": "UNLIMITED_APPROVAL", "count": 634 },
         { "code": "SIMULATION_FAILED", "count": 201 }
       ],
-      "clusterBreakdown": {
-        "mainnet-beta": 14102,
-        "devnet": 721
+      "networkBreakdown": {
+        "pubnet": 14102,
+        "testnet": 721
       }
     }
     ```
@@ -134,7 +134,7 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
 
     <Properties>
       <Property name="programId" type="string">
-        The base58-encoded Solana program address.
+        The Stellar contract address (C…).
       </Property>
     </Properties>
 
@@ -153,7 +153,7 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
     ```json {{ title: 'Response' }}
     {
       "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "label": "SPL Token",
+      "label": "Stellar Asset",
       "knownSafe": true,
       "appearances": 9841,
       "blockedCount": 412,

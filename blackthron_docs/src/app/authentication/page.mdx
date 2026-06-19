@@ -26,20 +26,20 @@ Include your key in the `X-API-Key` request header on every call.
 curl -X POST https://api.blackthorn.io/v1/analyze \
   -H "X-API-Key: btk_live_xxxxxxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
-  -d '{ "transaction": "...", "cluster": "mainnet-beta" }'
+  -d '{ "transaction": "...", "network": "pubnet" }'
 ```
 
 ## Pay-per-use with x402
 
-Blackthorn also supports the HTTP 402 micropayment protocol for keyless access. If you send a request without an API key, the server responds with `402 Payment Required` and a payment challenge. You pay per-analysis in USDC on Solana (~$0.001/request), the payment is verified on-chain, and the analysis proceeds.
+Blackthorn also supports the HTTP 402 micropayment protocol for keyless access. If you send a request without an API key, the server responds with `402 Payment Required` and a payment challenge. You pay per-analysis in USDC on Stellar (~$0.001/request), the payment is verified on-chain, and the analysis proceeds.
 
 ```bash {{ title: 'Keyless request — triggers 402 flow' }}
 curl -X POST https://api.blackthorn.io/v1/analyze \
   -H "Content-Type: application/json" \
-  -d '{ "transaction": "...", "cluster": "mainnet-beta" }'
+  -d '{ "transaction": "...", "network": "pubnet" }'
 # → 402 Payment Required
 # → X-Payment-Scheme: x402
-# → X-Pay-To: <solana-address>
+# → X-Pay-To: <stellar-address>
 # → X-Price-USDC: 0.001
 ```
 

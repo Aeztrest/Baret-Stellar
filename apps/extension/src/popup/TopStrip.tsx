@@ -26,7 +26,7 @@ export function TopStrip({ state, onOpenAccount, onOpenSettings }: Props) {
           <Mark size={14} />
         </div>
         <div>
-          <p className="text-[11px] text-text-faint leading-tight">Devnet</p>
+          <p className="text-[11px] text-text-faint leading-tight">Testnet</p>
           <p className="text-xs font-mono text-text leading-tight">{shortAddr(state.walletAddress)}</p>
         </div>
         <ChevronDown size={11} className="text-text-faint" />

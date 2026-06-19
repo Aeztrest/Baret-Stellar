@@ -102,33 +102,39 @@ export function Policies() {
         <div className="space-y-3">
           <PolicyToggle
             title="Require successful simulation"
-            help="Reject if devnet simulation fails. Strongly recommended."
+            help="Reject if the Soroban preflight / testnet simulation fails. Strongly recommended."
             value={policy.requireSuccessfulSimulation !== false}
             onChange={(v) => update("requireSuccessfulSimulation", v)}
           />
           <PolicyToggle
-            title="Block risky programs"
-            help="Reject if the tx invokes a program flagged as risky by Baret's reputation database."
-            value={!!policy.blockRiskyPrograms}
-            onChange={(v) => update("blockRiskyPrograms", v)}
+            title="Block risky contracts"
+            help="Reject if the tx touches a contract flagged as risky by Baret's reputation database."
+            value={!!policy.blockRiskyContracts}
+            onChange={(v) => update("blockRiskyContracts", v)}
           />
           <PolicyToggle
-            title="Block unknown programs"
-            help="Reject any program not on the known-safe allowlist. Strict but noisy in dev environments."
-            value={!!policy.blockUnknownProgramExposure}
-            onChange={(v) => update("blockUnknownProgramExposure", v)}
+            title="Block unknown contracts"
+            help="Reject any contract not on the known-safe allowlist. Strict but noisy in dev environments."
+            value={!!policy.blockUnknownContractExposure}
+            onChange={(v) => update("blockUnknownContractExposure", v)}
           />
           <PolicyToggle
-            title="Block new token approvals"
-            help="Reject if the tx introduces a new SPL Token Approve (delegate) — a common drainer pattern."
-            value={!!policy.blockApprovalChanges}
-            onChange={(v) => update("blockApprovalChanges", v)}
+            title="Block Soroban allowance grants"
+            help="Reject if the tx introduces a Soroban approve (allowance) — a common drainer pattern."
+            value={!!policy.blockSorobanAllowanceGrants}
+            onChange={(v) => update("blockSorobanAllowanceGrants", v)}
           />
           <PolicyToggle
-            title="Block delegate changes"
-            help="Reject if an existing token account's delegate is being changed."
-            value={!!policy.blockDelegateChanges}
-            onChange={(v) => update("blockDelegateChanges", v)}
+            title="Block trustline changes"
+            help="Reject classic changeTrust ops (opening/altering a trustline)."
+            value={!!policy.blockTrustlineChanges}
+            onChange={(v) => update("blockTrustlineChanges", v)}
+          />
+          <PolicyToggle
+            title="Block account merge"
+            help="Reject accountMerge ops — the native Stellar account-drain primitive."
+            value={!!policy.blockAccountMerge}
+            onChange={(v) => update("blockAccountMerge", v)}
           />
           <PolicyToggle
             title="Allow medium-severity warnings"
@@ -138,7 +144,7 @@ export function Policies() {
           />
 
           <PolicyNumber
-            title="Max SOL loss per tx"
+            title="Max XLM loss per tx"
             unit="%"
             help="Reject if estimated loss exceeds this fraction of the wallet's pre-balance. Leave blank to disable."
             value={policy.maxLossPercent ?? null}
@@ -146,18 +152,18 @@ export function Policies() {
             onChange={(v) => update("maxLossPercent", v ?? undefined)}
           />
           <PolicyNumber
-            title="Min post-balance for token"
+            title="Min post-balance for asset"
             unit="UI units"
-            help="If you transact with a token, require this minimum balance after the tx (defaults to USDC). Leave blank to disable."
+            help="If you transact with an asset, require this minimum balance after the tx (defaults to USDC). Leave blank to disable."
             value={policy.minPostUsdcBalance ?? null}
             min={0} step={0.1}
             onChange={(v) => update("minPostUsdcBalance", v ?? undefined)}
           />
           <PolicyText
-            title="Token mint for min-balance check"
-            help="Override which mint the min-balance applies to. Defaults to cluster USDC when blank."
-            value={policy.minPostTokenMint ?? ""}
-            onChange={(v) => update("minPostTokenMint", v ? v : undefined)}
+            title="Asset for min-balance check"
+            help="Override which asset the min-balance applies to. Defaults to USDC when blank."
+            value={policy.minPostAsset ?? ""}
+            onChange={(v) => update("minPostAsset", v ? v : undefined)}
           />
         </div>
       ) : (
@@ -233,7 +239,7 @@ function PolicyText({ title, help, value, onChange }: { title: string; help: str
         <p className="text-xs text-ink-500 mt-1 leading-relaxed">{help}</p>
       </div>
       <input value={value} onChange={(e) => onChange(e.target.value.trim())}
-        placeholder="Mint address (base58)" className="input" />
+        placeholder="Asset (CODE:ISSUER or C…)" className="input" />
     </div>
   );
 }

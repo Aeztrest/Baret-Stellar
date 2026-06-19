@@ -30,7 +30,7 @@ const STOCK_ANSWERS: Record<string, string> = {
     "Circle issues USDC on Stellar: classic asset USDC:GA5Z…KZVN (pubnet) / USDC:GBBD…LA5 (testnet); Soroban SAC CCW6… (pubnet) / CBIE… (testnet).",
   xlm: "XLM is the native asset on Stellar (7 decimals). Each tx pays a 100-stroop base fee per operation plus any Soroban resource fees.",
   x402:
-    "x402 v2 is multi-chain (EVM, Solana, Stellar). On Stellar it uses Soroban auth-entry signing + a sponsored fee bump from the facilitator.",
+    "x402 on Stellar uses Soroban auth-entry signing + a sponsored fee bump from the facilitator.",
 };
 
 function answerFor(q: string): string {

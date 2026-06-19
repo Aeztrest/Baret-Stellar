@@ -22,26 +22,26 @@ export interface GuardPolicy {
 
   /* ───── 1.1 Pre-sign: existing rules (v1 carry-over) ───── */
 
-  /** Reject if estimated SOL loss exceeds this fraction of the wallet's pre-balance. 0–100. */
+  /** Reject if estimated XLM loss exceeds this fraction of the wallet's pre-balance. 0–100. */
   maxLossPercent?: number;
 
-  /** Reject if post-tx balance of the configured mint falls below this UI amount. */
+  /** Reject if post-tx balance of the configured asset falls below this UI amount. */
   minPostUsdcBalance?: number;
 
-  /** Mint to apply minPostUsdcBalance to. Defaults to cluster USDC when unset. */
-  minPostTokenMint?: string;
+  /** Asset to apply minPostUsdcBalance to. Defaults to network USDC when unset. */
+  minPostTokenAsset?: string;
 
-  /** Reject when a new SPL Token Approve appears in the simulation. */
-  blockApprovalChanges?: boolean;
+  /** Reject when a new Soroban allowance grant appears in the simulation. */
+  blockSorobanAllowanceGrants?: boolean;
 
-  /** Reject when an existing token delegate is changed. */
-  blockDelegateChanges?: boolean;
+  /** Reject when a trustline is added, modified, or removed. */
+  blockTrustlineChanges?: boolean;
 
-  /** Reject when a tx invokes a program flagged in BLACKTHORN's reputation DB. */
-  blockRiskyPrograms?: boolean;
+  /** Reject when a tx invokes a contract flagged in BLACKTHORN's reputation DB. */
+  blockRiskyContracts?: boolean;
 
-  /** Reject when a tx invokes any program not in the known-safe list. */
-  blockUnknownProgramExposure?: boolean;
+  /** Reject when a tx invokes any contract not in the known-safe list. */
+  blockUnknownContractExposure?: boolean;
 
   /** If true, medium-severity advisories alone do not block. Critical/high still do. */
   allowWarnings?: boolean;
@@ -51,7 +51,7 @@ export interface GuardPolicy {
 
   /* ───── 1.2 New: x402 protocol rules ───── */
 
-  /** Maximum SOL or USDC equivalent value of a single x402 payment.  e.g. 1.0 USDC */
+  /** Maximum XLM or USDC equivalent value of a single x402 payment.  e.g. 1.0 USDC */
   maxX402PerTx?: number;
 
   /** Rolling 1-hour cap of cumulative x402 spend, per (merchant, asset). */
@@ -60,11 +60,11 @@ export interface GuardPolicy {
   /** Rolling 24-hour cap. */
   x402DailyCap?: number;
 
-  /** Allowlist of facilitator pubkeys (extra.feePayer). When set, refuses unknown facilitators. */
+  /** Allowlist of facilitator account IDs (extra.feePayer). When set, refuses unknown facilitators. */
   allowedFacilitators?: string[];
 
-  /** Allowlist of asset mint pubkeys. When set, refuses payments in other mints. */
-  allowedMints?: string[];
+  /** Allowlist of asset identifiers (CODE:ISSUER or Soroban SAC C…). When set, refuses payments in other assets. */
+  allowedAssets?: string[];
 
   /** Allowlist of merchant origins (https://example.com). When set, refuses unknown origins. */
   allowedMerchantOrigins?: string[];
@@ -72,14 +72,14 @@ export interface GuardPolicy {
   /** Denylist of merchant origins. Always refused even when allowlist is empty. */
   blockedMerchantOrigins?: string[];
 
-  /** Refuse x402 payments whose tx omits the SPL Memo instruction. */
+  /** Refuse x402 payments whose tx omits the Memo. */
   requireMemo?: boolean;
 
-  /** Refuse x402 payments whose recentBlockhash is older than this in seconds. */
-  requireBlockhashMaxAgeSeconds?: number;
+  /** Refuse x402 payments whose time bound (maxTime) is older than this in seconds. */
+  requireTimeBoundMaxAgeSeconds?: number;
 
-  /** Refuse x402 payments whose ComputeUnitPrice exceeds this microlamports/CU value. */
-  maxComputeUnitPriceMicroLamports?: number;
+  /** Refuse x402 payments whose resource fee exceeds this value in stroops. */
+  maxResourceFeeStroops?: number;
 
   /** Cross-check the named feePayer against the facilitator's /supported endpoint before signing. */
   requireFeePayerSupportedCheck?: boolean;
@@ -101,7 +101,7 @@ export interface GuardPolicy {
   /** Maximum number of active sub-keys at once. 0 = no limit. */
   maxActiveSubKeys?: number;
 
-  /** Refuse SPL Token Approve to grant unlimited (u64::MAX) — always cap. */
+  /** Refuse Soroban allowance grants of unlimited (i128::MAX) amount — always cap. */
   refuseUnlimitedApprovals?: boolean;
 
   /* ───── 1.4 New: behavioral / monitoring rules ───── */
@@ -121,7 +121,7 @@ export interface GuardPolicy {
 ```
 
 **All fields are optional.** A policy with `{}` is the no-rules baseline:
-nothing is enforced beyond Solana's own safety. Templates layer rules on top.
+nothing is enforced beyond Stellar's own safety. Templates layer rules on top.
 
 ---
 
@@ -131,10 +131,10 @@ nothing is enforced beyond Solana's own safety. Templates layer rules on top.
 export const STRICT_POLICY: GuardPolicy = {
   // Pre-sign
   maxLossPercent: 25,
-  blockApprovalChanges: true,
-  blockDelegateChanges: true,
-  blockRiskyPrograms: true,
-  blockUnknownProgramExposure: true,
+  blockSorobanAllowanceGrants: true,
+  blockTrustlineChanges: true,
+  blockRiskyContracts: true,
+  blockUnknownContractExposure: true,
   allowWarnings: false,
   requireSuccessfulSimulation: true,
 
@@ -143,16 +143,16 @@ export const STRICT_POLICY: GuardPolicy = {
   x402HourlyCap: 1.00,
   x402DailyCap: 5.00,
   allowedFacilitators: [
-    /* PayAI prod */ "EwWqGE4ZFKLofuestmU4LDdK7XM1N4ALgdZccwYugwGd",
+    /* PayAI prod */ "GBLACKTHORNFACILITATORPAYAIPRODEXAMPLEACCOUNTIDXXXXXX",
     /* Coinbase ref */ "<TBD>",
   ],
-  allowedMints: [
-    /* mainnet USDC */ "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    /* devnet USDC */  "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  allowedAssets: [
+    /* pubnet USDC */ "USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+    /* testnet USDC */ "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
   ],
   requireMemo: true,
-  requireBlockhashMaxAgeSeconds: 30,
-  maxComputeUnitPriceMicroLamports: 5,
+  requireTimeBoundMaxAgeSeconds: 30,
+  maxResourceFeeStroops: 5_000_000,
   requireFeePayerSupportedCheck: true,
   blockAmountAnomalies: true,
   anomalyStdDev: 3,
@@ -173,10 +173,10 @@ export const STRICT_POLICY: GuardPolicy = {
 export const BALANCED_POLICY: GuardPolicy = {
   // Pre-sign
   maxLossPercent: 50,
-  blockApprovalChanges: true,
-  blockDelegateChanges: true,
-  blockRiskyPrograms: true,
-  blockUnknownProgramExposure: false,
+  blockSorobanAllowanceGrants: true,
+  blockTrustlineChanges: true,
+  blockRiskyContracts: true,
+  blockUnknownContractExposure: false,
   allowWarnings: true,
   requireSuccessfulSimulation: true,
 
@@ -184,13 +184,13 @@ export const BALANCED_POLICY: GuardPolicy = {
   maxX402PerTx: 1.00,
   x402HourlyCap: 5.00,
   x402DailyCap: 25.00,
-  allowedMints: [
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  allowedAssets: [
+    "USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+    "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
   ],
   requireMemo: true,
-  requireBlockhashMaxAgeSeconds: 60,
-  maxComputeUnitPriceMicroLamports: 5,
+  requireTimeBoundMaxAgeSeconds: 60,
+  maxResourceFeeStroops: 5_000_000,
   requireFeePayerSupportedCheck: true,
   blockAmountAnomalies: true,
   anomalyStdDev: 4,
@@ -210,7 +210,7 @@ export const BALANCED_POLICY: GuardPolicy = {
 export const PERMISSIVE_POLICY: GuardPolicy = {
   // Pre-sign — only block fatal outcomes
   maxLossPercent: 90,
-  blockRiskyPrograms: true,
+  blockRiskyContracts: true,
   requireSuccessfulSimulation: true,
   allowWarnings: true,
 
@@ -240,8 +240,8 @@ The evaluator is a pure function:
 
 ```ts
 function evaluate(input: {
-  cluster: Cluster;
-  candidate: VersionedTransaction;
+  network: Network;
+  candidate: Transaction;
   paymentRequirements?: PaymentRequirements;  // present when from x402
   analysis: AnalysisResult;                   // pre-sign sim from server
   ledger: AllowanceLedgerSnapshot;            // current state of grants
@@ -265,11 +265,11 @@ Server vs client division of labor:
 
 | Rule | Evaluated on |
 |---|---|
-| Pre-sign §1.1 (loss%, approvals, programs, sim) | **Server** (and client redundantly for offline) |
-| x402 protocol shape (memo, blockhash age, CU price) | **Client** (the candidate tx is in the popup before any network call) |
+| Pre-sign §1.1 (loss%, allowances, contracts, sim) | **Server** (and client redundantly for offline) |
+| x402 protocol shape (memo, time bound age, resource fee) | **Client** (the candidate tx is in the popup before any network call) |
 | x402 spend caps + anomaly detection | **Client** (state lives in IndexedDB) |
 | Facilitator allowlist + /supported cross-check | **Client** + cached lookup |
-| Mint allowlist | **Client** |
+| Asset allowlist | **Client** |
 | Origin allow/denylist | **Client** (server doesn't see HTTP origin) |
 | Allowance auto-revoke / pause | **Client** (background scheduler) |
 | Drift / verify-orphan / no-delivery alerts | **Client** (client owns the lifecycle) |
@@ -285,21 +285,21 @@ plain language in `apps/extension/src/options/policy/reason-strings.ts`.
 |---|---|
 | `loss.exceeds_max` | "This transfer would lose {pct}% of your balance — your policy caps loss at {max}%." |
 | `balance.below_min` | "Your post-transaction {symbol} balance would fall below your floor of {min}." |
-| `program.risky` | "{programId} is on BLACKTHORN's risky-program list." |
-| `program.unknown` | "{programId} isn't on your known-safe list." |
+| `contract.risky` | "{contractId} is on BLACKTHORN's risky-contract list." |
+| `contract.unknown` | "{contractId} isn't on your known-safe list." |
 | `simulation.failed` | "The transaction would fail on-chain. Sim error: {err}." |
-| `approval.new` | "This grants a new spending approval to {delegate}." |
-| `delegate.changed` | "An existing token delegate would be changed by this transfer." |
+| `allowance.new` | "This grants a new Soroban allowance to {spender}." |
+| `trustline.changed` | "A trustline would be added, modified, or removed by this transfer." |
 | `x402.amount_exceeds_per_tx` | "This payment of {amt} exceeds your per-transaction cap of {cap}." |
 | `x402.hourly_cap_exceeded` | "You've spent {spent} of {cap} on {merchant} in the last hour." |
 | `x402.daily_cap_exceeded` | "You've spent {spent} of {cap} on {merchant} today." |
 | `x402.facilitator_not_allowed` | "{feePayer} isn't on your trusted-facilitator list." |
-| `x402.mint_not_allowed` | "{mint} isn't on your trusted-asset list." |
+| `x402.asset_not_allowed` | "{asset} isn't on your trusted-asset list." |
 | `x402.merchant_blocked` | "{origin} is on your blocked list." |
 | `x402.merchant_not_allowed` | "{origin} isn't on your allowed-merchants list." |
 | `x402.memo_missing` | "This payment is missing the memo BLACKTHORN requires for replay protection." |
-| `x402.blockhash_stale` | "The transaction's blockhash is {age}s old; your policy requires under {max}s." |
-| `x402.cu_price_too_high` | "Compute unit price {price} exceeds your cap of {max}." |
+| `x402.time_bound_stale` | "The transaction's time bound is {age}s old; your policy requires under {max}s." |
+| `x402.resource_fee_too_high` | "Resource fee {price} exceeds your cap of {max}." |
 | `x402.amount_anomaly` | "This payment is {n}× the typical amount {merchant} charges." |
 | `x402.feepayer_not_supported` | "{feePayer} isn't a registered signer for the named facilitator." |
 | `allowance.alert_state` | "{merchant} has an unresolved alert; your policy refuses signatures while alerts exist." |
@@ -334,10 +334,10 @@ These warnings appear in the policy editor; they don't block save.
 
 `packages/swig-guard/src/seeds/`:
 
-- `facilitators.json` — known facilitator pubkeys with a `trust` field (`high` / `medium` / `unverified`)
-- `mints.json` — canonical mints per cluster, by symbol
-- `programs.risky.json` — known scam / drainer program IDs (curated)
-- `programs.safe.json` — System, SPL Token (classic + 2022), ATA, Memo, ComputeBudget, Lighthouse, Swig, Jupiter, Marinade, Jito, etc.
+- `facilitators.json` — known facilitator account IDs with a `trust` field (`high` / `medium` / `unverified`)
+- `assets.json` — canonical assets per network, by code
+- `contracts.risky.json` — known scam / drainer contract IDs (curated)
+- `contracts.safe.json` — Stellar Asset Contracts (SACs), Soroswap, Blend, Aquarius, Phoenix, and other audited Soroban contracts, etc.
 
 Seed lists ship in the wallet at build time. A signed update channel (Phase 2)
 will let us push reputation changes between releases without forcing an

@@ -1,5 +1,5 @@
 import { TransactionGuard } from "@stellar-thorn/swig-guard";
-import { ACTIVE_CLUSTER, getConnection } from "../wallet/connection";
+import { ACTIVE_NETWORK } from "../wallet/connection";
 
 /**
  * Base URL of the BLACKTHORN analyze service. In dev, Vite proxies /api → :8080.
@@ -19,8 +19,7 @@ export function getGuard(): TransactionGuard {
   if (cached) return cached;
   cached = new TransactionGuard({
     analyze: { baseUrl: BASE_URL, apiKey: API_KEY },
-    connection: getConnection(),
-    cluster: ACTIVE_CLUSTER,
+    network: ACTIVE_NETWORK,
   });
   return cached;
 }

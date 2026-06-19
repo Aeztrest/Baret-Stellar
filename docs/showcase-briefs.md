@@ -1,13 +1,13 @@
 # BLACKTHORN — Showcase Product Briefs
 
-> Six Solana products. None of them call themselves a demo. Each one is the
+> Six Stellar products. None of them call themselves a demo. Each one is the
 > kind of product a real user would land on, ship a transaction on, and form
 > an opinion about — with one detail that makes them perfect for showing what
 > BLACKTHORN catches that nothing else does.
 
 This document is binding for the showcase apps under `apps/showcase-*`. Each
 site below is rendered as if it were a separate company shipping a real
-product on devnet. Copy is not aspirational — it's what the page would say in
+product on testnet. Copy is not aspirational — it's what the page would say in
 production.
 
 ---
@@ -19,7 +19,7 @@ production.
 Every showcase site has:
 
 - **A real product brand** with its own logomark, accent color, and voice.
-- **One core action** the user can complete on devnet (real signed tx, real on-chain confirmation).
+- **One core action** the user can complete on testnet (real signed tx, real on-chain confirmation).
 - **A scenario toggle** — usually framed as a discrete UI element, never a developer "danger button" — that swaps the inputs to the same action so the *transaction shape* changes from safe to malicious.
 - **Zero in-page BLACKTHORN UI**. The wallet's popup carries the entire BLACKTHORN moment. The site looks identical whether you have BLACKTHORN installed or not — that's the point. The protection lives in your wallet, not on the page.
 - **No "test" / "demo" / "experiment" / "BLACKTHORN" language in copy** unless the BLACKTHORN brand is itself the product (true for the showcase landing portal only).
@@ -36,7 +36,7 @@ product thesis, rendered as evidence.
 
 A small `packages/showcase-ui` library carries the parts every site reuses
 (the `<NavBar>` shell, the `<Footer>`, the wallet-connect modal — which is
-*not* BLACKTHORN-branded; it's a standard Wallet Standard picker). Visual
+*not* BLACKTHORN-branded; it's a standard Stellar wallet picker). Visual
 identity is per-site; structural plumbing is shared.
 
 ### 0.4 Naming
@@ -58,46 +58,46 @@ subdomain bundles in production builds.
 
 ## 1. Vela — DEX aggregator
 
-> Tagline: *Best price across every Solana DEX. One swap, one signature.*
+> Tagline: *Best price across every Stellar DEX. One swap, one signature.*
 
 ### 1.1 Visual identity
 
 - **Accent:** electric teal `#06D9C5`
-- **Mood:** Jupiter-energy with our own typography rhythm — single centered swap card, one-color glow halo behind the "You receive" panel, mono digits for amounts and price impact.
+- **Mood:** clean-swap energy with our own typography rhythm — single centered swap card, one-color glow halo behind the "You receive" panel, mono digits for amounts and price impact.
 - **Logo:** lowercase `vela` with a tiny sail glyph (a triangular swoosh) replacing the dot of a fictional `i`.
 - **Voice:** direct. "You'll get at least X. Otherwise the swap reverts."
 
 ### 1.2 Target user
 
-Solana power user routing $50-$5000 trades per week through Jupiter today.
-Cares about: best price, MEV exposure, route transparency. Ignores: branding
+Stellar power user routing $50-$5000 trades per week through the Stellar DEX today.
+Cares about: best price, path-payment exposure, route transparency. Ignores: branding
 fluff, "DeFi 2.0" rhetoric.
 
 ### 1.3 Hero copy (above the swap card)
 
-> Swap any token across the Solana ecosystem.
+> Swap any asset across the Stellar ecosystem.
 >
-> Vela aggregates Jupiter, Phoenix, Raydium and Orca, then routes through the cheapest path. You see the route before you sign.
+> Vela aggregates the Stellar DEX order books and Soroban AMM pools, then routes through the cheapest path. You see the route before you sign.
 
 ### 1.4 Product surface
 
 Single centered card, ~480-px wide:
 
 ```
-You pay      [ 1.000 ]   SOL ▾
+You pay      [ 1.000 ]   XLM ▾
                          Bal: 12.45
    ⊖ flip ⊖
 You receive  [ 137.42 ]  USDC ▾
                          ≈ $137.42
 
-▾ Route                    Jupiter v6
+▾ Route                    Path Payment
 0.05% slippage             $0.012 fee
 
 [ Connect Wallet ]   ← becomes [ Swap ] when connected
 ```
 
 Beneath: collapsed *Route* line that opens a horizontal hop diagram (Vela →
-Phoenix → Token-2022 → Orca → USDC) with venue logos and per-hop slippage.
+DEX order book → AMM pool → USDC) with venue logos and per-hop slippage.
 Settings popover (gear icon) for slippage tolerance and minimum-received.
 
 ### 1.5 Primary action
@@ -108,26 +108,26 @@ User picks `from`/`to` token + amount, hits **Swap**, signs in BLACKTHORN.
 
 The "scenario toggle" is the **route choice**: a hidden third option in the
 settings popover labeled *"Try aggressive routing (lowest published price)"*.
-Toggle it on; the same swap now routes through a fictional aggregator program
+Toggle it on; the same swap now routes through a fictional aggregator contract
 that's **not in the known-safe list** and that, on simulation, drains 92% of
-the user's SOL into an attacker-controlled token account.
+the user's XLM into an attacker-controlled account.
 
 When the user clicks **Swap** with this toggle on, the BLACKTHORN popup
-opens with `BLOCKED · loss.exceeds_max` + `program.unknown` and a plain-language
-hero: *"This swap would lose 92% of your SOL. Vela's preview said you'd
+opens with `BLOCKED · loss.exceeds_max` + `contract.unknown` and a plain-language
+hero: *"This swap would lose 92% of your XLM. Vela's preview said you'd
 receive 137 USDC; the actual transaction sends almost everything to an
-unknown program."*
+unknown contract."*
 
 This is the **price-display vs reality** attack — visible only because
 BLACKTHORN simulates rather than trusts.
 
 ### 1.7 Real on-chain
 
-- Safe path: real `SystemProgram.transfer` of micro-SOL (representing the swap fee) + a single SPL Token Transfer (representing the swap output) with simulated balance changes that match the displayed receive amount.
-- Danger path: same Transfer + an additional instruction targeting an unknown program ID with a `0xa1`-seed, which decompiles to "drain authority's SOL to unknown program."
+- Safe path: a real native XLM `payment` of micro-XLM (representing the swap fee) + a single Soroban token `transfer` (representing the swap output) with simulated balance changes that match the displayed receive amount.
+- Danger path: same transfer + an additional operation invoking an unknown contract id with a `0xa1`-seed, which decompiles to "drain source account's XLM to unknown contract."
 
-(The actual Jupiter aggregator routing is out of scope for v1; we ship a
-realistic-looking facade. Phase 2 wires real Jupiter API.)
+(The actual Stellar DEX path-payment routing is out of scope for v1; we ship a
+realistic-looking facade. Phase 2 wires the real path-payment API.)
 
 ---
 
@@ -140,12 +140,12 @@ realistic-looking facade. Phase 2 wires real Jupiter API.)
 - **Accent:** warm violet `#B47CFF`
 - **Mood:** Magic Eden / Drip with a ghostly twist — animated SVG art preview that subtly drifts, oversized supply meter, tabular minted-count.
 - **Logo:** uppercase `R I V E N` letter-spaced, with the V drawn as a stylized phantom silhouette.
-- **Voice:** quiet confidence. "Free for the first 500. After that, 0.1 SOL."
+- **Voice:** quiet confidence. "Free for the first 500. After that, 0.1 XLM."
 
 ### 2.2 Target user
 
-NFT minter who's been burned by approve-everything mints, follows Tensor
-trades, has a wallet of 50+ Solana NFTs, knows the difference between a fair
+NFT minter who's been burned by approve-everything mints, follows secondary-market
+trades, has a wallet of 50+ Stellar NFTs, knows the difference between a fair
 mint and a wallet drainer.
 
 ### 2.3 Hero copy
@@ -162,11 +162,11 @@ phase pill (Public · 2 days left), a per-wallet limit tag (Limit 5).
 Two-column hero:
 
 - **Left:** oversized rotating art preview (the same SVG pattern with seeded variation; auto-cycles every 2.4 s; user can pin one with a small "★" button).
-- **Right:** mint module with quantity stepper (-/+/Max), a "You'll pay 0.5 SOL for 5 phantoms" preview, and the **Mint** CTA.
+- **Right:** mint module with quantity stepper (-/+/Max), a "You'll pay 0.5 XLM for 5 phantoms" preview, and the **Mint** CTA.
 
 Below the fold: trust strip ("Mint authority will be revoked on graduation
 · LP locked · Audit by OtterSec — pending") and a 5-up grid of recently
-minted pieces (live feed from devnet).
+minted pieces (live feed from testnet).
 
 ### 2.5 Primary action
 
@@ -176,10 +176,10 @@ User picks quantity, clicks **Mint**, signs.
 
 The scenario toggle is rendered as a **second mint phase pill** that the user
 can choose: *"Allowlist override mint — special access"*. Picking it changes
-the underlying instruction to a fictional "drainer mint" program that:
+the underlying operation to a fictional "drainer mint" contract that:
 
-1. Asks for SPL Token Approve of *unlimited* USDC (a common drainer pattern).
-2. Sets the user's wallet as the source of an unrelated SOL transfer to an attacker.
+1. Asks for a Soroban allowance of *unlimited* USDC (a common drainer pattern).
+2. Sets the user's wallet as the source of an unrelated XLM transfer to an attacker.
 
 BLACKTHORN flags `approval.new` (severity high) + `loss.exceeds_max` and
 shows: *"This mint asks for an unlimited token approval to a wallet you've
@@ -190,33 +190,33 @@ were on a different mint flow, but the on-chain effect is a drainer.
 
 ### 2.7 Real on-chain
 
-- Safe path: SPL Token mint instruction (representing the NFT) + a small SOL transfer for the mint price, both signed via Swig.
-- Danger path: SPL Token Approve granting `u64::MAX` to a fake delegate + a separate SOL drain instruction.
+- Safe path: a Soroban token mint operation (representing the NFT) + a small XLM transfer for the mint price, both signed via Freighter.
+- Danger path: a Soroban allowance granting `i128::MAX` to a fake spender + a separate XLM drain operation.
 
 ---
 
 ## 3. Lattice — Liquid staking
 
-> Tagline: *Stake SOL. Earn yield. Stay liquid.*
+> Tagline: *Stake XLM. Earn yield. Stay liquid.*
 
 ### 3.1 Visual identity
 
 - **Accent:** muted emerald `#34A977` (calmer than the BLACKTHORN `--ok` to differentiate brand from state)
-- **Mood:** Marinade-grade trust signal — wide cards (~560 px), generous whitespace, one giant APY number.
+- **Mood:** institutional-grade trust signal — wide cards (~560 px), generous whitespace, one giant APY number.
 - **Logo:** geometric three-line lattice glyph + lowercase `lattice` wordmark.
-- **Voice:** professional and patient. "Your SOL keeps working while you keep custody."
+- **Voice:** professional and patient. "Your XLM keeps working while you keep custody."
 
 ### 3.2 Target user
 
-Mid-large SOL holder (50+ SOL) who wants yield without locking, hesitates
-between Marinade and Jito, has at some point lost SOL to a fake "high APY"
+Mid-large XLM holder (50+ XLM) who wants yield without locking, compares
+liquid-staking providers, has at some point lost XLM to a fake "high APY"
 staking pool.
 
 ### 3.3 Hero copy
 
 > Lattice staking.
 >
-> 7.4% APY, paid in laSOL — a liquid token you can swap, lend, or unstake at any time.
+> 7.4% APY, paid in laXLM — a liquid token you can swap, lend, or unstake at any time.
 
 Below: 3-up stat strip (TVL · Validators · Stakers), with a "Stake / Unstake"
 tab module beneath.
@@ -234,8 +234,8 @@ $284M           62          18,941
 
 [ Stake ]   [ Unstake ]   ← tabs
 
-Amount      [ 10.0 ]  SOL    Bal: 12.45
-You receive   ≈ 9.967 laSOL
+Amount      [ 10.0 ]  XLM    Bal: 12.45
+You receive   ≈ 9.967 laXLM
 
 Unstake speed:  ◯ Instant (-0.2%)   ● Delayed (~2 days, no fee)
 
@@ -259,14 +259,14 @@ to a fictional pool program.
 
 When the user stakes through Saturn Pool, BLACKTHORN sees:
 
-1. The destination program is unknown (`program.unknown`).
-2. Simulation reveals the "stake" instruction *transfers SOL out* with no
-   `laSOL`-equivalent token coming back (`balance.below_min` if `minPostUsdcBalance`
+1. The destination contract is unknown (`contract.unknown`).
+2. Simulation reveals the "stake" operation *transfers XLM out* with no
+   `laXLM`-equivalent token coming back (`balance.below_min` if `minPostUsdcBalance`
    set; raw deposit-with-no-receipt finding otherwise).
-3. The tx contains a hidden second instruction that revokes the user's
-   ability to call any unstake on the program.
+3. The tx contains a hidden second operation that revokes the user's
+   ability to call any unstake on the contract.
 
-Plain-language hero: *"Saturn Pool would take your 10 SOL and never return
+Plain-language hero: *"Saturn Pool would take your 10 XLM and never return
 liquid tokens. There's no way to unstake."*
 
 This demonstrates the **fake yield trap** — high-APY-looking pools that are
@@ -274,8 +274,8 @@ one-way deposits.
 
 ### 3.7 Real on-chain
 
-- Safe path: SOL transfer to a stake-pool-program-mock + an SPL Token mint instruction for `laSOL` to the user's ATA.
-- Danger path: SOL transfer with no return token + an instruction to a fake program that simulates as "no-op" but consumes the deposit.
+- Safe path: XLM transfer to a stake-pool-contract-mock + a Soroban token mint operation for `laXLM` to the user's account.
+- Danger path: XLM transfer with no return token + an invocation of a fake contract that simulates as "no-op" but consumes the deposit.
 
 ---
 
@@ -292,14 +292,14 @@ one-way deposits.
 
 ### 4.2 Target user
 
-Anyone with a Solana wallet who's been told they might be eligible for
+Anyone with a Stellar wallet who's been told they might be eligible for
 something. The mass-market entry point — the casual user.
 
 ### 4.3 Hero copy
 
 > Aurora rewards.
 >
-> A check on whether you contributed to the Solana ecosystem before October 2025. No signature, no connection — just paste your address.
+> A check on whether you contributed to the Stellar ecosystem before October 2025. No signature, no connection — just paste your address.
 
 ### 4.4 Product surface
 
@@ -310,14 +310,14 @@ Three states, same canvas:
 ```
 Check eligibility
 
-[ Paste your Solana address          ] or [ Connect Wallet ]
+[ Paste your Stellar address (G…)     ] or [ Connect Wallet ]
 
 [ Check eligibility →                ]
 ```
 
 **State 2 — Reveal:** full-bleed celebration. Allocation in 88-px tabular,
-count-up from 0. Below: criteria checklist (✓ used Jupiter pre-2025; ✓
-held mSOL; ✗ used Tensor — gives discovery hook).
+count-up from 0. Below: criteria checklist (✓ used the Stellar DEX pre-2025; ✓
+held laXLM; ✗ minted an NFT — gives discovery hook).
 
 **State 3 — Claim:** clean transactional card.
 
@@ -341,9 +341,9 @@ wallet to claim.
 The eligibility-check page is genuinely read-only — no BLACKTHORN moment
 there. The moment is in the **claim flow**.
 
-When the user clicks **Claim**, the underlying transaction asks for an SPL
-Token Approve of `u64::MAX` to a fictional "claim distributor" program in
-addition to the actual claim instruction. This is the canonical airdrop
+When the user clicks **Claim**, the underlying transaction asks for a Soroban
+allowance of `i128::MAX` to a fictional "claim distributor" contract in
+addition to the actual claim operation. This is the canonical airdrop
 phishing attack: the claim works, but the user has also signed an unlimited
 approval that can be drained later.
 
@@ -353,12 +353,12 @@ Real airdrops never need this. Decline this approval and the claim still
 works."*
 
 This demonstrates the **post-claim approval drainer** — the most common live
-attack vector in Solana airdrops today.
+attack vector in Stellar airdrops today.
 
 ### 4.7 Real on-chain
 
-- Safe path: a single SPL Token Mint to user's ATA representing the claim.
-- Danger path: same mint + an `Approve` instruction granting `u64::MAX` to an attacker pubkey.
+- Safe path: a single Soroban token mint to the user's account representing the claim.
+- Danger path: same mint + an `approve` operation granting `i128::MAX` to an attacker account (G…).
 
 ---
 
@@ -383,7 +383,7 @@ contributing.
 
 > Apogee launches.
 >
-> Curated Solana token launches with mandatory vesting, locked liquidity, and revoked mint authority. Every step on-chain.
+> Curated Stellar token launches with mandatory vesting, locked liquidity, and revoked mint authority. Every step on-chain.
 
 ### 5.4 Product surface
 
@@ -398,7 +398,7 @@ Two-column launch detail:
 
 **Right** — contribution module:
 - Bonding-curve mini-chart with current price + market cap
-- Contribution input + USD/SOL toggle
+- Contribution input + USD/XLM toggle
 - "You'll receive: 20,000 HLI · Lock period: 3 months"
 - **Contribute** CTA
 
@@ -417,7 +417,7 @@ strikethrough red on closer inspection (intentionally subtle).
 
 The contribution tx — when simulated — reveals:
 
-1. The receiving program is unknown (not Apogee's known launchpad program).
+1. The receiving contract is unknown (not Apogee's known launchpad contract).
 2. The token being received is fictional with a non-revoked mint authority.
 3. There's no LP lock; the LP receipt token is held by the team's wallet, freely transferable.
 
@@ -431,8 +431,8 @@ about safety; only on-chain inspection reveals the truth.
 
 ### 5.7 Real on-chain
 
-- Safe path: SOL transfer to launch escrow + claim of vested SPL token (mock).
-- Danger path: SOL transfer to unknown program; receipt token has open mint authority.
+- Safe path: XLM transfer to launch escrow + claim of vested Soroban token (mock).
+- Danger path: XLM transfer to unknown contract; receipt token has open mint authority.
 
 ---
 
@@ -455,7 +455,7 @@ metered access. Already familiar with Coinbase x402 announcements.
 
 ### 6.3 Hero copy
 
-> Cortex: per-call AI on Solana.
+> Cortex: per-call AI on Stellar.
 >
 > Choose an agent. Send a query. Pay micro-fees as it works. No subscription, no API key. Stop and start anytime.
 
@@ -482,12 +482,12 @@ Three areas:
 ```
 ─ scrybe ─────────────────────────────────────  $0.0024 spent · 8 calls
 
-> what's the current TVL of Marinade?
+> what's the current TVL of Lattice?
 
 (streaming)
-Marinade Finance currently holds approximately $284M
+Lattice currently holds approximately $284M
 in TVL across 62 validator partners as of October 2025.
-Source: marinade.finance/dashboard
+Source: lattice.fi/dashboard
 
 ▾ Sources (3)                                    +$0.0003
 ─────────────────────────────────────────────────
@@ -540,11 +540,11 @@ wallet — set a higher cap or unblock SearchEngine".
 **Attack 2 — Mint swap (toggle: "Switch to Cortex Token discounts")**
 
 Toggle in the agent panel: *"Pay in CTX token for 50% off."* Selecting it
-changes the `asset` in the next 402 to a fictional CTX mint that has the
-same symbol "CTX" as a real meme coin but a different mint pubkey.
+changes the `asset` in the next 402 to a fictional CTX asset that has the
+same code "CTX" as a real meme coin but a different issuer.
 
-BLACKTHORN refuses: `x402.mint_not_allowed`. The plain-language hero:
-*"This payment is in a token labeled CTX, but the mint pubkey doesn't match
+BLACKTHORN refuses: `x402.asset_not_allowed`. The plain-language hero:
+*"This payment is in a token labeled CTX, but the issuer doesn't match
 your trusted asset list. It might be a look-alike."*
 
 **Attack 3 — Verify-not-settle (toggle: "Use experimental facilitator")**
@@ -563,9 +563,9 @@ language — the differences live entirely on-chain.
 
 ### 6.7 Real on-chain
 
-- Safe scenario: real x402-paywalled mock backend (running in `apps/showcase-cortex/server/`) issues 402 with valid PayAI-shape `PaymentRequirements`; BLACKTHORN intercepts, signs, settles via real PayAI devnet facilitator.
+- Safe scenario: real x402-paywalled mock backend (running in `apps/showcase-cortex/server/`) issues 402 with valid `PaymentRequirements`; BLACKTHORN intercepts, signs, settles via a real x402 testnet facilitator over Stellar.
 - Attack 1: same flow but one query triggers an out-of-cap payment.
-- Attack 2: `PaymentRequirements.asset` swapped to a fictional mint of our own creation.
+- Attack 2: `PaymentRequirements.asset` swapped to a fictional asset of our own creation.
 - Attack 3: a fake facilitator endpoint that returns `verify=ok` but `settle` 500s — running inside our same backend for full control.
 
 This is the only showcase site that actually exercises the x402 protocol
@@ -577,7 +577,7 @@ blind and BLACKTHORN is uniquely watchful.
 
 ## 7. The Showcase Portal (landing page)
 
-> Tagline: *Six Solana products. One wallet that watches them all.*
+> Tagline: *Six Stellar products. One wallet that watches them all.*
 
 ### 7.1 Purpose
 
@@ -608,13 +608,13 @@ anything.
 
 | Attack | Site | Layer caught at | BLACKTHORN rule that fires |
 |---|---|---|---|
-| Price-display vs reality | Vela | Pre-sign sim | `loss.exceeds_max` + `program.unknown` |
+| Price-display vs reality | Vela | Pre-sign sim | `loss.exceeds_max` + `contract.unknown` |
 | Fake mint phase / unlimited approve | Riven | Pre-sign sim | `approval.new` + `loss.exceeds_max` |
-| Fake yield trap (one-way deposit) | Lattice | Pre-sign sim | `program.unknown` + receipt-missing |
+| Fake yield trap (one-way deposit) | Lattice | Pre-sign sim | `contract.unknown` + receipt-missing |
 | Post-claim approval drainer | Aurora | Pre-sign sim | `approval.new` (high severity) |
 | Rug-pull listing (unrevoked mint) | Apogee | Pre-sign sim | multi-finding (mint authority + LP) |
 | Silent agent drift | Cortex | x402 cap layer | `x402.amount_exceeds_per_tx` + `x402.merchant_not_allowed` |
-| Mint swap (look-alike) | Cortex | x402 mint allowlist | `x402.mint_not_allowed` |
+| Asset swap (look-alike) | Cortex | x402 asset allowlist | `x402.asset_not_allowed` |
 | Verify-not-settle | Cortex | x402 monitor | `verify_orphan` alert |
 
 Six pre-sign scenarios + three x402 scenarios = nine distinct attacks. Each

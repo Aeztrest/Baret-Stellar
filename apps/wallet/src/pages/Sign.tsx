@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  AddressLookupTableAccount,
-  TransactionMessage,
-  VersionedTransaction,
-  type TransactionInstruction,
-} from "@solana/web3.js";
-import { ShieldCheck, Loader2, X, AlertTriangle, Globe } from "lucide-react";
+import { ShieldCheck, Loader2, AlertTriangle, Globe } from "lucide-react";
 import {
   isProtoMessage,
   PROTO_VERSION,
@@ -16,7 +10,7 @@ import {
 } from "@stellar-thorn/wallet-adapter";
 import type { GuardEvaluation } from "@stellar-thorn/swig-guard";
 import { useWallet } from "../wallet/state";
-import { getConnection } from "../wallet/connection";
+import { signAndMaybeSubmit } from "../wallet/stellar-tx";
 import { getGuard } from "../blackthorn/guard";
 import { readPolicy } from "../storage/policy-store";
 import { appendHistory, makeEntryId } from "../storage/history-store";
@@ -25,7 +19,7 @@ import { AnalysisReport } from "../components/AnalysisReport";
 type Phase = "waiting" | "evaluating" | "review" | "signing" | "done" | "error";
 
 export function Sign() {
-  const { phase: walletPhase, identity, session, provision } = useWallet();
+  const { phase: walletPhase, identity, provision } = useWallet();
   const [request, setRequest] = useState<SignRequestMessage | null>(null);
   const [opener, setOpener] = useState<Window | null>(null);
   const [openerOrigin, setOpenerOrigin] = useState<string | null>(null);
@@ -72,15 +66,12 @@ export function Sign() {
       setPhase("evaluating");
       setError(null);
       try {
-        const sess = session ?? await provision();
-        const innerInstructions = await decodeInnerInstructions(request.transactionBase64);
+        // Best-effort: resolve the smart wallet so attribution is consistent.
+        await provision().catch(() => {});
         const guard = getGuard();
         const result = await guard.evaluate({
-          innerInstructions,
-          swig: sess.swig,
-          roleId: sess.roleId,
-          feePayer: sess.authority.publicKey,
-          userWallet: sess.walletAddress,
+          transactionXdr: request.transactionXdr,
+          userWallet: identity.address,
           policy: readPolicy(),
           integratorRequestId: request.requestId,
         });
@@ -93,35 +84,27 @@ export function Sign() {
       }
     };
     void run();
-  }, [request, identity, session, provision, phase]);
+  }, [request, identity, provision, phase]);
 
   /* ─── user actions ─── */
 
   const approve = async () => {
-    if (!evaluation || !session || !request || !opener || !openerOrigin) return;
+    if (!evaluation || !identity || !request || !opener || !openerOrigin) return;
     if (evaluation.decision !== "allow") return;
 
     setPhase("signing");
     try {
-      evaluation.transaction.sign([session.authority]);
-      let signature: string | undefined;
-      if (request.mode === "signAndSend") {
-        const conn = getConnection();
-        const sig = await conn.sendTransaction(evaluation.transaction, { maxRetries: 3 });
-        const block = await conn.getLatestBlockhash("confirmed");
-        await conn.confirmTransaction(
-          { signature: sig, blockhash: block.blockhash, lastValidBlockHeight: block.lastValidBlockHeight },
-          "confirmed",
-        );
-        signature = sig;
-      }
-      const signedB64 = bytesToBase64(evaluation.transaction.serialize());
+      const { signedXdr, hash } = await signAndMaybeSubmit(
+        evaluation.transactionXdr,
+        identity.authority,
+        request.mode === "signAndSend",
+      );
 
       appendHistory({
         id: makeEntryId(), createdAt: new Date().toISOString(),
         label: `${request.appName ?? request.origin} · ${request.mode}`,
         decision: "allow",
-        signature: signature ?? null,
+        signature: hash,
         reasons: evaluation.analysis.reasons,
         findings: evaluation.analysis.riskFindings,
         estimatedChanges: evaluation.analysis.estimatedChanges,
@@ -132,8 +115,8 @@ export function Sign() {
         __bt: PROTO_VERSION,
         type: "sign-approved",
         requestId: request.requestId,
-        signedTransactionBase64: signedB64,
-        signature,
+        signedTransactionXdr: signedXdr,
+        signature: hash ?? undefined,
       };
       opener.postMessage(reply, openerOrigin);
       setPhase("done");
@@ -187,7 +170,7 @@ export function Sign() {
           <div className="glass rounded-2xl p-10 flex flex-col items-center gap-3 text-center">
             <Loader2 size={22} className="animate-spin text-accent-soft" />
             <p className="text-sm text-ink-600">Simulating with Baret…</p>
-            <p className="text-xs text-ink-400">Wrapping with Swig · running policy checks</p>
+            <p className="text-xs text-ink-400">Analyzing the Stellar transaction · running policy checks</p>
           </div>
         )}
 
@@ -256,43 +239,4 @@ function PopupShell({ children }: { children: React.ReactNode }) {
 }
 function Centered({ children }: { children: React.ReactNode }) {
   return <div className="text-center space-y-2">{children}</div>;
-}
-
-/* ────────────── helpers ────────────── */
-
-function base64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-function bytesToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
-  return btoa(bin);
-}
-
-/**
- * Decompile a base64 VersionedTransaction back into its inner instructions
- * so the wallet can re-wrap them through Swig instead of signing the dApp's
- * tx as-is. Resolves any address lookup tables referenced by the message.
- */
-async function decodeInnerInstructions(transactionBase64: string): Promise<TransactionInstruction[]> {
-  const tx = VersionedTransaction.deserialize(base64ToBytes(transactionBase64));
-  const lookups = tx.message.addressTableLookups ?? [];
-
-  let altAccounts: AddressLookupTableAccount[] = [];
-  if (lookups.length > 0) {
-    const conn = getConnection();
-    altAccounts = await Promise.all(
-      lookups.map(async (l) => {
-        const res = await conn.getAddressLookupTable(l.accountKey);
-        if (!res.value) throw new Error(`Address lookup table not found: ${l.accountKey.toBase58()}`);
-        return res.value;
-      }),
-    );
-  }
-
-  const message = TransactionMessage.decompile(tx.message, { addressLookupTableAccounts: altAccounts });
-  return message.instructions;
 }

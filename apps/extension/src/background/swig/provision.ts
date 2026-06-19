@@ -1,12 +1,11 @@
 /**
  * Smart-wallet provisioning (Stellar build).
  *
- * Solana's Swig PDA had a deterministic, derivable address; Stellar's
- * Passkey-kit + custom allowance contract is deployed per user and its
- * address comes back from the deploy call. Until the on-chain contract is
- * wired, we treat the authority address as the "smart wallet" placeholder
- * so the rest of the extension flow (state machine, history, monitor)
- * still resolves a non-null address.
+ * The Stellar Passkey-kit + custom allowance contract is deployed per user
+ * and its smart-wallet address comes back from the deploy call. Until the
+ * on-chain contract is wired, we treat the authority address as the "smart
+ * wallet" placeholder so the rest of the extension flow (state machine,
+ * history, monitor) still resolves a non-null address.
  *
  * Spec: docs/wallet-spec.md §9.6.
  *

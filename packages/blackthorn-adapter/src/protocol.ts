@@ -27,8 +27,7 @@ export interface ConnectApprovedMessage {
   walletAddress: string;
   /** Authority ed25519 key (`G…`) that signs auth entries on behalf of the user. */
   authorityAddress: string;
-  /** Smart-wallet contract address — same family as `walletAddress`; mirrors the
-   *  Solana protocol's "swig PDA" field so consumers needn't branch. */
+  /** Smart-wallet contract address — same family as `walletAddress`. */
   smartWalletAddress: string;
 }
 

@@ -242,7 +242,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
       <button onClick={onNext} className="btn-primary px-6 py-3">
         Get started <ArrowRight size={13} />
       </button>
-      <p className="text-[10px] text-text-faint">Devnet only · Self-custody · Open source</p>
+      <p className="text-[10px] text-text-faint">Testnet only · Self-custody · Open source</p>
     </div>
   );
 }
@@ -435,7 +435,7 @@ function StepFund({
         <Droplet size={26} className="mx-auto text-accent-soft" />
         <h2 className="text-2xl font-extrabold tracking-tight">Fund your authority key</h2>
         <p className="text-text-muted text-sm max-w-md mx-auto">
-          The smart wallet costs a tiny bit of devnet SOL to create on-chain. We'll airdrop you some.
+          The smart wallet needs a little testnet XLM to activate on-chain. We'll fund you via Friendbot.
         </p>
       </div>
 
@@ -460,8 +460,8 @@ function StepFund({
       </div>
 
       <p className="text-[11px] text-text-faint text-center">
-        Faucet rate-limited? Open <a href="https://faucet.solana.com" target="_blank" rel="noreferrer"
-           className="text-accent-soft hover:text-text">faucet.solana.com</a>.
+        Faucet rate-limited? Friendbot funds testnet accounts — open <a href="https://laboratory.stellar.org/#account-creator?network=test" target="_blank" rel="noreferrer"
+           className="text-accent-soft hover:text-text">the Stellar Laboratory</a>.
       </p>
     </div>
   );
@@ -484,7 +484,7 @@ function StepProvision({
       <div className="space-y-2">
         <h2 className="text-2xl font-extrabold tracking-tight">Provisioning smart wallet</h2>
         <p className="text-text-muted text-sm max-w-md mx-auto">
-          Submitting a Swig-create instruction to devnet. Takes a few seconds.
+          Resolving your smart wallet on testnet. Takes a few seconds.
         </p>
         {message && <p className="text-xs text-text-faint pt-1">{message}</p>}
       </div>
@@ -545,7 +545,7 @@ function StepDone({ walletAddress, onEnter }: { walletAddress: string; onEnter: 
       <div className="space-y-2">
         <h2 className="text-3xl font-extrabold tracking-tight">You're protected.</h2>
         <p className="text-text-muted max-w-md mx-auto">
-          Your smart wallet is live on devnet. Every signature from here on passes through Baret.
+          Your smart wallet is live on testnet. Every signature from here on passes through Baret.
         </p>
       </div>
 

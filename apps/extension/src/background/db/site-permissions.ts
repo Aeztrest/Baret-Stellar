@@ -1,7 +1,7 @@
 /**
- * Per-origin connection trust. Mirrors the "Trusted Sites" concept that
- * Phantom / Solflare expose — once the user explicitly Allows an origin,
- * subsequent `standard:connect` calls resolve immediately without a popup.
+ * Per-origin connection trust, a "Trusted Sites" concept — once the user
+ * explicitly Allows an origin, subsequent `standard:connect` calls resolve
+ * immediately without a popup.
  * Deny works the same way in reverse.
  *
  * Schema lives at v3 in db/index.ts. Single source of truth.

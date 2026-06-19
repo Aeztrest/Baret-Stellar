@@ -1,161 +1,131 @@
-import { Keypair } from "@solana/web3.js";
 import { describe, expect, it } from "vitest";
 import { evaluatePolicy } from "../../src/policy/engine.js";
 import type { NormalizedSimulation } from "../../src/domain/simulation-normalized.js";
 import type { EstimatedChanges } from "../../src/domain/estimated-changes.js";
 import type { RiskFinding } from "../../src/domain/findings.js";
 
+const USER = "GA7QYNF7SOWQ3GLR2BGMZEHSCT5Y5LA4D2YUTH6P5N2C4V3UNUNH7YBM";
+const USDC_ASSET = "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+const USDC_CONTRACT = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+
 const simSuccess: NormalizedSimulation = {
   status: "success",
-  logs: [],
   err: null,
+  events: [],
   accounts: [],
-  unitsConsumed: null,
-  returnData: null,
+  feeStroops: null,
+  authEntries: [],
+  hostFnResultsXdr: [],
+  preflighted: true,
+  minResourceFeeStroops: null,
 };
 
 const simFailed: NormalizedSimulation = {
   status: "failed",
-  logs: [],
-  err: "InstructionError",
+  err: "Soroban preflight failed",
+  events: [],
   accounts: [],
-  unitsConsumed: null,
-  returnData: null,
+  feeStroops: null,
+  authEntries: [],
+  hostFnResultsXdr: [],
+  preflighted: true,
+  minResourceFeeStroops: null,
 };
 
 const emptyChanges: EstimatedChanges = {
-  sol: [],
-  tokens: [],
-  approvals: [],
-  delegates: [],
+  native: [],
+  assets: [],
+  trustlines: [],
+  allowances: [],
 };
+
+function baseInput(overrides: Partial<Parameters<typeof evaluatePolicy>[0]> = {}) {
+  return {
+    network: "testnet" as const,
+    policy: {},
+    simulation: simSuccess,
+    estimatedChanges: emptyChanges,
+    riskFindings: [],
+    simulationWarnings: [],
+    usdcAsset: USDC_ASSET,
+    usdcContractAddress: USDC_CONTRACT,
+    userWallet: null as string | null,
+    ...overrides,
+  };
+}
 
 describe("evaluatePolicy", () => {
   it("blocks failed simulation by default", () => {
-    const d = evaluatePolicy({
-      cluster: "devnet",
-      policy: {},
-      simulation: simFailed,
-      estimatedChanges: emptyChanges,
-      riskFindings: [],
-      simulationWarnings: [],
-      usdcMint: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-      userWallet: null,
-    });
+    const d = evaluatePolicy(baseInput({ simulation: simFailed }));
     expect(d.safe).toBe(false);
-    expect(d.reasons.some((r) => /simulation/i.test(r))).toBe(true);
+    expect(d.reasons.some((r) => /preflight|simulation/i.test(r))).toBe(true);
   });
 
   it("allows failed simulation when requireSuccessfulSimulation is false", () => {
-    const d = evaluatePolicy({
-      cluster: "devnet",
-      policy: { requireSuccessfulSimulation: false },
-      simulation: simFailed,
-      estimatedChanges: emptyChanges,
-      riskFindings: [],
-      simulationWarnings: [],
-      usdcMint: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-      userWallet: null,
-    });
+    const d = evaluatePolicy(
+      baseInput({ simulation: simFailed, policy: { requireSuccessfulSimulation: false } }),
+    );
     expect(d.safe).toBe(true);
   });
 
-  it("blocks risky program when policy requests it", () => {
+  it("blocks risky contract when policy requests it", () => {
     const findings: RiskFinding[] = [
-      {
-        code: "RISKY_PROGRAM_INTERACTION",
-        severity: "high",
-        message: "risky",
-      },
+      { code: "RISKY_CONTRACT_INTERACTION", severity: "high", message: "risky" },
     ];
-    const d = evaluatePolicy({
-      cluster: "devnet",
-      policy: { blockRiskyPrograms: true },
-      simulation: simSuccess,
-      estimatedChanges: emptyChanges,
-      riskFindings: findings,
-      simulationWarnings: [],
-      usdcMint: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-      userWallet: null,
-    });
+    const d = evaluatePolicy(
+      baseInput({ policy: { blockRiskyContracts: true }, riskFindings: findings }),
+    );
     expect(d.safe).toBe(false);
   });
 
-  it("does not block risky program when policy flag is off", () => {
+  it("does not block risky contract when policy flag is off", () => {
     const findings: RiskFinding[] = [
-      {
-        code: "RISKY_PROGRAM_INTERACTION",
-        severity: "high",
-        message: "risky",
-      },
+      { code: "RISKY_CONTRACT_INTERACTION", severity: "high", message: "risky" },
     ];
-    const d = evaluatePolicy({
-      cluster: "devnet",
-      policy: { blockRiskyPrograms: false },
-      simulation: simSuccess,
-      estimatedChanges: emptyChanges,
-      riskFindings: findings,
-      simulationWarnings: [],
-      usdcMint: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-      userWallet: null,
-    });
+    const d = evaluatePolicy(
+      baseInput({ policy: { blockRiskyContracts: false }, riskFindings: findings }),
+    );
     expect(d.safe).toBe(true);
   });
 
-  it("enforces maxLossPercent for user wallet SOL delta", () => {
-    const user = Keypair.generate().publicKey.toBase58();
+  it("enforces maxLossPercent for the user wallet's native XLM delta", () => {
     const changes: EstimatedChanges = {
       ...emptyChanges,
-      sol: [
+      native: [
         {
-          account: user,
-          preLamports: 1_000_000_000,
-          postLamports: 900_000_000,
-          deltaLamports: -100_000_000,
+          accountId: USER,
+          preStroops: "1000000000",
+          postStroops: "900000000",
+          deltaStroops: "-100000000",
         },
       ],
     };
-    const d = evaluatePolicy({
-      cluster: "devnet",
-      policy: { maxLossPercent: 5 },
-      simulation: simSuccess,
-      estimatedChanges: changes,
-      riskFindings: [],
-      simulationWarnings: [],
-      usdcMint: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-      userWallet: user,
-    });
+    const d = evaluatePolicy(
+      baseInput({ policy: { maxLossPercent: 5 }, estimatedChanges: changes, userWallet: USER }),
+    );
     expect(d.safe).toBe(false);
     expect(d.reasons.some((r) => /loss/i.test(r))).toBe(true);
   });
 
   it("enforces minPostUsdcBalance using raw amounts", () => {
-    const mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
-    const user = Keypair.generate().publicKey.toBase58();
     const changes: EstimatedChanges = {
       ...emptyChanges,
-      tokens: [
+      assets: [
         {
-          account: "TokenAcc1111111111111111111111111111111",
-          mint,
-          owner: user,
-          preAmount: "2000000",
-          postAmount: "400000",
-          delta: "-1600000",
-          decimals: 6,
+          accountId: USER,
+          asset: USDC_ASSET,
+          assetCode: "USDC",
+          assetIssuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+          preBalance: "20000000",
+          postBalance: "400000",
+          delta: "-19600000",
+          decimals: 7,
         },
       ],
     };
-    const d = evaluatePolicy({
-      cluster: "devnet",
-      policy: { minPostUsdcBalance: 1 },
-      simulation: simSuccess,
-      estimatedChanges: changes,
-      riskFindings: [],
-      simulationWarnings: [],
-      usdcMint: mint,
-      userWallet: user,
-    });
+    const d = evaluatePolicy(
+      baseInput({ policy: { minPostUsdcBalance: 1 }, estimatedChanges: changes, userWallet: USER }),
+    );
     expect(d.safe).toBe(false);
   });
 });

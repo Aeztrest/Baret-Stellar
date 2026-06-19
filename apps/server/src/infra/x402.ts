@@ -55,8 +55,8 @@ export function createDeltagX402(config: AppConfig): BlackthornX402 {
   });
 
   // Generic registration API — `register(network, scheme)` lets us plug the
-  // Stellar implementation into the same x402ResourceServer the Solana
-  // build used. The scheme handles the chain-specific shape of `accepts`.
+  // Stellar implementation into the x402ResourceServer. The scheme handles
+  // the chain-specific shape of `accepts`.
   const resourceServer = new x402ResourceServer(facilitator).register(
     config.x402.network as Network,
     new ExactStellarScheme(),

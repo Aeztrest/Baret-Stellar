@@ -25,8 +25,8 @@ export type ReplayResult = {
  * Stellar deliberately does **not** support replaying a transaction at an
  * arbitrary historical ledger — Soroban preflight always runs against the
  * current state. The replay engine therefore returns one "current ledger"
- * simulation; the `ledger` param is kept on the type so MCP / debug routes
- * stay shape-compatible with the old Solana flow.
+ * simulation re-run against current state; the `ledger` param is kept on the
+ * type so MCP / debug routes can still pass it through.
  */
 export class SimulationReplayEngine {
   constructor(

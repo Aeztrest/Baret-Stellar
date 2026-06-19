@@ -217,6 +217,11 @@ const airdropHandler: Handler<"wallet.airdrop"> = async () => {
   );
   if (!res.ok) {
     const text = await safeText(res);
+    // Already-funded accounts return 400 — treat as success since the account
+    // already holds testnet XLM and the user can proceed.
+    if (res.status === 400 && /already funded|op_already_exists/i.test(text)) {
+      return { transactionHash: "already-funded", amountXlm: 0 };
+    }
     throw new Error(
       `Friendbot rate-limited or unavailable. (${res.status}) ${text}`,
     );

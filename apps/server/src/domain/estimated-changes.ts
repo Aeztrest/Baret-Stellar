@@ -43,8 +43,7 @@ export type TrustlineChange = {
 };
 
 /**
- * A Soroban `approve` allowance grant the tx makes. Roughly the Stellar
- * counterpart of Solana's SPL `Approve` instruction.
+ * A Soroban `approve` allowance grant the tx makes.
  */
 export type SorobanAllowanceChange = {
   kind: "soroban_allowance";

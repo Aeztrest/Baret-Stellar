@@ -13,13 +13,13 @@ export const sections = [
 
 # SDKs & Integrations
 
-Blackthorn can be integrated at any layer of the Solana stack — wallet libraries, browser extensions, AI agents, or direct API calls from any language. {{ className: 'lead' }}
+Blackthorn can be integrated at any layer of the Stellar stack — wallet libraries, browser extensions, AI agents, or direct API calls from any language. {{ className: 'lead' }}
 
 ---
 
 ## Wallet Adapter SDK {{ id: 'wallet-adapter' }}
 
-The `@stellar-thorn/wallet-adapter` package wraps any Solana wallet's `signTransaction` function. When the user tries to sign, Blackthorn intercepts, analyzes, and either proceeds or throws a `TransactionBlockedError`.
+The `@stellar-thorn/wallet-adapter` package wraps any Stellar wallet's `signTransaction` function. When the user tries to sign, Blackthorn intercepts, analyzes, and either proceeds or throws a `TransactionBlockedError`.
 
 ### Installation
 
@@ -35,7 +35,7 @@ import { createBlackthornInterceptor } from '@stellar-thorn/wallet-adapter'
 const interceptor = createBlackthornInterceptor({
   apiKey: process.env.BLACKTHORN_API_KEY,
   apiUrl: 'https://api.blackthorn.io',
-  cluster: 'mainnet-beta',
+  network: 'pubnet',
   policyProfile: 'strict',
   onBlock: (analysis) => {
     // Show a warning to the user
@@ -68,7 +68,7 @@ const secureWallet = interceptor.wrap(wallet)
 
 ## Browser Extension {{ id: 'browser-extension' }}
 
-The Blackthorn Chrome extension (Manifest V3) automatically intercepts `signTransaction` calls from Phantom, Backpack, Solflare, and any wallet that injects a Solana provider into the browser.
+The Blackthorn Chrome extension (Manifest V3) automatically intercepts `signTransaction` calls from Freighter and any wallet that injects a Stellar provider into the browser.
 
 No code changes required in the dApp. The extension installs a content script that wraps the wallet's signing functions at the browser level.
 
@@ -102,7 +102,7 @@ Blackthorn implements the [Model Context Protocol](https://modelcontextprotocol.
 
 <Properties>
   <Property name="deltag_analyze" type="tool">
-    Analyze a transaction. Input: `transactionBase64`, `cluster`. Returns a markdown-formatted security report.
+    Analyze a transaction. Input: `transactionBase64`, `network`. Returns a markdown-formatted security report.
   </Property>
   <Property name="deltag_health" type="tool">
     Check if the Blackthorn service is healthy and the RPC is reachable.
@@ -116,7 +116,7 @@ Blackthorn implements the [Model Context Protocol](https://modelcontextprotocol.
 
 ```
 "Is this transaction safe to sign?"
-→ deltag_analyze({ transactionBase64: "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg...", cluster: "mainnet-beta" })
+→ deltag_analyze({ transactionBase64: "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg...", network: "pubnet" })
 → Returns: "## Analysis Result\n**Verdict:** ⛔ BLOCKED\n**Risk Level:** High\n**Reason:** Unlimited token approval detected..."
 ```
 
@@ -132,14 +132,14 @@ The Blackthorn API is a plain HTTPS REST API. Any language that can make HTTP re
 curl -X POST https://api.blackthorn.io/v1/analyze \
   -H "X-API-Key: {your-api-key}" \
   -H "Content-Type: application/json" \
-  -d '{"transaction":"...","cluster":"mainnet-beta"}'
+  -d '{"transaction":"...","network":"pubnet"}'
 ```
 
 ```js
 const res = await fetch('https://api.blackthorn.io/v1/analyze', {
   method: 'POST',
   headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ transaction: txBase64, cluster: 'mainnet-beta' }),
+  body: JSON.stringify({ transaction: txBase64, network: 'pubnet' }),
 })
 const { safe, verdict } = await res.json()
 ```
@@ -149,14 +149,14 @@ import httpx
 result = httpx.post(
     'https://api.blackthorn.io/v1/analyze',
     headers={'X-API-Key': API_KEY},
-    json={'transaction': tx_base64, 'cluster': 'mainnet-beta'},
+    json={'transaction': tx_base64, 'network': 'pubnet'},
 ).json()
 ```
 
 ```go
 body, _ := json.Marshal(map[string]string{
     "transaction": txBase64,
-    "cluster":     "mainnet-beta",
+    "network":     "pubnet",
 })
 req, _ := http.NewRequest("POST", "https://api.blackthorn.io/v1/analyze", bytes.NewBuffer(body))
 req.Header.Set("X-API-Key", apiKey)

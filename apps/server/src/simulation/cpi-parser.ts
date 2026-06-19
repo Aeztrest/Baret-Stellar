@@ -12,8 +12,8 @@ import type { CpiNode, CpiTrace } from "../domain/cpi-trace.js";
  * invocations correspond to the entries on the tx's `InvokeHostFunction`
  * op; descendants come from `subInvocations()` on each entry.
  *
- * This is the Stellar analogue of Solana's CPI tree — and the same shape
- * downstream detectors used to score (depth, breadth, identity exposure).
+ * This is the Soroban authorization tree — downstream detectors score it
+ * on depth, breadth, and identity exposure.
  */
 export function parseSorobanAuthTree(tx: Transaction): CpiTrace {
   const allContractAddresses = new Set<string>();

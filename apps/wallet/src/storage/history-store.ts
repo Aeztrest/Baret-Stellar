@@ -6,7 +6,7 @@ const MAX_ENTRIES = 200;
 export interface HistoryEntry {
   id: string;
   createdAt: string;
-  /** Human-readable label, e.g. "Send 0.05 SOL to 4Hk…7zN" */
+  /** Human-readable label, e.g. "Send 0.05 XLM to GABC…7zN" */
   label: string;
   decision: GuardDecision;
   signature: string | null;

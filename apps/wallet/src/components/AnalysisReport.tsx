@@ -77,30 +77,41 @@ export function AnalysisReport({ result }: { result: AnalysisResult }) {
         </div>
       )}
 
-      {changes && (changes.sol.length > 0 || changes.tokens.length > 0 || changes.approvals.length > 0) && (
+      {changes && (changes.native.length > 0 || changes.assets.length > 0 || changes.trustlines.length > 0 || changes.allowances.length > 0) && (
         <div className="space-y-2">
           <p className="label">Estimated balance changes</p>
           <div className="glass rounded-xl divide-y divide-ink-900/[0.06]">
-            {changes.sol
-              .filter((s) => s.deltaLamports !== 0 && s.deltaLamports !== null)
-              .map((s, i) => (
-                <div key={`sol-${i}`} className="px-4 py-2.5 flex items-center justify-between text-xs">
-                  <span className="font-mono text-ink-500 truncate max-w-[60%]">{s.account}</span>
-                  <span className={s.deltaLamports! < 0 ? "text-[#DC2626]" : "text-emerald-600"}>
-                    {s.deltaLamports! < 0 ? "" : "+"}{(s.deltaLamports! / 1e9).toFixed(6)} SOL
-                  </span>
+            {changes.native
+              .filter((n) => n.deltaStroops !== null && n.deltaStroops !== "0")
+              .map((n, i) => {
+                const deltaXlm = Number(n.deltaStroops) / 1e7;
+                return (
+                  <div key={`xlm-${i}`} className="px-4 py-2.5 flex items-center justify-between text-xs">
+                    <span className="font-mono text-ink-500 truncate max-w-[60%]">{n.accountId}</span>
+                    <span className={deltaXlm < 0 ? "text-[#DC2626]" : "text-emerald-600"}>
+                      {deltaXlm < 0 ? "" : "+"}{deltaXlm.toFixed(7)} XLM
+                    </span>
+                  </div>
+                );
+              })}
+            {changes.assets
+              .filter((a) => a.delta !== "0")
+              .map((a, i) => (
+                <div key={`ast-${i}`} className="px-4 py-2.5 flex items-center justify-between text-xs">
+                  <span className="font-mono text-ink-500 truncate max-w-[60%]">{a.assetCode}</span>
+                  <span className={a.delta.startsWith("-") ? "text-[#DC2626]" : "text-emerald-600"}>{a.delta}</span>
                 </div>
               ))}
-            {changes.tokens.map((t, i) => (
-              <div key={`tok-${i}`} className="px-4 py-2.5 flex items-center justify-between text-xs">
-                <span className="font-mono text-ink-500 truncate max-w-[60%]">{t.symbol ?? `${t.mint.slice(0, 4)}…${t.mint.slice(-4)}`}</span>
-                <span className="text-ink-800">{t.deltaAmount ?? "—"}</span>
+            {changes.trustlines.map((t, i) => (
+              <div key={`tl-${i}`} className="px-4 py-2.5 flex items-center justify-between text-xs">
+                <span className="text-[#B45309]">Trustline {t.direction} · {t.asset}</span>
+                <span className="text-[#B45309]/80 truncate max-w-[40%]">{t.newLimit}</span>
               </div>
             ))}
-            {changes.approvals.map((a, i) => (
-              <div key={`apv-${i}`} className="px-4 py-2.5 flex items-center justify-between text-xs">
-                <span className="text-[#B45309]">Token approval → {a.delegate.slice(0, 6)}…{a.delegate.slice(-4)}</span>
-                <span className="text-[#B45309]/80">{a.amount ?? "unlimited"}</span>
+            {changes.allowances.map((a, i) => (
+              <div key={`alw-${i}`} className="px-4 py-2.5 flex items-center justify-between text-xs">
+                <span className="text-[#B45309]">Soroban approval → {a.spender.slice(0, 6)}…{a.spender.slice(-4)}</span>
+                <span className="text-[#B45309]/80">{a.amount}</span>
               </div>
             ))}
           </div>

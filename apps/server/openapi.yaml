@@ -3,7 +3,9 @@ info:
   title: DeltaG Analyze API
   version: 1.0.0
   description: |
-    Solana VersionedTransaction simulation and policy-based safety analysis.
+    Stellar TransactionEnvelope simulation and policy-based safety analysis.
+    Performs a Horizon pre-state fetch plus Soroban preflight simulation, then
+    risk detection and policy evaluation.
     Production servers may require `Authorization: Bearer <api-key>` or `x-api-key` on `/v1/*`
     unless x402-only mode is enabled. See `LIMITATIONS.md` at repository root.
 servers:
@@ -41,7 +43,7 @@ paths:
                 $ref: "#/components/schemas/ReadyResponse"
   /v1/analyze:
     post:
-      summary: Analyze a base64 VersionedTransaction
+      summary: Analyze a base64 Stellar TransactionEnvelope XDR
       requestBody:
         required: true
         content:
@@ -72,24 +74,28 @@ components:
     AnalyzeRequest:
       type: object
       required:
-        - cluster
-        - transactionBase64
+        - network
+        - transactionXdr
       properties:
-        cluster:
+        network:
           type: string
-          enum: [mainnet-beta, devnet, testnet]
-        transactionBase64:
+          enum: [testnet, pubnet]
+        transactionXdr:
           type: string
-          description: Base64-encoded Solana VersionedTransaction
+          description: Base64-encoded Stellar TransactionEnvelope XDR
         policy:
           type: object
           description: Optional policy overrides (see server Zod schema)
         userWallet:
           type: string
-          description: Optional owner wallet for token account context
+          description: Optional Stellar account (G… address) whose asset changes are attributed
         integratorRequestId:
           type: string
           maxLength: 256
+          description: Optional integrator correlation id
+        paymentRequirements:
+          type: object
+          description: Optional x402 merchant PaymentRequirements to validate the candidate payment against
     AnalyzeResponse:
       type: object
       required:
@@ -108,6 +114,24 @@ components:
             type: string
         estimatedChanges:
           type: object
+          description: Estimated balance and authorization deltas from simulation
+          properties:
+            native:
+              type: array
+              items:
+                type: object
+            assets:
+              type: array
+              items:
+                type: object
+            trustlines:
+              type: array
+              items:
+                type: object
+            allowances:
+              type: array
+              items:
+                type: object
         riskFindings:
           type: array
           items:

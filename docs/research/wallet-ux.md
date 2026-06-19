@@ -6,24 +6,6 @@
 
 ## Per-wallet observations
 
-### Phantom (Solana)
-- **Distinctive move:** Always-visible portfolio chart on home — wallet-as-dashboard, not wallet-as-keyring
-- **Tx approval:** Simulated balance changes ("You will receive X, send Y") at top, program/contract details collapsed below; warning banners for known-malicious sites
-- **Onboarding:** Seed phrase primary; recently added Google/Apple social login via embedded path; optional passkey unlock
-- **Weakness:** Token spam — incoming junk SPLs clutter the asset list with no aggressive filter by default
-
-### Backpack (Solana)
-- **Distinctive move:** Multi-account "tabs" feel browser-like; dark glassmorphic aesthetic reads as designer tool, not finance app
-- **Tx approval:** Cleaner and more typographic than Phantom; emphasizes program identity + plain-English simulation outcome
-- **Onboarding:** Mnemonic primary, with a "username" social layer (Backpack handles)
-- **Weakness:** Discovery — unfinished xNFT / social surfaces dilute the core wallet job
-
-### Solflare (Solana)
-- **Distinctive move:** Power-user density — staking, governance, Ledger flows are first-class, not buried
-- **Tx approval:** Raw — instruction-level breakdown, account writes, program IDs; great for pros, intimidating for newcomers
-- **Onboarding:** Mnemonic, keystore file, Ledger, MPC; most flexible of the Solana set
-- **Weakness:** Visual hierarchy — information-dense screens with weak typographic rhythm
-
 ### Rabby (EVM, the one to beat for tx-preview)
 - **Distinctive move:** **Pre-sign simulation card** — balance deltas, NFT changes, approval scope, risk score, before you sign. Industry benchmark.
 - **Tx approval:** Multi-section: simulated outcome → contract identity (verified/unverified, source, age) → risk flags → gas. Color-coded severity.
@@ -35,6 +17,12 @@
 - **Tx approval:** Friendly language, big token icons, gas presented as time-to-confirm rather than gwei
 - **Onboarding:** Seed phrase, iCloud encrypted backup, social recovery push
 - **Weakness:** Power-user surfaces — advanced approval review + custom RPC are weak
+
+### Freighter (Stellar)
+- **Distinctive move:** The incumbent Stellar wallet — extension-first, straightforward asset list and trustline management
+- **Tx approval:** XDR-oriented; shows operations and signers, but little plain-English simulation of outcomes (the gap BLACKTHORN fills)
+- **Onboarding:** Mnemonic primary; hardware support
+- **Weakness:** No pre-sign simulation / risk surfacing — the user reads raw operations
 
 ### Privy / Magic / Web3Auth (Embedded wallets)
 - **Distinctive move:** Wallet that doesn't *feel* like a wallet — email / social / passkey login, key shared via MPC or wrapped in TEE, no seed phrase shown
@@ -48,14 +36,14 @@
 
 ### 5 UX patterns to adopt
 1. **Rabby-style pre-sign simulation card** — balance deltas in plain English, contract identity, risk badges, the centerpiece of the approval screen
-2. **Phantom-style portfolio-first home** — wallet opens to value, not a key list
+2. **Portfolio-first home** — wallet opens to value, not a key list
 3. **Rainbow-style onboarding warmth** — gradients, micro-copy, identity moment (handle / avatar) before first tx
-4. **Privy-style passkey + social as default**, with seed phrase as an opt-in "advanced" export. Swig's smart-wallet model maps well to this.
-5. **Backpack-style account chrome** — first-class account switching, named accounts, scoped permissions per dApp
+4. **Privy-style passkey + social as default**, with the secret seed as an opt-in "advanced" export. A smart-wallet model maps well to this.
+5. **First-class account chrome** — account switching, named accounts, scoped permissions per dApp
 
 ### 3 anti-patterns to avoid
-1. **Instruction-level dumps as the default sign view** (Solflare). Raw view stays one tap away, never the front door.
-2. **Token spam in the main asset list** (Phantom). Filter unknown SPLs behind a "hidden" tab by default.
+1. **Operation-level XDR dumps as the default sign view.** Raw view stays one tap away, never the front door.
+2. **Token spam in the main asset list.** Filter unknown assets behind a "hidden" tab by default.
 3. **Hiding custody reality** (embedded-wallet problem). One screen, plainly: who can recover the key and how.
 
 ### 2026 conventions
@@ -66,4 +54,4 @@
 ---
 
 **Verification targets (URLs unverified — for follow-up):**
-phantom.app · backpack.app · solflare.com · rabby.io · rainbow.me · privy.io · magic.link · web3auth.io
+rabby.io · rainbow.me · freighter.app · privy.io · magic.link · web3auth.io

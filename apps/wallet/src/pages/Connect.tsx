@@ -11,7 +11,7 @@ import {
 import { useWallet } from "../wallet/state";
 
 export function Connect() {
-  const { identity, session, phase, provision } = useWallet();
+  const { identity, provisioned, phase, provision } = useWallet();
   const [request, setRequest] = useState<ConnectRequestMessage | null>(null);
   const [opener, setOpener] = useState<Window | null>(null);
   const [openerOrigin, setOpenerOrigin] = useState<string | null>(null);
@@ -55,17 +55,18 @@ export function Connect() {
   }, [opener, request, openerOrigin]);
 
   const approve = async () => {
-    if (!opener || !request || !openerOrigin) return;
+    if (!opener || !request || !openerOrigin || !identity) return;
     setWorking(true); setProvisionError(null);
     try {
-      const sess = session ?? await provision();
+      await provision();
+      const wallet = identity.smartWalletAddress ?? identity.address;
       const msg: ConnectApprovedMessage = {
         __bt: PROTO_VERSION,
         type: "connect-approved",
         requestId: request.requestId,
-        walletAddress: sess.walletAddress.toBase58(),
-        authorityAddress: sess.authority.publicKey.toBase58(),
-        swigAccountAddress: sess.swigAccountAddress.toBase58(),
+        walletAddress: wallet,
+        authorityAddress: identity.address,
+        smartWalletAddress: wallet,
       };
       opener.postMessage(msg, openerOrigin);
       window.close();
@@ -122,9 +123,9 @@ export function Connect() {
         </div>
 
         <div className="glass rounded-xl p-4 mb-5 space-y-2">
-          <Row label="Smart wallet" value={shortAddr((session?.walletAddress ?? identity.swigAccountAddress).toBase58())} mono />
-          <Row label="Authority" value={shortAddr(identity.authority.publicKey.toBase58())} mono />
-          <Row label="Status" value={session ? "On-chain ✓" : "Will provision on approve"} />
+          <Row label="Smart wallet" value={shortAddr(identity.smartWalletAddress ?? identity.address)} mono />
+          <Row label="Authority" value={shortAddr(identity.address)} mono />
+          <Row label="Status" value={provisioned ? "On-chain ✓" : "Will provision on approve"} />
         </div>
 
         <div className="rounded-xl p-3 mb-5 text-xs flex items-start gap-2" style={{ background: "rgba(255,107,0,0.07)", border: "1px solid rgba(255,107,0,0.2)" }}>

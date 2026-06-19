@@ -33,7 +33,7 @@ requires a PR that updates it here first.
    │  Content script (injected into page)    │
    │            │ window.postMessage          │
    │            ▼                             │
-   │  Inpage provider (window.blackthorn,    │
+   │  Inpage provider (window.stellar,       │
    │  Wallet Standard registered)            │
    │            │                             │
    └────────────┼─────────────────────────────┘
@@ -60,7 +60,7 @@ message with origin checks.
   "name": "BLACKTHORN — Smart Wallet",
   "short_name": "BLACKTHORN",
   "version": "0.1.0",
-  "description": "The Solana wallet that watches what happens after you sign.",
+  "description": "The Stellar wallet that watches what happens after you sign.",
   "icons": {
     "16":  "icons/16.png",
     "32":  "icons/32.png",
@@ -97,8 +97,9 @@ message with origin checks.
     "notifications"
   ],
   "host_permissions": [
-    "https://api.devnet.solana.com/*",
-    "https://api.mainnet-beta.solana.com/*",
+    "https://horizon-testnet.stellar.org/*",
+    "https://soroban-testnet.stellar.org/*",
+    "https://horizon.stellar.org/*",
     "https://facilitator.payai.network/*"
   ],
   "content_security_policy": {
@@ -112,7 +113,7 @@ message with origin checks.
 - **`service_worker.type: "module"`** — required for ESM imports of our shared `packages/swig-guard` bundle.
 - **`content_scripts[].world: "ISOLATED"`** — keeps content script invisible to the page. The inpage provider runs in `MAIN` world via dynamic injection (see §6).
 - **`web_accessible_resources`** — the inpage script must be reachable by URL so the content script can inject it as a `<script src=...>` tag.
-- **`host_permissions`** — listed explicitly per RPC and facilitator. Adding a custom RPC requires the user to grant a new origin via `chrome.permissions.request` (handled in advanced settings).
+- **`host_permissions`** — listed explicitly per Stellar endpoint (testnet Horizon + Soroban RPC, pubnet Horizon) and facilitator. Adding a custom RPC requires the user to grant a new origin via `chrome.permissions.request` (handled in advanced settings).
 - **`permissions`**:
   - `storage` — `chrome.storage.local` for non-sensitive prefs (the encrypted secret lives in IndexedDB, not here).
   - `alarms` — periodic reconciliation with the chain (every 30 s when active).
@@ -156,8 +157,8 @@ background/
 │   ├── history.ts      // signed-tx history
 │   └── alerts.ts       // drift / orphan / revoke incidents
 ├── rpc/
-│   ├── connection.ts   // pooled web3.js Connection with retry
-│   ├── ws-monitor.ts   // WebSocket subscriptions per address
+│   ├── connection.ts   // pooled Horizon + Soroban RPC clients with retry
+│   ├── ws-monitor.ts   // Horizon event-stream subscriptions per address
 │   └── reconcile.ts    // matches on-chain events with ledger
 ├── policy/
 │   └── eval.ts         // re-exports @stellar-thorn/swig-guard evaluator
@@ -174,7 +175,7 @@ background/
 ```
 
 Total budget for the service worker JS bundle: **≤ 350 KB minified**. Aggressive
-tree-shaking; `@solana/web3.js` is pruned to only the imports we actually use.
+tree-shaking; `@stellar/stellar-sdk` is pruned to only the imports we actually use.
 
 ### 3.2 Service worker lifecycle constraints
 
@@ -182,12 +183,12 @@ MV3 service workers are *not* persistent — Chrome shuts them down after ~30 s
 of idle. We design around this:
 
 - **No long-running timers** — replaced by `chrome.alarms` (which wakes the worker).
-- **WebSocket subscriptions** — Chrome keeps the worker alive while there's an open WS connection, but only up to ~5 min default. We use `chrome.alarms.create('keepalive', { periodInMinutes: 0.4 })` to refresh the heartbeat *while* a sub-key has unhealed delta or the wallet was used in the last 30 min. After 30 min idle, monitoring pauses; on next user action, we replay missed slots from RPC `getSignaturesForAddress`.
+- **WebSocket subscriptions** — Chrome keeps the worker alive while there's an open WS connection, but only up to ~5 min default. We use `chrome.alarms.create('keepalive', { periodInMinutes: 0.4 })` to refresh the heartbeat *while* a sub-key has unhealed delta or the wallet was used in the last 30 min. After 30 min idle, monitoring pauses; on next user action, we replay missed ledgers from Horizon's payments/transactions endpoints for the address.
 - **Ephemeral state** in module-level `let` rebuilds on wake from `chrome.storage.local` + IndexedDB.
 - **The decrypted authority is never persisted.** On worker restart, the wallet drops to `locked` state and the user re-enters their passphrase.
 
 This is deliberate: a wallet that always-on-decrypts is a wallet whose key
-material lives in disk-backed memory. Phantom does this, we won't.
+material lives in disk-backed memory. Freighter does this, we won't.
 
 ### 3.3 Idle timeout
 
@@ -229,9 +230,9 @@ state pushes (alerts, ledger updates, settle confirmations).
 | `wallet.lock` | — | `{ ok: true }` | Zeroes session secret. |
 | `wallet.create` | `{ passphrase, network }` | `{ identity }` | Onboarding only; throws if wallet already exists. |
 | `wallet.reset` | `{ confirmation }` | `{ ok: true }` | Wipes everything. |
-| `wallet.exportSecret` | `{ passphrase, format }` | `{ secret }` | Format = `mnemonic` \| `base58` \| `hex`. |
-| `wallet.airdrop` | — | `{ signature, amountSol }` | Devnet only. |
-| `tx.simulateWithGuard` | `{ instructions, mode }` | `GuardEvaluation` | Internal; called by sign flow. |
+| `wallet.exportSecret` | `{ passphrase, format }` | `{ secret }` | Format = `mnemonic` \| `secretSeed` \| `hex`. |
+| `wallet.airdrop` | — | `{ hash, amountXlm }` | Friendbot (testnet only). |
+| `tx.simulateWithGuard` | `{ envelopeXdr, mode }` | `GuardEvaluation` | Internal; called by sign flow. |
 | `tx.sign` | `{ requestId, accept: boolean }` | `{ signed?, signature?, rejection? }` | Resolves the pending sign request. |
 | `tx.send` | `{ tx }` | `{ signature }` | Wallet-initiated sends only. |
 | `ledger.list` | `{ filter? }` | `Allowance[]` | Active grants. |
@@ -243,8 +244,8 @@ state pushes (alerts, ledger updates, settle confirmations).
 | `history.detail` | `{ id }` | `HistoryEntry & analysis` | |
 | `alerts.list` | — | `Alert[]` | Open alerts only by default. |
 | `alerts.dismiss` | `{ id }` | `{ ok }` | |
-| `network.set` | `{ cluster }` | `{ ok }` | |
-| `monitor.subscribe` | `{ pubkey }` | `{ ok }` | Background-managed; surfaces don't usually call this. |
+| `network.set` | `{ network }` | `{ ok }` | `testnet` \| `pubnet`. |
+| `monitor.subscribe` | `{ address }` | `{ ok }` | Background-managed; surfaces don't usually call this. |
 
 Events (background → surface):
 
@@ -274,14 +275,14 @@ shares the DOM.
 ### 5.1 Responsibilities
 
 1. **Inject the inpage provider** — `<script src="${chrome.runtime.getURL('inpage/index.js')}">` appended to `document.documentElement` at `document_start`. Removed from DOM after load.
-2. **Forward Wallet Standard / Solana provider calls** between page (via `window.postMessage`) and background (via `chrome.runtime.connect`).
+2. **Forward Wallet Standard / Stellar provider calls** between page (via `window.postMessage`) and background (via `chrome.runtime.connect`).
 3. **Intercept HTTP 402 responses** by patching `window.fetch` and `XMLHttpRequest.prototype.send` *in the inpage script* (the content script can't reach the page's fetch). Forward parsed `PaymentRequirements` to background for analysis + signing.
 
 ### 5.2 Channel
 
 Two ports per page:
 
-- `bx-wallet-standard` — Wallet Standard / Solana provider calls (connect, signTransaction, etc.)
+- `bx-wallet-standard` — Wallet Standard / Stellar provider calls (connect, signTransaction, etc.)
 - `bx-x402` — payment intercepts
 
 Each gets its own `chrome.runtime.connect` so the background can route them
@@ -312,22 +313,22 @@ import { createBlackthornWallet } from "./blackthorn-wallet";
 const wallet: Wallet = createBlackthornWallet({
   name: "BLACKTHORN",
   icon: BRAND_ICON_DATA_URL,
-  chains: ["solana:devnet", "solana:mainnet"],
+  chains: ["stellar:testnet", "stellar:pubnet"],
   features: {
-    "standard:connect":          { connect },
-    "standard:disconnect":       { disconnect },
-    "standard:events":           { on },
-    "solana:signTransaction":    { signTransaction },
-    "solana:signAndSendTransaction": { signAndSendTransaction },
-    "solana:signMessage":        { signMessage },
+    "standard:connect":           { connect },
+    "standard:disconnect":        { disconnect },
+    "standard:events":            { on },
+    "stellar:signTransaction":    { signTransaction },
+    "stellar:signAndSendTransaction": { signAndSendTransaction },
+    "stellar:signMessage":        { signMessage },
   },
 });
 
 registerWallet(wallet);
 ```
 
-Wallet Standard is the convention every modern Solana dApp expects. dApps
-using `@solana/wallet-adapter-react` will see "BLACKTHORN" in the picker the
+Wallet Standard is the convention every modern Stellar dApp expects. dApps
+using the Stellar Wallet Standard will see "BLACKTHORN" in the picker the
 moment our extension is installed — no integration on the dApp side.
 
 ### 6.2 Provider calls
@@ -393,23 +394,23 @@ allowances   pk=id
   { id, merchantOrigin, asset, capPerTx, capPerHour, capPerDay,
     spentTx, spentHourTs, spentHour, spentDayTs, spentDay,
     hits, lastHitAt, expiresAt, status: 'active'|'paused'|'revoked',
-    subKeyPubkey, createdAt, updatedAt }
+    subKeyAddress, createdAt, updatedAt }
   index by merchantOrigin
   index by status
 
 history      pk=id
-  { id, type, signature, origin, summary, decision, reasons,
+  { id, type, hash, origin, summary, decision, reasons,
     findingsJson, estimatedChangesJson, broadcast, createdAt }
   index by origin
   index by createdAt
 
 alerts       pk=id
-  { id, severity, kind, merchantOrigin, signature?, body, createdAt, dismissedAt }
+  { id, severity, kind, merchantOrigin, hash?, body, createdAt, dismissedAt }
   index by createdAt
   index by dismissedAt
 
-monitor      pk=pubkey
-  { pubkey, lastSlot, lastSignature, lastReconcileAt, watchUntil }
+monitor      pk=address
+  { address, lastLedger, lastHash, lastReconcileAt, watchUntil }
 
 prefs        pk=key
   { key, value }   // network, idleTimeout, notifs, telemetry, customRpc, ...
@@ -427,7 +428,7 @@ Old rows are migrated, never dropped. We never break existing wallets.
 ### 8.1 Encryption
 
 ```
-secretBytes = Keypair.generate().secretKey       // 64 bytes ed25519
+secretBytes = Keypair.random().rawSecretKey()    // 32-byte ed25519 seed
 salt        = randomBytes(16)
 iv          = randomBytes(12)
 key         = PBKDF2(passphrase, salt, 100_000, SHA-256, 256-bit)
@@ -449,17 +450,17 @@ reference):
 The session never persists. The service worker waking up from sleep means
 re-unlock.
 
-### 8.3 Sub-keys (Swig per-merchant)
+### 8.3 Sub-keys (Soroban per-merchant)
 
 Each merchant the user authorizes gets its own derived sub-key:
 
-- For the primary authority, we generate a deterministic child via Swig's
-  AddAuthority instruction with scoped `Actions` (e.g. `SolLimit($daily)`,
-  `Program(allowed_programs)`).
+- For the primary authority, we generate a child signer scoped by a Soroban
+  allowance (e.g. an XLM/asset spend cap per day and an allow-list of
+  contract ids the sub-key may invoke).
 - The sub-key's secret is itself encrypted under the same passphrase + a
   per-sub-key salt.
-- Revoking a sub-key dispatches a Swig RemoveAuthority instruction; the local
-  encrypted record is then deleted.
+- Revoking a sub-key submits a Soroban transaction that zeroes the allowance;
+  the local encrypted record is then deleted.
 
 Sub-keys give us per-merchant blast-radius isolation without forcing the user
 to manage N independent keypairs.
@@ -517,8 +518,8 @@ const port = browser.runtime.connect({ name: "popup" });
 
 ### 9.4 Bundle splitting
 
-Three bundles are large by nature: `@solana/web3.js`, `@swig-wallet/classic`,
-the design system. We extract them into a shared chunk that the service
+Two bundles are large by nature: `@stellar/stellar-sdk` and the design
+system. We extract them into a shared chunk that the service
 worker, popup, and options page all import via dynamic `import()` so each
 surface only pays for what it needs.
 
@@ -529,7 +530,7 @@ surface only pays for what it needs.
 - **Unit tests** for the policy evaluator, x402 validator, and crypto helpers (Vitest in `packages/swig-guard` + `packages/ext-protocol`).
 - **Service-worker tests** via `@vitest/web-worker` (mocked `browser.runtime`).
 - **Popup component tests** via React Testing Library against a mocked port.
-- **End-to-end** via Playwright with a sideloaded extension build, against a local devnet RPC and a fake-x402 mock server (in `apps/showcase` x402 site).
+- **End-to-end** via Playwright with a sideloaded extension build, against a local/testnet Horizon + Soroban RPC and a fake-x402 mock server (in `apps/showcase` x402 site).
 - **Manual matrix** before each release: Chrome stable + Chrome canary + Firefox stable + Firefox developer edition.
 
 ---

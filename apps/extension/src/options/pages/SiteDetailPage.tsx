@@ -17,12 +17,14 @@ import {
 } from "lucide-react";
 import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
-import { useRpc } from "../../shared/state-context";
+import { useRpc, useWalletState } from "../../shared/state-context";
 
 export function SiteDetailPage() {
   const { b64 } = useParams<{ b64: string }>();
   const navigate = useNavigate();
   const rpc = useRpc();
+  const state = useWalletState();
+  const explorerSeg = state?.network === "pubnet" ? "public" : "testnet";
 
   const origin = useMemo(() => {
     try { return atob(b64 ?? ""); } catch { return null; }
@@ -222,7 +224,7 @@ export function SiteDetailPage() {
                     <span className="flex-1 text-text-muted">{h.summary}</span>
                     {h.signature && (
                       <a
-                        href={`https://explorer.solana.com/tx/${h.signature}?cluster=devnet`}
+                        href={`https://stellar.expert/explorer/${explorerSeg}/tx/${h.signature}`}
                         target="_blank" rel="noopener noreferrer"
                         className="text-accent-soft hover:text-text inline-flex items-center gap-1"
                       >

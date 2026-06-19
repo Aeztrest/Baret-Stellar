@@ -22,7 +22,7 @@ Blackthorn runs 7 independent detectors on every transaction. Each operates on t
 
 ## Simulation Detector {{ id: 'simulation' }}
 
-The foundation of every analysis. Asks the Solana RPC: _"What would happen if this transaction were broadcast right now?"_ — without broadcasting it. If the simulation fails, a `SIMULATION_FAILED` finding is raised. All other detectors still run, but confidence is reduced.
+The foundation of every analysis. Asks the Stellar RPC: _"What would happen if this transaction were broadcast right now?"_ — without broadcasting it. If the simulation fails, a `SIMULATION_FAILED` finding is raised. All other detectors still run, but confidence is reduced.
 
 <Properties>
   <Property name="SIMULATION_FAILED" type="critical">
@@ -80,7 +80,7 @@ Unusually high compute unit consumption can indicate complex exploit payloads or
 
 <Properties>
   <Property name="HIGH_COMPUTE_USAGE" type="medium">
-    The transaction used more than 1,200,000 compute units — the top ~1% of all Solana transactions by compute cost.
+    The transaction used more than 1,200,000 compute units — the top ~1% of all Stellar transactions by compute cost.
   </Property>
 </Properties>
 
@@ -88,7 +88,7 @@ Unusually high compute unit consumption can indicate complex exploit payloads or
 
 ## Delta Detector {{ id: 'delta' }}
 
-Analyzes the balance changes produced by simulation: SOL flows, token transfers, and — critically — approval and delegate changes.
+Analyzes the balance changes produced by simulation: XLM flows, token transfers, and — critically — approval and delegate changes.
 
 <Properties>
   <Property name="UNLIMITED_APPROVAL" type="high">

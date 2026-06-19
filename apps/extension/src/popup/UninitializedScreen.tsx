@@ -27,7 +27,7 @@ export function UninitializedScreen() {
           A wallet that watches what happens after you sign.
         </h1>
         <p className="text-text-muted text-sm">
-          Set up takes about three minutes. Devnet only for now — perfect to try without risk.
+          Set up takes about three minutes. Testnet only for now — perfect to try without risk.
         </p>
       </div>
 

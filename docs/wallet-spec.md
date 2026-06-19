@@ -49,7 +49,7 @@ onboarding; `locked` shows a minimal unlock screen.
 
 ### Sub-states (all under `ready`)
 
-- **`network`**: `mainnet-beta` | `devnet` | `testnet`. Default devnet for v1.
+- **`network`**: `testnet` | `pubnet`. Default testnet for v1.
 - **`accountIndex`**: which derived sub-account is active (multi-account in v2; v1 has one).
 - **`alertsUnread`**: count of new drift / revoke / verify-orphan alerts.
 - **`watchedAddresses`**: which keys the post-sign monitor is subscribed to right now.
@@ -86,10 +86,10 @@ onboarding; `locked` shows a minimal unlock screen.
 
 ### 3.2 Hero balance
 
-- Single number, `--display-xl`, tabular figures. The displayed unit follows the active network's main asset (SOL on mainnet, devnet SOL on devnet). USD subline uses CoinGecko price (cached 60 s).
+- Single number, `--display-xl`, tabular figures. The displayed unit follows the active network's native asset (XLM on both testnet and pubnet); the balance comes from the Horizon `native` balance, converted from stroops. USD subline uses CoinGecko price (cached 60 s).
 - On price load, the number does a 600 ms count-up from 0; never on subsequent updates (animations only on first paint of a value).
 - Three quick-action chips below: **Send**, **Receive**, **Swap**. Each opens the corresponding view as a full-bleed sheet (not a separate route — popup nav state preserves).
-- The "Swap" chip in v1 is a placeholder that opens an in-popup confirmation: *"Swap is coming. Use Jupiter directly for now → [link]"* — we do not ship a half-baked swap.
+- The "Swap" chip in v1 is a placeholder that opens an in-popup confirmation: *"Swap is coming. Use a Stellar DEX aggregator directly for now → [link]"* — we do not ship a half-baked swap.
 
 ### 3.3 Alert banner (conditional)
 
@@ -101,6 +101,9 @@ Visible when **any** of:
 
 The banner is single-line, tappable, summarizes the highest-severity active
 alert ("3 alerts · USDC allowance 92% used"). Tap → opens *Activity → Alerts*.
+
+The allowance referenced here is a Soroban token `approve` grant (a spender
+capped against the token contract), surfaced by the post-sign monitor.
 
 ### 3.4 Tab content (Home tab default)
 
@@ -153,7 +156,7 @@ changes, signature, Explorer link.
 
 ### Empty state
 
-"You haven't signed anything yet. Connect to a dApp or send some SOL to start."
+"You haven't signed anything yet. Connect to a dApp or send some XLM to start."
 
 ---
 
@@ -165,7 +168,7 @@ live caps and one-tap revoke.
 ### Header strip
 
 - **Total active grants** (number) + total spent in the last 24 h
-- "Revoke all" button (destructive, requires confirmation; rotates every Swig sub-key)
+- "Revoke all" button (destructive, requires confirmation; drops every smart-wallet sub-key via `remove_signer`)
 
 ### Per-merchant card
 
@@ -182,9 +185,10 @@ live caps and one-tap revoke.
 └──────────────────────────────────────┘
 ```
 
-**Pause** = freeze the sub-key (no on-chain rotation; reversible). **Revoke** =
-on-chain rotation; merchant can never sign with this sub-key again. Revoke
-opens a confirmation sheet that names the consequence in plain language.
+**Pause** = freeze the sub-key locally (no on-chain change; reversible). **Revoke** =
+submit a `remove_signer` call to the smart-wallet contract; merchant can never
+sign with this sub-key again. Revoke opens a confirmation sheet that names the
+consequence in plain language.
 
 ### Empty state
 
@@ -204,7 +208,7 @@ Compact: each row links to the full version on the options page.
 
 | Row | Subline |
 |---|---|
-| **Network** | "Devnet" / "Mainnet" |
+| **Network** | "Testnet" / "Pubnet" |
 | **Security** | "Wallet locked after 15 min idle" |
 | **Policy** | "Balanced template" |
 | **About** | "v0.1.0 · open source" |
@@ -245,7 +249,7 @@ tabs as popup but expanded.
 
 Same hero as popup, plus:
 
-- **Holdings table** (token list with values, hidden-tokens behind a tab)
+- **Holdings table** (XLM + trustline asset list with values, hidden-assets behind a tab)
 - **Watchlist of monitored allowances** (pulse animation when one tick happens)
 - **Recent dApp connections** with "Open" button
 - **News / changelog** strip at the bottom — wallet updates, security advisories, network status. Static-rendered from a JSON feed (no remote-execution risk).
@@ -264,7 +268,7 @@ Same as popup but with:
 Per-merchant card grows to a full row with:
 - 7-day spend chart (sparkline)
 - Detailed cap breakdown (per-tx · hour · day)
-- Sub-key public key + on-chain link
+- Sub-key `G…` address + on-chain link
 - All txs under this allowance, expandable
 
 Bulk operations: "Revoke unused over 30 days," "Export all," "Reset to defaults."
@@ -290,13 +294,13 @@ The dedicated x402 dashboard.
 Full version of popup settings, with everything inline:
 
 - **Identity**: account name, optional handle
-- **Security**: passphrase change, idle timeout, recovery (mnemonic export, passkey enroll)
-- **Network**: cluster picker, custom RPC URL, custom facilitator URLs (allow-list)
+- **Security**: passphrase change, idle timeout, recovery (secret-seed export, passkey enroll)
+- **Network**: testnet/pubnet picker, custom Horizon + Soroban RPC URLs, custom facilitator URLs (allow-list)
 - **Policy**: link out to Policies tab; not duplicated here
 - **Notifications**: which events trigger browser notifications (drift, allowance threshold, large tx)
 - **Privacy**: telemetry toggle (off by default), local data export, "Clear browsing data for blackthorn.dev"
-- **Advanced**: dev-only options (verbose logs, cluster override, raw tx mode)
-- **Danger zone**: Reset wallet (full wipe, mnemonic-required)
+- **Advanced**: dev-only options (verbose logs, network override, raw XDR mode)
+- **Danger zone**: Reset wallet (full wipe, secret-seed-required)
 
 ---
 
@@ -313,7 +317,7 @@ no chrome. **All other UI is suspended.**
 │  ◐  merchant.example                 │  origin chip + favicon
 │  Sign request                        │  text-faint
 │                                      │
-│  Send 0.50 SOL to BkF…q9Y            │  display-l verb + object
+│  Send 0.50 XLM to GBF…Q9Y            │  display-l verb + object
 │                                      │
 │  ┌────────────────────────────────┐  │  finding hero
 │  │ ✓ Safe to sign                 │  │  ok variant
@@ -321,15 +325,15 @@ no chrome. **All other UI is suspended.**
 │  └────────────────────────────────┘  │
 │                                      │
 │  WHAT CHANGES                        │  label
-│   ─ 0.50 SOL  →  Counterparty        │  balance row
-│   + 0.0001 SOL (rent)                │
+│   ─ 0.50 XLM  →  Counterparty        │  balance row
+│   ─ 0.00001 XLM (network fee)        │
 │                                      │
 │  [▾ Findings (2)]                    │  collapsible
 │  [▾ Policy hits (0)]                 │
 │  [▾ Raw transaction]                 │  always last; advanced view
 │                                      │
 │  ─────                               │
-│  ⏱ Auto-cancel in 04:23              │  clock; ties to maxTimeoutSeconds
+│  ⏱ Auto-cancel in 04:23              │  clock; ties to maxTimeoutSeconds / timeBounds
 │                                      │
 │  [ Decline ]    [ Sign and send ]    │  primary disabled if blocked
 └──────────────────────────────────────┘
@@ -346,8 +350,13 @@ no chrome. **All other UI is suspended.**
 
 ### What changes — visualization
 
-- SOL/SPL balance deltas as `±` rows; user's wallet first, then counterparties
-- Approvals: yellow row "**Approval** to merchant.example up to 10 USDC"
+Driven by the analyzer's `estimatedChanges`: `native` (XLM, stroop deltas),
+`assets` (classic/Soroban token deltas), `trustlines`, and `allowances`
+(Soroban `approve` grants).
+
+- Native XLM and asset balance deltas as `±` rows; user's wallet first, then counterparties
+- Trustlines: yellow row "**New trustline** USDC → issuer" (or removed/limit-changed)
+- Allowances: yellow row "**Soroban approve** — merchant.example spends up to 10 USDC"
 - For x402: "Pays $0.001 USDC to merchant.example" + cumulative spend chip
 
 ### Findings collapsible
@@ -363,13 +372,14 @@ link. Empty when policy passed.
 
 ### Raw transaction collapsible (always last, advanced)
 
-Hex/base64 dump + decoded instruction list with program names + signers. Power
-users only. Never the default.
+Base64 `TransactionEnvelope` XDR dump + decoded operation list with contract /
+host-function names + signers. Power users only. Never the default.
 
 ### Auto-cancel
 
 For x402 requests: countdown to `maxTimeoutSeconds` from request receipt;
-auto-rejects on expiry to prevent stale-blockhash signing. For regular dApp
+auto-rejects on expiry to prevent signing past the auth entry's
+`signatureExpirationLedger` (or the tx `timeBounds.maxTime`). For regular dApp
 requests: 5-minute hard ceiling (configurable in advanced settings).
 
 ---
@@ -383,9 +393,9 @@ route, not the popup.
 [●●●●○○○○]  Welcome
 [●●●●●○○○]  Set passphrase
 [●●●●●●○○]  Generate keypair (auto)
-[●●●●●●●○]  Backup secret
-[●●●●●●●●]  Fund authority (devnet airdrop)
-[●●●●●●●●]  Provision Swig wallet
+[●●●●●●●○]  Backup secret seed
+[●●●●●●●●]  Fund authority (testnet Friendbot)
+[●●●●●●●●]  Provision smart wallet
 [●●●●●●●●]  Choose policy template
 [●●●●●●●●]  Done
 ```
@@ -393,7 +403,7 @@ route, not the popup.
 ### 9.1 Welcome
 
 - Hero: large lockup, single sentence ("A wallet that watches what happens after you sign."), three feature chips (Pre-flight sim · Live monitor · Real revoke). Single CTA: **Get started**.
-- Bottom: small print "Devnet only · Demo network · Open source · Self-custody". Links to repo + docs.
+- Bottom: small print "Testnet only · Demo network · Open source · Self-custody". Links to repo + docs.
 
 ### 9.2 Set passphrase
 
@@ -404,30 +414,29 @@ route, not the popup.
 ### 9.3 Generate keypair (auto-advance)
 
 - Animation: 3-second "generating" state with a thorn glyph that draws itself in. (This animation is the *only* delight moment in onboarding — everything else is calm.)
-- On completion: shows the new account's address (truncated) + "Created" timestamp. CTA: **Continue**.
-- Behind the scenes: ed25519 keypair via `tweetnacl`, secret encrypted via PBKDF2(passphrase, 100k iterations) → AES-GCM, written to IndexedDB.
+- On completion: shows the new account's `G…` address (truncated) + "Created" timestamp. CTA: **Continue**.
+- Behind the scenes: a Stellar `Keypair.random()` (ed25519); the `S…` secret seed is persisted to `localStorage` on this domain. (The extension build instead writes the keystore to IndexedDB; passphrase-derived encryption is the planned hardening.)
 
 ### 9.4 Backup secret
 
 - "Save this **once**. There's no recovery if you lose it." (no fearmongering, just plain.)
-- Dropdown of formats:
-  - **Mnemonic** (BIP39 12-word) — converted from the secret key bytes via `bip39`. Recommended.
-  - **Hex / base58** secret — for power users.
+- The backed-up value is the Stellar **secret seed** (`S…` StrKey, 56 chars) returned by `keypair.secret()` — not a raw byte dump. It restores the wallet via `Keypair.fromSecret()`.
 - "Reveal" button (icon: `EyeOff` → `Eye`). Once revealed, an "I've saved it" checkbox unlocks the **Continue** button.
 - Optional "Skip backup" link (small, muted) leads to a confirmation sheet that explicitly says: "If this device is wiped you lose access to this wallet. Continue without backup?" Two-tap.
-- v2: passkey enrollment as an alternative to mnemonic.
+- v2: passkey enrollment as an alternative to the seed phrase.
 
 ### 9.5 Fund authority
 
-- One-card screen: current balance (`0 SOL`), authority address, devnet airdrop CTA.
-- Airdrop flow: 1 → 0.5 → 0.25 SOL with retries (matches current `requestAirdrop` impl).
-- On rate-limit: clear error + one-line workaround link to faucet.solana.com.
+- One-card screen: current balance (`0 XLM`), authority `G…` address, testnet Friendbot CTA.
+- Funding flow: a single `GET friendbot.stellar.org/?addr=…` call that creates + funds the account; returns a funding tx hash. Already-funded accounts (HTTP 400 `op_already_exists`) are treated as success so the flow continues. The user must reach ≥ 5 XLM to advance.
+- On Friendbot busy / rate-limit: clear error + one-line workaround link to the Stellar Laboratory.
 
-### 9.6 Provision Swig wallet
+### 9.6 Provision smart wallet
 
-- Auto-fires on entry. Animation: thorn glyph "growing" while we build & submit the create-Swig tx. Progress text streams the underlying state ("Building instruction…", "Sending…", "Confirmed in block 287,412,901").
-- On success: shows the smart wallet address + a one-line "This is where your funds live now." CTA: **Continue**.
-- On failure (RPC unreachable, etc.): clear error, retry button, "Skip and try later" link (defers provisioning to first send/receive).
+- Auto-fires on entry. Animation: thorn glyph "growing" while we resolve the smart wallet. Progress text streams the underlying state ("Checking authority…", "Resolving…", "Resolved").
+- The eventual model is a per-user Soroban smart-wallet contract (`C…`) deployed at provision time. **Currently** provisioning verifies the authority is funded on-chain (≥ 5 XLM rent budget) and returns the funded **authority `G…` address as a placeholder smart wallet** — the Soroban contract integration is a TODO. Downstream flows (balances, send, history, connect) all resolve against this address.
+- On success: shows the smart-wallet address + a one-line "This is where your funds live now." CTA: **Continue**.
+- On failure (authority unfunded, RPC unreachable, etc.): clear error, retry button, "Skip and try later" link (defers provisioning to first send/receive).
 
 ### 9.7 Choose policy template
 
@@ -440,7 +449,7 @@ route, not the popup.
 - Hero: ✓ + display-l "You're protected." + one-line summary.
 - Three "Try it" suggestions:
   - *"Try the BLACKTHORN showcase"* (link → showcase landing)
-  - *"Connect a real Solana dApp"* (link → list of compatible dApps)
+  - *"Connect a real Stellar dApp"* (link → list of compatible dApps)
   - *"Set up your first allowance"* (link → Allowances tab)
 - CTA: **Open wallet**.
 
@@ -472,16 +481,16 @@ dApp                    Content script         Background           Popup UI
 
 ```
 1. dApp calls adapter.signTransaction(tx)
-2. Content script forwards to background via runtime.connect
+2. Content script forwards the base64 `TransactionEnvelope` XDR to background via runtime.connect
 3. Background:
-   a. parses tx, decompiles to inner instructions
-   b. invokes blackthorn analyzer (server /v1/analyze) with policy
-   c. evaluates, computes decision
+   a. parses the XDR envelope, decodes its operations
+   b. runs `TransactionGuard.evaluate({ transactionXdr, userWallet, policy })`, which ships the XDR to the blackthorn analyzer (server /v1/analyze)
+   c. reads the returned decision (allow/block) + estimatedChanges
    d. opens popup in Sign-Request mode with full evaluation
 4. Popup renders Sign Request (§8)
 5. User picks Decline or Sign
 6. Background:
-   a. on Sign: signs with authority, sends if mode=signAndSend, posts back signed bytes to dApp
+   a. on Sign: `TransactionBuilder.fromXDR(...)`, signs with the authority `keypair.sign()`, submits via Horizon `submitTransaction` if mode=signAndSend, posts back the signed XDR to the dApp
    b. on Decline: posts sign-rejected with reason
    c. logs to history regardless
 7. Popup fades back to last viewed tab
@@ -498,11 +507,11 @@ back with status 402 + `PAYMENT-REQUIRED` header (or v1 body):
 3. Background:
    a. validates against §1.2 of x402-defense
    b. checks allowance ledger for (origin, asset)
-   c. if cap allows: builds the payment tx using the per-merchant Swig sub-key
+   c. if cap allows: builds the exact-scheme payment — a Soroban token `transfer(from, to, amount)` with a **null source account** so the payer authorizes via an address-credential auth entry (the facilitator rebuilds + fee-bumps + submits)
    d. invokes analyzer, evaluates policy
    e. opens Sign Request (special variant: "x402 payment" header chip)
 4. User approves or declines
-5. On approve: signs, returns to content script, content script auto-injects PAYMENT-SIGNATURE header + retries the request
+5. On approve: signs only the payer's auth entry via `authorizeEntry` (NOT the envelope), returns to content script, content script auto-injects PAYMENT-SIGNATURE header + retries the request
 6. Background subscribes monitor for the resulting on-chain settle
 7. Ledger updated on settle confirmation
 ```
@@ -514,21 +523,21 @@ single tap, one row added to the x402 dashboard.
 ### 10.4 Drift alert
 
 ```
-Background monitor sees an outgoing tx from the authority that didn't originate from us.
-1. Tx pubkey == authority OR known sub-key
-2. Tx signature not in our local request log
+Background monitor polls Horizon's transactions endpoint for the authority + smart-wallet addresses and sees an outgoing tx that didn't originate from us.
+1. Tx touches the authority `G…` OR the smart-wallet address
+2. Tx hash not in our local request log
 3. Push browser notification: "Unexpected payment from your wallet"
 4. Add ALERT entry to state, popup badge counter +=1
 5. User opens popup → sees alert banner → taps → full incident view
-6. Incident view offers: Investigate (open in Explorer), Pause sub-key, Revoke sub-key, Mark as known (whitelist)
+6. Incident view offers: Investigate (open in stellar.expert), Pause sub-key, Revoke sub-key, Mark as known (whitelist)
 ```
 
 ### 10.5 Revoke sub-key
 
 ```
 1. User taps Revoke on an allowance card
-2. Confirmation sheet: "merchant.example will not be able to sign payments from your wallet again. This rotates the on-chain sub-key. Continue?"
-3. On confirm: background builds Swig RemoveAuthority tx, opens Sign Request
+2. Confirmation sheet: "merchant.example will not be able to sign payments from your wallet again. This drops the on-chain sub-key. Continue?"
+3. On confirm: background builds a `remove_signer` smart-wallet contract call (preflighted via Soroban RPC), opens Sign Request
 4. User signs (this is a privileged op, requires the main authority not the sub-key)
 5. On confirm: ledger marks merchant `revoked`, sub-key is gone, all future payment attempts from that merchant fail at the wallet
 6. A signed revocation receipt JSON is stored locally and downloadable for audit
@@ -540,12 +549,12 @@ Background monitor sees an outgoing tx from the authority that didn't originate 
 
 | Where | State | Copy |
 |---|---|---|
-| Popup home | No balance + no activity | "Connect to a dApp or send some SOL to get started." |
+| Popup home | No balance + no activity | "Connect to a dApp or send some XLM to get started." |
 | Activity tab | Empty | "Your activity will appear here. We log every signature, including the ones we declined." |
 | Allowances | Empty | "You haven't authorized any merchants yet. Allowances will appear here when you connect to an x402 service or approve a token." |
 | Sign request | Analyzer offline | "Can't reach BLACKTHORN. Sign without protection?" |
-| Sign request | Network unreachable | "Solana RPC is down. We'll retry in a moment." |
-| Network mismatch | dApp asks for mainnet, wallet on devnet | "This dApp wants mainnet, but you're on devnet. Switch?" |
+| Sign request | Network unreachable | "Horizon / Soroban RPC is down. We'll retry in a moment." |
+| Network mismatch | dApp asks for pubnet, wallet on testnet | "This dApp wants pubnet, but you're on testnet. Switch?" |
 | Wallet locked | Toolbar tap | One-input passphrase screen + Reset link. |
 
 Every error includes: what happened, what the user can do, what we did about
@@ -578,15 +587,15 @@ If a screen exceeds these, it gets a code-split task before merge.
 
 ## 14. What's not in v1 (to scope-guard)
 
-- Multi-account UI beyond a single Swig identity
-- Mainnet (we ship devnet only; mainnet flag enabled in v1.5)
+- Multi-account UI beyond a single smart-wallet identity
+- Pubnet (we ship testnet only; pubnet flag enabled in v1.5)
 - Hardware wallet integration (Ledger via WebUSB)
-- Phantom/Solflare side-by-side (we replace, don't coexist with another wallet on the same dApp picker except via Wallet Standard's normal multi-wallet behavior)
+- Freighter side-by-side (we replace, don't coexist with another wallet on the same dApp picker except via Wallet Standard's normal multi-wallet behavior)
 - Cross-device sync for the allowance ledger
 - In-popup swap (placeholder only)
 - NFT view / portfolio (Phase 2)
-- Custom RPC URL (Phase 2; v1 has a fixed devnet endpoint with optional override in advanced settings)
+- Custom RPC URL (Phase 2; v1 has fixed Horizon + Soroban testnet endpoints with optional override in advanced settings)
 
 ---
 
-*Last updated: 2026-05-09 · This document is the implementation contract. Every wallet PR cites the section it implements.*
+*Last updated: 2026-06-19 · This document is the implementation contract. Every wallet PR cites the section it implements.*

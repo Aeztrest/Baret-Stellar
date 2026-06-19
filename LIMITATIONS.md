@@ -4,12 +4,12 @@ This document describes what the HTTP API does **not** guarantee and how to inte
 
 ## Simulation vs on-chain execution
 
-- The service uses Solana RPC **`simulateTransaction`** (with `sigVerify: false` and post-simulation account data where configured). Results reflect **simulated** state, not guaranteed final execution outcomes.
-- Network conditions, blockhash expiry, priority fees, and runtime differences can cause real execution to diverge from simulation.
+- The service uses Stellar **Soroban RPC `simulateTransaction`** (preflight) plus Horizon account state where configured. Results reflect **simulated** state, not guaranteed final execution outcomes.
+- Network conditions, time-bound expiry, fee changes, and runtime differences can cause real execution to diverge from simulation.
 
 ## Transaction format
 
-- Only **VersionedTransaction** payloads are supported, provided as **base64** (`transactionBase64`). Legacy transactions are not accepted unless they are encoded as versioned wire format by the client.
+- Only **Stellar `TransactionEnvelope`** payloads are supported, provided as **base64 XDR** (`transactionXdr`).
 
 ## Account and instruction coverage
 

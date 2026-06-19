@@ -1,6 +1,6 @@
 /**
  * Receive overlay — shows the authority address as a copyable string + QR.
- * Phantom/Solflare-style. Address is what other wallets send SOL/SPL to.
+ * Freighter-style. Address is what other wallets send XLM / Stellar assets to.
  *
  * Sent in popup overlay mode by Home.tsx.
  */
@@ -52,7 +52,7 @@ export function ReceiveScreen({ address, network, onClose }: Props) {
 
       <div className="flex-1 px-5 py-6 flex flex-col items-center gap-5 overflow-y-auto">
         <p className="text-text-faint text-[11px] text-center max-w-[260px]">
-          Send <span className="text-text">SOL</span> or any SPL token to this address on{" "}
+          Send <span className="text-text">XLM</span> or any Stellar asset to this address on{" "}
           <span className="text-text">{network}</span>.
         </p>
 

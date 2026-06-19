@@ -5,13 +5,13 @@ import { useWallet } from "../wallet/state";
 import { explorerUrl } from "../wallet/connection";
 
 export function Receive() {
-  const { identity, session } = useWallet();
+  const { identity, provisioned } = useWallet();
   const [copied, setCopied] = useState<string | null>(null);
   const [qrAuth, setQrAuth] = useState<string | null>(null);
   const [qrSwig, setQrSwig] = useState<string | null>(null);
 
-  const authAddr = identity?.authority.publicKey.toBase58() ?? "";
-  const swigAddr = (session?.walletAddress ?? identity?.swigAccountAddress)?.toBase58() ?? "";
+  const authAddr = identity?.address ?? "";
+  const swigAddr = identity?.smartWalletAddress ?? identity?.address ?? "";
 
   useEffect(() => {
     if (authAddr) QRCode.toDataURL(authAddr, { margin: 1, width: 220, color: { dark: "#141414", light: "#00000000" } }).then(setQrAuth).catch(() => {});
@@ -31,13 +31,13 @@ export function Receive() {
         <h1 className="text-2xl font-black font-display text-ink-900 tracking-tight flex items-center gap-2">
           <Download size={20} className="text-accent" /> Receive
         </h1>
-        <p className="text-ink-500 text-sm mt-1">Share an address to receive SOL or SPL tokens on devnet.</p>
+        <p className="text-ink-500 text-sm mt-1">Share an address to receive XLM or Stellar assets on testnet.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-5">
         <ReceiveCard
           title="Smart Wallet"
-          subtitle={session ? "Funds live here once received" : "Will be the receive address after first transaction"}
+          subtitle={provisioned ? "Funds live here once received" : "Will be the receive address after first transaction"}
           address={swigAddr}
           qrDataUrl={qrSwig}
           copied={copied === "swig"}

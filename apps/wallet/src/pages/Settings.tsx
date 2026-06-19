@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, AlertTriangle, Trash2, ExternalLink, Cpu } from "lucide-react";
+import { Settings as SettingsIcon, AlertTriangle, Trash2, ExternalLink, Cpu, type LucideIcon } from "lucide-react";
 import { useWallet } from "../wallet/state";
-import { ACTIVE_CLUSTER, RPC_URL, explorerUrl } from "../wallet/connection";
+import { ACTIVE_NETWORK, RPC_URL, explorerUrl } from "../wallet/connection";
 
 export function Settings() {
   const { identity, reset } = useWallet();
@@ -27,20 +27,27 @@ export function Settings() {
       </div>
 
       <Section title="Network" icon={Cpu}>
-        <Row label="Cluster" value={ACTIVE_CLUSTER} />
-        <Row label="RPC endpoint" value={RPC_URL} mono />
-        <Row label="Wallet protocol" value="Swig Wallet (open source)" />
+        <Row label="Network" value={ACTIVE_NETWORK} />
+        <Row label="Horizon endpoint" value={RPC_URL} mono />
+        <Row label="Wallet protocol" value="Blackthorn smart wallet (Stellar)" />
         <Row label="Created at" value={new Date(identity.createdAt).toLocaleString()} />
       </Section>
 
       <Section title="Smart wallet">
-        <Row label="Swig PDA" value={identity.swigAccountAddress.toBase58()} mono link={explorerUrl("address", identity.swigAccountAddress.toBase58())} />
-        <Row label="Authority key" value={identity.authority.publicKey.toBase58()} mono link={explorerUrl("address", identity.authority.publicKey.toBase58())} />
+        {(() => {
+          const wallet = identity.smartWalletAddress ?? identity.address;
+          return (
+            <>
+              <Row label="Smart wallet" value={wallet} mono link={explorerUrl("account", wallet)} />
+              <Row label="Authority key" value={identity.address} mono link={explorerUrl("account", identity.address)} />
+            </>
+          );
+        })()}
       </Section>
 
       <Section title="Danger zone" icon={AlertTriangle} variant="danger">
         <p className="text-xs text-ink-600 leading-relaxed">
-          Reset wipes the keypair, policy, and history from this browser. The on-chain Swig PDA stays —
+          Reset wipes the keypair, policy, and history from this browser. The on-chain account stays —
           but without the authority key you cannot operate it. <strong className="text-[#DC2626]">Make sure you've backed up your secret key first.</strong>
         </p>
         <button onClick={onReset} className="btn-danger mt-2">
@@ -52,7 +59,7 @@ export function Settings() {
 }
 
 function Section({ title, icon: Icon, variant, children }: {
-  title: string; icon?: React.ComponentType<{ size?: number; className?: string }>;
+  title: string; icon?: LucideIcon;
   variant?: "danger"; children: React.ReactNode;
 }) {
   const danger = variant === "danger";

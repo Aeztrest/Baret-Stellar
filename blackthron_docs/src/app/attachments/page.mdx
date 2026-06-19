@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'Replay',
   description:
-    'Re-simulate a Solana transaction at a specific historical slot to see what the analysis would have returned at that point in time.',
+    'Re-simulate a Stellar transaction at a specific historical slot to see what the analysis would have returned at that point in time.',
 }
 
 export const sections = [
@@ -23,10 +23,10 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
 
     <Properties>
       <Property name="transaction" type="string">
-        Base64-encoded serialized Solana `VersionedTransaction`.
+        Base64-encoded serialized Stellar `TransactionEnvelope XDR`.
       </Property>
-      <Property name="cluster" type="string">
-        Solana cluster: `mainnet-beta` or `devnet`.
+      <Property name="network" type="string">
+        Stellar network: `pubnet` or `testnet`.
       </Property>
       <Property name="slot" type="number">
         The slot number at which to replay the simulation. Must be recent enough that the RPC node still has state for it (typically within the last few epochs).
@@ -47,7 +47,7 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
     The response structure is identical to a standard `/v1/analyze` response, with an additional `slot` field indicating which slot was used for simulation.
 
     <Note>
-      Replay uses the Solana RPC `simulateTransaction` with the `minContextSlot`
+      Replay uses the Stellar RPC `simulateTransaction` with the `minContextSlot`
       parameter set to your requested slot. If the RPC node no longer has state
       for that slot, the request will fail with a `SLOT_NOT_AVAILABLE` error.
     </Note>
@@ -63,7 +63,7 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
       -H "Content-Type: application/json" \
       -d '{
         "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-        "cluster": "mainnet-beta",
+        "network": "pubnet",
         "slot": 285741234
       }'
     ```
@@ -77,7 +77,7 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
       },
       body: JSON.stringify({
         transaction: serializedTxBase64,
-        cluster: 'mainnet-beta',
+        network: 'pubnet',
         slot: 285741234,
       }),
     }).then(r => r.json())

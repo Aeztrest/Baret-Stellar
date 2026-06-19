@@ -6,8 +6,8 @@ import type { RiskFinding } from "../../domain/findings.js";
 /**
  * x402-specific detector. Validates the candidate tx against the merchant's
  * `PaymentRequirements` and against server-side x402 policy rules. The shape
- * checks reflect the Stellar x402 implementation (Soroban SAC transfer +
- * optional memo), not Solana's TransferChecked layout.
+ * checks reflect the Stellar x402 payment shape (Soroban SAC transfer +
+ * optional memo).
  *
  * Codes emitted:
  *  - X402_MEMO_MISSING — policy requires a memo but the tx has none.

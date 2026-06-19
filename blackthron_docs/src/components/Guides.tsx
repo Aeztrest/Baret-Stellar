@@ -5,7 +5,7 @@ const guides = [
   {
     href: '/quickstart',
     name: 'Quickstart',
-    description: 'Analyze your first Solana transaction in under 2 minutes.',
+    description: 'Analyze your first Stellar transaction in under 2 minutes.',
   },
   {
     href: '/authentication',

@@ -10,7 +10,7 @@ that updates this file first.
 
 ## 1. Position
 
-**One-line:** *The Solana wallet that watches what happens after you sign.*
+**One-line:** *The Stellar wallet that watches what happens after you sign.*
 
 **Three words:** Calm. Technical. Candid.
 
@@ -86,8 +86,9 @@ state. Everything else is greyscale on a near-black canvas.
 | `--accent-dim` | `rgba(61,109,255,0.14)` | Hover backgrounds, accent halos. |
 | `--accent-glow` | `rgba(61,109,255,0.35)` | Outer glow behind hero numbers / shield. |
 
-Cobalt was chosen over indigo/violet on purpose — Solana's incumbent wallets and
-ecosystem branding lean violet (Phantom, Solana Foundation). Cobalt reads as
+Cobalt was chosen over indigo/violet on purpose — Stellar's incumbent wallet and
+much of the surrounding crypto-ecosystem branding lean violet (Freighter, the
+generic crypto-violet of the wider Stellar ecosystem). Cobalt reads as
 *technology + trust* without colliding with that visual territory. It also
 contrasts cleanly with the emerald-and-amber semantic palette.
 
@@ -109,7 +110,7 @@ Every state colour has a 14% alpha background variant (`--ok-dim`, `--warn-dim`,
 
 - **No multi-colour gradients.** Single-colour glow halos only (e.g. `--accent-glow` blur behind a hero card).
 - **No saturated reds for non-critical UI.** `--bad` is reserved for actually-blocked or actually-drifting state. Never for "delete" buttons unsigned actions.
-- **No purple.** That's Solana incumbent territory; we lean cobalt to differentiate.
+- **No purple.** That's Stellar incumbent territory; we lean cobalt to differentiate.
 - **No success-green CTAs.** Primary action is always cobalt; green is reserved for confirmation chrome.
 
 ---

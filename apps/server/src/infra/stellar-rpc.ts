@@ -29,8 +29,8 @@ export class StellarRpcError extends Error {
 }
 
 /**
- * Pairs the Horizon classic API with the Soroban RPC API behind one façade —
- * the same shape the analyzer used for Solana's `Connection`. Adds timeout +
+ * Pairs the Horizon classic API with the Soroban RPC API behind one façade
+ * the analyzer uses to read chain state. Adds timeout +
  * single-retry semantics so a transient hiccup doesn't fail an analyze call.
  */
 export class StellarRpcAdapter {
@@ -101,8 +101,8 @@ export class StellarRpcAdapter {
 
   /**
    * Resolve a Soroban contract's storage entry (e.g. SAC balances, swig
-   * sub-key tables). Soroban-RPC's `getLedgerEntries` is the closest match
-   * to Solana's `getAccountInfo` for contract-owned state.
+   * sub-key tables). Soroban-RPC's `getLedgerEntries` reads contract-owned
+   * ledger state.
    */
   async getLedgerEntries(
     keys: readonly xdr.LedgerKey[],

@@ -6,20 +6,20 @@ import { readHistory, type HistoryEntry } from "../storage/history-store";
 import { readPolicy } from "../storage/policy-store";
 
 export function Home() {
-  const { session, walletBalance, authorityBalance, airdrop } = useWallet();
-  const [airdropping, setAirdropping] = useState(false);
+  const { provisioned, walletBalance, authorityBalance, fund } = useWallet();
+  const [funding, setFunding] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const policy = readPolicy();
 
   useEffect(() => { setHistory(readHistory().slice(0, 5)); }, []);
 
-  const onAirdrop = async () => {
-    setAirdropping(true);
-    try { await airdrop(); } catch { /* surfaced elsewhere */ } finally { setAirdropping(false); }
+  const onFund = async () => {
+    setFunding(true);
+    try { await fund(); } catch { /* surfaced elsewhere */ } finally { setFunding(false); }
   };
 
-  const balance = session ? walletBalance : authorityBalance;
-  const balanceLabel = session ? "Smart wallet" : "Authority (smart wallet not yet provisioned)";
+  const balance = provisioned ? walletBalance : authorityBalance;
+  const balanceLabel = provisioned ? "Smart wallet" : "Authority (smart wallet not yet provisioned)";
 
   return (
     <div className="space-y-8">
@@ -34,17 +34,17 @@ export function Home() {
         <p className="text-[10px] uppercase tracking-wider text-accent font-semibold mb-2 mt-1">{balanceLabel}</p>
         <p className="text-5xl font-black font-display text-white">
           {balance === null ? "—" : balance.toFixed(4)}
-          <span className="text-2xl text-white/40 font-bold ml-2">SOL</span>
+          <span className="text-2xl text-white/40 font-bold ml-2">XLM</span>
         </p>
         <p className="text-xs text-white/40 mt-2">
-          {session ? "Funds held by your Swig PDA" : "Send funds to authority — they'll move into the smart wallet on first transaction"}
+          {provisioned ? "Funds held by your smart wallet" : "Send funds to authority — they'll move into the smart wallet on first transaction"}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
           <Link to="/send" className="btn-primary"><SendIcon size={13} /> Send</Link>
           <Link to="/receive" className="btn-ghost"><Download size={13} /> Receive</Link>
-          <button onClick={onAirdrop} disabled={airdropping} className="btn-ghost">
-            <Droplet size={13} /> {airdropping ? "Airdropping…" : "Devnet airdrop"}
+          <button onClick={onFund} disabled={funding} className="btn-ghost">
+            <Droplet size={13} /> {funding ? "Funding…" : "Testnet fund"}
           </button>
         </div>
       </div>
@@ -61,9 +61,9 @@ export function Home() {
           </div>
           <ul className="space-y-2 text-xs text-ink-600">
             <PolicyRow label="Max loss per tx" value={policy.maxLossPercent != null ? `${policy.maxLossPercent}%` : "Unset"} />
-            <PolicyRow label="Block risky programs" value={policy.blockRiskyPrograms ? "On" : "Off"} />
-            <PolicyRow label="Block unknown programs" value={policy.blockUnknownProgramExposure ? "On" : "Off"} />
-            <PolicyRow label="Block new approvals" value={policy.blockApprovalChanges ? "On" : "Off"} />
+            <PolicyRow label="Block risky contracts" value={policy.blockRiskyContracts ? "On" : "Off"} />
+            <PolicyRow label="Block unknown contracts" value={policy.blockUnknownContractExposure ? "On" : "Off"} />
+            <PolicyRow label="Block Soroban allowances" value={policy.blockSorobanAllowanceGrants ? "On" : "Off"} />
             <PolicyRow label="Require successful sim" value={policy.requireSuccessfulSimulation !== false ? "Yes" : "No"} />
           </ul>
         </div>

@@ -1,14 +1,19 @@
 /**
- * Persistent storage for the wallet's authority keypair + Swig identifier.
- * Versioned so future schema changes can migrate cleanly.
+ * Persistent storage for the wallet's authority keypair (Stellar build).
+ * Versioned so future schema changes can migrate cleanly. The v2 key is a
+ * clean v2 break from the prior storage shape — old v1 blobs are ignored.
  */
-const KEY = "blackthorn.wallet.v1";
+const KEY = "blackthorn.wallet.v2";
 
 export interface PersistedWallet {
-  /** Ed25519 secret key bytes (64), base64-encoded for storage compactness. */
-  authoritySecretKeyB64: string;
-  /** 32-byte random Swig id (used to derive the PDA), base64-encoded. */
-  swigIdB64: string;
+  /** Stellar ed25519 secret seed (`S…` StrKey). Holds the spending authority. */
+  authoritySecret: string;
+  /**
+   * Smart-wallet address (`C…` Soroban contract, or the `G…` authority address
+   * as a placeholder until the on-chain contract is wired). Null before the
+   * wallet has been provisioned/funded.
+   */
+  smartWalletAddress: string | null;
   /** ISO timestamp of when the wallet was first created in this browser. */
   createdAt: string;
 }
@@ -18,8 +23,12 @@ export function readWallet(): PersistedWallet | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedWallet>;
-    if (!parsed.authoritySecretKeyB64 || !parsed.swigIdB64 || !parsed.createdAt) return null;
-    return parsed as PersistedWallet;
+    if (!parsed.authoritySecret || !parsed.createdAt) return null;
+    return {
+      authoritySecret: parsed.authoritySecret,
+      smartWalletAddress: parsed.smartWalletAddress ?? null,
+      createdAt: parsed.createdAt,
+    };
   } catch {
     return null;
   }

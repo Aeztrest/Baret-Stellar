@@ -8,10 +8,9 @@ import { useNavigate } from "react-router-dom";
 import { Settings as SettingsIcon, Cpu, KeyRound, AlertTriangle, ExternalLink, Trash2 } from "lucide-react";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
-const RPC_BY_CLUSTER: Record<string, string> = {
-  "mainnet-beta": "https://api.mainnet-beta.solana.com",
-  "devnet":       "https://api.devnet.solana.com",
-  "testnet":      "https://api.testnet.solana.com",
+const HORIZON_BY_NETWORK: Record<string, string> = {
+  testnet: "https://horizon-testnet.stellar.org",
+  pubnet:  "https://horizon.stellar.org",
 };
 
 export function SettingsOpt() {
@@ -40,9 +39,9 @@ export function SettingsOpt() {
       </div>
 
       <Section icon={Cpu} title="Network">
-        <Row label="Cluster" value={state.network} />
-        <Row label="RPC" value={RPC_BY_CLUSTER[state.network] ?? "—"} mono />
-        <Row label="Wallet protocol" value="Swig (open source)" />
+        <Row label="Network" value={state.network} />
+        <Row label="Horizon" value={HORIZON_BY_NETWORK[state.network] ?? "—"} mono />
+        <Row label="Wallet protocol" value="Blackthorn smart wallet (Stellar)" />
       </Section>
 
       <Section icon={KeyRound} title="Smart wallet">
@@ -52,7 +51,7 @@ export function SettingsOpt() {
 
       <Section icon={AlertTriangle} title="Danger zone" danger>
         <p className="text-xs text-text-muted leading-relaxed mb-3">
-          Reset wipes the keypair, policy, and history from this browser. The on-chain Swig PDA stays —
+          Reset wipes the keypair, policy, and history from this browser. The on-chain account stays —
           but without the authority key you can't spend from it. <strong className="text-bad">Make sure you've backed up your secret first.</strong>
         </p>
         <button onClick={onReset} className="btn-danger">
@@ -98,6 +97,5 @@ function Row({ label, value, mono, link }: { label: string; value: string; mono?
 
 function explorerAddress(addr: string | null, network: string): string {
   if (!addr) return "#";
-  const cluster = network === "mainnet-beta" ? "" : `?cluster=${network}`;
-  return `https://explorer.solana.com/address/${addr}${cluster}`;
+  return `https://stellar.expert/explorer/${network}/account/${addr}`;
 }

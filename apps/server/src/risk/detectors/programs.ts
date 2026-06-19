@@ -2,9 +2,9 @@ import type { AppConfig } from "../../config/index.js";
 import type { RiskFinding } from "../../domain/findings.js";
 
 /**
- * Detects Soroban contracts the policy flags as risky, plus contracts not on
- * the known-safe allowlist when one is configured. Counterpart of Solana's
- * "program id" detector — Stellar's equivalent is the contract id.
+ * Detects risky/unknown Soroban contract ids: contracts the policy flags as
+ * risky, plus contracts not on the known-safe allowlist when one is
+ * configured.
  */
 export function detectContractFindings(args: {
   contractAddresses: string[];

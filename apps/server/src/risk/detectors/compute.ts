@@ -6,8 +6,7 @@ const DEFAULT_HIGH_RESOURCE_FEE_STROOPS = 50_000_000n; // 5 XLM
 const DEFAULT_HIGH_BASE_FEE_STROOPS = 1_000_000n; // 0.1 XLM
 
 /**
- * Stellar analogue of the Solana "compute units" detector. Flags two
- * surfaces:
+ * Flags excessive Soroban resource fee / base fee. Two surfaces:
  *  - the Soroban `minResourceFee` from preflight, against an optional policy
  *    cap (or a sane default when the policy doesn't specify one),
  *  - the classic `tx.fee` (sum of operations × base fee), against a similar

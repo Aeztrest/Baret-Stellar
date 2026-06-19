@@ -3,8 +3,8 @@
  *
  * Chrome MV3 disallows `chrome.action.openPopup()` from background contexts
  * without a user gesture — so when a dApp queues a sign / connect request
- * we open the popup HTML in a small focused window instead. Phantom and
- * Freighter use the same trick.
+ * we open the popup HTML in a small focused window instead. Freighter uses
+ * the same trick.
  *
  * One window at a time: if a popup is already open we just focus it.
  */

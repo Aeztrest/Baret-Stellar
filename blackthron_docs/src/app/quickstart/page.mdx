@@ -1,12 +1,12 @@
 export const metadata = {
   title: 'Quickstart',
   description:
-    'Analyze your first Solana transaction with Blackthorn in under 2 minutes.',
+    'Analyze your first Stellar transaction with Blackthorn in under 2 minutes.',
 }
 
 # Quickstart
 
-This guide takes you from zero to your first transaction analysis in under 2 minutes. All you need is an API key and a base64-encoded Solana transaction. {{ className: 'lead' }}
+This guide takes you from zero to your first transaction analysis in under 2 minutes. All you need is an API key and a base64-encoded Stellar transaction. {{ className: 'lead' }}
 
 <Note>
   Before making requests, grab your API key from the Blackthorn dashboard under
@@ -25,7 +25,7 @@ curl -X POST https://api.blackthorn.io/v1/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-    "cluster": "mainnet-beta"
+    "network": "pubnet"
   }'
 ```
 
@@ -38,7 +38,7 @@ const response = await fetch('https://api.blackthorn.io/v1/analyze', {
   },
   body: JSON.stringify({
     transaction: serializedTxBase64,
-    cluster: 'mainnet-beta',
+    network: 'pubnet',
   }),
 })
 
@@ -54,7 +54,7 @@ response = httpx.post(
     headers={'X-API-Key': API_KEY},
     json={
         'transaction': serialized_tx_base64,
-        'cluster': 'mainnet-beta',
+        'network': 'pubnet',
     }
 )
 
@@ -76,7 +76,7 @@ A successful analysis returns a JSON object with the verdict and full findings.
   "verdict": "Transaction blocked by policy: unlimited token approval detected.",
   "interpretation": "Token approval granting unlimited spending authority to an unverified program.",
   "balanceChanges": [
-    { "account": "7xKX...", "solDelta": -0.000005, "tokens": [] }
+    { "account": "7xKX...", "xlmDelta": -0.000005, "tokens": [] }
   ],
   "detectors": {
     "simulation": { "status": "success", "findings": [] },
@@ -123,7 +123,7 @@ A successful analysis returns a JSON object with the verdict and full findings.
     Plain-language description of what the transaction does.
   </Property>
   <Property name="balanceChanges" type="array">
-    Simulated SOL and token balance changes per account.
+    Simulated XLM and token balance changes per account.
   </Property>
   <Property name="detectors" type="object">
     Per-detector findings. Each detector runs independently.

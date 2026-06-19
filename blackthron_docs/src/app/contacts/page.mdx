@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'Analyze Transaction',
   description:
-    'Submit a Solana transaction for pre-signature security analysis. Returns a safe/unsafe verdict with full findings.',
+    'Submit a Stellar transaction for pre-signature security analysis. Returns a safe/unsafe verdict with full findings.',
 }
 
 export const sections = [
@@ -11,7 +11,7 @@ export const sections = [
 
 # Analyze Transaction
 
-The core of Blackthorn. Submit a base64-encoded Solana transaction and receive a comprehensive security analysis before it's signed or broadcast. {{ className: 'lead' }}
+The core of Blackthorn. Submit a base64-encoded Stellar transaction and receive a comprehensive security analysis before it's signed or broadcast. {{ className: 'lead' }}
 
 ---
 
@@ -35,10 +35,10 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
     Human-readable explanation of the block decision, or a summary if no block was triggered.
   </Property>
   <Property name="interpretation" type="string">
-    Plain-language description of what the transaction does: "Jupiter swap of 1.5 SOL to USDC", "Token approval to unknown program", etc.
+    Plain-language description of what the transaction does: "DEX swap of 1.5 XLM to USDC", "Token approval to unknown program", etc.
   </Property>
   <Property name="balanceChanges" type="array">
-    Simulated SOL and token balance changes per account, derived from pre/post simulation state.
+    Simulated XLM and token balance changes per account, derived from pre/post simulation state.
   </Property>
   <Property name="detectors" type="object">
     Per-detector results. Each key is a detector name with its findings and metadata.
@@ -67,16 +67,16 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
 <Row>
   <Col>
 
-    Submit a Solana transaction for analysis. The transaction must be base64-encoded and in VersionedTransaction format.
+    Submit a Stellar transaction for analysis. The transaction must be base64-encoded and in TransactionEnvelope XDR format.
 
     ### Required attributes
 
     <Properties>
       <Property name="transaction" type="string">
-        Base64-encoded serialized Solana `VersionedTransaction`.
+        Base64-encoded serialized Stellar `TransactionEnvelope XDR`.
       </Property>
-      <Property name="cluster" type="string">
-        Solana cluster to analyze against: `mainnet-beta` or `devnet`.
+      <Property name="network" type="string">
+        Stellar network to analyze against: `pubnet` or `testnet`.
       </Property>
     </Properties>
 
@@ -105,7 +105,7 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
       -H "Content-Type: application/json" \
       -d '{
         "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-        "cluster": "mainnet-beta",
+        "network": "pubnet",
         "policyProfile": "strict"
       }'
     ```
@@ -119,7 +119,7 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
       },
       body: JSON.stringify({
         transaction: serializedTxBase64,
-        cluster: 'mainnet-beta',
+        network: 'pubnet',
         policyProfile: 'strict',
       }),
     }).then(r => r.json())
@@ -137,7 +137,7 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
         headers={'X-API-Key': API_KEY},
         json={
             'transaction': serialized_tx_base64,
-            'cluster': 'mainnet-beta',
+            'network': 'pubnet',
             'policyProfile': 'strict',
         }
     ).json()
@@ -158,7 +158,7 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
       "balanceChanges": [
         {
           "account": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-          "solDelta": -0.000005,
+          "xlmDelta": -0.000005,
           "tokens": []
         }
       ],

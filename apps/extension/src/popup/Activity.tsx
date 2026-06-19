@@ -56,7 +56,7 @@ export function Activity() {
   return (
     <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
       {entries.map((e) => (
-        <Row key={e.id} entry={e} cluster={state?.network ?? "devnet"} />
+        <Row key={e.id} entry={e} cluster={state?.network ?? "testnet"} />
       ))}
     </div>
   );
@@ -111,7 +111,7 @@ function relTime(ms: number): string {
   return `${d}d`;
 }
 
-function explorerTx(sig: string, cluster: string): string {
-  const c = cluster === "mainnet-beta" ? "" : `?cluster=${cluster}`;
-  return `https://explorer.solana.com/tx/${sig}${c}`;
+function explorerTx(sig: string, network: string): string {
+  const seg = network === "pubnet" ? "public" : "testnet";
+  return `https://stellar.expert/explorer/${seg}/tx/${sig}`;
 }

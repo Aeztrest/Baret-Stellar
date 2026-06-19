@@ -39,7 +39,7 @@ Boolean flags that cover the most common scenarios. Set any to `true` to activat
     Block any transaction whose simulation fails.
   </Property>
   <Property name="maxLossPercent" type="number">
-    Block if the simulated SOL loss exceeds this percentage of the account's balance (0–100).
+    Block if the simulated XLM loss exceeds this percentage of the account's balance (0–100).
   </Property>
   <Property name="minPostUsdcBalance" type="number">
     Block if the simulated USDC balance after the transaction falls below this threshold (in USDC).
@@ -51,7 +51,7 @@ Pass inline policy rules in the `policy` field of any analyze request:
 ```json {{ title: 'Inline policy rules' }}
 {
   "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-  "cluster": "mainnet-beta",
+  "network": "pubnet",
   "policy": {
     "blockRiskyPrograms": true,
     "blockApprovalChanges": true,
@@ -92,12 +92,12 @@ For advanced logic, the policy engine supports a rule DSL. Rules are evaluated i
     },
     {
       "condition": {
-        "field": "balanceChanges.solDelta",
+        "field": "balanceChanges.xlmDelta",
         "op": "lt",
         "value": -5.0
       },
       "action": "warn",
-      "reason": "Large SOL outflow",
+      "reason": "Large XLM outflow",
       "priority": 50
     }
   ]
@@ -135,7 +135,7 @@ Three pre-configured policy profiles are available for quick integration. Pass t
     Blocks on any failed simulation or any high-severity finding. Recommended for wallets and consumer applications.
   </Property>
   <Property name="defi-permissive" type="profile">
-    Only blocks on known bad actors. Warns — but does not block — on large SOL loss (&gt;50%). Designed for DeFi power users who understand the risks.
+    Only blocks on known bad actors. Warns — but does not block — on large XLM loss (&gt;50%). Designed for DeFi power users who understand the risks.
   </Property>
   <Property name="monitor-only" type="profile">
     Never blocks. All findings are reported but no transaction is stopped. Use for monitoring and audit logging without disrupting the user flow.
@@ -145,7 +145,7 @@ Three pre-configured policy profiles are available for quick integration. Pass t
 ```json {{ title: 'Using a profile' }}
 {
   "transaction": "...",
-  "cluster": "mainnet-beta",
+  "network": "pubnet",
   "policyProfile": "strict"
 }
 ```

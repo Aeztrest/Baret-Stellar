@@ -6,14 +6,14 @@ import { explorerUrl } from "../wallet/connection";
 function shortAddr(s: string) { return `${s.slice(0, 4)}…${s.slice(-4)}`; }
 
 export function Topbar() {
-  const { identity, session, authorityBalance, walletBalance, refresh, phase } = useWallet();
+  const { identity, walletBalance, refresh, phase } = useWallet();
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   if (!identity) return null;
 
-  const displayAddr = (session?.walletAddress ?? identity.swigAccountAddress).toBase58();
-  const balanceLabel = session ? walletBalance : authorityBalance;
+  const displayAddr = identity.smartWalletAddress ?? identity.address;
+  const balanceLabel = walletBalance;
   const status = phase === "ready" ? "On-chain" : phase === "identity" ? "Off-chain" : "Loading…";
 
   const onCopy = async () => {
@@ -56,7 +56,7 @@ export function Topbar() {
           <p className="text-[10px] uppercase tracking-wider text-ink-400 font-semibold">Balance</p>
           <p className="text-sm font-bold text-ink-900">
             {balanceLabel === null ? "—" : balanceLabel.toFixed(4)}
-            <span className="text-ink-400 font-medium ml-1">SOL</span>
+            <span className="text-ink-400 font-medium ml-1">XLM</span>
           </p>
         </div>
         <button
@@ -68,7 +68,7 @@ export function Topbar() {
           <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
         </button>
         <a
-          href={explorerUrl("address", displayAddr)}
+          href={explorerUrl("account", displayAddr)}
           target="_blank"
           rel="noreferrer"
           className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-400 hover:text-ink-800 hover:bg-ink-900/[0.05] transition-colors"
