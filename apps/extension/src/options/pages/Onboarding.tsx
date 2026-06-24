@@ -446,7 +446,7 @@ function StepFund({
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-text-faint">Balance</span>
-          <span className="font-mono">{balance === null ? "—" : `${balance.toFixed(4)} SOL`}</span>
+          <span className="font-mono">{balance === null ? "—" : `${balance.toFixed(4)} XLM`}</span>
         </div>
       </div>
 

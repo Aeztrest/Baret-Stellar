@@ -31,7 +31,9 @@ export async function openPopupWindow(): Promise<void> {
   }
 
   try {
-    const url = browser.runtime.getURL(POPUP_URL_PATH);
+    // `?window=1` tells the popup to fill the whole window (see popup/main.tsx)
+    // rather than render at the fixed 360x600 toolbar-popup size.
+    const url = browser.runtime.getURL(POPUP_URL_PATH) + "?window=1";
     const created = await browser.windows.create({
       url,
       type: "popup",

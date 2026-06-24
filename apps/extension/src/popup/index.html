@@ -7,7 +7,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <style>html, body { width: 360px; height: 600px; margin: 0; padding: 0; }</style>
+    <style>
+      html, body { margin: 0; padding: 0; }
+      /* Toolbar action popup: Chrome sizes the popup to the body's fixed box. */
+      html, body { width: 360px; height: 600px; }
+      /* Standalone sign/connect window (opened via windows.create with
+         ?window=1): fill the whole OS window so the UI isn't a small box
+         floating inside a larger frame. The class is toggled in main.tsx —
+         the page CSP forbids inline scripts. */
+      html.in-window, html.in-window body { width: 100%; height: 100%; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
