@@ -77,12 +77,12 @@ export const wsConnect: WsHandler = async (raw) => {
   const s = getState();
   if (s.phase === "uninitialized") {
     throw new Error(
-      "BLACKTHORN wallet not initialized — open the wallet to set it up first.",
+      "Baret wallet not initialized — open the wallet to set it up first.",
     );
   }
   if (s.phase === "locked") {
     throw new Error(
-      "BLACKTHORN wallet is locked — open the wallet to unlock it first.",
+      "Baret wallet is locked — open the wallet to unlock it first.",
     );
   }
   if (!s.walletAddress || !s.authorityAddress) {
@@ -197,7 +197,7 @@ function queueAndWait(
   extra?: { validUntilLedger?: number },
 ): Promise<SignSuccess> {
   if (!isUnlocked()) {
-    return Promise.reject(new Error("BLACKTHORN wallet is locked."));
+    return Promise.reject(new Error("Baret wallet is locked."));
   }
   return new Promise<SignSuccess>((resolve, reject) => {
     const requestId = newRequestId();

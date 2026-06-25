@@ -70,7 +70,7 @@ export function createDeltagX402(config: AppConfig): BlackthornX402 {
         network: config.x402.network as Network,
         payTo: config.x402.payTo,
       },
-      description: "Blackthorn Stellar transaction safety analysis (per request)",
+      description: "Baret Stellar transaction safety analysis (per request)",
       mimeType: "application/json",
     },
   });

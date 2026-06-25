@@ -109,7 +109,7 @@ export function HomeOpt() {
         <h1 className="text-3xl font-extrabold tracking-tight">Welcome back</h1>
         <p className="text-text-muted text-sm mt-1">
           Your wallet is live on {state.network}. Every transaction passes
-          Blackthorn before signing.
+          Baret before signing.
         </p>
       </div>
 

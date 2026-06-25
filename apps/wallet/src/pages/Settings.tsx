@@ -29,7 +29,7 @@ export function Settings() {
       <Section title="Network" icon={Cpu}>
         <Row label="Network" value={ACTIVE_NETWORK} />
         <Row label="Horizon endpoint" value={RPC_URL} mono />
-        <Row label="Wallet protocol" value="Blackthorn smart wallet (Stellar)" />
+        <Row label="Wallet protocol" value="Baret smart wallet (Stellar)" />
         <Row label="Created at" value={new Date(identity.createdAt).toLocaleString()} />
       </Section>
 

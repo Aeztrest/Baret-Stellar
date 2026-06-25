@@ -155,7 +155,7 @@ class Monitor {
       summary: `Drift detected — unauthorized tx on ${scope === "wallet" ? "smart wallet" : "authority"}`,
       decision: "block",
       reasons: [
-        "Blackthorn didn't sign this transaction. Investigate before continuing.",
+        "Baret didn't sign this transaction. Investigate before continuing.",
       ],
       broadcast: false,
       createdAt: Date.now(),
@@ -170,7 +170,7 @@ class Monitor {
         iconUrl: browser.runtime.getURL("icons/128.png"),
         title: "Unexpected payment from your wallet",
         message:
-          "Blackthorn didn't approve this transaction. Open the wallet to investigate.",
+          "Baret didn't approve this transaction. Open the wallet to investigate.",
       });
     } catch (err) {
       console.warn("[BLACKTHORN] notification failed:", err);

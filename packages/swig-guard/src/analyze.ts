@@ -81,7 +81,7 @@ export async function analyzeTransaction(
         /* ignore */
       }
       throw new AnalyzeError(
-        `Blackthorn analyze returned HTTP ${res.status}`,
+        `Baret analyze returned HTTP ${res.status}`,
         res.status,
         body,
       );
@@ -92,7 +92,7 @@ export async function analyzeTransaction(
     if (err instanceof AnalyzeError) throw err;
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new AnalyzeError(
-        `Blackthorn analyze timed out after ${cfg.timeoutMs ?? DEFAULT_TIMEOUT}ms`,
+        `Baret analyze timed out after ${cfg.timeoutMs ?? DEFAULT_TIMEOUT}ms`,
         undefined,
         undefined,
         err,
@@ -100,7 +100,7 @@ export async function analyzeTransaction(
     }
     const msg = err instanceof Error ? err.message : String(err);
     throw new AnalyzeError(
-      `Blackthorn analyze request failed: ${msg}`,
+      `Baret analyze request failed: ${msg}`,
       undefined,
       undefined,
       err,

@@ -41,7 +41,7 @@ export function SettingsOpt() {
       <Section icon={Cpu} title="Network">
         <Row label="Network" value={state.network} />
         <Row label="Horizon" value={HORIZON_BY_NETWORK[state.network] ?? "—"} mono />
-        <Row label="Wallet protocol" value="Blackthorn smart wallet (Stellar)" />
+        <Row label="Wallet protocol" value="Baret smart wallet (Stellar)" />
       </Section>
 
       <Section icon={KeyRound} title="Smart wallet">

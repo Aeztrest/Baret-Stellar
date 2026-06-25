@@ -53,7 +53,7 @@ export function getMcpToolDescriptors(): McpToolDescriptor[] {
     {
       name: "blackthorn_health",
       description:
-        "Check Blackthorn service health and the configured Stellar network",
+        "Check Baret service health and the configured Stellar network",
       inputSchema: { type: "object", properties: {} },
     },
     {

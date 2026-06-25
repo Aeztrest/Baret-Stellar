@@ -106,7 +106,7 @@ export class TransactionGuard {
     if (ev.decision === "block") {
       throw new GuardBlockedError(
         ev.blockingReasons[0] ??
-          "Blackthorn policy blocked this transaction",
+          "Baret policy blocked this transaction",
         ev.analysis,
         ev.blockingReasons,
       );

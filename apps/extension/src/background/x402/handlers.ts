@@ -68,7 +68,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   const { origin, requestUrl, requirements } = rawReq as ReviewRequest;
 
   if (!isUnlocked())
-    return { action: "decline", reason: "Blackthorn wallet is locked." };
+    return { action: "decline", reason: "Baret wallet is locked." };
 
   // 1. Spec validation.
   const v = validateRequirements(requirements);

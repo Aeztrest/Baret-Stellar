@@ -1,6 +1,6 @@
 /**
  * Compact AnalysisReport for the popup (Stellar build).
- * Renders an AnalyzeResponse — the Blackthorn simulation verdict + findings
+ * Renders an AnalyzeResponse — the Baret simulation verdict + findings
  * + balance changes — into a 360-wide column.
  */
 
