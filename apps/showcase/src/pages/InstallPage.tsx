@@ -18,8 +18,8 @@ interface ArtefactSpec {
 }
 
 const ARTEFACTS: Record<Exclude<Browser, "other">, ArtefactSpec> = {
-  chrome:  { label: "Baret for Chrome / Brave / Edge", href: "/blackthorn-chrome.zip" },
-  firefox: { label: "Baret for Firefox",               href: "/blackthorn-firefox.zip" },
+  chrome:  { label: "Baret for Chrome / Brave / Edge", href: "/baret-chrome.zip" },
+  firefox: { label: "Baret for Firefox",               href: "/baret-firefox.zip" },
 };
 
 function detectBrowser(): Browser {
@@ -218,13 +218,13 @@ function ChromeSteps({ downloaded }: { downloaded: boolean }) {
   return (
     <ol className="space-y-3">
       <Step n="01" icon={FileArchive} done={downloaded} title="Unzip the file">
-        Right-click <Code>blackthorn-chrome.zip</Code> → Extract All. Remember the folder.
+        Right-click <Code>baret-chrome.zip</Code> → Extract All. Remember the folder.
       </Step>
       <Step n="02" icon={FolderOpen} title="Open chrome://extensions/">
         Paste <Code>chrome://extensions/</Code> into your address bar (or Menu → Extensions). Toggle <b>Developer mode</b> on (top right).
       </Step>
       <Step n="03" icon={ShieldCheck} title="Load unpacked">
-        Click <b>"Load unpacked"</b> and pick the extracted <Code>blackthorn-chrome</Code> folder. Baret appears in your toolbar — click it to create your wallet.
+        Click <b>"Load unpacked"</b> and pick the extracted <Code>baret-chrome</Code> folder. Baret appears in your toolbar — click it to create your wallet.
       </Step>
     </ol>
   );
@@ -234,7 +234,7 @@ function FirefoxSteps({ downloaded }: { downloaded: boolean }) {
   return (
     <ol className="space-y-3">
       <Step n="01" icon={FileArchive} done={downloaded} title="Unzip the file">
-        Right-click <Code>blackthorn-firefox.zip</Code> → Extract Here. Remember the folder.
+        Right-click <Code>baret-firefox.zip</Code> → Extract Here. Remember the folder.
       </Step>
       <Step n="02" icon={FolderOpen} title="Open about:debugging">
         Paste <Code>about:debugging#/runtime/this-firefox</Code> into your address bar.

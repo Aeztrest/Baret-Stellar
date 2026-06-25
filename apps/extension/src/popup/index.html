@@ -9,13 +9,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <style>
       html, body { margin: 0; padding: 0; }
-      /* Toolbar action popup: Chrome sizes the popup to the body's fixed box. */
-      html, body { width: 360px; height: 600px; }
+      /* Toolbar action popup: fixed size so Chrome sizes the popup to it.
+         !important is required — the bundled Tailwind base rule
+         (html,body,#root{height:100%}) is flattened to a plain unlayered
+         rule that loads (via the CSS <link>) AFTER this inline block, so by
+         source order it would otherwise win and force height:100%. In a real
+         popup that resolves against an undefined viewport and collapses the
+         popup to a tiny, cramped box. */
+      html, body { width: 400px !important; height: 600px !important; }
       /* Standalone sign/connect window (opened via windows.create with
          ?window=1): fill the whole OS window so the UI isn't a small box
          floating inside a larger frame. The class is toggled in main.tsx —
          the page CSP forbids inline scripts. */
-      html.in-window, html.in-window body { width: 100%; height: 100%; }
+      html.in-window, html.in-window body { width: 100% !important; height: 100% !important; }
     </style>
   </head>
   <body>
