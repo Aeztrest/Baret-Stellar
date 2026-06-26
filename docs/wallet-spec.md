@@ -1,4 +1,4 @@
-# BLACKTHORN — Wallet Feature & Flow Specification
+# BARET — Wallet Feature & Flow Specification
 
 > Every surface, every state, every flow. The implementation contract for the
 > extension popup, options page, sign-request view, and onboarding wizard.
@@ -162,7 +162,7 @@ changes, signature, Explorer link.
 
 ## 5. Popup — Allowances tab
 
-The visual heart of the BLACKTHORN wedge. A list of every active grant with
+The visual heart of the BARET wedge. A list of every active grant with
 live caps and one-tap revoke.
 
 ### Header strip
@@ -229,7 +229,7 @@ tabs as popup but expanded.
 
 ```
 ┌──────────────────────┐  bg-elevated
-│  ▲ BLACKTHORN        │
+│  ▲ BARET        │
 │  ─────               │
 │  Account picker      │  same as popup top strip
 │  ─────               │
@@ -261,7 +261,7 @@ Same as popup but with:
 - Origin search
 - Amount range filter
 - CSV export
-- Bulk re-analyze (re-runs BLACKTHORN simulation against current policy on past txs to flag retroactive drift)
+- Bulk re-analyze (re-runs BARET simulation against current policy on past txs to flag retroactive drift)
 
 ### 7.4 Allowances (options)
 
@@ -298,7 +298,7 @@ Full version of popup settings, with everything inline:
 - **Network**: testnet/pubnet picker, custom Horizon + Soroban RPC URLs, custom facilitator URLs (allow-list)
 - **Policy**: link out to Policies tab; not duplicated here
 - **Notifications**: which events trigger browser notifications (drift, allowance threshold, large tx)
-- **Privacy**: telemetry toggle (off by default), local data export, "Clear browsing data for blackthorn.dev"
+- **Privacy**: telemetry toggle (off by default), local data export, "Clear browsing data for baret.dev"
 - **Advanced**: dev-only options (verbose logs, network override, raw XDR mode)
 - **Danger zone**: Reset wallet (full wipe, secret-seed-required)
 
@@ -346,7 +346,7 @@ no chrome. **All other UI is suspended.**
 | `ok` (safe) | `--ok` | "Safe to sign" + 1-line summary | Enabled, primary |
 | `advisory` (safe + warning) | `--warn` | "Sign with caution" + reason | Enabled, primary; "Sign anyway" |
 | `block` | `--bad` | "Blocked by your policy" + the rule | Disabled (or "Sign anyway" + double-confirm if user policy allows override) |
-| `error` (analyze unreachable) | `--warn` | "Can't reach BLACKTHORN" + offline-mode hint | Enabled with explicit "Sign without protection" — never the styled primary |
+| `error` (analyze unreachable) | `--warn` | "Can't reach BARET" + offline-mode hint | Enabled with explicit "Sign without protection" — never the styled primary |
 
 ### What changes — visualization
 
@@ -448,7 +448,7 @@ route, not the popup.
 
 - Hero: ✓ + display-l "You're protected." + one-line summary.
 - Three "Try it" suggestions:
-  - *"Try the BLACKTHORN showcase"* (link → showcase landing)
+  - *"Try the BARET showcase"* (link → showcase landing)
   - *"Connect a real Stellar dApp"* (link → list of compatible dApps)
   - *"Set up your first allowance"* (link → Allowances tab)
 - CTA: **Open wallet**.
@@ -462,7 +462,7 @@ route, not the popup.
 ```
 dApp                    Content script         Background           Popup UI
  │ getProvider()        │                      │                    │
- │──────────────────────>│ window.blackthorn   │                    │
+ │──────────────────────>│ window.baret   │                    │
  │ register(wallet)     │<──────────────────── │                    │
  │ <pick wallet UI>     │                      │                    │
  │ adapter.connect()    │                      │                    │
@@ -484,7 +484,7 @@ dApp                    Content script         Background           Popup UI
 2. Content script forwards the base64 `TransactionEnvelope` XDR to background via runtime.connect
 3. Background:
    a. parses the XDR envelope, decodes its operations
-   b. runs `TransactionGuard.evaluate({ transactionXdr, userWallet, policy })`, which ships the XDR to the blackthorn analyzer (server /v1/analyze)
+   b. runs `TransactionGuard.evaluate({ transactionXdr, userWallet, policy })`, which ships the XDR to the baret analyzer (server /v1/analyze)
    c. reads the returned decision (allow/block) + estimatedChanges
    d. opens popup in Sign-Request mode with full evaluation
 4. Popup renders Sign Request (§8)
@@ -552,7 +552,7 @@ Background monitor polls Horizon's transactions endpoint for the authority + sma
 | Popup home | No balance + no activity | "Connect to a dApp or send some XLM to get started." |
 | Activity tab | Empty | "Your activity will appear here. We log every signature, including the ones we declined." |
 | Allowances | Empty | "You haven't authorized any merchants yet. Allowances will appear here when you connect to an x402 service or approve a token." |
-| Sign request | Analyzer offline | "Can't reach BLACKTHORN. Sign without protection?" |
+| Sign request | Analyzer offline | "Can't reach BARET. Sign without protection?" |
 | Sign request | Network unreachable | "Horizon / Soroban RPC is down. We'll retry in a moment." |
 | Network mismatch | dApp asks for pubnet, wallet on testnet | "This dApp wants pubnet, but you're on testnet. Switch?" |
 | Wallet locked | Toolbar tap | One-input passphrase screen + Reset link. |

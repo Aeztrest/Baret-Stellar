@@ -1,4 +1,4 @@
-# BLACKTHORN — Brand Identity
+# BARET — Brand Identity
 
 > What the wallet looks, sounds, and feels like — at every surface.
 
@@ -22,15 +22,14 @@ English, and will keep an eye on it after you walked away.
 
 ## 2. Name & wordmark
 
-**BLACKTHORN** — uppercase, single word, no separators. Never "Black Thorn,"
-"BlackThorn," or "blackthorn." Reserved-form: `B L A C K T H O R N` (letter-spaced)
-allowed only in display-size hero contexts, max once per page.
+**BARET** — uppercase, single word, no separators. Never "Bar Et," "BarEt,"
+or "barret." Reserved-form: `B A R E T` (letter-spaced) allowed only in
+display-size hero contexts, max once per page.
 
-Origin story (use only if asked): blackthorn is the densest, hardest, most
-defensive native hedge in the British Isles — historically planted to keep
-livestock from straying and predators from entering. It is also the wood of the
-Irish *shillelagh*, a self-defense club. The plant blooms white in early spring;
-its berries (sloes) keep through the winter. **A defensive plant that flowers.**
+Origin story (use only if asked): a *baret* is the hard hat — the protective
+helmet you put on before stepping into a dangerous site. The wallet is the hard
+hat for your Stellar transactions: simulated, explained, and blocked when
+dangerous before anything is signed. **Protection you wear by default.**
 Fitting metaphor; not used as marketing copy.
 
 ### Wordmark spec
@@ -38,7 +37,7 @@ Fitting metaphor; not used as marketing copy.
 ```
 ┌──────────────────────────────────┐
 │  ▲                               │
-│  ◢◣  BLACKTHORN                  │
+│  ◢◣  BARET                  │
 │      ▔▔▔▔▔▔▔▔▔▔                  │
 └──────────────────────────────────┘
 ```
@@ -169,7 +168,7 @@ No 5, 7, 10, 18 — break this and the page looks improvised.
 | `--r-modal` | 20 | Modals, sheets, the popup itself. |
 | `--r-window` | 24 | Full-screen onboarding windows, splash. |
 
-Never use 8 or 12 for cards; 16 is the BLACKTHORN card radius and reading two
+Never use 8 or 12 for cards; 16 is the BARET card radius and reading two
 cards with different radii on the same screen breaks the system.
 
 ### Card construction
@@ -227,7 +226,7 @@ A dozen recurring icons cover 90% of the wallet:
 
 | Icon | Use |
 |---|---|
-| `Shield` / `ShieldCheck` / `ShieldX` | BLACKTHORN status indicator |
+| `Shield` / `ShieldCheck` / `ShieldX` | BARET status indicator |
 | `Wallet` | Wallet root nav |
 | `Send` / `Download` | Outgoing / incoming |
 | `Activity` | History |
@@ -358,7 +357,7 @@ History has filtering, Policies has the form-vs-JSON tabs.
 ### 10.3 Showcase site
 
 Per the synthesis: single-accent dark canvas, one giant number, one focused
-~480-560 card, monospace digits. The wallet's BLACKTHORN moment is always
+~480-560 card, monospace digits. The wallet's BARET moment is always
 delivered through the **wallet's own popup**, not a showcase modal — so the
 showcase pages stay clean and product-like.
 

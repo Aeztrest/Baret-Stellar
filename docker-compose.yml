@@ -1,4 +1,4 @@
-# BLACKTHORN: Stellar analiz API'si (apps/server, Fastify)
+# BARET: Stellar analiz API'si (apps/server, Fastify)
 #
 # Çalıştır (repo kökü):
 #   docker compose up --build
@@ -9,7 +9,7 @@
 # Demo arayüzü (apps/showcase) ayrı çalışır: `pnpm dev:showcase` ya da Vercel deploy.
 # Kimlik doğrulama: varsayılan API anahtarı "docker-demo-key" (DELTAG_API_KEYS ile değiştirin).
 
-name: blackthorn
+name: baret
 
 services:
   api:

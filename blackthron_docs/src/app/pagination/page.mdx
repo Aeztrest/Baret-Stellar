@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'Risk Detectors',
   description:
-    'Blackthorn runs 7 independent risk detectors on every transaction. Each produces its own findings.',
+    'Baret runs 7 independent risk detectors on every transaction. Each produces its own findings.',
 }
 
 export const sections = [
@@ -16,7 +16,7 @@ export const sections = [
 
 # Risk Detectors
 
-Blackthorn runs 7 independent detectors on every transaction. Each operates on the same simulation data but looks for a different class of risk. All findings are aggregated before the policy engine makes its final decision. {{ className: 'lead' }}
+Baret runs 7 independent detectors on every transaction. Each operates on the same simulation data but looks for a different class of risk. All findings are aggregated before the policy engine makes its final decision. {{ className: 'lead' }}
 
 ---
 
@@ -64,7 +64,7 @@ Cross-Program Invocation (CPI) allows programs to call other programs. A swap ag
 
 ## Reputation Detector {{ id: 'reputation' }}
 
-Checks every address in the transaction — signers, program IDs, token accounts — against the Blackthorn reputation database of known drainers, phishing addresses, and exploit-related accounts.
+Checks every address in the transaction — signers, program IDs, token accounts — against the Baret reputation database of known drainers, phishing addresses, and exploit-related accounts.
 
 <Properties>
   <Property name="KNOWN_BAD_ACTOR" type="critical">

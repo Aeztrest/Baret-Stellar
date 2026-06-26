@@ -9,8 +9,8 @@ import '@/styles/tailwind.css'
 
 export const metadata: Metadata = {
   title: {
-    template: '%s - Blackthorn Documentation',
-    default: 'Blackthorn Documentation',
+    template: '%s - Baret Documentation',
+    default: 'Baret Documentation',
   },
 }
 

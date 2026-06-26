@@ -9,7 +9,7 @@ import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ChevronDown, ShieldCheck } from "lucide-react";
 import { useWallet } from "../wallet/context";
-import { BlackthornBadge } from "./BlackthornBadge";
+import { BaretBadge } from "./BaretBadge";
 
 interface SiteTheme {
   primary: string;
@@ -95,7 +95,7 @@ export function SiteShell({ theme, children, navLinks }: Props) {
       </Link>
       <NavBar theme={theme} navLinks={navLinks} />
       <main className="pt-20">{children}</main>
-      <BlackthornBadge />
+      <BaretBadge />
     </div>
   );
 }

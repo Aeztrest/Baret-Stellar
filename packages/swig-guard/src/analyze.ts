@@ -3,7 +3,7 @@ import { normalizePolicy, type GuardPolicy } from "./policy";
 import type { AnalysisResult, StellarNetwork } from "./types";
 
 export interface AnalyzeClientConfig {
-  /** Base URL of the Blackthorn server, e.g. http://localhost:8080 or https://api.blackthorn.dev */
+  /** Base URL of the Baret server, e.g. http://localhost:8080 or https://api.baret.dev */
   baseUrl: string;
   /** Bearer API key (required when DELTAG_API_KEYS is configured server-side). */
   apiKey?: string;

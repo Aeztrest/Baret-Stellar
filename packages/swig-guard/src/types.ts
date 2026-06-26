@@ -1,5 +1,5 @@
 /**
- * Mirror of the Blackthorn /v1/analyze response shape (Stellar build).
+ * Mirror of the Baret /v1/analyze response shape (Stellar build).
  * Source of truth: apps/server/src/domain/decision.ts
  *
  * Kept SDK-free so wallet UIs can consume it without importing the Stellar SDK.

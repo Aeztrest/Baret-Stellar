@@ -43,7 +43,7 @@ export async function openPopupWindow(): Promise<void> {
     });
     currentPopupWindowId = created.id ?? null;
   } catch (err) {
-    console.warn("[BLACKTHORN] failed to open popup window:", err);
+    console.warn("[BARET] failed to open popup window:", err);
   }
 }
 

@@ -131,7 +131,7 @@ export const wsConnect: WsHandler = async (raw) => {
       });
     }
   } catch (err) {
-    console.warn("[BLACKTHORN] failed to record connect:", err);
+    console.warn("[BARET] failed to record connect:", err);
   }
 
   return {
@@ -270,7 +270,7 @@ export const wsSignAuthEntry: WsHandler = async (raw) => {
       }
     } catch (err) {
       console.warn(
-        "[BLACKTHORN] x402 auth-entry auto-approve failed; falling back to confirmation:",
+        "[BARET] x402 auth-entry auto-approve failed; falling back to confirmation:",
         err,
       );
     }

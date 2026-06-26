@@ -58,7 +58,7 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
     <CodeGroup tag="POST" label="/v1/replay">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://api.blackthorn.io/v1/replay \
+    curl -X POST https://api.baret.io/v1/replay \
       -H "X-API-Key: {your-api-key}" \
       -H "Content-Type: application/json" \
       -d '{
@@ -69,10 +69,10 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
     ```
 
     ```js
-    const result = await fetch('https://api.blackthorn.io/v1/replay', {
+    const result = await fetch('https://api.baret.io/v1/replay', {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.BLACKTHORN_API_KEY,
+        'X-API-Key': process.env.BARET_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

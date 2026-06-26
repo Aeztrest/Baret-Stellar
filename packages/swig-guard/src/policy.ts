@@ -1,5 +1,5 @@
 /**
- * Blackthorn guard policy DSL — Stellar build, v2.
+ * Baret guard policy DSL — Stellar build, v2.
  *
  * The server-side schema (apps/server/src/domain/policy.ts) carries the
  * pre-sign subset; client-only rules (allowance windows, behavioral alerts,
@@ -27,7 +27,7 @@ export interface GuardPolicy {
   /** Reject when a Soroban `approve` host-fn appears in the simulation. */
   blockSorobanAllowanceGrants?: boolean;
 
-  /** Reject when a tx touches a contract flagged in Blackthorn's reputation DB. */
+  /** Reject when a tx touches a contract flagged in Baret's reputation DB. */
   blockRiskyContracts?: boolean;
 
   /** Reject when a tx touches any contract not in the known-safe list. */
@@ -118,7 +118,7 @@ export interface GuardPolicy {
 
   /* ───── 1.4 Behavioral / monitoring rules (client-only) ───── */
 
-  /** Trigger drift alerts when an outgoing tx wasn't signed via Blackthorn. */
+  /** Trigger drift alerts when an outgoing tx wasn't signed via Baret. */
   driftAlerts?: boolean;
 
   /** Trigger verify-orphan alerts (verify but no settle). */

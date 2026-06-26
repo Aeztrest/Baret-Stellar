@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'SDKs & Integrations',
   description:
-    'Integrate Blackthorn into wallets, browser extensions, AI agents, and any application using the REST API.',
+    'Integrate Baret into wallets, browser extensions, AI agents, and any application using the REST API.',
 }
 
 export const sections = [
@@ -13,13 +13,13 @@ export const sections = [
 
 # SDKs & Integrations
 
-Blackthorn can be integrated at any layer of the Stellar stack — wallet libraries, browser extensions, AI agents, or direct API calls from any language. {{ className: 'lead' }}
+Baret can be integrated at any layer of the Stellar stack — wallet libraries, browser extensions, AI agents, or direct API calls from any language. {{ className: 'lead' }}
 
 ---
 
 ## Wallet Adapter SDK {{ id: 'wallet-adapter' }}
 
-The `@stellar-thorn/wallet-adapter` package wraps any Stellar wallet's `signTransaction` function. When the user tries to sign, Blackthorn intercepts, analyzes, and either proceeds or throws a `TransactionBlockedError`.
+The `@stellar-thorn/wallet-adapter` package wraps any Stellar wallet's `signTransaction` function. When the user tries to sign, Baret intercepts, analyzes, and either proceeds or throws a `TransactionBlockedError`.
 
 ### Installation
 
@@ -30,11 +30,11 @@ npm install @stellar-thorn/wallet-adapter
 ### Usage
 
 ```ts
-import { createBlackthornInterceptor } from '@stellar-thorn/wallet-adapter'
+import { createBaretInterceptor } from '@stellar-thorn/wallet-adapter'
 
-const interceptor = createBlackthornInterceptor({
-  apiKey: process.env.BLACKTHORN_API_KEY,
-  apiUrl: 'https://api.blackthorn.io',
+const interceptor = createBaretInterceptor({
+  apiKey: process.env.BARET_API_KEY,
+  apiUrl: 'https://api.baret.io',
   network: 'pubnet',
   policyProfile: 'strict',
   onBlock: (analysis) => {
@@ -47,7 +47,7 @@ const interceptor = createBlackthornInterceptor({
 const secureWallet = interceptor.wrap(wallet)
 
 // Now use secureWallet.signTransaction as normal
-// Blackthorn runs automatically before every signature
+// Baret runs automatically before every signature
 ```
 
 ### Behavior
@@ -60,7 +60,7 @@ const secureWallet = interceptor.wrap(wallet)
     Analysis returns `safe: false` — a `TransactionBlockedError` is thrown, or your `onBlock` callback is invoked.
   </Property>
   <Property name="API unavailable" type="fail-open">
-    If the Blackthorn API is unreachable, the request fails open — the transaction is not blocked. This is intentional to prevent service outages from disrupting users.
+    If the Baret API is unreachable, the request fails open — the transaction is not blocked. This is intentional to prevent service outages from disrupting users.
   </Property>
 </Properties>
 
@@ -68,7 +68,7 @@ const secureWallet = interceptor.wrap(wallet)
 
 ## Browser Extension {{ id: 'browser-extension' }}
 
-The Blackthorn Chrome extension (Manifest V3) automatically intercepts `signTransaction` calls from Freighter and any wallet that injects a Stellar provider into the browser.
+The Baret Chrome extension (Manifest V3) automatically intercepts `signTransaction` calls from Freighter and any wallet that injects a Stellar provider into the browser.
 
 No code changes required in the dApp. The extension installs a content script that wraps the wallet's signing functions at the browser level.
 
@@ -82,7 +82,7 @@ Open the extension popup to configure:
 
 <Properties>
   <Property name="API Endpoint" type="string">
-    Your Blackthorn API endpoint URL.
+    Your Baret API endpoint URL.
   </Property>
   <Property name="API Key" type="string">
     Your API key. Stored in Chrome's local extension storage (not sent anywhere except your configured endpoint).
@@ -96,7 +96,7 @@ Open the extension popup to configure:
 
 ## MCP Server {{ id: 'mcp-server' }}
 
-Blackthorn implements the [Model Context Protocol](https://modelcontextprotocol.io/) so AI agents can call it as a tool directly.
+Baret implements the [Model Context Protocol](https://modelcontextprotocol.io/) so AI agents can call it as a tool directly.
 
 ### Available tools
 
@@ -105,7 +105,7 @@ Blackthorn implements the [Model Context Protocol](https://modelcontextprotocol.
     Analyze a transaction. Input: `transactionBase64`, `network`. Returns a markdown-formatted security report.
   </Property>
   <Property name="deltag_health" type="tool">
-    Check if the Blackthorn service is healthy and the RPC is reachable.
+    Check if the Baret service is healthy and the RPC is reachable.
   </Property>
   <Property name="deltag_list_profiles" type="tool">
     List available policy profiles and their descriptions.
@@ -124,19 +124,19 @@ Blackthorn implements the [Model Context Protocol](https://modelcontextprotocol.
 
 ## REST API {{ id: 'rest-api' }}
 
-The Blackthorn API is a plain HTTPS REST API. Any language that can make HTTP requests can integrate with it.
+The Baret API is a plain HTTPS REST API. Any language that can make HTTP requests can integrate with it.
 
 <CodeGroup>
 
 ```bash {{ title: 'cURL' }}
-curl -X POST https://api.blackthorn.io/v1/analyze \
+curl -X POST https://api.baret.io/v1/analyze \
   -H "X-API-Key: {your-api-key}" \
   -H "Content-Type: application/json" \
   -d '{"transaction":"...","network":"pubnet"}'
 ```
 
 ```js
-const res = await fetch('https://api.blackthorn.io/v1/analyze', {
+const res = await fetch('https://api.baret.io/v1/analyze', {
   method: 'POST',
   headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
   body: JSON.stringify({ transaction: txBase64, network: 'pubnet' }),
@@ -147,7 +147,7 @@ const { safe, verdict } = await res.json()
 ```python
 import httpx
 result = httpx.post(
-    'https://api.blackthorn.io/v1/analyze',
+    'https://api.baret.io/v1/analyze',
     headers={'X-API-Key': API_KEY},
     json={'transaction': tx_base64, 'network': 'pubnet'},
 ).json()
@@ -158,7 +158,7 @@ body, _ := json.Marshal(map[string]string{
     "transaction": txBase64,
     "network":     "pubnet",
 })
-req, _ := http.NewRequest("POST", "https://api.blackthorn.io/v1/analyze", bytes.NewBuffer(body))
+req, _ := http.NewRequest("POST", "https://api.baret.io/v1/analyze", bytes.NewBuffer(body))
 req.Header.Set("X-API-Key", apiKey)
 req.Header.Set("Content-Type", "application/json")
 resp, _ := http.DefaultClient.Do(req)

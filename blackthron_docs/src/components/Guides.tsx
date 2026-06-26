@@ -16,7 +16,7 @@ const guides = [
     href: '/pagination',
     name: 'Risk Detectors',
     description:
-      'Understand the 7 independent detectors that power Blackthorn\'s analysis.',
+      'Understand the 7 independent detectors that power Baret\'s analysis.',
   },
   {
     href: '/webhooks',

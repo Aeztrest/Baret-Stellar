@@ -74,7 +74,7 @@ export async function buildAddSubKeyTransaction(
     networkPassphrase: networkPassphrase as Networks,
   })
     .addOperation(op)
-    .addMemo(Memo.text("blackthorn:add_signer"))
+    .addMemo(Memo.text("baret:add_signer"))
     .setTimeout(60);
 
   const tx = builder.build();
@@ -124,7 +124,7 @@ export async function buildRemoveSubKeyTransaction(
     networkPassphrase: networkPassphrase as Networks,
   })
     .addOperation(op)
-    .addMemo(Memo.text("blackthorn:remove_signer"))
+    .addMemo(Memo.text("baret:remove_signer"))
     .setTimeout(60);
 
   const tx = builder.build();

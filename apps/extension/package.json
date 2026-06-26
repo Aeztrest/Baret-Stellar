@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "BLACKTHORN — Stellar smart-wallet browser extension. Chrome MV3 + Firefox.",
+  "description": "BARET — Stellar smart-wallet browser extension. Chrome MV3 + Firefox.",
   "scripts": {
     "dev": "vite",
     "build:chrome": "vite build --mode chrome",

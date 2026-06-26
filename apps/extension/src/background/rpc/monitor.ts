@@ -4,7 +4,7 @@
  * Polls Horizon for new transactions touching the user's authority +
  * smart-wallet addresses. Every confirmed tx is reconciled against the
  * local history table. Unmatched txs trigger a *drift alert* — something
- * moved through the wallet that Blackthorn never approved.
+ * moved through the wallet that Baret never approved.
  *
  * MV3 caveats:
  * - The polling loop lives only as long as the service worker. When Chrome
@@ -27,7 +27,7 @@ import { appendAlert, countUnread } from "../db/alerts";
 import { appendHistory, listHistory } from "../db/history";
 import { dispatch, subscribe, getState } from "../state/store";
 
-const LAST_SEEN_KEY = "blackthorn.monitor.lastSeen.v1";
+const LAST_SEEN_KEY = "baret.monitor.lastSeen.v1";
 const POLL_INTERVAL_MS = 8_000;
 
 interface LastSeenCursors {
@@ -55,7 +55,7 @@ class Monitor {
     this.scheduleNext();
 
     console.info(
-      "[BLACKTHORN] post-sign monitor live for",
+      "[BARET] post-sign monitor live for",
       `${authorityAddress.slice(0, 8)}…`,
     );
   }
@@ -111,7 +111,7 @@ class Monitor {
         await this.bumpLastSeen(scope, tx.paging_token);
       }
     } catch (err) {
-      console.warn(`[BLACKTHORN] ${scope} poll failed:`, err);
+      console.warn(`[BARET] ${scope} poll failed:`, err);
     }
   }
 
@@ -173,7 +173,7 @@ class Monitor {
           "Baret didn't approve this transaction. Open the wallet to investigate.",
       });
     } catch (err) {
-      console.warn("[BLACKTHORN] notification failed:", err);
+      console.warn("[BARET] notification failed:", err);
     }
   }
 
@@ -193,7 +193,7 @@ class Monitor {
           await this.bumpLastSeen("authority", latest.records[0]!.paging_token);
         }
       } catch (err) {
-        console.warn("[BLACKTHORN] authority bootstrap cursor failed:", err);
+        console.warn("[BARET] authority bootstrap cursor failed:", err);
       }
     }
 
@@ -209,7 +209,7 @@ class Monitor {
           await this.bumpLastSeen("wallet", latest.records[0]!.paging_token);
         }
       } catch (err) {
-        console.warn("[BLACKTHORN] wallet bootstrap cursor failed:", err);
+        console.warn("[BARET] wallet bootstrap cursor failed:", err);
       }
     }
   }

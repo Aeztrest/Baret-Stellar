@@ -1,9 +1,9 @@
 /**
- * Showcase ↔ Blackthorn Stellar wallet bridge.
+ * Showcase ↔ Baret Stellar wallet bridge.
  *
  * The showcase pages use a small adapter shape `{ signTransaction,
- * signAndSendTransaction, account_pubkey }`. The Blackthorn extension
- * installs itself in the page as `window.blackthornStellar` (Freighter-
+ * signAndSendTransaction, account_pubkey }`. The Baret extension
+ * installs itself in the page as `window.baretStellar` (Freighter-
  * compatible API); this bridge wraps that provider into the shape the
  * existing site code expects.
  */
@@ -55,7 +55,7 @@ export interface StellarWalletProvider {
 
 declare global {
   interface Window {
-    blackthornStellar?: StellarWalletProvider;
+    baretStellar?: StellarWalletProvider;
   }
 }
 
@@ -181,8 +181,8 @@ export class WalletStandardBridge {
 }
 
 /**
- * Discover registered Stellar wallet providers on the page. Blackthorn
- * registers as `window.blackthornStellar`; Freighter is detected via the
+ * Discover registered Stellar wallet providers on the page. Baret
+ * registers as `window.baretStellar`; Freighter is detected via the
  * `@stellar/freighter-api` package, which talks to the extension over its
  * own bridge. Returns a stable list the picker can render — the demo's
  * "without BARET" comparison stands up only when at least one other
@@ -190,7 +190,7 @@ export class WalletStandardBridge {
  */
 export function discoverStellarProviders(): StellarWalletProvider[] {
   const out: StellarWalletProvider[] = [];
-  if (window.blackthornStellar) out.push(window.blackthornStellar);
+  if (window.baretStellar) out.push(window.baretStellar);
   // Always advertise Freighter — the adapter explains the missing-extension
   // case in `requestAccess()` so the picker doesn't need to know whether
   // the user actually has it installed yet.

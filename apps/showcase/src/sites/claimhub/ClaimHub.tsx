@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import { Gift, CheckCircle, Users, Clock } from "lucide-react";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../blackthorn/ResultOverlay";
-import { RiskPreview } from "../../blackthorn/RiskPreview";
-import { buildScenario } from "../../blackthorn/transactions";
+import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { RiskPreview } from "../../baret/RiskPreview";
+import { buildScenario } from "../../baret/transactions";
 
 const THEME = {
   primary: "#E8470A",
@@ -56,7 +56,7 @@ export default function ClaimHub() {
     }
   }
 
-  async function sendViaBlackthorn() {
+  async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
@@ -71,7 +71,7 @@ export default function ClaimHub() {
       }
     }
   }
-  const sendRaw = sendViaBlackthorn;
+  const sendRaw = sendViaBaret;
 
   return (
     <SiteShell
@@ -182,7 +182,7 @@ export default function ClaimHub() {
         userWallet={walletAddress ?? null}
         scenarioLabel={scenarioLabel}
         onClose={() => setPreviewTx(null)}
-        onProceedWithBlackthorn={sendViaBlackthorn}
+        onProceedWithBaret={sendViaBaret}
         onProceedRaw={sendRaw}
       />
     </SiteShell>

@@ -9,12 +9,12 @@ import { analyzeRequestBodySchema } from "../../domain/policy.js";
 import { analyzeResponseSchema } from "../schemas/analyze.response.js";
 import { apiError } from "../errors.js";
 import { StellarRpcError } from "../../infra/stellar-rpc.js";
-import type { BlackthornX402 } from "../../infra/x402.js";
+import type { BaretX402 } from "../../infra/x402.js";
 
 export function registerAnalyzeRoute(
   app: FastifyInstance,
   deps: AnalyzeDeps,
-  x402?: BlackthornX402,
+  x402?: BaretX402,
 ) {
   app.post(
     "/v1/analyze",

@@ -60,7 +60,7 @@ export class ExtRpcClient {
         if (!set) return;
         for (const fn of set) {
           try { fn(raw.payload); }
-          catch (err) { console.error("[BLACKTHORN] event listener threw:", err); }
+          catch (err) { console.error("[BARET] event listener threw:", err); }
         }
       }
     });

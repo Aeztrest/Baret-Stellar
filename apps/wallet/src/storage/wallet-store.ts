@@ -3,7 +3,7 @@
  * Versioned so future schema changes can migrate cleanly. The v2 key is a
  * clean v2 break from the prior storage shape — old v1 blobs are ignored.
  */
-const KEY = "blackthorn.wallet.v2";
+const KEY = "baret.wallet.v2";
 
 export interface PersistedWallet {
   /** Stellar ed25519 secret seed (`S…` StrKey). Holds the spending authority. */

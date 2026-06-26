@@ -20,7 +20,7 @@
 
 ### Freighter (Stellar)
 - **Distinctive move:** The incumbent Stellar wallet — extension-first, straightforward asset list and trustline management
-- **Tx approval:** XDR-oriented; shows operations and signers, but little plain-English simulation of outcomes (the gap BLACKTHORN fills)
+- **Tx approval:** XDR-oriented; shows operations and signers, but little plain-English simulation of outcomes (the gap BARET fills)
 - **Onboarding:** Mnemonic primary; hardware support
 - **Weakness:** No pre-sign simulation / risk surfacing — the user reads raw operations
 
@@ -32,7 +32,7 @@
 
 ---
 
-## Synthesis for BLACKTHORN
+## Synthesis for BARET
 
 ### 5 UX patterns to adopt
 1. **Rabby-style pre-sign simulation card** — balance deltas in plain English, contract identity, risk badges, the centerpiece of the approval screen

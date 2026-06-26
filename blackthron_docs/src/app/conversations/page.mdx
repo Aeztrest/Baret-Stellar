@@ -54,7 +54,7 @@ Submit up to 25 transactions in a single API call. Each transaction is analyzed 
     <CodeGroup tag="POST" label="/v1/analyze/batch">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://api.blackthorn.io/v1/analyze/batch \
+    curl -X POST https://api.baret.io/v1/analyze/batch \
       -H "X-API-Key: {your-api-key}" \
       -H "Content-Type: application/json" \
       -d '{
@@ -73,10 +73,10 @@ Submit up to 25 transactions in a single API call. Each transaction is analyzed 
     ```
 
     ```js
-    const result = await fetch('https://api.blackthorn.io/v1/analyze/batch', {
+    const result = await fetch('https://api.baret.io/v1/analyze/batch', {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.BLACKTHORN_API_KEY,
+        'X-API-Key': process.env.BARET_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

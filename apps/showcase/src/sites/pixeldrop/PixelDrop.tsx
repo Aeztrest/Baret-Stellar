@@ -2,9 +2,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../blackthorn/ResultOverlay";
-import { RiskPreview } from "../../blackthorn/RiskPreview";
-import { buildScenario } from "../../blackthorn/transactions";
+import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { RiskPreview } from "../../baret/RiskPreview";
+import { buildScenario } from "../../baret/transactions";
 
 const THEME = {
   primary: "#141414",
@@ -51,7 +51,7 @@ export default function PixelDrop() {
     }
   }
 
-  async function sendViaBlackthorn() {
+  async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
@@ -66,7 +66,7 @@ export default function PixelDrop() {
       }
     }
   }
-  const sendRaw = sendViaBlackthorn;
+  const sendRaw = sendViaBaret;
 
   const pct = (NFT_COLLECTION.minted / NFT_COLLECTION.supply) * 100;
 
@@ -214,7 +214,7 @@ export default function PixelDrop() {
         userWallet={walletAddress ?? null}
         scenarioLabel={scenarioLabel}
         onClose={() => setPreviewTx(null)}
-        onProceedWithBlackthorn={sendViaBlackthorn}
+        onProceedWithBaret={sendViaBaret}
         onProceedRaw={sendRaw}
       />
     </SiteShell>

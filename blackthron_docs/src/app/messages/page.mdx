@@ -50,10 +50,10 @@ The streaming endpoint runs the same analysis pipeline as `/v1/analyze` but emit
     <CodeGroup tag="POST" label="/v1/analyze/stream">
 
     ```js
-    const response = await fetch('https://api.blackthorn.io/v1/analyze/stream', {
+    const response = await fetch('https://api.baret.io/v1/analyze/stream', {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.BLACKTHORN_API_KEY,
+        'X-API-Key': process.env.BARET_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -86,7 +86,7 @@ The streaming endpoint runs the same analysis pipeline as `/v1/analyze` but emit
 
     with httpx.stream(
         'POST',
-        'https://api.blackthorn.io/v1/analyze/stream',
+        'https://api.baret.io/v1/analyze/stream',
         headers={'X-API-Key': API_KEY},
         json={'transaction': tx_base64, 'network': 'pubnet'},
     ) as r:

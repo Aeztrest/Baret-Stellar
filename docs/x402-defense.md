@@ -1,6 +1,6 @@
-# BLACKTHORN — x402 Defense Spec
+# BARET — x402 Defense Spec
 
-> The byte-level technical reference for intercepting, parsing, validating, and policing every x402 payment that flows through the wallet. Each section pairs the *protocol mechanic* with the *BLACKTHORN response* — what we do at each layer that nothing else does.
+> The byte-level technical reference for intercepting, parsing, validating, and policing every x402 payment that flows through the wallet. Each section pairs the *protocol mechanic* with the *BARET response* — what we do at each layer that nothing else does.
 
 This is the technical companion to `docs/vision.md`. The wedge is here: x402 is, by design, a stateless one-shot payment protocol. We are the stateful layer above it.
 
@@ -27,7 +27,7 @@ type PaymentRequirements = {
 };
 ```
 
-### 1.2 What BLACKTHORN validates before signing
+### 1.2 What BARET validates before signing
 
 For every incoming `PaymentRequirements`:
 
@@ -71,7 +71,7 @@ where PaymentPayload =
 }
 ```
 
-### 2.2 What BLACKTHORN does
+### 2.2 What BARET does
 
 1. Decode header → JSON.
 2. Decode `payload.transaction` → Stellar transaction (XDR via stellar-sdk).
@@ -95,7 +95,7 @@ The wallet **never** forwards the signed payment back to the page automatically 
 
 Fees on Stellar are flat (base fee per operation, in stroops) rather than a compute-unit market, and the sponsoring account is named at the transaction level via `sponsorBy` — so there is no separate compute-budget preamble.
 
-### 3.2 Spec rules BLACKTHORN enforces
+### 3.2 Spec rules BARET enforces
 
 For every candidate tx, all of the following are mandatory before we surface a Sign UI:
 
@@ -123,7 +123,7 @@ The transaction is a Stellar transaction whose fee-sponsoring source is `sponsor
 
 The transaction XDR carries partial signatures and base64-roundtrips them lossless.
 
-### BLACKTHORN signing rules
+### BARET signing rules
 
 - The **authority** is *not* the user's main keypair when the merchant has a per-merchant scoped sub-key (see §6 — Revoke). Each merchant gets its own scoped signer with a tight set of rights: spend up to `dailyCap` of `asset`, no other rights.
 - Signing happens in the background service worker, never in the popup or content script. The encrypted authority is unlocked only with the user's session passphrase, kept in service-worker memory only, zeroed on session timeout.
@@ -153,7 +153,7 @@ The transaction XDR carries partial signatures and base64-roundtrips them lossle
                           │
                           ▼
                 ┌────────────────────┐
-                │  BLACKTHORN monitor│  Horizon/RPC stream on authority
+                │  BARET monitor│  Horizon/RPC stream on authority
                 │  (background)      │  reconciles new tx with ledger
                 └────────────────────┘
 ```
@@ -164,14 +164,14 @@ The transaction XDR carries partial signatures and base64-roundtrips them lossle
 2. On every confirmed transaction involving those accounts:
    - Cross-reference with the local ledger by `(origin, requestHash)`.
    - **Match found:** mark the entry `settled`, increment `hits`, decrement remaining cap, surface a small "+1 ✓" pulse in the popup.
-   - **No match:** raise `DRIFT_ALERT` — a payment moved from our wallet that BLACKTHORN didn't authorize. Push browser notification, mark all sub-keys for that merchant as suspect, surface a banner in the popup. (This catches verify-multiple-times-before-confirm races and out-of-band signing if the authority key was ever exposed.)
+   - **No match:** raise `DRIFT_ALERT` — a payment moved from our wallet that BARET didn't authorize. Push browser notification, mark all sub-keys for that merchant as suspect, surface a banner in the popup. (This catches verify-multiple-times-before-confirm races and out-of-band signing if the authority key was ever exposed.)
 3. After `maxTimeoutSeconds × 2` without a settle event, mark the entry `verify_orphan` and prompt the user — *"Did the merchant actually deliver?"*
 
 ---
 
-## 6. Attack matrix — what x402 alone leaves open, what BLACKTHORN closes
+## 6. Attack matrix — what x402 alone leaves open, what BARET closes
 
-| Attack | x402 alone | BLACKTHORN response |
+| Attack | x402 alone | BARET response |
 |---|---|---|
 | **Silent agent drift.** Agent re-signs N micro-payments per minute; user has no aggregate view. | No allowance object exists in the protocol. | **Allowance ledger** with rolling caps (per-tx / hour / day). Every signature decrements; cap exhausted → block. Live counter in popup. |
 | **Look-alike asset swap.** Merchant publishes `asset` = a fake USDC with the same symbol but a different issuer / SAC contract. | Spec validates `asset == transfer.asset` only — the spec doesn't know which issuer is "the real" USDC. | **Wallet-side asset allow-list**, seeded with network-canonical USDC. Unknown issuers / contracts require explicit user override per-merchant (`X402_NON_CANONICAL_ASSET`). |
@@ -191,7 +191,7 @@ The wallet's defense engine is also available as a server-side API for non-exten
 
 - **`POST /v1/x402-analyze`** — accepts a base64 `PaymentPayload`, returns the same structured verdict the wallet shows. Useful for backend agents that want a second opinion. Rate-limited; x402-paywalled.
 - **`GET /demo/scrybe`** — a public demo of the analyze + policy path against a live x402-paywalled resource.
-- **`GET /v1/facilitator-status`** — returns BLACKTHORN's reputation row for a facilitator's Stellar address. Lightweight, public.
+- **`GET /v1/facilitator-status`** — returns BARET's reputation row for a facilitator's Stellar address. Lightweight, public.
 - **Programmatic sub-key issuance** (Phase 3) — agents can request a new scoped sub-key from the wallet via the wallet bridge for a specific merchant. Requires user approval the first time.
 
 ---
@@ -212,7 +212,7 @@ These are deliberate gaps in v1 — listed here so they're not silently lost.
 - **Settled-but-undelivered dispute resolution.** Today we just log it. A fairer Phase 2 would publish a signed *non-delivery receipt* the user can present off-chain (Discord, Twitter, customer-support).
 - **Cross-device authority sync.** A single user with the wallet on two browsers needs allowance-ledger consistency. v1: per-device. v2: optional encrypted cloud-sync (E2EE) or a user-owned relay.
 - **Programmable allowances** (e.g. "let agent X spend up to 1 USDC, but only from 9–17 GMT"). Today it's per-merchant + global window. v2: a small DSL on top of the ledger.
-- **Merchant-side BLACKTHORN endpoint.** A small reverse SDK so merchants can *display* "This site honors BLACKTHORN policies" badges and pre-validate payments before issuing 402s.
+- **Merchant-side BARET endpoint.** A small reverse SDK so merchants can *display* "This site honors BARET policies" badges and pre-validate payments before issuing 402s.
 
 ---
 
@@ -226,4 +226,4 @@ These are deliberate gaps in v1 — listed here so they're not silently lost.
 
 ---
 
-*Last updated: 2026-06-19 · This file is the single source of truth for x402 protocol mechanics + BLACKTHORN's defense layer per attack.*
+*Last updated: 2026-06-19 · This file is the single source of truth for x402 protocol mechanics + BARET's defense layer per attack.*

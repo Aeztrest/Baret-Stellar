@@ -43,7 +43,7 @@ export function installX402Interceptor(): void {
 
   const origFetch = window.fetch.bind(window);
 
-  window.fetch = async function blackthornFetch(
+  window.fetch = async function baretFetch(
     input: RequestInfo | URL,
     init?: RequestInit,
   ) {
@@ -77,12 +77,12 @@ export function installX402Interceptor(): void {
       newInit.headers = headers;
       return await origFetch(input as RequestInfo, newInit);
     } catch (err) {
-      console.error("[BLACKTHORN x402] interceptor error:", err);
+      console.error("[BARET x402] interceptor error:", err);
       return res;
     }
   };
 
-  console.info("[BLACKTHORN] x402 interceptor live (Stellar)");
+  console.info("[BARET] x402 interceptor live (Stellar)");
 }
 
 async function parseRequirements(

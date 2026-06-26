@@ -1,6 +1,6 @@
 /**
  * Showcase-side analyze client (Stellar build). Lets a demo site call
- * Blackthorn's `/v1/analyze` endpoint directly — same pipeline the
+ * Baret's `/v1/analyze` endpoint directly — same pipeline the
  * extension's sign popup runs, just rendered on the site itself so visitors
  * can see what the firewall WOULD say before clicking "Sign".
  *

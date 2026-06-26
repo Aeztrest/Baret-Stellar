@@ -1,16 +1,16 @@
 export const metadata = {
   title: 'Authentication',
   description:
-    'Blackthorn uses API key authentication. All requests must include your key in the X-API-Key header.',
+    'Baret uses API key authentication. All requests must include your key in the X-API-Key header.',
 }
 
 # Authentication
 
-Every request to the Blackthorn API must include your API key. Blackthorn uses simple API key authentication — no OAuth flows, no token exchanges. {{ className: 'lead' }}
+Every request to the Baret API must include your API key. Baret uses simple API key authentication — no OAuth flows, no token exchanges. {{ className: 'lead' }}
 
 ## Getting your API key
 
-API keys are managed from the Blackthorn dashboard. Go to **Settings → API Keys** to create or rotate keys. Each key can be labeled and revoked independently.
+API keys are managed from the Baret dashboard. Go to **Settings → API Keys** to create or rotate keys. Each key can be labeled and revoked independently.
 
 <Note>
   Keep your API key secret. Never commit it to source control or expose it in
@@ -23,7 +23,7 @@ API keys are managed from the Blackthorn dashboard. Go to **Settings → API Key
 Include your key in the `X-API-Key` request header on every call.
 
 ```bash {{ title: 'Authenticated request' }}
-curl -X POST https://api.blackthorn.io/v1/analyze \
+curl -X POST https://api.baret.io/v1/analyze \
   -H "X-API-Key: btk_live_xxxxxxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{ "transaction": "...", "network": "pubnet" }'
@@ -31,10 +31,10 @@ curl -X POST https://api.blackthorn.io/v1/analyze \
 
 ## Pay-per-use with x402
 
-Blackthorn also supports the HTTP 402 micropayment protocol for keyless access. If you send a request without an API key, the server responds with `402 Payment Required` and a payment challenge. You pay per-analysis in USDC on Stellar (~$0.001/request), the payment is verified on-chain, and the analysis proceeds.
+Baret also supports the HTTP 402 micropayment protocol for keyless access. If you send a request without an API key, the server responds with `402 Payment Required` and a payment challenge. You pay per-analysis in USDC on Stellar (~$0.001/request), the payment is verified on-chain, and the analysis proceeds.
 
 ```bash {{ title: 'Keyless request — triggers 402 flow' }}
-curl -X POST https://api.blackthorn.io/v1/analyze \
+curl -X POST https://api.baret.io/v1/analyze \
   -H "Content-Type: application/json" \
   -d '{ "transaction": "...", "network": "pubnet" }'
 # → 402 Payment Required

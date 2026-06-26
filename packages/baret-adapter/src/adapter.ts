@@ -17,7 +17,7 @@ export class WalletAdapterError extends Error {
   }
 }
 
-export interface BlackthornAdapterOptions {
+export interface BaretAdapterOptions {
   /** Origin of the wallet, e.g. http://localhost:5180 */
   walletUrl: string;
   /** Optional human-readable dApp name shown in the wallet's consent UI. */
@@ -43,22 +43,22 @@ const DEFAULT_FEATURES = "popup=yes,width=440,height=720,top=80,left=80";
 type Listener = (msg: PopupOutgoing) => void;
 
 /**
- * dApp-side adapter for the Blackthorn wallet (Stellar build). Opens popups
+ * dApp-side adapter for the Baret wallet (Stellar build). Opens popups
  * to the wallet's /connect and /sign routes; handshakes via postMessage;
  * returns signed `TransactionEnvelope` XDRs.
  *
  * Every signature is gated by the wallet's policy. The wallet runs the
- * Blackthorn analysis and shows it to the user before allowing the sign —
+ * Baret analysis and shows it to the user before allowing the sign —
  * this adapter cannot bypass that, by design.
  *
  * The transport is XDR strings (base64). Callers serialize / deserialize via
  * `tx.toXDR()` / `TransactionBuilder.fromXDR(xdr, passphrase)` so this
  * package itself does not need to depend on the Stellar SDK at runtime.
  */
-export class BlackthornAdapter {
+export class BaretAdapter {
   private account: ConnectedAccount | null = null;
 
-  constructor(private readonly opts: BlackthornAdapterOptions) {
+  constructor(private readonly opts: BaretAdapterOptions) {
     if (!opts.walletUrl)
       throw new WalletAdapterError("walletUrl is required", "INVALID_CONFIG");
   }
@@ -88,7 +88,7 @@ export class BlackthornAdapter {
     const requestId = newRequestId();
     const popup = this.openPopup(
       `${this.opts.walletUrl}/connect`,
-      "blackthorn-connect",
+      "baret-connect",
     );
 
     const result = await this.handshake(popup, requestId, () => {
@@ -121,7 +121,7 @@ export class BlackthornAdapter {
 
   /**
    * Pop up the wallet's /sign route, hand it the unsigned tx XDR, and
-   * resolve with the signed XDR once the user approves the Blackthorn review.
+   * resolve with the signed XDR once the user approves the Baret review.
    */
   async signTransaction(transactionXdr: string): Promise<string> {
     if (!this.connected)
@@ -158,7 +158,7 @@ export class BlackthornAdapter {
     const requestId = newRequestId();
     const popup = this.openPopup(
       `${this.opts.walletUrl}/sign`,
-      "blackthorn-sign",
+      "baret-sign",
     );
 
     const result = await this.handshake(popup, requestId, () => {
@@ -189,7 +189,7 @@ export class BlackthornAdapter {
     );
     if (!popup) {
       throw new WalletAdapterError(
-        "Popup blocked by browser. Allow popups for this site to use Blackthorn.",
+        "Popup blocked by browser. Allow popups for this site to use Baret.",
         "POPUP_BLOCKED",
       );
     }

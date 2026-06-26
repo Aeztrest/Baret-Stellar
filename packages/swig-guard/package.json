@@ -2,7 +2,7 @@
   "name": "@stellar-thorn/swig-guard",
   "version": "0.1.0",
   "private": true,
-  "description": "Pre-flight transaction security guard for Swig smart wallets — every signature passes through BLACKTHORN simulation + user policy.",
+  "description": "Pre-flight transaction security guard for Swig smart wallets — every signature passes through BARET simulation + user policy.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

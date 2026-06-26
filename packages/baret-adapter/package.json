@@ -2,7 +2,7 @@
   "name": "@stellar-thorn/wallet-adapter",
   "version": "0.1.0",
   "private": true,
-  "description": "Popup-bridge wallet adapter — dApps connect to the BLACKTHORN smart wallet over postMessage. Every signature passes the wallet's policy gate.",
+  "description": "Popup-bridge wallet adapter — dApps connect to the BARET smart wallet over postMessage. Every signature passes the wallet's policy gate.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

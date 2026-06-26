@@ -1,6 +1,6 @@
 /**
  * Allowances store — per-(merchantOrigin, asset) authorization rows with
- * rolling caps. The stateful core BLACKTHORN provides on top of x402.
+ * rolling caps. The stateful core BARET provides on top of x402.
  *
  * Spec: docs/extension-architecture.md §7 + docs/policy-dsl.md.
  */

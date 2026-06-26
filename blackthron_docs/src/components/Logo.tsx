@@ -11,7 +11,7 @@ export function Logo(props: React.ComponentPropsWithoutRef<'svg'>) {
         letterSpacing="2"
         className="fill-zinc-900 dark:fill-white"
       >
-        BLACKTHORN
+        BARET
       </text>
     </svg>
   )

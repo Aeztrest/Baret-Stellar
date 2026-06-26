@@ -1,9 +1,9 @@
 /**
- * Blackthorn Stellar wallet provider (page MAIN world).
+ * Baret Stellar wallet provider (page MAIN world).
  *
  * Mirrors the `@stellar/freighter-api` surface so dApps that already use
  * Stellar Wallets Kit / Freighter API can pick us up by name. Exposes the
- * provider as `window.blackthornStellar` and registers with the standard
+ * provider as `window.baretStellar` and registers with the standard
  * `stellar:walletConnected` event so wallet kits discover us automatically.
  *
  * Each method posts an RPC to the content script (which forwards to the
@@ -201,7 +201,7 @@ async function signMessage(
 
 /* ────────────── Provider object ────────────── */
 
-export const blackthornStellar = {
+export const baretStellar = {
   name: "BARET" as const,
   icon: ICON_DATA_URL,
   isConnected,
@@ -217,16 +217,16 @@ export const blackthornStellar = {
 
 export function installStellarWalletProvider(): void {
   // Attach as a Freighter-style global so existing dApps can detect us.
-  Object.defineProperty(window, "blackthornStellar", {
-    value: blackthornStellar,
+  Object.defineProperty(window, "baretStellar", {
+    value: baretStellar,
     writable: false,
     configurable: false,
   });
   // Fire the wallet-kit discovery event so adapters that subscribe pick us up.
   try {
     window.dispatchEvent(
-      new CustomEvent("blackthorn:walletReady", {
-        detail: { provider: blackthornStellar },
+      new CustomEvent("baret:walletReady", {
+        detail: { provider: baretStellar },
       }),
     );
   } catch {

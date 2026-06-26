@@ -19,7 +19,7 @@ import browser from "webextension-polyfill";
 import { asPromise, tx } from "./index";
 import type { EncryptedBlob } from "../crypto/kdf";
 
-const BACKUP_KEY = "blackthorn.keystore.backup.v1";
+const BACKUP_KEY = "baret.keystore.backup.v1";
 
 export interface KeystoreRow {
   id: "primary";
@@ -51,7 +51,7 @@ export async function readKeystore(): Promise<KeystoreRow | null> {
       return backup;
     }
   } catch (err) {
-    console.warn("[BLACKTHORN] storage.local keystore read failed:", err);
+    console.warn("[BARET] storage.local keystore read failed:", err);
   }
   return null;
 }
@@ -66,7 +66,7 @@ export async function writeKeystore(row: KeystoreRow): Promise<void> {
   try {
     await browser.storage.local.set({ [BACKUP_KEY]: row });
   } catch (err) {
-    console.warn("[BLACKTHORN] storage.local keystore mirror failed:", err);
+    console.warn("[BARET] storage.local keystore mirror failed:", err);
   }
 }
 

@@ -1,6 +1,6 @@
-# BLACKTHORN — Policy DSL v2
+# BARET — Policy DSL v2
 
-> The complete rule schema BLACKTHORN evaluates on every signature. Extends
+> The complete rule schema BARET evaluates on every signature. Extends
 > the v1 pre-sign DSL (`apps/server/src/domain/policy.ts`) with stateful
 > x402, allowance, and behavioral rules.
 
@@ -37,7 +37,7 @@ export interface GuardPolicy {
   /** Reject when a trustline is added, modified, or removed. */
   blockTrustlineChanges?: boolean;
 
-  /** Reject when a tx invokes a contract flagged in BLACKTHORN's reputation DB. */
+  /** Reject when a tx invokes a contract flagged in BARET's reputation DB. */
   blockRiskyContracts?: boolean;
 
   /** Reject when a tx invokes any contract not in the known-safe list. */
@@ -106,7 +106,7 @@ export interface GuardPolicy {
 
   /* ───── 1.4 New: behavioral / monitoring rules ───── */
 
-  /** Trigger a drift alert if an outgoing tx from the wallet wasn't signed via BLACKTHORN. */
+  /** Trigger a drift alert if an outgoing tx from the wallet wasn't signed via BARET. */
   driftAlerts?: boolean;
 
   /** Trigger a verify-orphan alert if an x402 verify completed but no settle is observed within maxTimeoutSeconds × 2. */
@@ -143,7 +143,7 @@ export const STRICT_POLICY: GuardPolicy = {
   x402HourlyCap: 1.00,
   x402DailyCap: 5.00,
   allowedFacilitators: [
-    /* PayAI prod */ "GBLACKTHORNFACILITATORPAYAIPRODEXAMPLEACCOUNTIDXXXXXX",
+    /* PayAI prod */ "GBARETFACILITATORPAYAIPRODEXAMPLEACCOUNTIDXXXXXX",
     /* Coinbase ref */ "<TBD>",
   ],
   allowedAssets: [
@@ -285,7 +285,7 @@ plain language in `apps/extension/src/options/policy/reason-strings.ts`.
 |---|---|
 | `loss.exceeds_max` | "This transfer would lose {pct}% of your balance — your policy caps loss at {max}%." |
 | `balance.below_min` | "Your post-transaction {symbol} balance would fall below your floor of {min}." |
-| `contract.risky` | "{contractId} is on BLACKTHORN's risky-contract list." |
+| `contract.risky` | "{contractId} is on BARET's risky-contract list." |
 | `contract.unknown` | "{contractId} isn't on your known-safe list." |
 | `simulation.failed` | "The transaction would fail on-chain. Sim error: {err}." |
 | `allowance.new` | "This grants a new Soroban allowance to {spender}." |
@@ -297,7 +297,7 @@ plain language in `apps/extension/src/options/policy/reason-strings.ts`.
 | `x402.asset_not_allowed` | "{asset} isn't on your trusted-asset list." |
 | `x402.merchant_blocked` | "{origin} is on your blocked list." |
 | `x402.merchant_not_allowed` | "{origin} isn't on your allowed-merchants list." |
-| `x402.memo_missing` | "This payment is missing the memo BLACKTHORN requires for replay protection." |
+| `x402.memo_missing` | "This payment is missing the memo BARET requires for replay protection." |
 | `x402.time_bound_stale` | "The transaction's time bound is {age}s old; your policy requires under {max}s." |
 | `x402.resource_fee_too_high` | "Resource fee {price} exceeds your cap of {max}." |
 | `x402.amount_anomaly` | "This payment is {n}× the typical amount {merchant} charges." |

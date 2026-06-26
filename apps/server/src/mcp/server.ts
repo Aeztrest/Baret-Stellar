@@ -19,7 +19,7 @@ export type McpToolResult = {
 export function getMcpToolDescriptors(): McpToolDescriptor[] {
   return [
     {
-      name: "blackthorn_analyze",
+      name: "baret_analyze",
       description:
         "Analyze a Stellar transaction (classic or Soroban) for safety risks before signing. " +
         "Returns safe/unsafe verdict, risk findings, estimated balance changes, " +
@@ -51,13 +51,13 @@ export function getMcpToolDescriptors(): McpToolDescriptor[] {
       },
     },
     {
-      name: "blackthorn_health",
+      name: "baret_health",
       description:
         "Check Baret service health and the configured Stellar network",
       inputSchema: { type: "object", properties: {} },
     },
     {
-      name: "blackthorn_list_profiles",
+      name: "baret_list_profiles",
       description: "List available policy profiles for transaction analysis",
       inputSchema: { type: "object", properties: {} },
     },
@@ -71,11 +71,11 @@ export async function handleMcpToolCall(
 ): Promise<McpToolResult> {
   try {
     switch (toolName) {
-      case "blackthorn_analyze":
+      case "baret_analyze":
         return await handleAnalyze(args, deps);
-      case "blackthorn_health":
+      case "baret_health":
         return handleHealth(deps);
-      case "blackthorn_list_profiles":
+      case "baret_list_profiles":
         return handleListProfiles();
       default:
         return {

@@ -50,11 +50,11 @@ async function bootstrap(): Promise<void> {
 }
 
 browser.runtime.onInstalled.addListener(({ reason }) => {
-  console.info(`[BLACKTHORN] installed (${reason})`);
+  console.info(`[BARET] installed (${reason})`);
 });
 
 void bootstrap().catch((err) => {
-  console.error("[BLACKTHORN] bootstrap failed:", err);
+  console.error("[BARET] bootstrap failed:", err);
 });
 
 startRouter();

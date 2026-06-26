@@ -1,6 +1,6 @@
 import type { AnalysisResult, GuardDecision } from "@stellar-thorn/swig-guard";
 
-const KEY = "blackthorn.history.v1";
+const KEY = "baret.history.v1";
 const MAX_ENTRIES = 200;
 
 export interface HistoryEntry {

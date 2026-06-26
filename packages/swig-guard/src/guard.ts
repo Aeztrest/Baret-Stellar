@@ -32,7 +32,7 @@ export interface EvaluateRequest {
    * build it — Stellar smart-wallet wrappers (Passkey Kit, custom Soroban
    * sub-key contracts) vary too much across deployments, so wrapping is
    * the caller's responsibility. The guard's job is to send the prepared
-   * XDR through Blackthorn's analyzer and apply the user's policy.
+   * XDR through Baret's analyzer and apply the user's policy.
    */
   transactionXdr: string;
   /** User's `G…` ed25519 address (for token-account attribution). */
@@ -56,7 +56,7 @@ export class TransactionGuard {
   constructor(private readonly cfg: GuardConfig) {}
 
   /**
-   * Ship the prepared XDR to Blackthorn /v1/analyze, evaluate the response
+   * Ship the prepared XDR to Baret /v1/analyze, evaluate the response
    * against the supplied policy, and return a structured GuardEvaluation.
    * The wallet UI uses this to decide whether to ask the user to confirm
    * signing.

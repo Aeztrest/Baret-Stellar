@@ -52,7 +52,7 @@ import {
   enqueue as enqueueSign,
   newRequestId,
 } from "../wallet-standard/sign-queue";
-import { analyzeTransaction } from "../blackthorn/analyze-client";
+import { analyzeTransaction } from "../baret/analyze-client";
 import {
   listAllowances,
   setStatus as setAllowanceStatus,
@@ -74,7 +74,7 @@ import {
 } from "../db/sub-keys";
 import { buildRemoveSubKeyTransaction } from "../swig/sub-keys";
 
-const POLICY_STORAGE_KEY = "blackthorn.policy.v1";
+const POLICY_STORAGE_KEY = "baret.policy.v1";
 const FRIENDBOT_URL = "https://friendbot.stellar.org";
 const STROOPS_PER_XLM = 10_000_000n;
 
@@ -319,7 +319,7 @@ const transferXlmHandler: Handler<"wallet.transferXlm"> = async ({
         amount: amountXlm.toFixed(7),
       }),
     )
-    .addMemo(Memo.text("blackthorn:transferXlm"))
+    .addMemo(Memo.text("baret:transferXlm"))
     .setTimeout(60)
     .build();
   tx.sign(authority);
@@ -423,7 +423,7 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
         });
       },
       reject: (err) => {
-        console.warn("[BLACKTHORN] revoke aborted:", err.message);
+        console.warn("[BARET] revoke aborted:", err.message);
       },
     });
     dispatch({ type: "sign.start" });

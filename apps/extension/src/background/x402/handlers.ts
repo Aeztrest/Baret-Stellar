@@ -1,6 +1,6 @@
 /**
  * x402 review handler — runs when the inpage interceptor catches a 402
- * response and asks Blackthorn whether to pay.
+ * response and asks Baret whether to pay.
  *
  * Pipeline (Stellar build):
  *   1. Validate PaymentRequirements (network, asset C…, payTo, sponsor).
@@ -46,7 +46,7 @@ import {
 import { buildX402Payment, signX402Payment } from "./build";
 import { appendHistory } from "../db/history";
 
-const POLICY_STORAGE_KEY = "blackthorn.policy.v1";
+const POLICY_STORAGE_KEY = "baret.policy.v1";
 
 interface ReviewRequest {
   origin: string;

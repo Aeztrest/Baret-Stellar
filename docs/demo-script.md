@@ -1,6 +1,6 @@
 # Demo Video Script (~ 2 minutes)
 
-A tight, narration-led walkthrough of the BLACKTHORN extension catching a
+A tight, narration-led walkthrough of the BARET extension catching a
 malicious transaction at the wallet layer. Recorded on testnet against the
 local server + showcase.
 
@@ -26,7 +26,7 @@ Have ready in tabs:
 1. The wallet's options page (`chrome-extension://<id>/src/options/index.html`) showing onboarding done + Balanced policy applied
 2. `http://localhost:5174` — the showcase home
 
-Reset BLACKTHORN's history before recording so the Activity tab is clean
+Reset BARET's history before recording so the Activity tab is clean
 ("Reset wallet" then re-onboard, or just clear `chrome.storage.local`).
 
 ---
@@ -45,10 +45,10 @@ list). Voice-over over a quick fade-in.
 
 ### 0:15 — 0:30 · The wedge
 
-**Camera:** Cut to BLACKTHORN's options home — the smart wallet hero balance
+**Camera:** Cut to BARET's options home — the smart wallet hero balance
 + active policy summary + Authority key card.
 
-> "BLACKTHORN is a Stellar smart wallet with the open-source BLACKTHORN
+> "BARET is a Stellar smart wallet with the open-source BARET
 > guard, with three layers nothing else has: pre-flight simulation, a
 > stateful grants ledger, and a live monitor that watches what happens after
 > you sign. Testnet today, pubnet ready when you are."
@@ -56,9 +56,9 @@ list). Voice-over over a quick fade-in.
 ### 0:30 — 0:55 · The benign sign
 
 **Camera:** Showcase site. Click "StellarSwap." Click "Connect Wallet." Modal
-shows BLACKTHORN — Recommended. Click it.
+shows BARET — Recommended. Click it.
 
-> "Wallet Standard discovery — any dApp picks BLACKTHORN up the moment
+> "Wallet Standard discovery — any dApp picks BARET up the moment
 > you install."
 
 The extension popup connect flow runs silently. Site shows green dot +
@@ -84,7 +84,7 @@ Popup re-renders. This time the hero is **red**: Blocked by your policy.
 
 Pause on the findings list. Read one out loud:
 
-> "BLACKTHORN sees the transaction routes through an unverified contract
+> "BARET sees the transaction routes through an unverified contract
 > with a 92 % loss to a wallet I've never seen. The dApp's price preview
 > said 137 USDC. The actual transfer is a drain."
 
@@ -101,7 +101,7 @@ wallet."
 **Camera:** Cut to the wallet popup — Activity tab.
 
 > "Every signature, every block, every drift attempt is in here. Including
-> the ones I declined. Filterable, exportable, with the BLACKTHORN verdict
+> the ones I declined. Filterable, exportable, with the BARET verdict
 > attached."
 
 Switch to the Allowances tab.
@@ -121,7 +121,7 @@ realistic allowance row with rolling caps.)
 > is open source. The spec, the simulation engine, the policy DSL — all on
 > GitHub. Try it on testnet. Bring your dApp."
 
-End card: BLACKTHORN logo + GitHub URL.
+End card: BARET logo + GitHub URL.
 
 ---
 
@@ -132,8 +132,8 @@ Tap these as they appear in the narration:
 - *"Pre-flight sim · Stateful ledger · Live monitor"* (during 0:15)
 - *"Wallet Standard auto-discovery"* (0:30)
 - *"Same dApp. Same Connect button. Different outcome."* (0:55)
-- *"BLACKTHORN refused at the wallet — not the page."* (1:25)
-- *"Testnet · Open source · github.com/Aeztrest/BLACKTHORN"* (2:00)
+- *"BARET refused at the wallet — not the page."* (1:25)
+- *"Testnet · Open source · github.com/Aeztrest/BARET"* (2:00)
 
 ---
 

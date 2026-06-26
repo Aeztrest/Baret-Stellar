@@ -1,7 +1,7 @@
 /**
  * Showcase demo transaction builders (Stellar build).
  *
- * Each scenario produces a different Stellar tx shape so Blackthorn's policy
+ * Each scenario produces a different Stellar tx shape so Baret's policy
  * gate has something distinct to evaluate. Safe scenarios use plain XLM
  * payments or USDC Soroban transfers; danger scenarios reach for the
  * common Stellar attack primitives — unlimited trustlines, account merge to

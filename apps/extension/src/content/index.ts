@@ -42,7 +42,7 @@ function isPageReq(d: unknown): d is PageReq {
     script.onload = () => script.remove();
     (document.head || document.documentElement).appendChild(script);
   } catch (err) {
-    console.error("[BLACKTHORN] inpage injection failed:", err);
+    console.error("[BARET] inpage injection failed:", err);
   }
 })();
 
@@ -92,7 +92,7 @@ port.onMessage.addListener((raw: unknown) => {
 
 port.onDisconnect.addListener(() => {
   for (const pageId of pending.values()) {
-    postPageErr(pageId, "BLACKTHORN background disconnected");
+    postPageErr(pageId, "BARET background disconnected");
   }
   pending.clear();
 });

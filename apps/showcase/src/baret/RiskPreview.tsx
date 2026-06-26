@@ -29,13 +29,13 @@ interface Props {
   userWallet: string | null;
   scenarioLabel: string;
   onClose: () => void;
-  onProceedWithBlackthorn: () => void | Promise<void>;
+  onProceedWithBaret: () => void | Promise<void>;
   onProceedRaw: () => void | Promise<void>;
 }
 
 export function RiskPreview({
   open, transactionXdr, userWallet, scenarioLabel,
-  onClose, onProceedWithBlackthorn, onProceedRaw,
+  onClose, onProceedWithBaret, onProceedRaw,
 }: Props) {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +128,7 @@ export function RiskPreview({
                   <EyeOff size={11} /> Send without protection
                 </button>
                 <button
-                  onClick={() => { void onProceedWithBlackthorn(); }}
+                  onClick={() => { void onProceedWithBaret(); }}
                   disabled={loading}
                   className="flex-1 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                   style={{

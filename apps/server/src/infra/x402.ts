@@ -22,7 +22,7 @@ export type X402PaymentState = {
   declaredExtensions?: Record<string, unknown>;
 };
 
-export type BlackthornX402 = {
+export type BaretX402 = {
   httpResourceServer: x402HTTPResourceServer;
   checkFacilitator: () => Promise<void>;
   preHandlerAnalyze: (
@@ -45,7 +45,7 @@ export type BlackthornX402 = {
 
 const ANALYZE_ROUTE_PATTERN = "POST /v1/analyze";
 
-export function createDeltagX402(config: AppConfig): BlackthornX402 {
+export function createDeltagX402(config: AppConfig): BaretX402 {
   if (!config.x402.enabled) {
     throw new Error("createDeltagX402 called with x402 disabled");
   }

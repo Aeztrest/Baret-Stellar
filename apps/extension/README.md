@@ -1,6 +1,6 @@
 # @stellar-thorn/extension
 
-The BLACKTHORN browser extension — Chrome MV3 + Firefox.
+The BARET browser extension — Chrome MV3 + Firefox.
 
 **Spec:** `docs/extension-architecture.md` (single source of truth)
 **Wallet UX:** `docs/wallet-spec.md`

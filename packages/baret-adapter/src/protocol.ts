@@ -1,5 +1,5 @@
 /**
- * postMessage protocol between dApp and Blackthorn wallet popup (Stellar build).
+ * postMessage protocol between dApp and Baret wallet popup (Stellar build).
  * All messages tagged with `__bt: "1"` so we can distinguish ours from
  * unrelated traffic on the page.
  */
@@ -55,7 +55,7 @@ export interface SignRejectedMessage {
   type: "sign-rejected";
   requestId: RequestId;
   reason: string;
-  /** When Blackthorn policy blocked, this contains the analysis JSON. */
+  /** When Baret policy blocked, this contains the analysis JSON. */
   analysisJson?: string;
 }
 

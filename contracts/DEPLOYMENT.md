@@ -1,7 +1,7 @@
-# BLACKTHORN PaymentGuard — Soroban Deployment
+# BARET PaymentGuard — Soroban Deployment
 
 On-chain spending-limit vault for x402 / agentic micropayments — the on-chain
-counterpart of BLACKTHORN's off-chain x402 firewall (`packages/swig-guard`).
+counterpart of BARET's off-chain x402 firewall (`packages/swig-guard`).
 The owner deposits a token and grants each merchant a per-tx cap + rolling 24h
 cap; an agent calls `pay` to settle **without the owner signing each payment** —
 the caps are the firewall.

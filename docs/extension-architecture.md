@@ -1,4 +1,4 @@
-# BLACKTHORN — Extension Architecture
+# BARET — Extension Architecture
 
 > The technical contract for the browser extension. How the four surfaces talk
 > to each other, where the keys live, what runs in the page, what runs in the
@@ -26,7 +26,7 @@ requires a PR that updates it here first.
    │  │  · IndexedDB                 │       │
    │  │  · WebSocket monitor         │       │
    │  │  · Encrypted key custody     │       │
-   │  │  · BLACKTHORN analyzer client│       │
+   │  │  · BARET analyzer client│       │
    │  └─────────┬────────────────────┘       │
    │            │ chrome.runtime              │
    │            ▼                             │
@@ -57,8 +57,8 @@ message with origin checks.
 ```json
 {
   "manifest_version": 3,
-  "name": "BLACKTHORN — Smart Wallet",
-  "short_name": "BLACKTHORN",
+  "name": "BARET — Smart Wallet",
+  "short_name": "BARET",
   "version": "0.1.0",
   "description": "The Stellar wallet that watches what happens after you sign.",
   "icons": {
@@ -126,7 +126,7 @@ Firefox MV3 is mostly Chrome-compatible but has known divergences. We ship
 two manifests, generated from a single source:
 
 - `manifest.chrome.json` — as above.
-- `manifest.firefox.json` — adds `browser_specific_settings.gecko.id` (`"blackthorn@blackthorn.dev"`), uses `scripts` array (not `service_worker`) for the background page (Firefox falls back to event pages), and explicit `browser` namespace via `webextension-polyfill` at runtime.
+- `manifest.firefox.json` — adds `browser_specific_settings.gecko.id` (`"baret@baret.dev"`), uses `scripts` array (not `service_worker`) for the background page (Firefox falls back to event pages), and explicit `browser` namespace via `webextension-polyfill` at runtime.
 
 Build pipeline (`@crxjs/vite-plugin` for Chrome; `web-ext` + manual copy for Firefox)
 swaps the manifest at bundle time. Source code is one tree; only the manifest
@@ -308,10 +308,10 @@ Runs in the page's main world (loaded via `web_accessible_resources`).
 
 ```ts
 import { registerWallet, type Wallet } from "@wallet-standard/wallet";
-import { createBlackthornWallet } from "./blackthorn-wallet";
+import { createBaretWallet } from "./baret-wallet";
 
-const wallet: Wallet = createBlackthornWallet({
-  name: "BLACKTHORN",
+const wallet: Wallet = createBaretWallet({
+  name: "BARET",
   icon: BRAND_ICON_DATA_URL,
   chains: ["stellar:testnet", "stellar:pubnet"],
   features: {
@@ -328,7 +328,7 @@ registerWallet(wallet);
 ```
 
 Wallet Standard is the convention every modern Stellar dApp expects. dApps
-using the Stellar Wallet Standard will see "BLACKTHORN" in the picker the
+using the Stellar Wallet Standard will see "BARET" in the picker the
 moment our extension is installed — no integration on the dApp side.
 
 ### 6.2 Provider calls
@@ -353,7 +353,7 @@ Origin and `__bx` checked on every event.
 
 ```ts
 const origFetch = window.fetch;
-window.fetch = async function blackthornFetch(input, init) {
+window.fetch = async function baretFetch(input, init) {
   const res = await origFetch(input, init);
   if (res.status === 402) return await maybeHandle402(input, init, res);
   return res;
@@ -382,7 +382,7 @@ flow can be configured for one-tap repeats up to the cap.
 
 ## 7. IndexedDB schema
 
-Database name: `blackthorn`. Version: 1. Owned by the background script.
+Database name: `baret`. Version: 1. Owned by the background script.
 
 ```
 ObjectStores
@@ -562,4 +562,4 @@ support; we never fetch and run code at runtime from a remote URL.
 
 ---
 
-*Last updated: 2026-05-09 · This document is the authoritative architecture for the BLACKTHORN extension. Every PR that adds a new surface, message, or storage entity updates this file first.*
+*Last updated: 2026-05-09 · This document is the authoritative architecture for the BARET extension. Every PR that adds a new surface, message, or storage entity updates this file first.*

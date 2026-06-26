@@ -12,7 +12,7 @@ export const sections = [
 
 # Audit
 
-Every transaction analyzed by Blackthorn is automatically logged to the audit trail. Use the audit endpoints to review recent decisions, monitor trends, and investigate specific programs. {{ className: 'lead' }}
+Every transaction analyzed by Baret is automatically logged to the audit trail. Use the audit endpoints to review recent decisions, monitor trends, and investigate specific programs. {{ className: 'lead' }}
 
 ---
 
@@ -43,14 +43,14 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
     <CodeGroup tag="GET" label="/v1/audit/recent">
 
     ```bash {{ title: 'cURL' }}
-    curl https://api.blackthorn.io/v1/audit/recent?limit=10&safe=false \
+    curl https://api.baret.io/v1/audit/recent?limit=10&safe=false \
       -H "X-API-Key: {your-api-key}"
     ```
 
     ```js
     const records = await fetch(
-      'https://api.blackthorn.io/v1/audit/recent?limit=10&safe=false',
-      { headers: { 'X-API-Key': process.env.BLACKTHORN_API_KEY } }
+      'https://api.baret.io/v1/audit/recent?limit=10&safe=false',
+      { headers: { 'X-API-Key': process.env.BARET_API_KEY } }
     ).then(r => r.json())
     ```
 
@@ -93,7 +93,7 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
     <CodeGroup tag="GET" label="/v1/audit/aggregate">
 
     ```bash {{ title: 'cURL' }}
-    curl https://api.blackthorn.io/v1/audit/aggregate \
+    curl https://api.baret.io/v1/audit/aggregate \
       -H "X-API-Key: {your-api-key}"
     ```
 
@@ -144,7 +144,7 @@ Every transaction analyzed by Blackthorn is automatically logged to the audit tr
     <CodeGroup tag="GET" label="/v1/audit/program/:programId">
 
     ```bash {{ title: 'cURL' }}
-    curl https://api.blackthorn.io/v1/audit/program/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA \
+    curl https://api.baret.io/v1/audit/program/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA \
       -H "X-API-Key: {your-api-key}"
     ```
 

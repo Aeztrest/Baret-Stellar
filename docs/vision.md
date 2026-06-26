@@ -1,4 +1,4 @@
-# BLACKTHORN — Vision
+# BARET — Vision
 
 > The Stellar wallet that doesn't trust the dApp on your behalf.
 
@@ -8,7 +8,7 @@
 
 **Make every transaction on Stellar legible, accountable, and revocable — at the wallet, not the dApp.**
 
-Existing wallets ask "Sign or cancel?" with a wall of XDR nobody reads. BLACKTHORN simulates first, narrates plainly, and *enforces the user's policy* before the keypair is ever touched. Then — uniquely — it keeps watching after authorization, because that's where money actually leaves.
+Existing wallets ask "Sign or cancel?" with a wall of XDR nobody reads. BARET simulates first, narrates plainly, and *enforces the user's policy* before the keypair is ever touched. Then — uniquely — it keeps watching after authorization, because that's where money actually leaves.
 
 ---
 
@@ -57,11 +57,11 @@ Layer 2 + 3 make us *the only option* if you care about agent payments, recurrin
 
 ## The product
 
-A **browser extension** (Chrome MV3 + Firefox) — a Stellar smart wallet built on the open-source **BLACKTHORN guard** (swig-guard), with the BLACKTHORN engine baked in. It shows up in any dApp's wallet picker like Freighter does, but every signature is intercepted by our policy gate. Same shape users already know; vastly more honest behavior.
+A **browser extension** (Chrome MV3 + Firefox) — a Stellar smart wallet built on the open-source **BARET guard** (swig-guard), with the BARET engine baked in. It shows up in any dApp's wallet picker like Freighter does, but every signature is intercepted by our policy gate. Same shape users already know; vastly more honest behavior.
 
 A **web fallback** (`localhost:5180`) for users who can't install extensions or want to test in CI.
 
-A **showcase** of six dApps — five real-product clones (DEX, NFT mint, liquid staking, airdrop check, token launchpad) and one new x402-paywalled "Agent Console" — each demonstrating a distinct attack scenario blocked by BLACKTHORN.
+A **showcase** of six dApps — five real-product clones (DEX, NFT mint, liquid staking, airdrop check, token launchpad) and one new x402-paywalled "Agent Console" — each demonstrating a distinct attack scenario blocked by BARET.
 
 A **public analyze server** (`apps/server`) that exposes the simulation engine over HTTP, x402-paywalled, so other wallets and agents can integrate the engine without running their own.
 
@@ -82,7 +82,7 @@ Wants the analyze API in their own product. We expose `/v1/analyze` (and `/v1/x4
 
 ## Competitive positioning
 
-| | Freighter / Stellar wallets | Blockaid / Blowfish (API for wallets) | Revoke.cash | **BLACKTHORN** |
+| | Freighter / Stellar wallets | Blockaid / Blowfish (API for wallets) | Revoke.cash | **BARET** |
 |---|---|---|---|---|
 | **Pre-sign simulation** | Some (via Blockaid integration) | Yes — this is their product | No | **Yes — first-party** |
 | **Plain-language narration** | Limited | Limited | No | **Customer-grade** |
@@ -122,7 +122,7 @@ We do **not**:
 ## What "done" means for v1
 
 - Chrome + Firefox extension installable from store-equivalent build artifacts
-- Web fallback at `wallet.blackthorn.dev` (or local equivalent for hackathon)
+- Web fallback at `wallet.baret.dev` (or local equivalent for hackathon)
 - 6 showcase sites, each presenting as a real product, each with one attack scenario the wallet blocks
 - Pre-sign + ledger + post-sign all functional on testnet
 - README that reads like a product page, not a technical journal
@@ -134,9 +134,9 @@ Everything else — Ledger support, pubnet, mobile, DAO governance — is post-v
 
 ## Voice & character
 
-BLACKTHORN is **calm, technical, candid**. We don't shout "100x SAFE!" — we explain what we saw and what we did. We don't fearmonger; we narrate. The wallet is a knowledgeable friend who has read the contract before you signed it, not a billboard. UI copy never mentions "demo," "test," or "we are an AI"; every screen reads like a shipped product because it *is* one.
+BARET is **calm, technical, candid**. We don't shout "100x SAFE!" — we explain what we saw and what we did. We don't fearmonger; we narrate. The wallet is a knowledgeable friend who has read the contract before you signed it, not a billboard. UI copy never mentions "demo," "test," or "we are an AI"; every screen reads like a shipped product because it *is* one.
 
-When BLACKTHORN blocks a transaction, the message is never "ERROR" — it's *"This transfer would empty your USDC reserve below your safety floor. Sign anyway?"* with both buttons available, the safer one styled primary.
+When BARET blocks a transaction, the message is never "ERROR" — it's *"This transfer would empty your USDC reserve below your safety floor. Sign anyway?"* with both buttons available, the safer one styled primary.
 
 ---
 

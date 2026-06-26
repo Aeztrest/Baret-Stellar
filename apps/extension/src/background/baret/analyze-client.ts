@@ -1,5 +1,5 @@
 /**
- * Blackthorn analyze HTTP client (background-side, Stellar build).
+ * Baret analyze HTTP client (background-side, Stellar build).
  *
  * Talks to the apps/server `/v1/analyze` endpoint to get a structured
  * verdict on a candidate transaction. Decides everything client-side after —
@@ -132,14 +132,14 @@ function offlineResponse(message: string): AnalyzeResponse {
     decision: "advisory",
     safe: false,
     blockingReasons: [],
-    advisoryReasons: [`Could not reach Blackthorn: ${message}`],
-    reasons: [`Could not reach Blackthorn: ${message}`],
+    advisoryReasons: [`Could not reach Baret: ${message}`],
+    reasons: [`Could not reach Baret: ${message}`],
     riskFindings: [
       {
         code: "ANALYZE_UNREACHABLE",
         severity: "medium",
         message:
-          "Blackthorn's analyze server didn't respond. Sign only if you trust this dApp.",
+          "Baret's analyze server didn't respond. Sign only if you trust this dApp.",
       },
     ],
     estimatedChanges: EMPTY_CHANGES,

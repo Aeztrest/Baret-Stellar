@@ -1,6 +1,6 @@
-# BLACKTHORN — Sistem Mimarisi
+# BARET — Sistem Mimarisi
 
-Bu doküman BLACKTHORN'un mevcut **Stellar** implementasyonunu modül modül açıklar: veri akışı, simülasyon, risk tespiti, policy motoru ve istemci tarafı (SDK, eklenti, cüzdan). Kaynak doğrulu: `apps/server/src`, `packages/*/src`, `apps/{extension,wallet,showcase}/src`.
+Bu doküman BARET'un mevcut **Stellar** implementasyonunu modül modül açıklar: veri akışı, simülasyon, risk tespiti, policy motoru ve istemci tarafı (SDK, eklenti, cüzdan). Kaynak doğrulu: `apps/server/src`, `packages/*/src`, `apps/{extension,wallet,showcase}/src`.
 
 ---
 
@@ -33,7 +33,7 @@ Bu doküman BLACKTHORN'un mevcut **Stellar** implementasyonunu modül modül aç
 
 ## 1. Proje Nedir?
 
-BLACKTHORN, Stellar transaction'larını **imzalanmadan önce** analiz eden bir güvenlik protokolüdür.
+BARET, Stellar transaction'larını **imzalanmadan önce** analiz eden bir güvenlik protokolüdür.
 
 **3 cümlede:**
 1. Bir Stellar işlemini (base64 XDR) alır, Horizon'dan hesap durumlarını çeker ve Soroban op'ları için preflight (simülasyon) çalıştırır — gerçekten göndermeden.
@@ -56,7 +56,7 @@ apps/
   wallet/      Bağımsız React Stellar akıllı cüzdanı
 packages/
   swig-guard/         pre-sign guard SDK'sı (@stellar-thorn/swig-guard)
-  blackthorn-adapter/ dApp ↔ cüzdan postMessage köprüsü (@stellar-thorn/wallet-adapter)
+  baret-adapter/ dApp ↔ cüzdan postMessage köprüsü (@stellar-thorn/wallet-adapter)
   ext-protocol/       eklenti mesaj-yolu tipleri (@stellar-thorn/ext-protocol)
   showcase-ui/        showcase ortak UI iskeleti
   ui/                 tasarım token'ları + paylaşılan bileşenler
@@ -275,7 +275,7 @@ Motor ek policy bulguları üretebilir: `ESTIMATED_LOSS_EXCEEDS_MAX`, `POST_BALA
 - `GET /mcp/tools` — araç tanımlarını listeler
 - `POST /mcp/call` — araç çağırır
 
-Araçlar: `blackthorn_analyze` (işlem analiz), `blackthorn_health` (servis durumu), `blackthorn_list_profiles` (policy DSL profilleri).
+Araçlar: `baret_analyze` (işlem analiz), `baret_health` (servis durumu), `baret_list_profiles` (policy DSL profilleri).
 
 ---
 
@@ -310,7 +310,7 @@ Ağ kimliği `stellar:testnet` / `stellar:pubnet`. Alıcı `X402_PAY_TO` (Stella
 
 ## 18. Wallet Adapter & Browser Extension
 
-**`packages/blackthorn-adapter` (@stellar-thorn/wallet-adapter):** dApp ↔ BLACKTHORN cüzdanı arası `postMessage` köprüsü. Protokol mesajları (`src/protocol.ts`) `__bt: "1"` ile etiketlenir: `connect-request/approved/rejected`, `sign-request` (`transactionXdr`, mode: `sign | signAndSend`), `sign-approved` (`signedTransactionXdr`, opsiyonel `signature`), `sign-rejected`. dApp'in imzalattığı her işlem cüzdanın policy gate'inden geçer.
+**`packages/baret-adapter` (@stellar-thorn/wallet-adapter):** dApp ↔ BARET cüzdanı arası `postMessage` köprüsü. Protokol mesajları (`src/protocol.ts`) `__bt: "1"` ile etiketlenir: `connect-request/approved/rejected`, `sign-request` (`transactionXdr`, mode: `sign | signAndSend`), `sign-approved` (`signedTransactionXdr`, opsiyonel `signature`), `sign-rejected`. dApp'in imzalattığı her işlem cüzdanın policy gate'inden geçer.
 
 **`apps/extension`:** Chrome MV3 + Firefox. Stellar **Wallet Standard** sağlayıcısı + **x402 interceptor**.
 - **background:** hesap durum makinesi, IndexedDB (keystore, history, allowances, site izinleri), zincir monitörü, kripto oturumu (PBKDF2 + AES-GCM), Soroban sub-key imzalama.
@@ -407,7 +407,7 @@ apps/server/src/
 
 packages/
 ├── swig-guard/      guard SDK (TransactionGuard, analyzeTransaction, policy)
-├── blackthorn-adapter/  dApp ↔ cüzdan postMessage protokolü
+├── baret-adapter/  dApp ↔ cüzdan postMessage protokolü
 ├── ext-protocol/    eklenti mesaj tipleri
 ├── showcase-ui/     showcase UI iskeleti
 └── ui/              tasarım token'ları + bileşenler

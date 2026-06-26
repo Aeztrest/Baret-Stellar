@@ -2,7 +2,7 @@ import { HardHat } from "lucide-react";
 import { motion } from "framer-motion";
 
 /** "Protected by Baret" badge — fixed bottom-right on every demo site. */
-export function BlackthornBadge() {
+export function BaretBadge() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}

@@ -6,7 +6,7 @@ import type { GuardEvaluation } from "@stellar-thorn/swig-guard";
 import { useWallet } from "../wallet/state";
 import { explorerUrl } from "../wallet/connection";
 import { buildPaymentXdr, signAndMaybeSubmit } from "../wallet/stellar-tx";
-import { getGuard } from "../blackthorn/guard";
+import { getGuard } from "../baret/guard";
 import { readPolicy } from "../storage/policy-store";
 import { appendHistory, makeEntryId } from "../storage/history-store";
 import { AnalysisReport } from "../components/AnalysisReport";
@@ -44,7 +44,7 @@ export function Send() {
         source: identity.address,
         destination: recipient,
         amountXlm: amount,
-        memo: "blackthorn:send",
+        memo: "baret:send",
       });
       const guard = getGuard();
       const result = await guard.evaluate({

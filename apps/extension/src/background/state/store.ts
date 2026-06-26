@@ -29,7 +29,7 @@ export function dispatch(action: Action): WalletState {
   if (!shallowEqual(prev, next)) {
     for (const l of listeners) {
       try { l(next, prev); }
-      catch (err) { console.error("[BLACKTHORN] state listener threw:", err); }
+      catch (err) { console.error("[BARET] state listener threw:", err); }
     }
   }
   return current;

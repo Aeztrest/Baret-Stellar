@@ -11,7 +11,7 @@ export const sections = [
 
 # Analyze Transaction
 
-The core of Blackthorn. Submit a base64-encoded Stellar transaction and receive a comprehensive security analysis before it's signed or broadcast. {{ className: 'lead' }}
+The core of Baret. Submit a base64-encoded Stellar transaction and receive a comprehensive security analysis before it's signed or broadcast. {{ className: 'lead' }}
 
 ---
 
@@ -100,7 +100,7 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
     <CodeGroup tag="POST" label="/v1/analyze">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://api.blackthorn.io/v1/analyze \
+    curl -X POST https://api.baret.io/v1/analyze \
       -H "X-API-Key: {your-api-key}" \
       -H "Content-Type: application/json" \
       -d '{
@@ -111,10 +111,10 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
     ```
 
     ```js
-    const result = await fetch('https://api.blackthorn.io/v1/analyze', {
+    const result = await fetch('https://api.baret.io/v1/analyze', {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.BLACKTHORN_API_KEY,
+        'X-API-Key': process.env.BARET_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -133,7 +133,7 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
     import httpx
 
     result = httpx.post(
-        'https://api.blackthorn.io/v1/analyze',
+        'https://api.baret.io/v1/analyze',
         headers={'X-API-Key': API_KEY},
         json={
             'transaction': serialized_tx_base64,

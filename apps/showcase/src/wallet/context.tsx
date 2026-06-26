@@ -1,15 +1,15 @@
 /**
  * Showcase wallet context (Stellar build).
  *
- * Discovers Stellar wallet providers registered on the page (Blackthorn
- * extension installs as `window.blackthornStellar`) and exposes the adapter
+ * Discovers Stellar wallet providers registered on the page (Baret
+ * extension installs as `window.baretStellar`) and exposes the adapter
  * shape the existing sites consume.
  *
  * Design rules:
  *  - `connect(provider)` ALWAYS requires an explicit provider. We never auto-
  *    pick from the list — that's how malicious wallets hijack the flow.
  *  - When a site action ("Swap", "Mint", etc.) needs a wallet, the site
- *    calls `openWalletModal()` — the user explicitly picks Blackthorn from
+ *    calls `openWalletModal()` — the user explicitly picks Baret from
  *    the picker.
  *  - The wallet modal renders ONCE inside the provider so every route
  *    shares the same picker state.
@@ -81,13 +81,13 @@ export function WalletProvider({
   const [modalOpen, setModalOpen] = useState(false);
 
   // Discover providers via the page globals. Re-poll on a custom event the
-  // Blackthorn inpage script dispatches so installation hot-reloads land
+  // Baret inpage script dispatches so installation hot-reloads land
   // without requiring a page refresh.
   useEffect(() => {
     const rescan = () => setAvailable(discoverStellarProviders());
     rescan();
-    window.addEventListener("blackthorn:walletReady", rescan);
-    return () => window.removeEventListener("blackthorn:walletReady", rescan);
+    window.addEventListener("baret:walletReady", rescan);
+    return () => window.removeEventListener("baret:walletReady", rescan);
   }, []);
 
   const connect = useCallback(

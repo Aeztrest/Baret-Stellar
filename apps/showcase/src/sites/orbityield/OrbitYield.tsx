@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import { TrendingUp, Lock, Zap, Info } from "lucide-react";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../blackthorn/ResultOverlay";
-import { RiskPreview } from "../../blackthorn/RiskPreview";
-import { buildScenario } from "../../blackthorn/transactions";
+import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { RiskPreview } from "../../baret/RiskPreview";
+import { buildScenario } from "../../baret/transactions";
 
 const THEME = {
   primary: "#D97706",
@@ -51,7 +51,7 @@ export default function OrbitYield() {
     }
   }
 
-  async function sendViaBlackthorn() {
+  async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
@@ -66,7 +66,7 @@ export default function OrbitYield() {
       }
     }
   }
-  const sendRaw = sendViaBlackthorn;
+  const sendRaw = sendViaBaret;
   const estimatedYearly = parseFloat(amount || "0") * (parseFloat(pool.apy) / 100);
 
   return (
@@ -217,7 +217,7 @@ export default function OrbitYield() {
         userWallet={walletAddress ?? null}
         scenarioLabel={scenarioLabel}
         onClose={() => setPreviewTx(null)}
-        onProceedWithBlackthorn={sendViaBlackthorn}
+        onProceedWithBaret={sendViaBaret}
         onProceedRaw={sendRaw}
       />
     </SiteShell>

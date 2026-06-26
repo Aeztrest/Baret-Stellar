@@ -65,7 +65,7 @@ export default defineManifest(({ mode }) => {
     ],
 
     // `windows` is required for `browser.windows.create()` — opening the
-    // BLACKTHORN popup as a focused window when a dApp queues a sign or
+    // BARET popup as a focused window when a dApp queues a sign or
     // connect request, so the user doesn't have to manually click the
     // extension icon. MV3 disallows programmatic `chrome.action.openPopup()`,
     // so we render the popup HTML inside a small popup-style window instead.
@@ -82,7 +82,7 @@ export default defineManifest(({ mode }) => {
       // x402 facilitator (Built-on-Stellar / Coinbase CDP).
       "https://www.x402.org/*",
       "https://x402.org/*",
-      // Blackthorn analyze server (dev + production placeholder).
+      // Baret analyze server (dev + production placeholder).
       "http://localhost:8080/*",
     ],
 
@@ -94,7 +94,7 @@ export default defineManifest(({ mode }) => {
       ? {
           browser_specific_settings: {
             gecko: {
-              id: "blackthorn@blackthorn.dev",
+              id: "baret@baret.dev",
               // 128.0 is the first release where MV3 background.scripts
               // supports `type: "module"`, which we require for the ES-module
               // background bundle.

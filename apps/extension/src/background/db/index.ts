@@ -1,5 +1,5 @@
 /**
- * IndexedDB schema + open helper for the BLACKTHORN extension.
+ * IndexedDB schema + open helper for the BARET extension.
  * Spec: docs/extension-architecture.md §7.
  *
  * Object stores: keystore, allowances, history, alerts, monitor, prefs.
@@ -7,7 +7,7 @@
  * and uses the shared `withDb()` helper here.
  */
 
-const DB_NAME = "blackthorn";
+const DB_NAME = "baret";
 // v2 adds the `sub_keys` object store (T28 merchant Swig sub-keys).
 // v3 adds the `site_permissions` object store (per-origin connect trust grants).
 // All upgrades MUST live in `runMigrations` below — no other module may call

@@ -1,9 +1,9 @@
-# BLACKTHORN — Showcase Product Briefs
+# BARET — Showcase Product Briefs
 
 > Six Stellar products. None of them call themselves a demo. Each one is the
 > kind of product a real user would land on, ship a transaction on, and form
 > an opinion about — with one detail that makes them perfect for showing what
-> BLACKTHORN catches that nothing else does.
+> BARET catches that nothing else does.
 
 This document is binding for the showcase apps under `apps/showcase-*`. Each
 site below is rendered as if it were a separate company shipping a real
@@ -21,22 +21,22 @@ Every showcase site has:
 - **A real product brand** with its own logomark, accent color, and voice.
 - **One core action** the user can complete on testnet (real signed tx, real on-chain confirmation).
 - **A scenario toggle** — usually framed as a discrete UI element, never a developer "danger button" — that swaps the inputs to the same action so the *transaction shape* changes from safe to malicious.
-- **Zero in-page BLACKTHORN UI**. The wallet's popup carries the entire BLACKTHORN moment. The site looks identical whether you have BLACKTHORN installed or not — that's the point. The protection lives in your wallet, not on the page.
-- **No "test" / "demo" / "experiment" / "BLACKTHORN" language in copy** unless the BLACKTHORN brand is itself the product (true for the showcase landing portal only).
+- **Zero in-page BARET UI**. The wallet's popup carries the entire BARET moment. The site looks identical whether you have BARET installed or not — that's the point. The protection lives in your wallet, not on the page.
+- **No "test" / "demo" / "experiment" / "BARET" language in copy** unless the BARET brand is itself the product (true for the showcase landing portal only).
 
 ### 0.2 Why this matters
 
-A showcase site that prints "BLACKTHORN protected this!" in green isn't a
+A showcase site that prints "BARET protected this!" in green isn't a
 showcase — it's an advertorial. Real-world users land on real-world dApps
 that have *no incentive* to advertise the protection. We have to demonstrate
-that BLACKTHORN works *despite* the dApp, not *with* it. That's the entire
+that BARET works *despite* the dApp, not *with* it. That's the entire
 product thesis, rendered as evidence.
 
 ### 0.3 Shared building blocks
 
 A small `packages/showcase-ui` library carries the parts every site reuses
 (the `<NavBar>` shell, the `<Footer>`, the wallet-connect modal — which is
-*not* BLACKTHORN-branded; it's a standard Stellar wallet picker). Visual
+*not* BARET-branded; it's a standard Stellar wallet picker). Visual
 identity is per-site; structural plumbing is shared.
 
 ### 0.4 Naming
@@ -49,7 +49,7 @@ identity is per-site; structural plumbing is shared.
 | `apps/showcase-aurora` | **Aurora** | Airdrop / rewards |
 | `apps/showcase-apogee` | **Apogee** | Token launchpad |
 | `apps/showcase-cortex` | **Cortex** | x402 AI agent console |
-| `apps/showcase-portal` | **BLACKTHORN Showcase** | Landing portal that links to all six |
+| `apps/showcase-portal` | **BARET Showcase** | Landing portal that links to all six |
 
 All six sites run on different ports during dev (5174-5179) and as different
 subdomain bundles in production builds.
@@ -102,9 +102,9 @@ Settings popover (gear icon) for slippage tolerance and minimum-received.
 
 ### 1.5 Primary action
 
-User picks `from`/`to` token + amount, hits **Swap**, signs in BLACKTHORN.
+User picks `from`/`to` token + amount, hits **Swap**, signs in BARET.
 
-### 1.6 BLACKTHORN moment
+### 1.6 BARET moment
 
 The "scenario toggle" is the **route choice**: a hidden third option in the
 settings popover labeled *"Try aggressive routing (lowest published price)"*.
@@ -112,14 +112,14 @@ Toggle it on; the same swap now routes through a fictional aggregator contract
 that's **not in the known-safe list** and that, on simulation, drains 92% of
 the user's XLM into an attacker-controlled account.
 
-When the user clicks **Swap** with this toggle on, the BLACKTHORN popup
+When the user clicks **Swap** with this toggle on, the BARET popup
 opens with `BLOCKED · loss.exceeds_max` + `contract.unknown` and a plain-language
 hero: *"This swap would lose 92% of your XLM. Vela's preview said you'd
 receive 137 USDC; the actual transaction sends almost everything to an
 unknown contract."*
 
 This is the **price-display vs reality** attack — visible only because
-BLACKTHORN simulates rather than trusts.
+BARET simulates rather than trusts.
 
 ### 1.7 Real on-chain
 
@@ -172,7 +172,7 @@ minted pieces (live feed from testnet).
 
 User picks quantity, clicks **Mint**, signs.
 
-### 2.6 BLACKTHORN moment
+### 2.6 BARET moment
 
 The scenario toggle is rendered as a **second mint phase pill** that the user
 can choose: *"Allowlist override mint — special access"*. Picking it changes
@@ -181,7 +181,7 @@ the underlying operation to a fictional "drainer mint" contract that:
 1. Asks for a Soroban allowance of *unlimited* USDC (a common drainer pattern).
 2. Sets the user's wallet as the source of an unrelated XLM transfer to an attacker.
 
-BLACKTHORN flags `approval.new` (severity high) + `loss.exceeds_max` and
+BARET flags `approval.new` (severity high) + `loss.exceeds_max` and
 shows: *"This mint asks for an unlimited token approval to a wallet you've
 never seen. Real Riven mints don't request approvals."*
 
@@ -201,7 +201,7 @@ were on a different mint flow, but the on-chain effect is a drainer.
 
 ### 3.1 Visual identity
 
-- **Accent:** muted emerald `#34A977` (calmer than the BLACKTHORN `--ok` to differentiate brand from state)
+- **Accent:** muted emerald `#34A977` (calmer than the BARET `--ok` to differentiate brand from state)
 - **Mood:** institutional-grade trust signal — wide cards (~560 px), generous whitespace, one giant APY number.
 - **Logo:** geometric three-line lattice glyph + lowercase `lattice` wordmark.
 - **Voice:** professional and patient. "Your XLM keeps working while you keep custody."
@@ -250,14 +250,14 @@ beneath the tabs.
 
 User picks amount + speed, clicks **Stake**, signs.
 
-### 3.6 BLACKTHORN moment
+### 3.6 BARET moment
 
 The scenario toggle is presented as a **competing pool advertisement** below
 the main card: *"New: Saturn Pool — 41% APY. Limited capacity."* (designed to
 look like a legitimate ad placement). Tapping it switches the staking destination
 to a fictional pool program.
 
-When the user stakes through Saturn Pool, BLACKTHORN sees:
+When the user stakes through Saturn Pool, BARET sees:
 
 1. The destination contract is unknown (`contract.unknown`).
 2. Simulation reveals the "stake" operation *transfers XLM out* with no
@@ -336,9 +336,9 @@ Eligibility expires in 14 days
 User pastes address (no signature), sees allocation, optionally connects
 wallet to claim.
 
-### 4.6 BLACKTHORN moment
+### 4.6 BARET moment
 
-The eligibility-check page is genuinely read-only — no BLACKTHORN moment
+The eligibility-check page is genuinely read-only — no BARET moment
 there. The moment is in the **claim flow**.
 
 When the user clicks **Claim**, the underlying transaction asks for a Soroban
@@ -347,7 +347,7 @@ addition to the actual claim operation. This is the canonical airdrop
 phishing attack: the claim works, but the user has also signed an unlimited
 approval that can be drained later.
 
-BLACKTHORN catches `approval.new` (severity high) and surfaces it as: *"This
+BARET catches `approval.new` (severity high) and surfaces it as: *"This
 claim also gives the distributor permanent permission to spend your USDC.
 Real airdrops never need this. Decline this approval and the claim still
 works."*
@@ -408,7 +408,7 @@ Below: 5-up grid of "Other launches" + a real-time activity ticker.
 
 User contributes, signs, gets vested tokens.
 
-### 5.6 BLACKTHORN moment
+### 5.6 BARET moment
 
 Scenario toggle: a second launch listed in the grid with high APY-equivalent
 ("**ScamCoin (SCAM)** — 1000x potential · 22 minutes left"). Clicking it
@@ -421,7 +421,7 @@ The contribution tx — when simulated — reveals:
 2. The token being received is fictional with a non-revoked mint authority.
 3. There's no LP lock; the LP receipt token is held by the team's wallet, freely transferable.
 
-BLACKTHORN surfaces a multi-finding result: *"This launch can be rugged. The
+BARET surfaces a multi-finding result: *"This launch can be rugged. The
 team can mint unlimited supply, and the liquidity isn't locked."* The hero
 is amber-warning rather than red-block when on Balanced policy (the user
 *can* proceed if they want); on Strict policy it's a hard block.
@@ -442,7 +442,7 @@ about safety; only on-chain inspection reveals the truth.
 
 ### 6.1 Visual identity
 
-- **Accent:** ion blue `#3D6DFF` (BLACKTHORN's own accent — Cortex is the only showcase site we'll consider co-branding eventually)
+- **Accent:** ion blue `#3D6DFF` (BARET's own accent — Cortex is the only showcase site we'll consider co-branding eventually)
 - **Mood:** console-meets-marketplace — terminal-style live output panels, ticker-style price chips, agent cards on a grid.
 - **Logo:** angular `[ cortex ]` in mono.
 - **Voice:** technical + casually direct. "Type. It answers. You're charged $0.0003."
@@ -520,9 +520,9 @@ User picks an agent, types a query, watches the answer stream while a
 running x402 charge ticks up in the sidebar. **The charge is the entire
 demo** — visible, real, and sub-cent.
 
-### 6.6 BLACKTHORN moment
+### 6.6 BARET moment
 
-This site is where BLACKTHORN shines hardest. **Three discrete attacks**
+This site is where BARET shines hardest. **Three discrete attacks**
 demonstrable from the same surface:
 
 **Attack 1 — Silent agent drift (default scenario)**
@@ -532,7 +532,7 @@ normally. After 30 calls, a "promoted query" injects a chained call to a
 different endpoint: *"As a follow-up, the agent purchased web access from
 SearchEngine for $0.05."* (much higher than the per-call cap).
 
-BLACKTHORN catches it on the very first cap-exceeding payment:
+BARET catches it on the very first cap-exceeding payment:
 `x402.amount_exceeds_per_tx` + a new `x402.merchant_not_allowed` for the
 chained domain. Payment refused. Cortex's UI shows "Charge declined by your
 wallet — set a higher cap or unblock SearchEngine".
@@ -543,7 +543,7 @@ Toggle in the agent panel: *"Pay in CTX token for 50% off."* Selecting it
 changes the `asset` in the next 402 to a fictional CTX asset that has the
 same code "CTX" as a real meme coin but a different issuer.
 
-BLACKTHORN refuses: `x402.asset_not_allowed`. The plain-language hero:
+BARET refuses: `x402.asset_not_allowed`. The plain-language hero:
 *"This payment is in a token labeled CTX, but the issuer doesn't match
 your trusted asset list. It might be a look-alike."*
 
@@ -553,7 +553,7 @@ Toggle: a "Try our new facilitator (saves 0.1¢)" radio in advanced settings.
 Selecting it routes payments through a fake facilitator that returns
 `isValid: true` on `/verify` but never broadcasts the settle.
 
-BLACKTHORN's monitor catches the verify-with-no-settle within
+BARET's monitor catches the verify-with-no-settle within
 `maxTimeoutSeconds × 2`, raises a `verify_orphan` alert, and prompts: *"Cortex
 charged you, but the payment was never confirmed on-chain. The agent might
 have served you for free — or they might owe you a refund."*
@@ -563,7 +563,7 @@ language — the differences live entirely on-chain.
 
 ### 6.7 Real on-chain
 
-- Safe scenario: real x402-paywalled mock backend (running in `apps/showcase-cortex/server/`) issues 402 with valid `PaymentRequirements`; BLACKTHORN intercepts, signs, settles via a real x402 testnet facilitator over Stellar.
+- Safe scenario: real x402-paywalled mock backend (running in `apps/showcase-cortex/server/`) issues 402 with valid `PaymentRequirements`; BARET intercepts, signs, settles via a real x402 testnet facilitator over Stellar.
 - Attack 1: same flow but one query triggers an out-of-cap payment.
 - Attack 2: `PaymentRequirements.asset` swapped to a fictional asset of our own creation.
 - Attack 3: a fake facilitator endpoint that returns `verify=ok` but `settle` 500s — running inside our same backend for full control.
@@ -571,7 +571,7 @@ language — the differences live entirely on-chain.
 This is the only showcase site that actually exercises the x402 protocol
 end-to-end. The other five demonstrate pre-sign and approval-layer attacks;
 Cortex demonstrates the post-authorization layer where x402 is uniquely
-blind and BLACKTHORN is uniquely watchful.
+blind and BARET is uniquely watchful.
 
 ---
 
@@ -583,30 +583,30 @@ blind and BLACKTHORN is uniquely watchful.
 
 A single landing page (`apps/showcase-portal`) that lists the six sites with
 honest framing: this is a guided tour, you'll experience six real-feeling
-products, and BLACKTHORN will catch a different attack on each.
+products, and BARET will catch a different attack on each.
 
 ### 7.2 Layout
 
-- Hero: BLACKTHORN lockup + tagline + "Install the wallet" CTA + "Tour the
+- Hero: BARET lockup + tagline + "Install the wallet" CTA + "Tour the
   showcase" secondary CTA.
 - Six site cards in a 3×2 grid, each: brand wordmark + category chip + the
-  one-line attack scenario shown in the user's own voice ("Watch BLACKTHORN
+  one-line attack scenario shown in the user's own voice ("Watch BARET
   catch a fake yield trap on Lattice").
-- Below: a "How it works" 3-step sequence (Install BLACKTHORN → Visit a site
-  → BLACKTHORN's popup intervenes).
+- Below: a "How it works" 3-step sequence (Install BARET → Visit a site
+  → BARET's popup intervenes).
 
 ### 7.3 Voice
 
 The portal is the *only* place we name our own product as the protector.
 Every other site stays brand-pure. The portal owes the user the meta-frame
-because they need to know to install BLACKTHORN before the tour means
+because they need to know to install BARET before the tour means
 anything.
 
 ---
 
 ## 8. Cross-cutting attack scenario index
 
-| Attack | Site | Layer caught at | BLACKTHORN rule that fires |
+| Attack | Site | Layer caught at | BARET rule that fires |
 |---|---|---|---|
 | Price-display vs reality | Vela | Pre-sign sim | `loss.exceeds_max` + `contract.unknown` |
 | Fake mint phase / unlimited approve | Riven | Pre-sign sim | `approval.new` + `loss.exceeds_max` |

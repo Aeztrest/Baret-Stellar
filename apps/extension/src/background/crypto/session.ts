@@ -59,7 +59,7 @@ function resetIdle(): void {
   if (idleTimer) clearTimeout(idleTimer);
   const ms = getState().idleTimeoutMs;
   idleTimer = setTimeout(() => {
-    console.info("[BLACKTHORN] idle timeout — locking wallet");
+    console.info("[BARET] idle timeout — locking wallet");
     lock();
   }, ms);
 }

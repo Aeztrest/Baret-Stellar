@@ -4,7 +4,7 @@
  * Real x402 endpoint backed by a Built-on-Stellar facilitator (OpenZeppelin
  * Relayer or Coinbase CDP). Unauthenticated requests get HTTP 402 +
  * PaymentRequirements. Authenticated requests (PAYMENT-SIGNATURE header
- * populated by the Blackthorn extension) get the resource after on-chain
+ * populated by the Baret extension) get the resource after on-chain
  * settlement.
  *
  * No mocking — settlement is a real Stellar testnet/pubnet transaction.

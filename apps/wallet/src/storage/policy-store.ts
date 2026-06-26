@@ -1,7 +1,7 @@
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
 import { BALANCED_POLICY } from "@stellar-thorn/swig-guard";
 
-const KEY = "blackthorn.policy.v1";
+const KEY = "baret.policy.v1";
 
 export function readPolicy(): GuardPolicy {
   try {

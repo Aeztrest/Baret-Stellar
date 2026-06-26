@@ -18,12 +18,12 @@ Akış: tarayıcı `showcase` sitesini açar → `/api/v1/analyze` çağrısı *
 Repoyu bir GitHub reposuna push'la (Render Git ister).
 
 1. https://render.com → ücretsiz hesap (kredi kartı gerekmez).
-2. **New → Blueprint** → bu repoyu seç. Render kökteki `render.yaml`'ı okur ve `blackthorn-api` servisini kurar.
+2. **New → Blueprint** → bu repoyu seç. Render kökteki `render.yaml`'ı okur ve `baret-api` servisini kurar.
    - Build: `pnpm install && pnpm --filter @stellar-thorn/server build`
    - Start: `node apps/server/dist/index.js`
    - Health check: `/health`
    - Env'ler `render.yaml` içinde hazır (Stellar testnet RPC'leri dahil).
-3. Deploy bitince sana bir URL verir: `https://blackthorn-api.onrender.com` (isim farklı olabilir).
+3. Deploy bitince sana bir URL verir: `https://baret-api.onrender.com` (isim farklı olabilir).
 4. Test et: `https://<URL>/health` → `{"ok":true}` benzeri dönmeli.
 
 > Blueprint kullanmak istemezsen: **New → Web Service** → repo → Build/Start komutlarını ve env'leri elle gir (bkz. `apps/server/.env.production.example`).
@@ -43,7 +43,7 @@ Repoyu bir GitHub reposuna push'la (Render Git ister).
 3. Vercel kökteki `vercel.json`'ı otomatik kullanır (build + output `apps/showcase/dist` + rewrites). Ekstra ayar gerekmez.
 4. Deploy → `https://<proje>.vercel.app` adresinde showcase açılır, `/api/...` çağrıları Render'a proxy'lenir.
 
-> API anahtarı: frontend sabit `dev-key-change-me` gönderiyor (`apps/showcase/src/blackthorn/analyze.ts`). Backend'de `DELTAG_API_KEYS=dev-key-change-me` olduğu için eşleşir. Değiştireceksen ikisini birden değiştir.
+> API anahtarı: frontend sabit `dev-key-change-me` gönderiyor (`apps/showcase/src/baret/analyze.ts`). Backend'de `DELTAG_API_KEYS=dev-key-change-me` olduğu için eşleşir. Değiştireceksen ikisini birden değiştir.
 
 ---
 

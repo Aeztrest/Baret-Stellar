@@ -10,7 +10,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, Github, Menu, X as XIcon } from "lucide-react";
 
 export const SOCIAL_GITHUB = "https://github.com/Aeztrest/DeltaProtokol";
-export const SOCIAL_X      = "https://x.com/blackthornxyz";
+export const SOCIAL_X      = "https://x.com/baretxyz";
 
 const NAV_LINKS = [
   { label: "Home",      to: "/home" },

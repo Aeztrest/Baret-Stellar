@@ -2,9 +2,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpDown, ChevronDown, Settings, Info } from "lucide-react";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../blackthorn/ResultOverlay";
-import { RiskPreview } from "../../blackthorn/RiskPreview";
-import { buildScenario } from "../../blackthorn/transactions";
+import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { RiskPreview } from "../../baret/RiskPreview";
+import { buildScenario } from "../../baret/transactions";
 import { useWallet } from "../../wallet/context";
 
 const THEME = {
@@ -54,7 +54,7 @@ export default function NovaSwap() {
     }
   }
 
-  async function sendViaBlackthorn() {
+  async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
@@ -74,7 +74,7 @@ export default function NovaSwap() {
   // applies its own policy, since Baret is the wallet itself. To truly
   // bypass, swap to a different non-Baret wallet from the picker.
   async function sendRaw() {
-    return sendViaBlackthorn();
+    return sendViaBaret();
   }
 
   function flip() {
@@ -231,7 +231,7 @@ export default function NovaSwap() {
         userWallet={walletAddress ?? null}
         scenarioLabel={scenarioLabel}
         onClose={() => setPreviewTx(null)}
-        onProceedWithBlackthorn={sendViaBlackthorn}
+        onProceedWithBaret={sendViaBaret}
         onProceedRaw={sendRaw}
       />
     </SiteShell>

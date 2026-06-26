@@ -3,7 +3,7 @@
 # Free plan: 15 dk hareketsizlikte uykuya dalar, ilk istekte ~30 sn soğuk başlangıç olur.
 services:
   - type: web
-    name: blackthorn-api
+    name: baret-api
     runtime: node
     plan: free
     region: frankfurt
@@ -31,7 +31,7 @@ services:
       # Reverse proxy arkasında gerçek istemci IP + rate limit
       - key: DELTAG_TRUST_PROXY
         value: "true"
-      # Frontend (apps/showcase/src/blackthorn/analyze.ts) sabit "dev-key-change-me" gönderiyor.
+      # Frontend (apps/showcase/src/baret/analyze.ts) sabit "dev-key-change-me" gönderiyor.
       # Demo'nun açık çalışması için aynısını ver; özel anahtarla kısıtlamak istersen Render
       # panelinden değiştir ve frontend'deki API_KEY'i de güncelle.
       - key: DELTAG_API_KEYS
