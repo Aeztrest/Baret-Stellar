@@ -1,3 +1,5 @@
+@import "@stellar-thorn/ui/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,6 +7,7 @@
 /*
  * Baret design system — white-first, safety-orange + ink-black.
  * Heading face: Space Grotesk (font-display). Body: Inter. Code: JetBrains Mono.
+ * Colors sourced from @stellar-thorn/ui/tokens.css (imported above).
  */
 
 @layer base {

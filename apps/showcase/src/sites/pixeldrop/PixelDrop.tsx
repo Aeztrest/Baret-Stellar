@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
 import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
-import { buildScenario } from "../../baret/transactions";
+import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
 
 const THEME = {
   primary: "#141414",
@@ -28,7 +29,7 @@ const NFT_COLLECTION = {
 };
 
 export default function PixelDrop() {
-  const { connected, openWalletModal, walletAddress, adapter } = useWallet();
+  const { connected, openWalletModal, walletAddress, adapter, connectRawWallet } = useWallet();
   const [qty, setQty] = useState(1);
   const [dangerous, setDangerous] = useState(false);
   const [resultState, setResultState] = useState<ResultState>("idle");
@@ -66,7 +67,25 @@ export default function PixelDrop() {
       }
     }
   }
-  const sendRaw = sendViaBaret;
+  // "Without protection" — a genuinely different wallet (Freighter) signs the
+  // same scenario over its own key and submits straight to Horizon; Baret's
+  // connected account can only ever be signed by Baret, by design.
+  async function sendRaw() {
+    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    try {
+      const raw = await connectRawWallet();
+      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "pixeldrop-danger" : "pixeldrop-safe", raw.address);
+      const { signedTxXdr } = await raw.signTransaction(rawTx);
+      const hash = await submitSignedTransaction(signedTxXdr);
+      setSignature(hash); setResultState("confirmed");
+    } catch (e) {
+      if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
+        setResultState("blocked"); setResultMessage(e.message);
+      } else {
+        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
 
   const pct = (NFT_COLLECTION.minted / NFT_COLLECTION.supply) * 100;
 
@@ -197,13 +216,7 @@ export default function PixelDrop() {
 
           {/* Demo toggle */}
           <div className="mt-12 flex justify-center">
-            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-paper border border-ink-900/10 shadow-card">
-              <span className="text-xs text-ink-500">Simulate wallet drainer</span>
-              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#E8470A" : "rgba(20,20,20,0.1)" }}>
-                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
-              </button>
-              {dangerous && <span className="text-xs font-medium text-[#E8470A]">⚠ Danger mode</span>}
-            </div>
+            <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate wallet drainer" activeColor="#E8470A" />
           </div>
         </motion.div>
       </div>

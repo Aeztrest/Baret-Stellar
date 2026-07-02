@@ -45,6 +45,9 @@
   --live:      #0E7490;
   --live-dim:  rgba(14, 116, 144, 0.10);
 
+  /* ─── Meter (signature ledger/cap-bar motif) ──────── */
+  --meter-track: rgba(20, 20, 20, 0.06);
+
   /* ─── Type scale ─────────────────────────────────── */
   --display-2xl-size: 56px; --display-2xl-line: 1.04;
   --display-xl-size:  44px; --display-xl-line:  1.10;

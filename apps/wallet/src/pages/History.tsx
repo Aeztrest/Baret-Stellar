@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Clock, ChevronDown, ExternalLink, ShieldCheck, ShieldX, Trash2 } from "lucide-react";
+import { Button, Dialog } from "@stellar-thorn/ui";
 import { readHistory, clearHistory, type HistoryEntry } from "../storage/history-store";
 import { explorerUrl } from "../wallet/connection";
 import { AnalysisReport } from "../components/AnalysisReport";
@@ -7,11 +8,12 @@ import { AnalysisReport } from "../components/AnalysisReport";
 export function History() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   useEffect(() => { setEntries(readHistory()); }, []);
 
   const onClear = () => {
-    if (!confirm("Clear all activity history? This cannot be undone.")) return;
+    setClearDialogOpen(false);
     clearHistory(); setEntries([]);
   };
 
@@ -25,11 +27,25 @@ export function History() {
           <p className="text-ink-500 text-sm mt-1">Every transaction Baret evaluated, allowed, or blocked.</p>
         </div>
         {entries.length > 0 && (
-          <button onClick={onClear} className="btn-ghost text-[#DC2626] hover:text-[#B91C1C]">
-            <Trash2 size={12} /> Clear
-          </button>
+          <Button variant="ghost" size="sm" onClick={() => setClearDialogOpen(true)} className="!text-[#DC2626] hover:!text-[#B91C1C]" leftIcon={<Trash2 size={12} />}>
+            Clear
+          </Button>
         )}
       </div>
+
+      <Dialog
+        open={clearDialogOpen}
+        onOpenChange={setClearDialogOpen}
+        title="Clear all activity history?"
+        description="This can't be undone."
+        tone="danger"
+        footer={
+          <>
+            <Button variant="secondary" fullWidth onClick={() => setClearDialogOpen(false)}>Cancel</Button>
+            <Button variant="danger" fullWidth onClick={onClear}>Clear</Button>
+          </>
+        }
+      />
 
       {entries.length === 0 ? (
         <div className="card p-12 text-center">

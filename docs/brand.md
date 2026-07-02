@@ -58,38 +58,43 @@ The glyph is implemented as an inline SVG; never a raster. SVG path lives at
 
 ## 3. Color system
 
+> Superseded 2026-06-15: the wallet shipped a white-first, safety-orange
+> identity instead of the dark/cobalt system originally specced here. This
+> section now documents what's actually live. `packages/ui/src/tokens.css`
+> is the binding source of truth — this table mirrors it; if they ever
+> disagree, tokens.css wins and this file needs a follow-up PR.
+
 ### 3.1 Foundational palette
 
 A single brand accent does the heavy lifting. Three semantic accents communicate
-state. Everything else is greyscale on a near-black canvas.
+state. Everything else is ink-on-bone: white-first surfaces, warm-black type.
 
 | Token | Hex | Use |
 |---|---|---|
-| `--bg` | `#08080C` | App canvas. Slightly cooler than pure black. |
-| `--bg-elevated` | `#0F0F15` | Sidebar, nav, footer surface. |
-| `--bg-card` | `#13131A` | Card background. |
-| `--bg-modal` | `#16161D` | Modal / sheet background (slightly lighter than card to read in front of it). |
-| `--line` | `rgba(255,255,255,0.06)` | All 1-px dividers and card borders. |
-| `--line-strong` | `rgba(255,255,255,0.10)` | Active state borders, focus rings. |
-| `--text` | `#FAFAFB` | Primary text. |
-| `--text-muted` | `rgba(255,255,255,0.55)` | Secondary text, descriptions. |
-| `--text-faint` | `rgba(255,255,255,0.35)` | Tertiary text, captions. |
-| `--text-ghost` | `rgba(255,255,255,0.20)` | Placeholder, disabled. |
+| `--bg` | `#FAF8F4` | App canvas ("bone"). |
+| `--bg-elevated` | `#FFFFFF` | Raised panels, sidebar, nav ("paper"). |
+| `--bg-card` | `#FFFFFF` | Card background. |
+| `--bg-modal` | `#FFFFFF` | Modal / sheet background. |
+| `--line` | `rgba(20,20,20,0.09)` | All 1-px dividers and card borders. |
+| `--line-strong` | `rgba(20,20,20,0.16)` | Active state borders, focus rings. |
+| `--text` | `#141414` | Primary text ("ink"). |
+| `--text-muted` | `rgba(20,20,20,0.58)` | Secondary text, descriptions. |
+| `--text-faint` | `rgba(20,20,20,0.40)` | Tertiary text, captions. |
+| `--text-ghost` | `rgba(20,20,20,0.24)` | Placeholder, disabled. |
 
-### 3.2 Brand accent — Cobalt
+### 3.2 Brand accent — Safety orange
 
 | Token | Hex | Use |
 |---|---|---|
-| `--accent` | `#3D6DFF` | Primary CTA fill, active nav, brand dot. |
-| `--accent-soft` | `#8AA8FF` | Accent text, icons on dark surfaces. |
-| `--accent-dim` | `rgba(61,109,255,0.14)` | Hover backgrounds, accent halos. |
-| `--accent-glow` | `rgba(61,109,255,0.35)` | Outer glow behind hero numbers / shield. |
+| `--accent` | `#FF6B00` | Primary CTA fill, active nav, brand dot, hazard stripe. |
+| `--accent-soft` | `#EA5E00` | Hover state for `--accent` fills. |
+| `--accent-dim` | `rgba(255,107,0,0.10)` | Hover backgrounds, accent halos. |
+| `--accent-glow` | `rgba(255,107,0,0.22)` | Outer glow behind hero numbers / shield. |
 
-Cobalt was chosen over indigo/violet on purpose — Stellar's incumbent wallet and
-much of the surrounding crypto-ecosystem branding lean violet (Freighter, the
-generic crypto-violet of the wider Stellar ecosystem). Cobalt reads as
-*technology + trust* without colliding with that visual territory. It also
-contrasts cleanly with the emerald-and-amber semantic palette.
+Safety orange plays on the *baret* (hard hat) origin story directly — the
+color of the hat itself. It reads as *protective + alert* without the
+crypto-generic blue/violet/green most wallet brands reach for, and pairs
+cleanly with the white-first surfaces and ink type.
 
 ### 3.3 Semantic accents
 
@@ -97,20 +102,20 @@ Used **only** to communicate state. Never as decoration.
 
 | Intent | Token | Hex | Used for |
 |---|---|---|---|
-| Safe / approved | `--ok` | `#34D399` | Green dots, "Signed," confirmed states, allowance under cap. |
-| Caution / advisory | `--warn` | `#FBBF24` | Amber pills, simulation warnings, expiry-soon banners. |
-| Block / drift | `--bad` | `#F87171` | Red pills, blocked txs, alert badges, cap exceeded. |
-| Live / pulsing | `--live` | `#22D3EE` | "Watching" indicator, real-time WebSocket pulse, agent activity ticker. |
+| Safe / approved | `--ok` | `#059669` | "Signed," confirmed states, allowance under cap. |
+| Caution / advisory | `--warn` | `#B45309` | Simulation warnings, expiry-soon banners. |
+| Block / drift | `--bad` | `#DC2626` | Blocked txs, alert badges, cap exceeded. |
+| Live / pulsing | `--live` | `#0E7490` | "Watching" indicator, real-time pulse, agent activity ticker. |
 
-Every state colour has a 14% alpha background variant (`--ok-dim`, `--warn-dim`,
+Every state colour has a ~10% alpha background variant (`--ok-dim`, `--warn-dim`,
 `--bad-dim`, `--live-dim`) for filled banners.
 
 ### 3.4 Anti-rules
 
 - **No multi-colour gradients.** Single-colour glow halos only (e.g. `--accent-glow` blur behind a hero card).
-- **No saturated reds for non-critical UI.** `--bad` is reserved for actually-blocked or actually-drifting state. Never for "delete" buttons unsigned actions.
-- **No purple.** That's Stellar incumbent territory; we lean cobalt to differentiate.
-- **No success-green CTAs.** Primary action is always cobalt; green is reserved for confirmation chrome.
+- **No saturated reds for non-critical UI.** `--bad` is reserved for actually-blocked or actually-drifting state. Never for "delete" buttons on unsigned actions.
+- **No dark-canvas surfaces.** The wallet is light-only by design; don't introduce a competing dark theme without a PR that defines a full dark token set first.
+- **No success-green CTAs.** Primary action is always safety-orange; green is reserved for confirmation chrome.
 
 ---
 
@@ -356,10 +361,10 @@ History has filtering, Policies has the form-vs-JSON tabs.
 
 ### 10.3 Showcase site
 
-Per the synthesis: single-accent dark canvas, one giant number, one focused
-~480-560 card, monospace digits. The wallet's BARET moment is always
-delivered through the **wallet's own popup**, not a showcase modal — so the
-showcase pages stay clean and product-like.
+White-first canvas per §3, one giant number, one focused ~480-560 card,
+monospace digits. The wallet's BARET moment is always delivered through the
+**wallet's own popup**, not a showcase modal — so the showcase pages stay
+clean and product-like.
 
 ### 10.4 Sign request modal (popup-replacement view)
 
@@ -401,14 +406,20 @@ Non-negotiable baseline:
 
 ## 12. Implementation home
 
-Tokens live in `packages/ui/src/tokens.css` (to be created in monorepo restructure
-task #18) and are imported by every app. Components live in `packages/ui/src/`
-with the file naming `<Component>.tsx` matching the class names above. Tailwind
-configs in each app extend a shared base config that aliases these tokens.
+Tokens live in `packages/ui/src/tokens.css`, imported by every app that ships
+UI (extension, wallet, showcase). Shared React primitives live in
+`packages/ui/src/primitives/` — `Button`, `Badge`, `Card`, `Section`,
+`ListItem`, `EmptyState`, `Input`, `Dialog` — built with
+class-variance-authority against these tokens, exported from
+`@stellar-thorn/ui`. Showcase-only demo pieces (not part of the wallet's own
+design system) live in `packages/showcase-ui`. `baret_docs` can't import
+these components directly (Next.js runs React 19 against this package's
+React 18 peer dependency) — it mirrors the token *values* into its own
+Tailwind v4 `@theme` block instead; keep the two in sync by hand.
 
 When in doubt: the single sentence at the top of this file — *Calm. Technical.
 Candid.* — outranks any specific rule below.
 
 ---
 
-*Last updated: 2026-05-09 · Source of truth for all visual + verbal design decisions in this repo.*
+*Last updated: 2026-07-02 · Source of truth for all visual + verbal design decisions in this repo.*

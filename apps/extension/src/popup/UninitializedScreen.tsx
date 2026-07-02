@@ -10,7 +10,7 @@
 
 import { ArrowRight, ExternalLink, ShieldCheck } from "lucide-react";
 import browser from "webextension-polyfill";
-import { Mark } from "@stellar-thorn/ui";
+import { Button, Card, Mark } from "@stellar-thorn/ui";
 
 const OPTIONS_PATH = "src/options/index.html";
 
@@ -55,7 +55,7 @@ export function UninitializedScreen() {
       </div>
 
       {/* What setup actually does — three numbered steps. */}
-      <div className="card !p-4 space-y-3">
+      <Card padding="sm" className="space-y-3">
         <p className="label !mb-0">How setup works</p>
         <ol className="space-y-2.5">
           {STEPS.map((line, i) => (
@@ -70,7 +70,7 @@ export function UninitializedScreen() {
             </li>
           ))}
         </ol>
-      </div>
+      </Card>
 
       <ul className="space-y-1.5 text-xs">
         {[
@@ -86,9 +86,9 @@ export function UninitializedScreen() {
       </ul>
 
       <div className="mt-auto space-y-2">
-        <button onClick={openSetupTab} className="btn-primary w-full">
-          Open setup in a new tab <ExternalLink size={13} />
-        </button>
+        <Button onClick={openSetupTab} variant="primary" fullWidth rightIcon={<ExternalLink size={13} />}>
+          Open setup in a new tab
+        </Button>
         <p className="text-[10px] text-text-faint text-center flex items-center justify-center gap-1">
           Opens the full Baret wallet page <ArrowRight size={9} /> you can close this popup
         </p>

@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
-import { Mark } from "@stellar-thorn/ui";
+import { Button, Input, Mark } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 
 export function LockedScreen() {
@@ -40,28 +40,26 @@ export function LockedScreen() {
       </div>
 
       <form onSubmit={onSubmit} className="w-full space-y-3">
-        <div className="relative">
-          <input
-            type={show ? "text" : "password"}
-            value={passphrase}
-            onChange={(e) => setPassphrase(e.target.value)}
-            autoFocus
-            placeholder="Passphrase"
-            className="input pr-10 font-sans"
-          />
-          <button
-            type="button"
-            onClick={() => setShow((s) => !s)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted p-1"
-            tabIndex={-1}
-          >
-            {show ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </div>
-        <button type="submit" disabled={submitting || !passphrase} className="btn-primary w-full">
-          <Lock size={13} />
-          {submitting ? "Unlocking…" : "Unlock"}
-        </button>
+        <Input
+          type={show ? "text" : "password"}
+          value={passphrase}
+          onChange={(e) => setPassphrase(e.target.value)}
+          autoFocus
+          placeholder="Passphrase"
+          suffix={
+            <button
+              type="button"
+              onClick={() => setShow((s) => !s)}
+              className="text-text-faint hover:text-text-muted cursor-pointer"
+              tabIndex={-1}
+            >
+              {show ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          }
+        />
+        <Button type="submit" variant="primary" fullWidth disabled={!passphrase} loading={submitting} leftIcon={<Lock size={13} />}>
+          Unlock
+        </Button>
         {error && (
           <p className="text-bad text-xs px-1 py-2 rounded-input"
              style={{ background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)" }}>

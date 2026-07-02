@@ -249,11 +249,11 @@ export const navigation: Array<NavGroup> = [
   {
     title: 'API Reference',
     links: [
-      { title: 'Analyze Transaction', href: '/contacts' },
+      { title: 'Analyze Transaction', href: '/analyze' },
       { title: 'Batch Analysis', href: '/conversations' },
-      { title: 'Stream Analysis', href: '/messages' },
+      { title: 'Stream Analysis', href: '/stream' },
       { title: 'Replay', href: '/attachments' },
-      { title: 'Audit', href: '/groups' },
+      { title: 'Audit', href: '/audit' },
     ],
   },
 ]
@@ -263,7 +263,7 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
     <nav {...props}>
       <ul role="list">
         <TopLevelNavItem href="/">Docs</TopLevelNavItem>
-        <TopLevelNavItem href="/contacts">API Reference</TopLevelNavItem>
+        <TopLevelNavItem href="/analyze">API Reference</TopLevelNavItem>
         <TopLevelNavItem href="/quickstart">Quickstart</TopLevelNavItem>
         {navigation.map((group, groupIndex) => (
           <NavigationGroup

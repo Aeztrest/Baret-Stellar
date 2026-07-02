@@ -3,9 +3,9 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowUpRight, BookOpen, Shield, FileText, Zap, Layers, Globe,
+  ArrowUpRight, BookOpen, Shield, FileText, Zap, Layers, Globe,
 } from "lucide-react";
-import { BaretMark, Wordmark, LandingFooter } from "../components/LandingChrome";
+import { LandingHeader, LandingFooter } from "../components/LandingChrome";
 
 const DOCS = [
   { title: "Vision",                 desc: "Why a transaction firewall belongs in the wallet, not the dApp.",      file: "vision.md",                 icon: BookOpen },
@@ -21,24 +21,9 @@ const DOCS = [
 export default function DocsPage() {
   return (
     <div className="min-h-screen bg-paper text-ink-900">
-      {/* Header */}
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-ink-900/8 bg-white/85 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/home" className="flex items-center gap-2.5 group">
-            <BaretMark />
-            <Wordmark className="text-sm" />
-            <span className="hidden sm:inline text-ink-400 text-xs">/ Docs</span>
-          </Link>
-          <Link
-            to="/home"
-            className="inline-flex items-center gap-1.5 text-xs text-ink-500 hover:text-ink-900 px-3 py-1.5 rounded-md hover:bg-ink-900/[0.04]"
-          >
-            <ArrowLeft size={12} /> Home
-          </Link>
-        </div>
-      </header>
+      <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
 
-      <main className="max-w-5xl mx-auto px-6 pt-32 pb-24">
+      <main className="max-w-5xl mx-auto px-6 pt-36 pb-24">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] font-bold text-brand-600">
             <span className="w-6 h-[3px] hazard rounded-full" />

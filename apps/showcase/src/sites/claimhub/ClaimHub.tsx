@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Gift, CheckCircle, Users, Clock } from "lucide-react";
+import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
 import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
-import { buildScenario } from "../../baret/transactions";
+import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
 
 const THEME = {
   primary: "#E8470A",
@@ -20,7 +21,7 @@ const THEME = {
 };
 
 export default function ClaimHub() {
-  const { connected, openWalletModal, walletAddress, adapter, shortAddress } = useWallet();
+  const { connected, openWalletModal, walletAddress, adapter, shortAddress, connectRawWallet } = useWallet();
   const [dangerous, setDangerous] = useState(false);
   const [resultState, setResultState] = useState<ResultState>("idle");
   const [signature, setSignature] = useState<string | null>(null);
@@ -71,7 +72,25 @@ export default function ClaimHub() {
       }
     }
   }
-  const sendRaw = sendViaBaret;
+  // "Without protection" — a genuinely different wallet (Freighter) signs the
+  // same scenario over its own key and submits straight to Horizon; Baret's
+  // connected account can only ever be signed by Baret, by design.
+  async function sendRaw() {
+    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    try {
+      const raw = await connectRawWallet();
+      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "claimhub-danger" : "claimhub-safe", raw.address);
+      const { signedTxXdr } = await raw.signTransaction(rawTx);
+      const hash = await submitSignedTransaction(signedTxXdr);
+      setSignature(hash); setResultState("confirmed");
+    } catch (e) {
+      if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
+        setResultState("blocked"); setResultMessage(e.message);
+      } else {
+        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
 
   return (
     <SiteShell
@@ -165,13 +184,7 @@ export default function ClaimHub() {
 
           {/* Demo toggle */}
           <div className="mt-8 flex justify-center">
-            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-bone border border-ink-900/10">
-              <span className="text-xs text-ink-600">Simulate phishing claim</span>
-              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#ef4444" : "rgba(20,20,20,0.12)" }}>
-                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-card transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
-              </button>
-              {dangerous && <span className="text-xs text-red-500 font-medium">⚠ Danger mode</span>}
-            </div>
+            <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate phishing claim" />
           </div>
         </div>
       </div>

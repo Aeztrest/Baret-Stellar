@@ -28,6 +28,7 @@ Bu doküman BARET'un mevcut **Stellar** implementasyonunu modül modül açıkla
 20. [API Endpoint'leri](#20-api-endpointleri)
 21. [Veri Modelleri](#21-veri-modelleri)
 22. [Dosya Haritası](#22-dosya-haritası)
+23. [Agent Guard (SDK + CLI)](#23-agent-guard-sdk--cli)
 
 ---
 
@@ -407,14 +408,41 @@ apps/server/src/
 
 packages/
 ├── swig-guard/      guard SDK (TransactionGuard, analyzeTransaction, policy)
+├── agent-guard/     agent/program-wallet SDK + `baret` CLI (§23)
 ├── baret-adapter/  dApp ↔ cüzdan postMessage protokolü
 ├── ext-protocol/    eklenti mesaj tipleri
 ├── showcase-ui/     showcase UI iskeleti
 └── ui/              tasarım token'ları + bileşenler
 
-apps/{extension,wallet,showcase}/  React UI'ları (§18, §19)
+apps/{extension,wallet,showcase}/  React UI'ları (§18, §19); showcase /agents kontrol sayfası (§23)
 contracts/payment-guard/           Soroban payment-guard kontratı (Rust)
 ```
+
+---
+
+## 23. Agent Guard (SDK + CLI)
+
+**`packages/agent-guard` (@stellar-thorn/agent-guard)** — swig-guard'ın "batteries-included"
+üst katmanı: aynı pre-sign korumasını **otonom agent'lar ve program (bot) cüzdanları** için
+sunar. swig-guard SDK-free kalır; anahtar tutma + imzalama + Horizon'a gönderme bu paketin işidir
+(`@stellar/stellar-sdk` doğrudan bağımlılık). NodeNext build → CLI doğrudan node ile çalışır.
+
+- **`src/agent.ts` — `AgentWallet`**: çekirdek sınıf. `fromSecret(secret, cfg)` / `random(cfg)`.
+  - `evaluate(xdr)` → `TransactionGuard.evaluate` sarmalar (userWallet = agent adresi). **İmzalamaz.**
+  - `guardedSign(xdr)` → policy izin verirse `Keypair` ile imzalar; blokta `GuardBlockedError`. Secret gerekir.
+  - `guardedSubmit(xdr)` → guardedSign → Horizon `submitTransaction` → `{ hash, explorerUrl }`. Secret gerekir.
+  - **Fail-closed**: server erişilemezse `AnalyzeError` fırlar, imzalanmaz (`allowOffline` bilinçli istisna).
+- **`src/config.ts`**: katmanlı config çözümü (açık opsiyon → env `BARET_*` → `~/.baret/config.json` → varsayılan).
+  Agent secret'ı **asla dosyaya yazılmaz**; yalnız `BARET_AGENT_SECRET`/opsiyondan okunur.
+  `loadConfig`, `resolvePolicy` (swig-guard `POLICY_TEMPLATES`), `resolveHorizonUrl`.
+- **`src/cli.ts` — `baret`**: `node:util parseArgs` tabanlı (ek bağımlılık yok). Komutlar:
+  `analyze | sign | submit | address | init | policy list`. `<xdr>` `-` ise stdin. `--json` makine çıktısı.
+  **Exit kodları:** `0` allow/başarı, `1` policy bloğu, `2` hata — her dilden script'lenebilir.
+
+**Kontrol sayfası — `apps/showcase/src/pages/AgentsPage.tsx` (route `/agents`):** ne olduğunu basitçe
+anlatır, kopyalanabilir kurulum/SDK/CLI snippet'leri, policy seçici (Strict/Balanced/Permissive),
+**canlı playground** (gerçek `/v1/analyze`, mevcut `baret/analyze.ts` üzerinden) ve agent adresine göre
+filtreli **canlı izleme** (`/v1/audit/recent`). Nav linki paylaşılan `LandingChrome` `NAV_LINKS`'e eklidir.
 
 ---
 

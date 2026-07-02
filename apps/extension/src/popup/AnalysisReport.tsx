@@ -4,19 +4,11 @@
  * + balance changes — into a 360-wide column.
  */
 
-import { useState } from "react";
-import {
-  ShieldCheck,
-  ShieldX,
-  AlertTriangle,
-  ChevronDown,
-  Info,
-  ArrowRight,
-} from "lucide-react";
 import type {
   AnalyzeResponse,
   RiskFindingPayload,
 } from "@stellar-thorn/ext-protocol";
+import { Section, Verdict, shortAddr } from "@stellar-thorn/ui";
 
 const SEVERITY_TONE: Record<
   RiskFindingPayload["severity"],
@@ -66,12 +58,22 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
     changes.allowances.length > 0 ||
     changes.trustlines.length > 0;
 
+  const tone = result.decision === "block" ? "bad" : result.decision === "advisory" ? "warn" : "ok";
+  const headline =
+    result.decision === "block"
+      ? "Blocked by your policy"
+      : result.decision === "advisory"
+        ? result.offline
+          ? "Sim unavailable"
+          : "Sign with caution"
+        : "Safe to sign";
+
   return (
     <div className="space-y-3">
-      <Hero result={result} reasons={reasons} />
+      <Verdict tone={tone} headline={headline} reasons={reasons.slice(0, 3)} />
 
       {hasAnyChange && (
-        <Section label="What changes">
+        <Section title="What changes" collapsible className="card !p-3">
           <div className="space-y-1">
             {significantNative.map((n, i) => (
               <DeltaRow
@@ -110,7 +112,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
       )}
 
       {findings.length > 0 && (
-        <Section label={`Findings (${findings.length})`}>
+        <Section title={`Findings (${findings.length})`} collapsible className="card !p-3">
           <div className="space-y-1.5">
             {findings.map((f, i) => (
               <FindingRow key={i} finding={f} />
@@ -120,7 +122,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
       )}
 
       {result.simulationWarnings && result.simulationWarnings.length > 0 && (
-        <Section label="Simulation logs">
+        <Section title="Simulation logs" collapsible className="card !p-3">
           <ul className="space-y-0.5 text-[10px] font-mono text-text-faint">
             {result.simulationWarnings.slice(0, 6).map((w, i) => (
               <li key={i} className="break-all">
@@ -130,108 +132,6 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
           </ul>
         </Section>
       )}
-    </div>
-  );
-}
-
-function Hero({
-  result,
-  reasons,
-}: {
-  result: AnalyzeResponse;
-  reasons: string[];
-}) {
-  const tone =
-    result.decision === "block"
-      ? "bad"
-      : result.decision === "advisory"
-        ? "warn"
-        : "ok";
-  const Icon =
-    result.decision === "block"
-      ? ShieldX
-      : result.decision === "advisory"
-        ? AlertTriangle
-        : ShieldCheck;
-  const heading =
-    result.decision === "block"
-      ? "Blocked by your policy"
-      : result.decision === "advisory"
-        ? result.offline
-          ? "Sim unavailable"
-          : "Sign with caution"
-        : "Safe to sign";
-
-  return (
-    <div
-      className="rounded-card p-3.5 flex gap-3"
-      style={{
-        background:
-          tone === "bad"
-            ? "rgba(248,113,113,0.06)"
-            : tone === "warn"
-              ? "rgba(251,191,36,0.06)"
-              : "rgba(52,211,153,0.06)",
-        border:
-          tone === "bad"
-            ? "1px solid rgba(248,113,113,0.25)"
-            : tone === "warn"
-              ? "1px solid rgba(251,191,36,0.25)"
-              : "1px solid rgba(52,211,153,0.25)",
-      }}
-    >
-      <Icon
-        size={20}
-        className={
-          tone === "bad"
-            ? "text-bad shrink-0 mt-0.5"
-            : tone === "warn"
-              ? "text-warn shrink-0 mt-0.5"
-              : "text-ok shrink-0 mt-0.5"
-        }
-      />
-      <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm font-bold ${tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "text-ok"}`}
-        >
-          {heading}
-        </p>
-        {reasons.length > 0 && (
-          <ul className="text-[11px] text-text-muted mt-1 space-y-0.5">
-            {reasons.slice(0, 3).map((r, i) => (
-              <li key={i} className="flex gap-1.5 leading-relaxed">
-                <Info size={9} className="text-text-faint mt-1 shrink-0" />
-                <span>{r}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Section({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="card !p-3 space-y-2">
-      <button
-        onClick={() => setOpen((s) => !s)}
-        className="w-full flex items-center justify-between text-left"
-      >
-        <span className="label !mb-0">{label}</span>
-        <ChevronDown
-          size={11}
-          className={`text-text-faint transition-transform ${open ? "" : "-rotate-90"}`}
-        />
-      </button>
-      {open && children}
     </div>
   );
 }
@@ -258,7 +158,7 @@ function DeltaRow({
   return (
     <div className="flex items-center justify-between gap-2 text-[11px]">
       <span className="font-mono text-text-muted truncate">{label}</span>
-      <span className={`font-mono shrink-0 ${colorClass}`}>{value}</span>
+      <span className={`font-mono font-bold tabular-nums shrink-0 ${colorClass}`}>{value}</span>
     </div>
   );
 }
@@ -296,11 +196,6 @@ function FindingRow({ finding }: { finding: RiskFindingPayload }) {
   );
 }
 
-function shortAddr(s: string): string {
-  if (s.length < 12) return s;
-  return `${s.slice(0, 4)}…${s.slice(-4)}`;
-}
-
 function formatStroopsAsXlm(stroopsStr: string): string {
   const negative = stroopsStr.startsWith("-");
   const abs = negative ? stroopsStr.slice(1) : stroopsStr;
@@ -313,5 +208,3 @@ function formatStroopsAsXlm(stroopsStr: string): string {
     return `${negative ? "-" : "+"}${abs} stroops`;
   }
 }
-
-export { ArrowRight };

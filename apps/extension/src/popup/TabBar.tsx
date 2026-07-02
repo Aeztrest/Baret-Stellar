@@ -30,21 +30,22 @@ export function TabBar({ active, onChange, alertCount }: Props) {
           <button
             key={id}
             onClick={() => onChange(id)}
-            className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+            className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               selected ? "text-text" : "text-text-faint hover:text-text-muted"
             }`}
           >
-            <Icon size={16} />
+            <span className="relative">
+              <Icon size={16} />
+              {showBadge && (
+                <span className="absolute -top-1 -right-1.5 w-1.5 h-1.5 rounded-pill" style={{ background: "var(--bad)" }} />
+              )}
+            </span>
             <span className="text-[10px] font-semibold">{label}</span>
-            {selected && (
-              <span
-                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-pill"
-                style={{ background: "var(--accent)" }}
-              />
-            )}
-            {showBadge && (
-              <span className="absolute top-2 right-1/3 w-1.5 h-1.5 rounded-pill" style={{ background: "var(--bad)" }} />
-            )}
+            <span
+              className="w-3.5 h-[3px] rounded-pill transition-opacity duration-[var(--motion-fast)]"
+              style={{ background: "var(--accent)", opacity: selected ? 1 : 0 }}
+              aria-hidden
+            />
           </button>
         );
       })}

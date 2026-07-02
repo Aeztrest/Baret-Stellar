@@ -1,13 +1,11 @@
 /**
  * @stellar-thorn/showcase-ui
  *
- * Plumbing only. Each showcase site (Vela / Riven / Lattice / Aurora /
- * Apogee / Cortex) brings its own brand color, logo, and copy. This package
- * exposes the structural pieces every site shares: the wallet-connect modal
- * (using Wallet Standard, not BARET-branded), the showcase-portal
- * back-link, common layout primitives.
- *
- * Filled in once apps/showcase-* sites begin construction (Phase 2).
+ * Structural pieces shared by the showcase demo dApps (NovaSwap, PixelDrop,
+ * OrbitYield, ClaimHub, LaunchPad, Scrybe) that aren't part of the wallet's
+ * own design system in @stellar-thorn/ui — these are demo-scenario concepts,
+ * not wallet UI. Each site still brings its own theme color, logo, and copy.
  */
 
-export {};
+export { DangerModeToggle } from "./DangerModeToggle";
+export type { DangerModeToggleProps } from "./DangerModeToggle";

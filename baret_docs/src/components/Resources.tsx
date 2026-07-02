@@ -28,7 +28,7 @@ interface Resource {
 
 const resources: Array<Resource> = [
   {
-    href: '/contacts',
+    href: '/analyze',
     name: 'Analyze Transaction',
     description:
       'Submit a base64-encoded Stellar transaction and receive a safe/unsafe verdict with detailed risk findings.',
@@ -56,7 +56,7 @@ const resources: Array<Resource> = [
     },
   },
   {
-    href: '/messages',
+    href: '/stream',
     name: 'Stream Analysis',
     description:
       'Receive analysis results as a real-time Server-Sent Events stream as each detector completes.',
@@ -70,7 +70,7 @@ const resources: Array<Resource> = [
     },
   },
   {
-    href: '/groups',
+    href: '/audit',
     name: 'Audit',
     description:
       'Query recent analysis records and aggregate statistics across all transactions analyzed.',

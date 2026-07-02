@@ -7,7 +7,7 @@
  * provisions the smart wallet on-chain, and saves the chosen policy.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,7 +17,7 @@ import {
 import { POLICY_TEMPLATES, type PolicyTemplateId } from "@stellar-thorn/swig-guard";
 
 const STROOPS_PER_XLM = 10_000_000;
-import { Mark } from "@stellar-thorn/ui";
+import { Mark, usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletContext } from "../../shared/state-context";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
@@ -48,19 +48,15 @@ export function Onboarding() {
   const next = () => setStep((s) => (s < 8 ? ((s + 1) as Step) : s));
 
   // Step 5 polls balance live so the user sees the airdrop arrive without manual refresh.
-  const balanceTimer = useRef<ReturnType<typeof setInterval>>();
-  useEffect(() => {
-    if (step !== 5 || !authorityAddress) return;
-    const fetchBal = async () => {
-      try {
-        const res = await rpc.call("wallet.balance", { address: authorityAddress });
-        setAuthorityBalance(Number(res.stroops) / STROOPS_PER_XLM);
-      } catch { /* ignore */ }
-    };
-    void fetchBal();
-    balanceTimer.current = setInterval(fetchBal, 4000);
-    return () => { if (balanceTimer.current) clearInterval(balanceTimer.current); };
-  }, [step, authorityAddress, rpc]);
+  const fetchBal = useCallback(async () => {
+    if (!authorityAddress) return;
+    try {
+      const res = await rpc.call("wallet.balance", { address: authorityAddress });
+      setAuthorityBalance(Number(res.stroops) / STROOPS_PER_XLM);
+    } catch { /* ignore */ }
+  }, [authorityAddress, rpc]);
+
+  usePolling(fetchBal, 4000, { enabled: step === 5 && !!authorityAddress });
 
   const onCreateWallet = async () => {
     setError(null);

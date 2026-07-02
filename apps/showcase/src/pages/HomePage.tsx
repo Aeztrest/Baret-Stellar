@@ -5,15 +5,16 @@
 
 import { useRef } from "react";
 import { Link } from "react-router-dom";
-import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import {
-  Shield, ShieldCheck, ShieldAlert, Eye, Lock, Activity,
-  ArrowRight, ArrowUpRight, AlertTriangle, CheckCircle2,
-  Wallet, Layers, Radar, BookOpen, Cpu, HardHat,
-  Network, FileSearch, BellRing, KeyRound, Gauge,
-  XCircle,
+  Shield, ShieldCheck, ShieldAlert, Eye, Lock,
+  ArrowRight, ArrowUpRight,
+  Wallet, Layers, Radar, BookOpen, HardHat,
+  FileSearch, BellRing,
 } from "lucide-react";
+import { Meter, StatTile, Verdict } from "@stellar-thorn/ui";
 import { BackdropGrid, LandingHeader, LandingFooter, HazardRule } from "../components/LandingChrome";
+import { ProtocolWedge } from "../components/ProtocolWedge";
 
 const SHOWCASE_SITES = [
   { path: "/novaswap",   name: "NovaSwap",   tag: "DeFi swap",      threat: "Fund drain" },
@@ -38,11 +39,10 @@ export default function HomePage() {
       <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
       <Hero />
       <DetectorMarquee />
-      <ProblemSolution />
       <ThreePillars />
-      <ShowcaseStrip />
-      <X402Section />
+      <ProtocolWedge />
       <StatsBar />
+      <ShowcaseStrip />
       <FinalCta />
       <LandingFooter />
     </div>
@@ -52,14 +52,9 @@ export default function HomePage() {
 /* ─────────────────────────── hero ─────────────────────────── */
 
 function Hero() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], [0, -60]);
-  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0.4]);
-
   return (
-    <section ref={ref} className="relative pt-36 pb-24 px-6 overflow-hidden">
-      <motion.div style={{ y, opacity }} className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 items-center relative">
+    <section className="relative pt-36 pb-24 px-6 overflow-hidden">
+      <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 items-center relative">
         <div className="lg:col-span-7">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -78,7 +73,7 @@ function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.05 }}
-            className="mt-6 font-display text-5xl sm:text-6xl lg:text-7xl font-bold tracking-[-0.03em] leading-[1.0]"
+            className="mt-6 font-display font-bold tracking-[-0.03em] leading-[0.95] text-[clamp(3.25rem,7.5vw,6.5rem)]"
           >
             Sign safe.
             <br />
@@ -89,7 +84,7 @@ function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.15 }}
-            className="mt-7 text-lg sm:text-xl text-ink-500 max-w-xl leading-relaxed"
+            className="mt-7 text-lg text-ink-500 max-w-xl leading-relaxed"
           >
             Baret is the hard hat for your Stellar wallet — every transaction is
             simulated, explained in plain language, and blocked when dangerous,
@@ -125,9 +120,9 @@ function Hero() {
         </div>
 
         <div className="lg:col-span-5">
-          <LiveAnalysisCard />
+          <PopupMockup />
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
@@ -141,111 +136,67 @@ function Trust({ icon: Icon, label }: { icon: typeof Shield; label: string }) {
   );
 }
 
-function LiveAnalysisCard() {
-  const findings = [
-    { sev: "danger", icon: AlertTriangle, label: "Transfers XLM to unknown wallet", detail: "10.0 XLM → 3kBz…q9F" },
-    { sev: "warn",   icon: ShieldAlert,   label: "Sets unlimited token approval",   detail: "USDC · spender unverified" },
-    { sev: "ok",     icon: CheckCircle2,  label: "Program reputation verified",     detail: "Soroswap aggregator" },
-  ];
-
+/**
+ * A framed miniature of the REAL SignRequest popup, not an abstract dark
+ * console — the whole point of this redesign is that the marketing mockup
+ * and the actual wallet screen you'll see after installing look identical,
+ * down to the shared Verdict component.
+ */
+function PopupMockup() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24, rotateX: 12 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0 }}
-      transition={{ duration: 0.9, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
-      style={{ transformStyle: "preserve-3d" }}
-      className="relative"
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      className="relative max-w-sm mx-auto"
     >
-      <div className="absolute -inset-6 rounded-[2rem] opacity-60 blur-2xl"
-           style={{ background: "radial-gradient(closest-side, rgba(255,107,0,0.18), transparent 70%)" }} />
+      <div className="absolute -inset-8 rounded-[2rem] opacity-70 blur-2xl -z-10"
+           style={{ background: "radial-gradient(closest-side, rgba(255,107,0,0.16), transparent 70%)" }} />
 
-      {/* The analysis console renders dark — Baret's "inspection booth" inside the white page */}
-      <div className="relative rounded-2xl overflow-hidden bg-ink-900 text-white shadow-lift">
-        <HazardRule className="h-1" />
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-white/15" />
-            <span className="w-2.5 h-2.5 rounded-full bg-white/15" />
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-500/70" />
+      <div className="rounded-2xl overflow-hidden bg-white shadow-lift" style={{ border: "1px solid rgba(20,20,20,0.10)" }}>
+        <div className="h-1" style={{ background: "#FF6B00" }} />
+
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-ink-900/8">
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex w-1.5 h-1.5">
+              <span className="absolute inset-0 rounded-full bg-brand-500 animate-ping opacity-60" />
+              <span className="relative w-1.5 h-1.5 rounded-full bg-brand-500" />
+            </span>
+            <span className="text-[10px] font-mono text-ink-400">Testnet</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-brand-400 font-semibold">
-            <Activity size={10} /> Pre-sign inspection
-          </div>
+          <span className="text-[10px] font-mono text-ink-400">GC7K…9mQ2</span>
         </div>
 
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-semibold">Risk score</p>
-              <div className="mt-1.5 flex items-baseline gap-2">
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1.0 }}
-                  className="font-display text-5xl font-bold tracking-tight"
-                >
-                  87
-                </motion.span>
-                <span className="text-white/40 text-sm">/100</span>
-                <span className="ml-2 text-xs px-2 py-0.5 rounded-md font-bold bg-brand-500 text-white">
-                  HIGH
-                </span>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-semibold">Detectors</p>
-              <p className="mt-1 text-sm font-mono text-white/70">3 / 25 fired</p>
-            </div>
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center gap-1.5 text-brand-600 text-[11px] mb-1">
+            <ShieldAlert size={11} />
+            <span className="font-mono truncate">evil-drainer.xyz</span>
           </div>
+          <p className="text-base font-extrabold tracking-tight">Sign transaction</p>
+        </div>
 
-          <div className="space-y-2">
-            {findings.map((f, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + i * 0.18 }}
-                className="flex items-start gap-3 p-3 rounded-xl border"
-                style={{
-                  borderColor:
-                    f.sev === "danger" ? "rgba(255,107,0,0.45)" :
-                    f.sev === "warn"   ? "rgba(255,171,110,0.30)" :
-                                         "rgba(255,255,255,0.10)",
-                  background:
-                    f.sev === "danger" ? "rgba(255,107,0,0.10)" :
-                    f.sev === "warn"   ? "rgba(255,171,110,0.06)" :
-                                         "rgba(255,255,255,0.03)",
-                }}
-              >
-                <f.icon
-                  size={14}
-                  className={
-                    f.sev === "danger" ? "text-brand-400 mt-0.5" :
-                    f.sev === "warn"   ? "text-brand-300 mt-0.5" :
-                                         "text-emerald-300 mt-0.5"
-                  }
-                />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white/90 leading-tight">{f.label}</p>
-                  <p className="text-xs text-white/45 mt-0.5 font-mono">{f.detail}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.2 }}
-            className="mt-5 grid grid-cols-2 gap-2"
-          >
-            <button className="py-2.5 rounded-xl text-sm font-semibold border border-white/15 text-white/65 hover:bg-white/[0.05]">
-              Cancel
-            </button>
-            <button className="py-2.5 rounded-xl text-sm font-bold bg-brand-500 hover:bg-brand-600 text-white flex items-center justify-center gap-1.5 transition-colors">
-              <ShieldCheck size={14} /> Block & revoke
-            </button>
+        <div className="px-4 pb-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
+            <Verdict
+              tone="bad"
+              headline="Blocked by your policy"
+              reasons={[
+                "Transfers 10.0 XLM to an unrecognized address",
+                "Sets an unlimited token approval",
+                "Spender contract has zero on-chain history",
+              ]}
+              size="compact"
+            />
           </motion.div>
+        </div>
+
+        <div className="px-4 py-3 flex gap-2" style={{ background: "var(--bad-dim)", borderTop: "1px solid var(--bad)" }}>
+          <span className="flex-1 py-2 rounded-input text-xs font-semibold text-center border border-ink-900/15 bg-white text-ink-700">
+            Decline
+          </span>
+          <span className="flex-1 py-2 rounded-input text-xs font-bold text-center text-white flex items-center justify-center gap-1.5" style={{ background: "var(--bad)" }}>
+            <ShieldCheck size={12} /> Sign anyway
+          </span>
         </div>
       </div>
     </motion.div>
@@ -279,85 +230,27 @@ function DetectorMarquee() {
   );
 }
 
-/* ─────────────────────────── problem / solution ─────────────────────────── */
-
-function ProblemSolution() {
-  const rows = [
-    {
-      moment: "Blind sign",
-      old:    "Freighter shows a base58 program ID and a Confirm button.",
-      newWay: "Plain-language findings, balance impact, and a hard block when your rules say so.",
-    },
-    {
-      moment: "Blind allowance",
-      old:    "“Approve unlimited” is one click; revocation lives on a website you forget.",
-      newWay: "Rolling caps with a live progress bar, one-tap revoke, drift alerts.",
-    },
-    {
-      moment: "Blind agent (x402)",
-      old:    "AI agents silently re-sign micro-payments — no caps, no kill switch.",
-      newWay: "Per-merchant cap, mint allowlist, real-time monitor, all enforced at sign time.",
-    },
-  ];
-
-  return (
-    <Section
-      eyebrow="The problem"
-      title="Wallets ask for trust they can't earn."
-      sub="Today's wallets show you what to sign — not what will happen. Baret replaces the guessing with proof, on every signature."
-    >
-      <div className="card overflow-hidden">
-        <div className="grid grid-cols-12 px-6 py-3 text-[10px] uppercase tracking-[0.2em] font-bold text-ink-400 border-b border-ink-900/8 bg-bone">
-          <div className="col-span-3">Moment</div>
-          <div className="col-span-5 flex items-center gap-2"><XCircle size={11} className="text-ink-400" /> Today</div>
-          <div className="col-span-4 flex items-center gap-2 text-brand-700"><ShieldCheck size={11} /> With Baret</div>
-        </div>
-        {rows.map((r, i) => (
-          <Row key={r.moment} row={r} delay={i * 0.08} last={i === rows.length - 1} />
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-function Row({ row, delay, last }: { row: { moment: string; old: string; newWay: string }; delay: number; last: boolean }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 8 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ delay, duration: 0.5 }}
-      className={`grid grid-cols-12 gap-4 px-6 py-6 ${last ? "" : "border-b border-ink-900/8"}`}
-    >
-      <div className="col-span-3 font-display font-bold text-ink-900">{row.moment}</div>
-      <div className="col-span-5 text-ink-500 text-sm leading-relaxed">{row.old}</div>
-      <div className="col-span-4 text-ink-900 text-sm leading-relaxed font-medium">{row.newWay}</div>
-    </motion.div>
-  );
-}
-
 /* ─────────────────────────── three pillars ─────────────────────────── */
 
 function ThreePillars() {
   const pillars = [
     {
-      tag: "Layer 01",
+      num: "01",
       icon: FileSearch,
       title: "Pre-sign Guard",
       body: "Every transaction is decoded and simulated server-side, then 25+ risk detectors fire findings the popup explains in one sentence.",
       points: ["Server simulation", "25+ risk detectors", "Policy DSL gate"],
     },
     {
-      tag: "Layer 02",
+      num: "02",
       icon: Layers,
       title: "Authorization Ledger",
       body: "Every approval becomes a row with a cap, an expiry, and a live progress bar. No more ‘unlimited approvals’ you forgot existed.",
       points: ["Rolling caps", "One-tap revoke", "Pause / resume"],
+      demo: true,
     },
     {
-      tag: "Layer 03",
+      num: "03",
       icon: Radar,
       title: "Post-sign Monitor",
       body: "WebSocket subscription on your authority and smart wallet. If something moves that Baret didn't sign, you get a browser notification immediately.",
@@ -370,7 +263,6 @@ function ThreePillars() {
       eyebrow="The product"
       title="Three layers, one hard hat."
       sub="A signing path that's fortified end-to-end. Each layer is independently useful — together they close the gap that lets drainers, drift, and silent agents win today."
-      tone="bone"
     >
       <div className="grid md:grid-cols-3 gap-4">
         {pillars.map((p, i) => <PillarCard key={p.title} {...p} index={i} />)}
@@ -379,8 +271,8 @@ function ThreePillars() {
   );
 }
 
-function PillarCard({ tag, icon: Icon, title, body, points, index }:
-  { tag: string; icon: typeof Shield; title: string; body: string; points: string[]; index: number }
+function PillarCard({ num, icon: Icon, title, body, points, index, demo }:
+  { num: string; icon: typeof Shield; title: string; body: string; points: string[]; index: number; demo?: boolean }
 ) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
@@ -390,21 +282,21 @@ function PillarCard({ tag, icon: Icon, title, body, points, index }:
       initial={{ opacity: 0, y: 24 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ delay: index * 0.1, duration: 0.6 }}
-      className="group card-hover relative p-7 overflow-hidden"
+      className="relative p-7 overflow-hidden"
+      style={{ border: "1px solid rgba(20,20,20,0.10)", borderRadius: "var(--r-card, 16px)" }}
     >
-      <div
+      <span
         aria-hidden
-        className="absolute -top-24 -right-24 w-56 h-56 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        style={{ background: "radial-gradient(closest-side, rgba(255,107,0,0.10), transparent 70%)" }}
-      />
+        className="absolute -top-3 right-4 font-display font-bold text-transparent select-none pointer-events-none"
+        style={{ fontSize: "6.5rem", lineHeight: 1, WebkitTextStroke: "1.5px rgba(20,20,20,0.08)" }}
+      >
+        {num}
+      </span>
 
       <div className="relative">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-[0.22em] font-bold text-brand-600">{tag}</span>
-          <span className="w-10 h-10 grid place-items-center rounded-xl bg-ink-900 text-brand-400">
-            <Icon size={17} />
-          </span>
-        </div>
+        <span className="w-10 h-10 grid place-items-center rounded-xl bg-ink-900 text-brand-400">
+          <Icon size={17} />
+        </span>
         <h3 className="mt-6 font-display text-2xl font-bold tracking-tight">{title}</h3>
         <p className="mt-3 text-sm text-ink-500 leading-relaxed">{body}</p>
 
@@ -416,6 +308,12 @@ function PillarCard({ tag, icon: Icon, title, body, points, index }:
             </li>
           ))}
         </ul>
+
+        {demo && (
+          <div className="mt-6 pt-5 border-t border-ink-900/8">
+            <Meter label="acme-dex.xyz — daily cap" value={62} max={100} formatValue={(v, m) => `${v} / ${m} USDC`} />
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -452,7 +350,10 @@ function SiteCard({ path, name, tag, threat, index }:
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ delay: index * 0.06, duration: 0.5 }}
     >
-      <Link to={path} className="group card-hover block p-5">
+      <Link
+        to={path}
+        className="group block p-5 rounded-2xl bg-white border border-ink-900/10 hover:border-brand-500 transition-colors"
+      >
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -475,65 +376,6 @@ function SiteCard({ path, name, tag, threat, index }:
   );
 }
 
-/* ─────────────────────────── x402 wedge ─────────────────────────── */
-
-function X402Section() {
-  return (
-    <Section
-      eyebrow="The wedge"
-      title="The first wallet built for the x402 era."
-      sub="AI agents pay per request now. Without a wallet that understands x402, every agent is a silent drain waiting to happen. Baret is the first to enforce caps, allowlists, and kill switches at the signing layer."
-      tone="bone"
-    >
-      <div className="card overflow-hidden">
-        <div className="grid md:grid-cols-2">
-          <div className="p-8 md:p-10 border-b md:border-b-0 md:border-r border-ink-900/8 bg-bone">
-            <div className="inline-flex items-center gap-2 text-xs font-bold text-ink-400 uppercase tracking-wider">
-              <Cpu size={12} /> Without a hard hat
-            </div>
-            <p className="mt-4 font-display text-2xl font-bold leading-tight text-ink-700">
-              An agent re-signs micro-payments<br /> while you sleep.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {[
-                "No aggregate spend view",
-                "No per-merchant cap",
-                "No way to kill the loop",
-                "No allowlist for facilitators or mints",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm text-ink-500">
-                  <XCircle size={14} className="text-ink-300 mt-0.5 shrink-0" /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="p-8 md:p-10 bg-white">
-            <div className="inline-flex items-center gap-2 text-xs font-bold text-brand-600 uppercase tracking-wider">
-              <HardHat size={13} /> With Baret
-            </div>
-            <p className="mt-4 font-display text-2xl font-bold leading-tight">
-              The agent gets a leash,<br /> a budget, and a kill switch.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {[
-                { i: Gauge,    t: "Per-merchant rolling cap" },
-                { i: Network,  t: "Facilitator + mint allowlist" },
-                { i: Radar,    t: "Real-time drift monitor" },
-                { i: KeyRound, t: "One-tap on-chain revoke" },
-              ].map(({ i: I, t }) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm text-ink-800 font-medium">
-                  <I size={14} className="text-brand-500 mt-0.5 shrink-0" /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    </Section>
-  );
-}
-
 /* ─────────────────────────── stats ─────────────────────────── */
 
 function StatsBar() {
@@ -544,7 +386,7 @@ function StatsBar() {
     { value: "0",   label: "Keys ever exposed" },
   ];
   return (
-    <section className="px-6 py-20">
+    <section className="px-6 pb-24">
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-ink-900/10 bg-ink-900/10 shadow-card">
         {stats.map((s, i) => (
           <motion.div
@@ -553,12 +395,14 @@ function StatsBar() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-40px" }}
             transition={{ delay: i * 0.08 }}
-            className="bg-white px-6 py-10 text-center"
+            className="bg-white px-6 py-10 text-center flex flex-col items-center"
           >
-            <div className="font-display text-5xl font-bold tracking-tight">
-              {s.value === "0" ? <span className="text-brand-500">0</span> : s.value}
-            </div>
-            <div className="mt-2 text-[11px] uppercase tracking-[0.22em] text-ink-400 font-bold">{s.label}</div>
+            <StatTile
+              label={s.label}
+              value={s.value === "0" ? <span className="text-brand-500">0</span> : s.value}
+              variant="display"
+              className="items-center text-center"
+            />
           </motion.div>
         ))}
       </div>
@@ -575,14 +419,8 @@ function FinalCta() {
         <HazardRule />
         <div
           aria-hidden
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-            maskImage: "radial-gradient(ellipse at 50% 100%, transparent 30%, black 80%)",
-            WebkitMaskImage: "radial-gradient(ellipse at 50% 100%, transparent 30%, black 80%)",
-          }}
+          className="absolute -right-24 -bottom-24 w-[420px] h-[420px] rounded-full opacity-60"
+          style={{ background: "radial-gradient(closest-side, rgba(255,107,0,0.22), transparent 70%)" }}
         />
         <div className="relative max-w-3xl p-12 md:p-20">
           <HardHat size={26} className="text-brand-500" />
@@ -633,10 +471,10 @@ function Section({
         >
           <div className="max-w-2xl">
             <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] font-bold text-brand-600">
-              <span className="w-6 h-[3px] hazard rounded-full" />
+              <span className="w-6 h-[3px] rounded-full" style={{ background: "#FF6B00" }} />
               {eyebrow}
             </p>
-            <h2 className="mt-3 font-display text-4xl md:text-5xl font-bold tracking-tight leading-[1.08]">{title}</h2>
+            <h2 className="mt-3 font-display font-bold tracking-tight leading-[1.02] text-[clamp(2.25rem,4.5vw,3.75rem)]">{title}</h2>
             {sub && <p className="mt-5 text-ink-500 leading-relaxed">{sub}</p>}
           </div>
           {action && (

@@ -9,11 +9,12 @@
  * Click a card → drills into /sites/:b64 (SiteDetailPage) with full controls.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Globe, ArrowRight, Loader2, ShieldOff, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
+import { usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../../shared/state-context";
 
 interface SiteSummary {
@@ -36,29 +37,23 @@ export function SitesPage() {
   const [policy, setPolicy] = useState<GuardPolicy | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const [a, h, p] = await Promise.all([
-          rpc.call("ledger.list", { filter: undefined }),
-          rpc.call("history.list", { filter: { type: "dapp" } }),
-          rpc.call("policy.read", undefined as never),
-        ]);
-        if (cancelled) return;
-        setAllowances(a);
-        setHistory(h);
-        setPolicy(p as GuardPolicy);
-        setErr(null);
-      } catch (e) {
-        if (cancelled) return;
-        setErr(e instanceof Error ? e.message : String(e));
-      }
-    };
-    void refresh();
-    const t = setInterval(refresh, 10_000);
-    return () => { cancelled = true; clearInterval(t); };
+  const refresh = useCallback(async () => {
+    try {
+      const [a, h, p] = await Promise.all([
+        rpc.call("ledger.list", { filter: undefined }),
+        rpc.call("history.list", { filter: { type: "dapp" } }),
+        rpc.call("policy.read", undefined as never),
+      ]);
+      setAllowances(a);
+      setHistory(h);
+      setPolicy(p as GuardPolicy);
+      setErr(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
   }, [rpc]);
+
+  usePolling(refresh, 10_000);
 
   const sites = useMemo<SiteSummary[]>(() => {
     if (!allowances || !history || !policy) return [];

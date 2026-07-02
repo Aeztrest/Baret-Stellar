@@ -9,7 +9,7 @@
  *      writes the new policy through policy.write so the change persists.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Globe, ShieldOff, ShieldCheck, Pause, Play, Trash2, Loader2,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
+import { Button, Dialog, shortAddr, usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
 export function SiteDetailPage() {
@@ -35,6 +36,7 @@ export function SiteDetailPage() {
   const [policy, setPolicy] = useState<GuardPolicy | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!origin) return;
@@ -53,17 +55,13 @@ export function SiteDetailPage() {
     }
   }, [origin, rpc]);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 10_000);
-    return () => clearInterval(t);
-  }, [refresh]);
+  usePolling(refresh, 10_000);
 
   if (!origin) {
     return (
       <div className="card text-center py-10">
         <p className="text-bad text-sm">Invalid site URL.</p>
-        <Link to="/sites" className="btn-ghost mt-4 inline-flex"><ArrowLeft size={13} /> Back</Link>
+        <Button variant="secondary" size="sm" className="mt-4" onClick={() => navigate("/sites")} leftIcon={<ArrowLeft size={13} />}>Back</Button>
       </div>
     );
   }
@@ -114,8 +112,8 @@ export function SiteDetailPage() {
 
   const onPause   = async () => { setBusy("pause");   try { await rpc.call("ledger.pause",   { merchantOrigin: origin }); await refresh(); } catch (e) { setErr(String(e)); } finally { setBusy(null); } };
   const onUnpause = async () => { setBusy("unpause"); try { await rpc.call("ledger.unpause", { merchantOrigin: origin }); await refresh(); } catch (e) { setErr(String(e)); } finally { setBusy(null); } };
-  const onRevoke  = async () => {
-    if (!confirm(`Revoke all allowances for ${origin}? If a Swig sub-key exists, you'll be asked to approve a RemoveAuthority transaction.`)) return;
+  const onRevoke = async () => {
+    setRevokeDialogOpen(false);
     setBusy("revoke");
     try { await rpc.call("ledger.revoke", { merchantOrigin: origin }); await refresh(); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
@@ -192,9 +190,9 @@ export function SiteDetailPage() {
               <h2 className="font-bold text-sm">Allowances</h2>
               {allowances && allowances.length > 0 && (
                 <div className="flex gap-2">
-                  <button onClick={onPause}   disabled={busy === "pause"}   className="btn-ghost !px-2.5 !py-1.5 text-xs"><Pause size={11} /> Pause all</button>
-                  <button onClick={onUnpause} disabled={busy === "unpause"} className="btn-ghost !px-2.5 !py-1.5 text-xs"><Play size={11} /> Unpause</button>
-                  <button onClick={onRevoke}  disabled={busy === "revoke"}  className="btn-danger !px-2.5 !py-1.5 text-xs"><Trash2 size={11} /> Revoke</button>
+                  <Button variant="ghost" size="sm" onClick={onPause} loading={busy === "pause"} leftIcon={<Pause size={11} />}>Pause all</Button>
+                  <Button variant="ghost" size="sm" onClick={onUnpause} loading={busy === "unpause"} leftIcon={<Play size={11} />}>Unpause</Button>
+                  <Button variant="danger" size="sm" onClick={() => setRevokeDialogOpen(true)} loading={busy === "revoke"} leftIcon={<Trash2 size={11} />}>Revoke</Button>
                 </div>
               )}
             </div>
@@ -238,6 +236,20 @@ export function SiteDetailPage() {
           )}
         </>
       )}
+
+      <Dialog
+        open={revokeDialogOpen}
+        onOpenChange={setRevokeDialogOpen}
+        title="Revoke all allowances?"
+        description={`This revokes every allowance for ${pretty(origin)}. If a Swig sub-key exists, you'll be asked to approve a RemoveAuthority transaction.`}
+        tone="danger"
+        footer={
+          <>
+            <Button variant="secondary" fullWidth onClick={() => setRevokeDialogOpen(false)}>Cancel</Button>
+            <Button variant="danger" fullWidth onClick={onRevoke}>Revoke</Button>
+          </>
+        }
+      />
     </div>
   );
 }
@@ -289,7 +301,7 @@ function AllowanceRow({ a }: { a: AllowanceSnapshot }) {
   return (
     <div className="p-3 rounded-input" style={{ background: "rgba(20,20,20,0.03)", border: "1px solid var(--line)" }}>
       <div className="flex items-center justify-between mb-2">
-        <p className="font-mono text-xs text-text-muted truncate">{shortAddr(a.asset)}</p>
+        <p className="font-mono text-xs text-text-muted truncate">{shortAddr(a.asset, { lead: 6, tail: 6 })}</p>
         <span className={`pill ${statusPill}`}>{a.status}</span>
       </div>
       <div className="grid grid-cols-3 gap-2 text-[11px]">
@@ -318,11 +330,6 @@ function Stat({ label, value, spent }: { label: string; value: number; spent?: n
 function pretty(origin: string): string {
   try { const u = new URL(origin); return u.host + (u.pathname && u.pathname !== "/" ? u.pathname : ""); }
   catch { return origin; }
-}
-
-function shortAddr(s: string): string {
-  if (s.length <= 14) return s;
-  return `${s.slice(0, 6)}…${s.slice(-6)}`;
 }
 
 function shortTime(ts: number): string {

@@ -4,8 +4,9 @@
  * Spec: docs/wallet-spec.md §3.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletContext } from "../shared/state-context";
 import { LockedScreen } from "./LockedScreen";
 import { UninitializedScreen } from "./UninitializedScreen";
@@ -28,19 +29,17 @@ export function PopupApp() {
   // connect-approval. Poll the queue head so the popup routes to the right
   // screen — SignRequest for txs/messages, ConnectApproval for connect.
   useEffect(() => {
-    if (state?.phase !== "signing") { setPendingKind(null); return; }
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await rpc.call("tx.peekRequest", undefined as never);
-        if (cancelled) return;
-        setPendingKind(r?.kind ?? null);
-      } catch { /* ignore */ }
-    };
-    void tick();
-    const t = setInterval(tick, 600);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [state?.phase, rpc]);
+    if (state?.phase !== "signing") setPendingKind(null);
+  }, [state?.phase]);
+
+  const pollPendingKind = useCallback(async () => {
+    try {
+      const r = await rpc.call("tx.peekRequest", undefined as never);
+      setPendingKind(r?.kind ?? null);
+    } catch { /* ignore */ }
+  }, [rpc]);
+
+  usePolling(pollPendingKind, 600, { enabled: state?.phase === "signing" });
 
   if (loading) {
     return (

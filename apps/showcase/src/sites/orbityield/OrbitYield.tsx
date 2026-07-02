@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, Lock, Zap, Info } from "lucide-react";
+import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
 import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
-import { buildScenario } from "../../baret/transactions";
+import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
 
 const THEME = {
   primary: "#D97706",
@@ -26,7 +27,7 @@ const POOLS = [
 ];
 
 export default function OrbitYield() {
-  const { connected, openWalletModal, walletAddress, adapter } = useWallet();
+  const { connected, openWalletModal, walletAddress, adapter, connectRawWallet } = useWallet();
   const [amount, setAmount] = useState("10");
   const [selectedPool, setSelectedPool] = useState(0);
   const [dangerous, setDangerous] = useState(false);
@@ -66,7 +67,25 @@ export default function OrbitYield() {
       }
     }
   }
-  const sendRaw = sendViaBaret;
+  // "Without protection" — a genuinely different wallet (Freighter) signs the
+  // same scenario over its own key and submits straight to Horizon; Baret's
+  // connected account can only ever be signed by Baret, by design.
+  async function sendRaw() {
+    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    try {
+      const raw = await connectRawWallet();
+      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "orbityield-warn" : "orbityield-safe", raw.address);
+      const { signedTxXdr } = await raw.signTransaction(rawTx);
+      const hash = await submitSignedTransaction(signedTxXdr);
+      setSignature(hash); setResultState("confirmed");
+    } catch (e) {
+      if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
+        setResultState("blocked"); setResultMessage(e.message);
+      } else {
+        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
+      }
+    }
+  }
   const estimatedYearly = parseFloat(amount || "0") * (parseFloat(pool.apy) / 100);
 
   return (
@@ -200,13 +219,7 @@ export default function OrbitYield() {
 
           {/* Demo toggle */}
           <div className="mt-10 flex justify-center">
-            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-paper border border-ink-900/10 shadow-card">
-              <span className="text-xs text-ink-500">Simulate unverified pool</span>
-              <button onClick={() => setDangerous(!dangerous)} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: dangerous ? "#E8470A" : "rgba(20,20,20,0.1)" }}>
-                <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform" style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }} />
-              </button>
-              {dangerous && <span className="text-xs text-[#E8470A] font-medium">⚠ Danger mode</span>}
-            </div>
+            <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate unverified pool" activeColor="#E8470A" />
           </div>
         </div>
       </div>

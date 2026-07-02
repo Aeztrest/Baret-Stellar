@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "./types";
+import type { AnalysisResult } from "./types.js";
 
 export class GuardError extends Error {
   constructor(message: string, public readonly cause?: unknown) {

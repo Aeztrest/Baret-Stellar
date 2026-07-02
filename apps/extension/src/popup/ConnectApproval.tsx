@@ -7,11 +7,11 @@
  * routes back to the background's wsConnect via `tx.sign`.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Globe, ShieldCheck, X, Check, Loader2, AlertTriangle, Lock,
 } from "lucide-react";
-import { Mark } from "@stellar-thorn/ui";
+import { Mark, usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../shared/state-context";
 
 interface PendingRequest {
@@ -27,20 +27,15 @@ export function ConnectApproval() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await rpc.call("tx.peekRequest", undefined as never);
-        if (cancelled || !r) return;
-        if (r.kind !== "connect") return;
-        setRequest({ requestId: r.requestId, origin: r.origin });
-      } catch { /* ignore */ }
-    };
-    void tick();
-    const t = setInterval(tick, 1000);
-    return () => { cancelled = true; clearInterval(t); };
+  const pollRequest = useCallback(async () => {
+    try {
+      const r = await rpc.call("tx.peekRequest", undefined as never);
+      if (!r || r.kind !== "connect") return;
+      setRequest({ requestId: r.requestId, origin: r.origin });
+    } catch { /* ignore */ }
   }, [rpc]);
+
+  usePolling(pollRequest, 1000);
 
   if (!request || !state) {
     return (

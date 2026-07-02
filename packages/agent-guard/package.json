@@ -1,0 +1,34 @@
+{
+  "name": "@stellar-thorn/agent-guard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pre-sign transaction firewall for autonomous agent & program wallets — SDK + `baret` CLI on top of Baret's analyze + policy engine.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "baret": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "baret": "node ./dist/cli.js"
+  },
+  "dependencies": {
+    "@stellar-thorn/swig-guard": "workspace:*",
+    "@stellar/stellar-sdk": "^15.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.7.2"
+  }
+}
