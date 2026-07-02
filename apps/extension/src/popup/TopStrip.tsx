@@ -4,18 +4,13 @@
  */
 
 import { ChevronDown, Settings as SettingsIcon } from "lucide-react";
-import { Mark } from "@stellar-thorn/ui";
+import { Badge, Mark, shortAddr } from "@stellar-thorn/ui";
 import type { WalletStateSnapshot } from "@stellar-thorn/ext-protocol";
 
 interface Props {
   state: WalletStateSnapshot;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
-}
-
-function shortAddr(s: string | null): string {
-  if (!s) return "—";
-  return `${s.slice(0, 4)}…${s.slice(-4)}`;
 }
 
 export function TopStrip({ state, onOpenAccount, onOpenSettings }: Props) {
@@ -34,7 +29,7 @@ export function TopStrip({ state, onOpenAccount, onOpenSettings }: Props) {
 
       <div className="flex items-center gap-1">
         {state.alertsUnread > 0 && (
-          <span className="pill pill-bad mr-1">{state.alertsUnread}</span>
+          <Badge tone="bad" className="mr-1">{state.alertsUnread}</Badge>
         )}
         <button
           onClick={onOpenSettings}

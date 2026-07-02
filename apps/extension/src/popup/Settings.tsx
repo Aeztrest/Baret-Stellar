@@ -4,13 +4,16 @@
  * Spec: docs/wallet-spec.md §6.
  */
 
+import { useState } from "react";
 import { ChevronRight, Lock, ExternalLink, Trash2 } from "lucide-react";
 import browser from "webextension-polyfill";
+import { Button, Card, Dialog, versionLabel } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../shared/state-context";
 
 export function Settings() {
   const rpc = useRpc();
   const state = useWalletState();
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   const openOptions = (route?: string) => {
     const url = browser.runtime.getURL(`src/options/index.html${route ? `#${route}` : ""}`);
@@ -22,19 +25,19 @@ export function Settings() {
   };
 
   const onReset = () => {
-    if (!confirm("Reset wipes the wallet from this browser. Make sure you've exported your secret first. Continue?")) return;
+    setResetDialogOpen(false);
     void rpc.call("wallet.reset", { confirmation: "I-UNDERSTAND" }).catch(() => {});
   };
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
-      <Section>
+      <Card padding="none" className="divide-y divide-line overflow-hidden">
         <Row label="Network" value={state?.network ?? "—"} onClick={() => openOptions("network")} />
         <Row label="Policy"  value="Balanced template" onClick={() => openOptions("policies")} />
         <Row label="Security" value="Wallet locks after 15 min idle" onClick={() => openOptions("security")} />
-      </Section>
+      </Card>
 
-      <Section>
+      <Card padding="none" className="divide-y divide-line overflow-hidden">
         <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
           <div className="flex items-center gap-2">
             <Lock size={13} className="text-text-faint" />
@@ -49,33 +52,36 @@ export function Settings() {
           </div>
           <ChevronRight size={13} className="text-text-faint" />
         </button>
-      </Section>
+      </Card>
 
-      <Section danger>
-        <button onClick={onReset} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+      <Card
+        padding="none"
+        className="divide-y divide-line overflow-hidden !bg-[rgba(248,113,113,0.04)] !border-[rgba(248,113,113,0.18)]"
+      >
+        <button onClick={() => setResetDialogOpen(true)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
           <div className="flex items-center gap-2 text-bad">
             <Trash2 size={13} />
             <span className="text-sm">Reset wallet…</span>
           </div>
           <ChevronRight size={13} className="text-bad/60" />
         </button>
-      </Section>
+      </Card>
 
-      <p className="text-[10px] text-text-faint text-center mt-auto pt-3">Baret · v0.1.0 · open source</p>
-    </div>
-  );
-}
+      <p className="text-[10px] text-text-faint text-center mt-auto pt-3">{versionLabel()}</p>
 
-function Section({ children, danger }: { children: React.ReactNode; danger?: boolean }) {
-  return (
-    <div
-      className="rounded-card overflow-hidden divide-y divide-line"
-      style={{
-        background: danger ? "rgba(248,113,113,0.04)" : "var(--bg-card)",
-        border: `1px solid ${danger ? "rgba(248,113,113,0.18)" : "var(--line)"}`,
-      }}
-    >
-      {children}
+      <Dialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        title="Reset wallet?"
+        description="This wipes the wallet from this browser. Make sure you've exported your secret first — this can't be undone."
+        tone="danger"
+        footer={
+          <>
+            <Button variant="secondary" fullWidth onClick={() => setResetDialogOpen(false)}>Cancel</Button>
+            <Button variant="danger" fullWidth onClick={onReset}>Reset</Button>
+          </>
+        }
+      />
     </div>
   );
 }

@@ -4,6 +4,43 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /*
+   * Baret brand override. Hand-mirrored from packages/ui/src/tokens.css
+   * (the monorepo's source of truth) — that package can't be imported as a
+   * React dependency here since baret_docs runs React 19 against
+   * packages/ui's React 18 peer dep, but its CSS tokens have no such
+   * coupling. Keep these two files in sync manually.
+   *
+   * Every component in this app reaches for Tailwind's default `emerald`
+   * (accent/links) and `zinc` (text/surfaces) scales directly, as does the
+   * typography plugin's prose theme in typography.ts (via `theme('colors.
+   * emerald.500')` etc.) — overriding the scales here re-themes the whole
+   * site without touching every call site.
+   */
+  --color-emerald-50:  #FFF4EC;
+  --color-emerald-100: #FFE7D4;
+  --color-emerald-200: #FFCDA6;
+  --color-emerald-300: #FFAB6E;
+  --color-emerald-400: #FF8838;
+  --color-emerald-500: #FF6B00; /* --accent */
+  --color-emerald-600: #EA5E00; /* --accent-soft */
+  --color-emerald-700: #C24E02;
+  --color-emerald-800: #993E06;
+  --color-emerald-900: #7C350A;
+  --color-emerald-950: #5C2807;
+
+  --color-zinc-50:  #F7F6F4;
+  --color-zinc-100: #EEECE8;
+  --color-zinc-200: #DEDAD3;
+  --color-zinc-300: #C3BEB5;
+  --color-zinc-400: #94908A;
+  --color-zinc-500: #6B6862;
+  --color-zinc-600: #4A4742;
+  --color-zinc-700: #322F2C;
+  --color-zinc-800: #211F1D;
+  --color-zinc-900: #141414; /* --text */
+  --color-zinc-950: #0A0908;
+
   --text-2xs: 0.75rem;
   --text-2xs--line-height: 1.25rem;
   --text-xs: 0.8125rem;

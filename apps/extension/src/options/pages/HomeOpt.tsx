@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useRpc, useWalletState } from "../../shared/state-context";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
+import { shortAddr, usePolling } from "@stellar-thorn/ui";
 import {
   OptionsSendModal,
   OptionsReceiveModal,
@@ -60,11 +61,7 @@ export function HomeOpt() {
     }
   }, [state, rpc]);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 8000);
-    return () => clearInterval(t);
-  }, [refresh]);
+  usePolling(refresh, 8000);
 
   useEffect(() => {
     void rpc
@@ -122,7 +119,7 @@ export function HomeOpt() {
         }}
       >
         <p className="label">
-          {heroLabel} · {shortAddr(heroAddress)}
+          {heroLabel} · {shortAddr(heroAddress, { lead: 6, tail: 6 })}
         </p>
         <p className="text-5xl font-extrabold leading-none font-mono tracking-tight">
           {heroBalance === null ? "—" : heroBalance.toFixed(4)}
@@ -281,11 +278,6 @@ function PolicySummary({ policy }: { policy: GuardPolicy | null }) {
       ))}
     </ul>
   );
-}
-
-function shortAddr(s: string | null): string {
-  if (!s) return "—";
-  return `${s.slice(0, 6)}…${s.slice(-6)}`;
 }
 
 function stellarExpertAddress(addr: string | null, network: string): string {

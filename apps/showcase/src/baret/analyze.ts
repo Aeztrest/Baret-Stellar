@@ -70,8 +70,6 @@ export interface AnalyzeOptions {
   policy?: Record<string, unknown>;
 }
 
-const API_KEY = "dev-key-change-me";
-
 const EMPTY_CHANGES: AnalysisResult["estimatedChanges"] = {
   native: [],
   assets: [],
@@ -89,7 +87,6 @@ export async function analyzeTransactionForPreview(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
         network: opts.network ?? "testnet",

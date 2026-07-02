@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpDown, ChevronDown, Settings, Info } from "lucide-react";
+import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { SiteShell } from "../../components/SiteShell";
 import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
-import { buildScenario } from "../../baret/transactions";
+import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
 import { useWallet } from "../../wallet/context";
 
 const THEME = {
@@ -27,7 +28,7 @@ const TOKENS = [
 ];
 
 export default function NovaSwap() {
-  const { connected, openWalletModal, walletAddress, adapter } = useWallet();
+  const { connected, openWalletModal, walletAddress, adapter, connectRawWallet } = useWallet();
   const [fromToken, setFromToken] = useState(TOKENS[0]);
   const [toToken, setToToken] = useState(TOKENS[1]);
   const [amount, setAmount] = useState("0.5");
@@ -69,12 +70,26 @@ export default function NovaSwap() {
       }
     }
   }
-  // "Without protection" = same path through the connected wallet, but no
-  // pre-sign review on the site side. Demo aid only — the wallet still
-  // applies its own policy, since Baret is the wallet itself. To truly
-  // bypass, swap to a different non-Baret wallet from the picker.
+  // "Without protection" — Baret enforces its policy at sign time inside its
+  // own popup, so there is no code path that skips the check for its own
+  // account. The only honest comparison is a genuinely different wallet
+  // signing the same scenario over its own key: connects a second wallet
+  // (Freighter) and submits directly to Horizon, no Baret pipeline involved.
   async function sendRaw() {
-    return sendViaBaret();
+    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    try {
+      const raw = await connectRawWallet();
+      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "novaswap-danger" : "novaswap-safe", raw.address);
+      const { signedTxXdr } = await raw.signTransaction(rawTx);
+      const hash = await submitSignedTransaction(signedTxXdr);
+      setSignature(hash); setResultState("confirmed");
+    } catch (e) {
+      if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
+        setResultState("blocked"); setResultMessage(e.message);
+      } else {
+        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
+      }
+    }
   }
 
   function flip() {
@@ -204,24 +219,8 @@ export default function NovaSwap() {
         </motion.div>
 
         {/* Demo toggle */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 flex items-center gap-3 px-5 py-3 rounded-2xl bg-bone border border-ink-900/10"
-        >
-          <span className="text-xs text-ink-500">Simulate malicious swap</span>
-          <button
-            onClick={() => setDangerous(!dangerous)}
-            className="relative w-10 h-5 rounded-full transition-colors"
-            style={{ background: dangerous ? "#E8470A" : "rgba(20,20,20,0.1)" }}
-          >
-            <div
-              className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-card transition-transform"
-              style={{ transform: dangerous ? "translateX(21px)" : "translateX(2px)" }}
-            />
-          </button>
-          {dangerous && <span className="text-xs text-[#E8470A] font-medium">⚠ Danger mode</span>}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-8">
+          <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate malicious swap" activeColor="#E8470A" />
         </motion.div>
       </div>
 

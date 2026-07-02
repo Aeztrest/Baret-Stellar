@@ -234,6 +234,18 @@ export async function buildScenario(
   }
 }
 
+/**
+ * Submit an already-signed transaction directly to Horizon — no Baret
+ * analyze call, no wallet-side policy gate. This is the actual "without
+ * protection" path: it never touches the Baret pipeline at all.
+ */
+export async function submitSignedTransaction(signedTxXdr: string): Promise<string> {
+  const horizon = new Horizon.Server(HORIZON_TESTNET);
+  const tx = TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE);
+  const result = await horizon.submitTransaction(tx);
+  return result.hash;
+}
+
 function finish(builder: TransactionBuilder, label: string): BuiltScenario {
   const tx = builder.setTimeout(60).build();
   return { transactionXdr: tx.toXDR(), label };

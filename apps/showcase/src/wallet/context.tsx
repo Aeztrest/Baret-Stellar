@@ -57,6 +57,19 @@ export interface WalletState {
       opts?: { networkPassphrase?: string; address?: string },
     ) => Promise<{ signedAuthEntry: string; signerAddress: string }>;
   };
+  /**
+   * Connects a SECOND, independent wallet — deliberately not the connected
+   * `adapter` above — for the "Send without protection" comparison. Baret
+   * enforces its policy at sign time inside its own popup; when Baret is the
+   * connected wallet there is no code path that skips that check for its
+   * own account, by design. The only honest "without Baret" demo is signing
+   * with a different wallet's own key over the same scenario, which is what
+   * this connects (Freighter, or whichever other provider is registered).
+   */
+  connectRawWallet: () => Promise<{
+    address: string;
+    signTransaction: (xdr: string) => Promise<{ signedTxXdr: string }>;
+  }>;
   appName: string;
 }
 
@@ -77,6 +90,7 @@ export function WalletProvider({
 }) {
   const [available, setAvailable] = useState<StellarWalletProvider[]>([]);
   const [bridge, setBridge] = useState<WalletStandardBridge | null>(null);
+  const [rawBridge, setRawBridge] = useState<WalletStandardBridge | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -156,6 +170,32 @@ export function WalletProvider({
     [bridge],
   );
 
+  const connectRawWallet = useCallback(async () => {
+    if (rawBridge) {
+      return {
+        address: rawBridge.account_pubkey(),
+        signTransaction: (xdr: string) => rawBridge.signTransaction(xdr),
+      };
+    }
+    const candidates = discoverStellarProviders().filter(
+      (p) => p.name !== bridge?.name,
+    );
+    const provider =
+      candidates.find((p) => p.name === "Freighter") ?? candidates[0];
+    if (!provider) {
+      throw new WalletStandardBridgeError(
+        "No second wallet available for the unprotected comparison — install Freighter to see this path.",
+        "NO_RAW_WALLET",
+      );
+    }
+    const b = await WalletStandardBridge.connect(provider);
+    setRawBridge(b);
+    return {
+      address: b.account_pubkey(),
+      signTransaction: (xdr: string) => b.signTransaction(xdr),
+    };
+  }, [rawBridge, bridge]);
+
   const walletAddress = bridge?.account_pubkey() ?? null;
   const value = useMemo<WalletState>(
     () => ({
@@ -168,6 +208,7 @@ export function WalletProvider({
       connect,
       disconnect,
       adapter,
+      connectRawWallet,
       appName,
     }),
     [
@@ -179,6 +220,7 @@ export function WalletProvider({
       connect,
       disconnect,
       adapter,
+      connectRawWallet,
       appName,
     ],
   );

@@ -4,9 +4,10 @@
  * Spec: docs/wallet-spec.md §4.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Clock, ExternalLink, Globe } from "lucide-react";
 import type { HistoryEntry } from "@stellar-thorn/ext-protocol";
+import { EmptyState, usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../shared/state-context";
 
 const TYPE_LABEL: Record<HistoryEntry["type"], string> = {
@@ -27,12 +28,7 @@ export function Activity() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  usePolling(refresh, 5000);
 
   if (loading && entries.length === 0) {
     return <div className="flex-1 flex items-center justify-center text-text-faint text-xs">Loading…</div>;
@@ -40,15 +36,12 @@ export function Activity() {
 
   if (entries.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-2">
-        <div className="w-10 h-10 rounded-card flex items-center justify-center text-text-faint"
-             style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
-          <Clock size={16} />
-        </div>
-        <p className="text-sm text-text-muted mt-1">No activity yet</p>
-        <p className="text-xs text-text-faint leading-relaxed max-w-[16rem]">
-          Connect to a dApp or sign your first transaction. We log every verdict, including the ones we decline.
-        </p>
+      <div className="flex-1 flex items-center justify-center px-6">
+        <EmptyState
+          icon={<Clock size={16} />}
+          title="No activity yet"
+          description="Connect to a dApp or sign your first transaction. We log every verdict, including the ones we decline."
+        />
       </div>
     );
   }

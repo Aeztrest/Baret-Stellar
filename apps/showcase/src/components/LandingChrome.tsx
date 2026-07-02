@@ -15,6 +15,7 @@ export const SOCIAL_X      = "https://x.com/baretxyz";
 const NAV_LINKS = [
   { label: "Home",      to: "/home" },
   { label: "Showcase",  to: "/showcase" },
+  { label: "Agents",    to: "/agents" },
   { label: "Docs",      to: "/docs" },
   { label: "Install",   to: "/install" },
 ];

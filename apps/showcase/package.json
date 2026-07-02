@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@stellar-thorn/showcase-ui": "workspace:*",
+    "@stellar-thorn/swig-guard": "workspace:*",
+    "@stellar-thorn/ui": "workspace:*",
     "@stellar-thorn/wallet-adapter": "workspace:*",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.1.0",

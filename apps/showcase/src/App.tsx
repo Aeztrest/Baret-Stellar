@@ -21,6 +21,7 @@ const Scrybe       = lazy(() => import("./sites/scrybe/Scrybe"));
 const InstallPage  = lazy(() => import("./pages/InstallPage"));
 const HomePage     = lazy(() => import("./pages/HomePage"));
 const DocsPage     = lazy(() => import("./pages/DocsPage"));
+const AgentsPage   = lazy(() => import("./pages/AgentsPage"));
 
 function RouteShell({ children }: { children: React.ReactNode }) {
   return (
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/showcase"  element={<RouteShell><Hub /></RouteShell>} />
             <Route path="/home"      element={<RouteShell><HomePage /></RouteShell>} />
             <Route path="/docs"      element={<RouteShell><DocsPage /></RouteShell>} />
+            <Route path="/agents"    element={<RouteShell><AgentsPage /></RouteShell>} />
             <Route path="/novaswap"  element={<RouteShell><NovaSwap /></RouteShell>} />
             <Route path="/pixeldrop" element={<RouteShell><PixelDrop /></RouteShell>} />
             <Route path="/orbityield" element={<RouteShell><OrbitYield /></RouteShell>} />

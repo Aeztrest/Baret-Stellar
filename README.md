@@ -167,6 +167,7 @@ pnpm --filter @stellar-thorn/server x402-setup
 | Package | Role |
 |---|---|
 | `@stellar-thorn/swig-guard`     | Policy DSL + analyzer: pre-sign rules, x402 rules, allowance rules, behavioral alerts. The off-chain twin of the on-chain PaymentGuard. |
+| `@stellar-thorn/agent-guard`    | Pre-sign firewall for **agent & program wallets** — `AgentWallet` SDK + `baret` CLI (analyze / sign / submit). Control page at `/agents`. |
 | `@stellar-thorn/ext-protocol`   | Type-safe message envelope shared by every extension surface. |
 | `@stellar-thorn/wallet-adapter` | Wallet Standard adapter the showcase consumes. |
 | `@stellar-thorn/ui`             | Design tokens — single source of truth for the palette. |

@@ -5,13 +5,14 @@
  * updates itself while open. Lives at /activity in the Options HashRouter.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Clock, Globe, ExternalLink, Loader2, ArrowUpRight, ArrowDownLeft,
   Coins, ShieldAlert, Plug, CheckCircle2, XCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { HistoryEntry } from "@stellar-thorn/ext-protocol";
+import { usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
 /** Human label + icon + one-line meaning for each entry type. */
@@ -29,23 +30,17 @@ export function ActivityPage() {
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const r = await rpc.call("history.list", { filter: {} });
-        if (cancelled) return;
-        setEntries(r);
-        setErr(null);
-      } catch (e) {
-        if (cancelled) return;
-        setErr(e instanceof Error ? e.message : String(e));
-      }
-    };
-    void refresh();
-    const t = setInterval(refresh, 5_000);
-    return () => { cancelled = true; clearInterval(t); };
+  const refresh = useCallback(async () => {
+    try {
+      const r = await rpc.call("history.list", { filter: {} });
+      setEntries(r);
+      setErr(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
   }, [rpc]);
+
+  usePolling(refresh, 5_000);
 
   const network = state?.network ?? "testnet";
 

@@ -4,19 +4,17 @@
  * + balance changes — into a 360-wide column.
  */
 
-import { useState } from "react";
 import {
   ShieldCheck,
   ShieldX,
   AlertTriangle,
-  ChevronDown,
   Info,
-  ArrowRight,
 } from "lucide-react";
 import type {
   AnalyzeResponse,
   RiskFindingPayload,
 } from "@stellar-thorn/ext-protocol";
+import { Section, shortAddr } from "@stellar-thorn/ui";
 
 const SEVERITY_TONE: Record<
   RiskFindingPayload["severity"],
@@ -71,7 +69,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
       <Hero result={result} reasons={reasons} />
 
       {hasAnyChange && (
-        <Section label="What changes">
+        <Section title="What changes" collapsible className="card !p-3">
           <div className="space-y-1">
             {significantNative.map((n, i) => (
               <DeltaRow
@@ -110,7 +108,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
       )}
 
       {findings.length > 0 && (
-        <Section label={`Findings (${findings.length})`}>
+        <Section title={`Findings (${findings.length})`} collapsible className="card !p-3">
           <div className="space-y-1.5">
             {findings.map((f, i) => (
               <FindingRow key={i} finding={f} />
@@ -120,7 +118,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
       )}
 
       {result.simulationWarnings && result.simulationWarnings.length > 0 && (
-        <Section label="Simulation logs">
+        <Section title="Simulation logs" collapsible className="card !p-3">
           <ul className="space-y-0.5 text-[10px] font-mono text-text-faint">
             {result.simulationWarnings.slice(0, 6).map((w, i) => (
               <li key={i} className="break-all">
@@ -211,31 +209,6 @@ function Hero({
   );
 }
 
-function Section({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="card !p-3 space-y-2">
-      <button
-        onClick={() => setOpen((s) => !s)}
-        className="w-full flex items-center justify-between text-left"
-      >
-        <span className="label !mb-0">{label}</span>
-        <ChevronDown
-          size={11}
-          className={`text-text-faint transition-transform ${open ? "" : "-rotate-90"}`}
-        />
-      </button>
-      {open && children}
-    </div>
-  );
-}
-
 function DeltaRow({
   label,
   value,
@@ -296,11 +269,6 @@ function FindingRow({ finding }: { finding: RiskFindingPayload }) {
   );
 }
 
-function shortAddr(s: string): string {
-  if (s.length < 12) return s;
-  return `${s.slice(0, 4)}…${s.slice(-4)}`;
-}
-
 function formatStroopsAsXlm(stroopsStr: string): string {
   const negative = stroopsStr.startsWith("-");
   const abs = negative ? stroopsStr.slice(1) : stroopsStr;
@@ -313,5 +281,3 @@ function formatStroopsAsXlm(stroopsStr: string): string {
     return `${negative ? "-" : "+"}${abs} stroops`;
   }
 }
-
-export { ArrowRight };

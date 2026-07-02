@@ -8,6 +8,7 @@ import {
   type ConnectApprovedMessage,
   type ConnectRejectedMessage,
 } from "@stellar-thorn/wallet-adapter";
+import { shortAddr } from "@stellar-thorn/ui";
 import { useWallet } from "../wallet/state";
 
 export function Connect() {
@@ -123,8 +124,8 @@ export function Connect() {
         </div>
 
         <div className="glass rounded-xl p-4 mb-5 space-y-2">
-          <Row label="Smart wallet" value={shortAddr(identity.smartWalletAddress ?? identity.address)} mono />
-          <Row label="Authority" value={shortAddr(identity.address)} mono />
+          <Row label="Smart wallet" value={shortAddr(identity.smartWalletAddress ?? identity.address, { lead: 6, tail: 6 })} mono />
+          <Row label="Authority" value={shortAddr(identity.address, { lead: 6, tail: 6 })} mono />
           <Row label="Status" value={provisioned ? "On-chain ✓" : "Will provision on approve"} />
         </div>
 
@@ -173,5 +174,3 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
     </div>
   );
 }
-
-function shortAddr(s: string) { return `${s.slice(0, 6)}…${s.slice(-6)}`; }

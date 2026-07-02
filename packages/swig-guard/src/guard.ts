@@ -1,11 +1,11 @@
-import { analyzeTransaction, type AnalyzeClientConfig } from "./analyze";
-import { GuardBlockedError } from "./errors";
-import { normalizePolicy, validatePolicy, type GuardPolicy } from "./policy";
+import { analyzeTransaction, type AnalyzeClientConfig } from "./analyze.js";
+import { GuardBlockedError } from "./errors.js";
+import { normalizePolicy, validatePolicy, type GuardPolicy } from "./policy.js";
 import type {
   AnalysisResult,
   RiskFinding,
   StellarNetwork,
-} from "./types";
+} from "./types.js";
 
 export type GuardDecision = "allow" | "block";
 

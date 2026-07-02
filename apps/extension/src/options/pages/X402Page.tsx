@@ -10,11 +10,12 @@
  * Lives at /x402 in the Options HashRouter.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Shield, Coins, Store, Activity as ActivityIcon, Loader2, Globe, Clock,
 } from "lucide-react";
 import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
+import { usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../../shared/state-context";
 
 export function X402Page() {
@@ -23,27 +24,21 @@ export function X402Page() {
   const [ledger, setLedger] = useState<AllowanceSnapshot[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const [p, l] = await Promise.all([
-          rpc.call("history.list", { filter: { type: "x402" } }),
-          rpc.call("ledger.list", { filter: undefined }),
-        ]);
-        if (cancelled) return;
-        setPayments(p);
-        setLedger(l);
-        setErr(null);
-      } catch (e) {
-        if (cancelled) return;
-        setErr(e instanceof Error ? e.message : String(e));
-      }
-    };
-    void refresh();
-    const t = setInterval(refresh, 4_000);
-    return () => { cancelled = true; clearInterval(t); };
+  const refresh = useCallback(async () => {
+    try {
+      const [p, l] = await Promise.all([
+        rpc.call("history.list", { filter: { type: "x402" } }),
+        rpc.call("ledger.list", { filter: undefined }),
+      ]);
+      setPayments(p);
+      setLedger(l);
+      setErr(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
   }, [rpc]);
+
+  usePolling(refresh, 4_000);
 
   const stats = useMemo(() => {
     const merchants = ledger?.length ?? 0;

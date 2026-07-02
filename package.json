@@ -9,6 +9,7 @@
     "build:extension": "pnpm --filter @stellar-thorn/extension build",
     "build:showcase": "pnpm --filter @stellar-thorn/showcase build",
     "build:guard": "pnpm --filter @stellar-thorn/swig-guard build",
+    "build:agent-guard": "pnpm --filter @stellar-thorn/agent-guard build",
 
     "dev": "pnpm --filter @stellar-thorn/server dev",
     "dev:server": "pnpm --filter @stellar-thorn/server dev",

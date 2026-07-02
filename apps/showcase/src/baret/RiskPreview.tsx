@@ -21,6 +21,7 @@ import {
   ArrowDownRight, ArrowUpRight, HardHat,
 } from "lucide-react";
 import { analyzeTransactionForPreview, type AnalysisResult, type RiskFinding } from "./analyze";
+import { shortAddr } from "@stellar-thorn/ui";
 
 interface Props {
   open: boolean;
@@ -123,9 +124,9 @@ export function RiskPreview({
                   onClick={() => { void onProceedRaw(); }}
                   className="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 text-ink-600"
                   style={{ background: "#fff", border: "1px solid rgba(20,20,20,0.14)" }}
-                  title="Bypass Baret — sign + send without firewall"
+                  title="Connects a second wallet (no Baret) and submits directly — a genuine unprotected comparison"
                 >
-                  <EyeOff size={11} /> Send without protection
+                  <EyeOff size={11} /> Send with unprotected wallet
                 </button>
                 <button
                   onClick={() => { void onProceedWithBaret(); }}
@@ -143,9 +144,11 @@ export function RiskPreview({
               </div>
               <p className="text-[10px] text-ink-400 leading-snug px-1">
                 "Sign with Baret" routes through the extension popup, where the
-                same checks fire as the wallet's authoritative gatekeeper. "Without
-                protection" sends directly through the wallet, no firewall — shown
-                for demo comparison only.
+                same checks fire as the wallet's authoritative gatekeeper.
+                "Unprotected wallet" connects a second, non-Baret wallet (e.g.
+                Freighter) and submits the same scenario straight to the
+                network — no analyze call, no policy gate, a genuine
+                comparison rather than a simulated one.
               </p>
             </footer>
           </motion.div>
@@ -314,7 +317,3 @@ function CompareBar({ verdict, loading }: { verdict: AnalysisResult["decision"];
   );
 }
 
-function shortAddr(s: string): string {
-  if (s.length < 12) return s;
-  return `${s.slice(0, 4)}…${s.slice(-4)}`;
-}

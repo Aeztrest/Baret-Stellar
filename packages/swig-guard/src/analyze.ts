@@ -1,6 +1,6 @@
-import { AnalyzeError } from "./errors";
-import { normalizePolicy, type GuardPolicy } from "./policy";
-import type { AnalysisResult, StellarNetwork } from "./types";
+import { AnalyzeError } from "./errors.js";
+import { normalizePolicy, type GuardPolicy } from "./policy.js";
+import type { AnalysisResult, StellarNetwork } from "./types.js";
 
 export interface AnalyzeClientConfig {
   /** Base URL of the Baret server, e.g. http://localhost:8080 or https://api.baret.dev */

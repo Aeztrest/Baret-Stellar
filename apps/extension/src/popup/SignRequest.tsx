@@ -8,9 +8,10 @@
  * Spec: docs/wallet-spec.md §8 + docs/x402-defense.md.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Globe, Loader2, X, Check, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { AnalyzeResponse } from "@stellar-thorn/ext-protocol";
+import { usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 import { AnalysisReport } from "./AnalysisReport";
 
@@ -38,19 +39,14 @@ export function SignRequest() {
   const [error, setError] = useState<string | null>(null);
 
   // Poll for the pending request once on mount; once we have it, hold it.
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const r = await rpc.call("tx.peekRequest", undefined as never);
-        if (cancelled || !r) return;
-        setRequest(r as PendingRequest);
-      } catch { /* ignore */ }
-    };
-    void tick();
-    const t = setInterval(tick, 1000);
-    return () => { cancelled = true; clearInterval(t); };
+  const pollRequest = useCallback(async () => {
+    try {
+      const r = await rpc.call("tx.peekRequest", undefined as never);
+      if (r) setRequest(r as PendingRequest);
+    } catch { /* ignore */ }
   }, [rpc]);
+
+  usePolling(pollRequest, 1000, { enabled: request === null });
 
   // Run Baret analysis as soon as we have a request.
   useEffect(() => {

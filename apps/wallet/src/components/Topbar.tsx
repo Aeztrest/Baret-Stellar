@@ -1,9 +1,8 @@
 import { Copy, Check, RefreshCw, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { shortAddr } from "@stellar-thorn/ui";
 import { useWallet } from "../wallet/state";
 import { explorerUrl } from "../wallet/connection";
-
-function shortAddr(s: string) { return `${s.slice(0, 4)}…${s.slice(-4)}`; }
 
 export function Topbar() {
   const { identity, walletBalance, refresh, phase } = useWallet();

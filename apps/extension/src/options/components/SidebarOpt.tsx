@@ -5,7 +5,7 @@
 
 import { NavLink } from "react-router-dom";
 import { Home as HomeIcon, Clock, Shield, FileCode, Globe, Settings as SettingsIcon, Lock } from "lucide-react";
-import { Mark } from "@stellar-thorn/ui";
+import { Mark, shortAddr } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
 const NAV = [
@@ -16,11 +16,6 @@ const NAV = [
   { to: "/x402",     label: "x402 Console", icon: Shield },
   { to: "/settings", label: "Settings",    icon: SettingsIcon },
 ];
-
-function shortAddr(s: string | null): string {
-  if (!s) return "—";
-  return `${s.slice(0, 4)}…${s.slice(-4)}`;
-}
 
 export function SidebarOpt() {
   const state = useWalletState();

@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Settings as SettingsIcon, Cpu, KeyRound, AlertTriangle, ExternalLink, Trash2 } from "lucide-react";
+import { Button, Section, versionLabel } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
 const HORIZON_BY_NETWORK: Record<string, string> = {
@@ -38,48 +39,34 @@ export function SettingsOpt() {
         <p className="text-text-muted text-sm mt-1">Network, security, and the danger zone.</p>
       </div>
 
-      <Section icon={Cpu} title="Network">
+      <Section icon={<Cpu size={14} />} title="Network" className="card p-5">
         <Row label="Network" value={state.network} />
         <Row label="Horizon" value={HORIZON_BY_NETWORK[state.network] ?? "—"} mono />
         <Row label="Wallet protocol" value="Baret smart wallet (Stellar)" />
       </Section>
 
-      <Section icon={KeyRound} title="Smart wallet">
+      <Section icon={<KeyRound size={14} />} title="Smart wallet" className="card p-5">
         <Row label="Smart wallet" value={state.walletAddress ?? "—"} mono link={explorerAddress(state.walletAddress, state.network)} />
         <Row label="Authority" value={state.authorityAddress ?? "—"} mono link={explorerAddress(state.authorityAddress, state.network)} />
       </Section>
 
-      <Section icon={AlertTriangle} title="Danger zone" danger>
+      <Section
+        icon={<AlertTriangle size={14} />}
+        title="Danger zone"
+        tone="danger"
+        className="card p-5 !bg-[rgba(248,113,113,0.04)] !border-[rgba(248,113,113,0.18)]"
+      >
         <p className="text-xs text-text-muted leading-relaxed mb-3">
           Reset wipes the keypair, policy, and history from this browser. The on-chain account stays —
           but without the authority key you can't spend from it. <strong className="text-bad">Make sure you've backed up your secret first.</strong>
         </p>
-        <button onClick={onReset} className="btn-danger">
-          <Trash2 size={13} /> {confirming ? "Click again to confirm reset" : "Reset wallet"}
-        </button>
+        <Button variant="danger" onClick={onReset} leftIcon={<Trash2 size={13} />}>
+          {confirming ? "Click again to confirm reset" : "Reset wallet"}
+        </Button>
       </Section>
 
-      <p className="text-[10px] text-text-faint text-center">Baret · v0.1.0 · open source · MIT</p>
+      <p className="text-[10px] text-text-faint text-center">{versionLabel("open source · MIT")}</p>
     </div>
-  );
-}
-
-function Section({ icon: Icon, title, danger, children }: {
-  icon: typeof Cpu; title: string; danger?: boolean; children: React.ReactNode;
-}) {
-  return (
-    <section
-      className="rounded-card p-5 space-y-3"
-      style={danger
-        ? { background: "rgba(248,113,113,0.04)", border: "1px solid rgba(248,113,113,0.18)" }
-        : { background: "var(--bg-card)", border: "1px solid var(--line)" }}
-    >
-      <div className="flex items-center gap-2 mb-1">
-        <Icon size={14} className={danger ? "text-bad" : "text-accent-soft"} />
-        <h2 className={`font-bold text-sm ${danger ? "text-bad" : ""}`}>{title}</h2>
-      </div>
-      {children}
-    </section>
   );
 }
 
