@@ -9,6 +9,7 @@
   "icons": [
     { "src": "/icon-48.png", "sizes": "48x48", "type": "image/png" },
     { "src": "/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/icon-512.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any maskable" },
     { "src": "/apple-touch-icon.png", "sizes": "128x128", "type": "image/png", "purpose": "any maskable" }
   ]
 }

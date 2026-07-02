@@ -125,6 +125,22 @@ export default function NovaSwap() {
           <p className="text-ink-500 max-w-md">Best rates across all Stellar liquidity sources. Powered by Soroswap routing.</p>
         </motion.div>
 
+        {/* Product preview */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="w-full max-w-md mb-8 rounded-2xl overflow-hidden shadow-card"
+          style={{ border: "1px solid rgba(255,107,0,0.25)" }}
+        >
+          <img
+            src="/site-novaswap.jpg"
+            alt="NovaSwap token swap interface preview"
+            loading="lazy"
+            className="w-full h-auto"
+          />
+        </motion.div>
+
         {/* Swap card */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}

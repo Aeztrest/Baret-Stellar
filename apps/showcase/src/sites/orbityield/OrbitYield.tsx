@@ -104,6 +104,23 @@ export default function OrbitYield() {
 
       <div className="min-h-screen pb-24 px-4 py-12">
         <div className="max-w-5xl mx-auto">
+          {/* Dashboard preview */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 rounded-2xl overflow-hidden shadow-card"
+            style={{ border: "1px solid rgba(245,158,11,0.25)" }}
+          >
+            <div className="aspect-[16/9] sm:aspect-[21/9] w-full">
+              <img
+                src="/site-orbityield.jpg"
+                alt="OrbitYield staking dashboard overview"
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </motion.div>
+
           {/* Stats bar */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-3 gap-4 mb-12">
             {[

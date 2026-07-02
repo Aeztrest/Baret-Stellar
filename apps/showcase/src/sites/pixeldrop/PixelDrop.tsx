@@ -117,6 +117,24 @@ export default function PixelDrop() {
             <p className="text-ink-500 max-w-lg mx-auto">{NFT_COLLECTION.description}</p>
           </div>
 
+          {/* Collection banner */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="mb-12 rounded-2xl overflow-hidden shadow-card"
+            style={{ border: "1px solid rgba(20,20,20,0.1)" }}
+          >
+            <div className="aspect-[16/9] w-full">
+              <img
+                src="/site-pixeldrop.jpg"
+                alt="Cyber Phantoms NFT collection artwork"
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </motion.div>
+
           <div className="grid md:grid-cols-2 gap-10 items-start">
             {/* NFT preview — deliberate dark art block on the light page */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>

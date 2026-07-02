@@ -10,15 +10,14 @@ import { motion } from "framer-motion";
 import {
   Shield, ShieldCheck, ShieldAlert, Eye, Lock,
   ArrowRight, ArrowUpRight,
-  Wallet, Layers, Radar, BookOpen, HardHat,
-  FileSearch, BellRing,
+  Wallet, Radar, BookOpen, HardHat, BellRing,
 } from "lucide-react";
 import {
   Container, PageSection, SectionHeading, Eyebrow,
-  Reveal, RevealGroup, RevealItem, SpotlightCard,
+  Reveal, RevealGroup, RevealItem, SpotlightCard, ScrollVideoHero,
   Meter, StatTile, Verdict,
 } from "@stellar-thorn/ui";
-import { BackdropGrid, LandingHeader, LandingFooter, HazardRule } from "../components/LandingChrome";
+import { BackdropGrid, LandingHeader, LandingFooter, HazardRule, BaretMark } from "../components/LandingChrome";
 import { ProtocolWedge } from "../components/ProtocolWedge";
 
 const SHOWCASE_SITES = [
@@ -42,6 +41,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background text-foreground antialiased">
       <BackdropGrid />
       <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
+      <CinematicScrub />
       <Hero />
       <DetectorMarquee />
       <ThreePillars />
@@ -75,6 +75,47 @@ function CtaOutline({ to, children }: { to: string; children: React.ReactNode })
     >
       {children}
     </Link>
+  );
+}
+
+/* ─────────────── cinematic scroll-scrubbed set-piece ─────────────── */
+
+// The single cinematic moment: a video whose playhead follows the scroll.
+// Enable once the encoded assets exist (see apps/showcase/ASSET_PROMPTS.md §5):
+//   public/hero-scrub.mp4 (all-keyframe H.264) + public/hero-scrub.jpg (poster)
+// Nothing renders until ENABLED flips true, so no empty black runway ships.
+const SCRUB_ENABLED = true;
+
+const scrubLine = "max-w-3xl text-balance font-display text-4xl font-semibold uppercase leading-[0.95] tracking-[-0.03em] sm:text-6xl";
+
+function CinematicScrub() {
+  if (!SCRUB_ENABLED) return null;
+  return (
+    <ScrollVideoHero
+      src="/hero-scrub.mp4"
+      poster="/hero-scrub.jpg"
+      // Crop ~15% off the bottom (anchored top) to hide the generator ✦ watermark
+      // baked into the lower-right of the source clip.
+      videoClassName="absolute left-0 top-0 h-[118%] w-full object-cover object-top"
+      captions={[
+        <p key="c1" className={scrubLine}>
+          Every wallet signs whatever the dApp puts in front of you.
+        </p>,
+        <p key="c2" className={scrubLine}>
+          Baret <span className="text-primary">doesn't.</span>
+        </p>,
+        <div key="c3" className="flex flex-col items-center gap-4">
+          <BaretMark size={56} />
+          <span className="font-mono text-xs uppercase tracking-[0.3em] text-white/60">Introducing</span>
+          <span className="font-display text-6xl font-semibold uppercase tracking-tight sm:text-8xl">
+            Baret<span className="text-primary">.</span>
+          </span>
+          <span className="max-w-md text-balance text-base text-white/70 sm:text-lg">
+            The hard hat for your Stellar wallet — every transaction simulated, explained, and blocked when dangerous.
+          </span>
+        </div>,
+      ]}
+    />
   );
 }
 
@@ -271,14 +312,14 @@ function ThreePillars() {
   const pillars = [
     {
       num: "01",
-      icon: FileSearch,
+      illus: "/illus-guard.jpg",
       title: "Pre-sign Guard",
       body: "Every transaction is decoded and simulated server-side, then 25+ risk detectors fire findings the popup explains in one sentence.",
       points: ["Server simulation", "25+ risk detectors", "Policy DSL gate"],
     },
     {
       num: "02",
-      icon: Layers,
+      illus: "/illus-ledger.jpg",
       title: "Authorization Ledger",
       body: "Every approval becomes a row with a cap, an expiry, and a live progress bar. No more ‘unlimited approvals’ you forgot existed.",
       points: ["Rolling caps", "One-tap revoke", "Pause / resume"],
@@ -286,7 +327,7 @@ function ThreePillars() {
     },
     {
       num: "03",
-      icon: Radar,
+      illus: "/illus-monitor.jpg",
       title: "Post-sign Monitor",
       body: "WebSocket subscription on your authority and smart wallet. If something moves that Baret didn't sign, you get a browser notification immediately.",
       points: ["WebSocket subscribe", "Drift detection", "Cold-boot backfill"],
@@ -316,9 +357,9 @@ function ThreePillars() {
 }
 
 function PillarCard({
-  num, icon: Icon, title, body, points, demo,
+  num, illus, title, body, points, demo,
 }: {
-  num: string; icon: typeof Shield; title: string; body: string; points: string[]; demo?: boolean;
+  num: string; illus: string; title: string; body: string; points: string[]; demo?: boolean;
 }) {
   return (
     <SpotlightCard tilt className="h-full p-7">
@@ -331,10 +372,13 @@ function PillarCard({
       </span>
 
       <div className="relative">
-        <span className="grid size-10 place-items-center rounded-lg border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
-          <Icon size={17} />
-        </span>
-        <h3 className="mt-6 font-display text-2xl font-semibold uppercase tracking-tight text-foreground">
+        <img
+          src={illus}
+          alt=""
+          aria-hidden
+          className="size-20 object-contain mix-blend-multiply transition-transform duration-500 group-hover/spot:scale-[1.04] dark:invert dark:mix-blend-screen"
+        />
+        <h3 className="mt-5 font-display text-2xl font-semibold uppercase tracking-tight text-foreground">
           {title}
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>

@@ -102,6 +102,23 @@ export default function LaunchPad() {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Project info */}
             <div className="md:col-span-2 space-y-6">
+              {/* Launch banner */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl overflow-hidden shadow-card"
+                style={{ border: "1px solid rgba(255,107,0,0.25)" }}
+              >
+                <div className="aspect-[16/9] w-full">
+                  <img
+                    src="/site-launchpad.png"
+                    alt="NovaBridge token launch cover art"
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </motion.div>
+
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-start gap-4 mb-6">
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: dangerous ? "rgba(239,68,68,0.1)" : "rgba(255,107,0,0.12)", border: dangerous ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(255,107,0,0.25)" }}>

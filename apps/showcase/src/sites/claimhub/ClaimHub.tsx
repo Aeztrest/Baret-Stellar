@@ -116,6 +116,24 @@ export default function ClaimHub() {
             <p className="text-ink-500">Community distribution — check if your wallet is eligible for the Stellar ecosystem reward program.</p>
           </motion.div>
 
+          {/* Airdrop banner */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-8 rounded-2xl overflow-hidden shadow-card"
+            style={{ border: "1px solid rgba(232,71,10,0.2)" }}
+          >
+            <div className="aspect-[16/9] w-full">
+              <img
+                src="/site-claimhub.jpg"
+                alt="Stellar airdrop claim campaign artwork"
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </motion.div>
+
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mb-8">
             {[
