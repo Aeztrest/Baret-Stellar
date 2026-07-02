@@ -16,12 +16,22 @@ interface Props {
 export function TopStrip({ state, onOpenAccount, onOpenSettings }: Props) {
   return (
     <div className="h-14 px-4 flex items-center justify-between border-b border-line shrink-0">
-      <button onClick={onOpenAccount} className="flex items-center gap-2 text-left hover:bg-black/[0.04] px-2 py-1 rounded-input">
+      <button onClick={onOpenAccount} className="flex items-center gap-2 text-left hover:bg-black/[0.04] px-2 py-1 -ml-2 rounded-input">
         <div className="w-7 h-7 rounded-input bg-accent-dim flex items-center justify-center text-accent-soft">
           <Mark size={14} />
         </div>
         <div>
-          <p className="text-[11px] text-text-faint leading-tight">Testnet</p>
+          <p className="text-[11px] text-text-faint leading-tight flex items-center gap-1.5">
+            <span className="relative flex w-1.5 h-1.5" title="Baret is watching this wallet">
+              <span
+                className="absolute inline-flex w-full h-full rounded-full opacity-60 animate-ping"
+                style={{ background: "var(--live)" }}
+                aria-hidden
+              />
+              <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={{ background: "var(--live)" }} aria-hidden />
+            </span>
+            Testnet
+          </p>
           <p className="text-xs font-mono text-text leading-tight">{shortAddr(state.walletAddress)}</p>
         </div>
         <ChevronDown size={11} className="text-text-faint" />

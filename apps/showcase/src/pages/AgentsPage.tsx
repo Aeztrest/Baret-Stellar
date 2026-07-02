@@ -13,9 +13,10 @@ import { motion } from "framer-motion";
 import { Keypair } from "@stellar/stellar-sdk";
 import { POLICY_TEMPLATES, type PolicyTemplateId } from "@stellar-thorn/swig-guard";
 import {
-  Bot, Terminal, ShieldCheck, ShieldX, AlertTriangle, Copy, Check,
+  Bot, Terminal, ShieldCheck, Copy, Check,
   Cpu, KeyRound, Activity, Loader2, Wand2, ScrollText,
 } from "lucide-react";
+import { Verdict } from "@stellar-thorn/ui";
 import {
   BackdropGrid, LandingHeader, LandingFooter, HazardRule,
 } from "../components/LandingChrome";
@@ -359,31 +360,20 @@ function VerdictPanel({
 
   const blocked = result.decision === "block";
   const advisory = result.decision === "advisory";
-  const Icon = blocked ? ShieldX : advisory ? AlertTriangle : ShieldCheck;
-  const tone = blocked
-    ? { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", label: "BLOCK" }
-    : advisory
-      ? { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", label: "ADVISORY" }
-      : { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", label: "ALLOW" };
+  const tone = blocked ? "bad" : advisory ? "warn" : "ok";
+  const label = blocked ? "BLOCK" : advisory ? "ADVISORY" : "ALLOW";
 
   const nativeMoves = (result.estimatedChanges?.native ?? []).filter(
     (n) => n.deltaStroops && n.deltaStroops !== "0",
   );
 
   return (
-    <div className={`rounded-xl ${tone.bg} border ${tone.border} p-5 min-h-[260px] overflow-auto`}>
-      <div className={`flex items-center gap-2 font-display font-bold ${tone.text}`}>
-        <Icon size={18} /> {tone.label}
-        {result.offline && <span className="text-xs font-normal text-ink-400">(offline)</span>}
-      </div>
-
-      {result.reasons.length > 0 && (
-        <ul className="mt-3 space-y-1">
-          {result.reasons.map((r, i) => (
-            <li key={i} className={`text-sm ${tone.text}`}>• {r}</li>
-          ))}
-        </ul>
-      )}
+    <div className="min-h-[260px] overflow-auto space-y-4">
+      <Verdict
+        tone={tone}
+        headline={result.offline ? `${label} (offline)` : label}
+        reasons={result.reasons}
+      />
 
       {result.riskFindings.length > 0 && (
         <div className="mt-4">

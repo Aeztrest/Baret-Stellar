@@ -3,15 +3,17 @@
  *
  * Pulls the pending sign request from background, fetches the structured
  * analysis (transaction kind only), renders the AnalysisReport, and resolves
- * the request with the user's verdict.
+ * the request with the user's verdict. The footer bar itself carries the
+ * verdict tone — header-verdict and footer-CTA bookend in matching color so
+ * the safe/warn/block signal reads at a glance, not just on the button.
  *
  * Spec: docs/wallet-spec.md §8 + docs/x402-defense.md.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Globe, Loader2, X, Check, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Globe, Loader2, X, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { AnalyzeResponse } from "@stellar-thorn/ext-protocol";
-import { usePolling } from "@stellar-thorn/ui";
+import { Button, usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 import { AnalysisReport } from "./AnalysisReport";
 
@@ -158,8 +160,14 @@ function Footer({
   const signLabel = kind === "transactionAndSend" ? "Sign & send" : "Sign";
   const signLabelOverride = blocked ? "Sign anyway" : advisory ? `${signLabel} anyway` : signLabel;
 
+  const footerStyle = blocked
+    ? { background: "var(--bad-dim)", borderTop: "1px solid var(--bad)" }
+    : advisory
+      ? { background: "var(--warn-dim)", borderTop: "1px solid var(--warn)" }
+      : { background: "var(--bg-elevated)", borderTop: "1px solid var(--line)" };
+
   return (
-    <footer className="p-3 border-t border-line flex flex-col gap-2 shrink-0 bg-bg-elevated">
+    <footer className="p-3 flex flex-col gap-2 shrink-0" style={footerStyle}>
       {analysis?.offline && (
         <div className="text-[10px] text-warn px-2 leading-relaxed">
           Baret couldn't reach the analyzer. You're signing without protection.
@@ -167,18 +175,19 @@ function Footer({
       )}
 
       <div className="flex gap-2">
-        <button onClick={onDecline} disabled={working} className="btn-ghost flex-1">
-          <X size={13} /> Decline
-        </button>
-        <button
+        <Button variant="secondary" fullWidth onClick={onDecline} disabled={working} leftIcon={<X size={13} />}>
+          Decline
+        </Button>
+        <Button
+          variant={blocked ? "danger" : "primary"}
+          fullWidth
           onClick={onSign}
           disabled={working || !analysis}
-          className={blocked ? "btn-danger flex-1" : "btn-primary flex-1"}
+          loading={working}
+          leftIcon={!working ? <ShieldCheck size={13} /> : undefined}
         >
-          {working
-            ? <><Loader2 size={13} className="animate-spin" /> {kind === "transactionAndSend" ? "Sending…" : "Signing…"}</>
-            : <><ShieldCheck size={13} /> {signLabelOverride}</>}
-        </button>
+          {working ? (kind === "transactionAndSend" ? "Sending…" : "Signing…") : signLabelOverride}
+        </Button>
       </div>
     </footer>
   );

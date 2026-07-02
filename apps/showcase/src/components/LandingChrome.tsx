@@ -2,7 +2,13 @@
  * Baret brand chrome — logo mark, header, footer, light backdrop.
  *
  * Identity: "Baret" = hard hat. White-first surfaces, safety-orange (#FF6B00)
- * accents, ink-black (#141414) type. Signature motif: the hazard stripe.
+ * accents, ink-black (#141414) type. Signature motif: the Meter — the
+ * threshold-colored cap/allowance bar that's the visual embodiment of the
+ * "stateful ledger," used identically here and in the real wallet's
+ * Allowances screen. Replaces the earlier diagonal hazard-stripe / blueprint
+ * grid, which read as generic template decoration with no tie to the
+ * product. `HazardRule`/`BackdropGrid` names are kept (many call sites) but
+ * now render the new motif.
  */
 
 import { useEffect, useState } from "react";
@@ -46,22 +52,20 @@ export function Wordmark({ className = "" }: { className?: string }) {
   );
 }
 
-/** Thin hazard-stripe rule — Baret's signature divider. */
+/** Flat ink rule with an orange leading tick — the Meter motif as a divider. */
 export function HazardRule({ className = "" }: { className?: string }) {
-  return <div aria-hidden className={`hazard h-1.5 w-full ${className}`} />;
+  return (
+    <div aria-hidden className={`h-1.5 w-full flex ${className}`}>
+      <span className="w-16 md:w-24" style={{ background: "#FF6B00" }} />
+      <span className="flex-1" style={{ background: "rgba(20,20,20,0.92)" }} />
+    </div>
+  );
 }
 
-/** Light blueprint-grid backdrop with a soft orange glow at the top. */
+/** Plain negative space + a soft orange glow — no decorative grid. */
 export function BackdropGrid() {
   return (
     <div aria-hidden className="fixed inset-0 pointer-events-none -z-0">
-      <div
-        className="absolute inset-0 blueprint"
-        style={{
-          maskImage:       "radial-gradient(ellipse at 50% 0%, black 25%, transparent 70%)",
-          WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, black 25%, transparent 70%)",
-        }}
-      />
       <div
         className="absolute -top-48 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] rounded-full"
         style={{ background: "radial-gradient(closest-side, rgba(255,107,0,0.10), transparent 70%)" }}
@@ -111,13 +115,16 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
               <Link
                 key={l.label}
                 to={l.to}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? "text-ink-900 bg-ink-900/[0.06]"
-                    : "text-ink-500 hover:text-ink-900 hover:bg-ink-900/[0.04]"
+                className={`relative px-3.5 py-2 text-sm font-bold transition-colors ${
+                  active ? "text-ink-900" : "text-ink-400 hover:text-ink-900"
                 }`}
               >
                 {l.label}
+                <span
+                  className="absolute left-3.5 right-3.5 -bottom-0.5 h-[2px] rounded-pill transition-opacity"
+                  style={{ background: "#FF6B00", opacity: active ? 1 : 0 }}
+                  aria-hidden
+                />
               </Link>
             );
           })}

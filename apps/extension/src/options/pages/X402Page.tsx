@@ -15,7 +15,7 @@ import {
   Shield, Coins, Store, Activity as ActivityIcon, Loader2, Globe, Clock,
 } from "lucide-react";
 import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
-import { usePolling } from "@stellar-thorn/ui";
+import { Badge, Card, Meter, StatTile, usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../../shared/state-context";
 
 export function X402Page() {
@@ -69,9 +69,9 @@ export function X402Page() {
 
       {/* Summary strip */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard icon={Store}        label="Merchants"     value={String(stats.merchants)} />
-        <StatCard icon={ActivityIcon} label="Payments"      value={String(stats.totalHits)} />
-        <StatCard icon={Coins}        label="Spent today"   value={stats.spentToday.toFixed(4)} suffix="USDC" />
+        <Card padding="sm"><StatTile icon={<Store size={13} />} label="Merchants" value={stats.merchants} /></Card>
+        <Card padding="sm"><StatTile icon={<ActivityIcon size={13} />} label="Payments" value={stats.totalHits} /></Card>
+        <Card padding="sm"><StatTile icon={<Coins size={13} />} label="Spent today" value={stats.spentToday.toFixed(4)} suffix="USDC" variant="mono" /></Card>
       </div>
 
       {loading && (
@@ -121,22 +121,6 @@ export function X402Page() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, suffix }: {
-  icon: typeof Shield; label: string; value: string; suffix?: string;
-}) {
-  return (
-    <div className="card">
-      <div className="flex items-center gap-2 text-text-faint mb-1.5">
-        <Icon size={13} />
-        <span className="text-[11px] uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="text-2xl font-extrabold tracking-tight text-text">
-        {value}{suffix && <span className="text-sm font-semibold text-text-faint ml-1">{suffix}</span>}
-      </p>
-    </div>
-  );
-}
-
 function PaymentRow({ entry }: { entry: HistoryEntry }) {
   return (
     <article className="card flex items-start gap-4">
@@ -164,30 +148,24 @@ function PaymentRow({ entry }: { entry: HistoryEntry }) {
 }
 
 function LedgerRow({ row }: { row: AllowanceSnapshot }) {
-  const tone = row.status === "active" ? "pill-ok" : row.status === "paused" ? "pill-warn" : "pill-bad";
-  const dayPct = row.capPerDay > 0 ? Math.min(100, (row.spentDay / row.capPerDay) * 100) : 0;
+  const tone = row.status === "active" ? "ok" : row.status === "paused" ? "warn" : "bad";
   return (
-    <article className="card">
+    <Card padding="sm">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Store size={14} className="text-text-muted shrink-0" />
           <span className="font-semibold text-sm truncate">{pretty(row.merchantOrigin)}</span>
         </div>
-        <span className={`pill ${tone} shrink-0`}>{row.status}</span>
+        <Badge tone={tone} className="shrink-0">{row.status}</Badge>
       </div>
       <div className="flex items-center gap-4 mt-2 text-[11px] text-text-faint">
         <span>{row.hits} payment{row.hits === 1 ? "" : "s"}</span>
-        <span>·</span>
-        <span>Today: {row.spentDay.toFixed(4)} / {row.capPerDay.toFixed(2)} USDC</span>
         {row.lastHitAt && <><span>·</span><span>{relativeTime(row.lastHitAt)}</span></>}
       </div>
-      <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(20,20,20,0.07)" }}>
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${dayPct}%`, background: dayPct > 90 ? "var(--warn)" : "var(--accent-soft, #8b5cf6)" }}
-        />
+      <div className="mt-2">
+        <Meter label="Today" value={row.spentDay} max={row.capPerDay} formatValue={(v, m) => `${v.toFixed(4)} / ${m.toFixed(2)} USDC`} size="compact" />
       </div>
-    </article>
+    </Card>
   );
 }
 
