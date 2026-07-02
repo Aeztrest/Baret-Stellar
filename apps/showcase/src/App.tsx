@@ -33,9 +33,9 @@ function RouteShell({ children }: { children: React.ReactNode }) {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center text-ink-400" style={{ background: "#FAF8F4" }}>
+    <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
       <div className="flex items-center gap-2 text-sm">
-        <Loader2 size={14} className="animate-spin text-brand-500" />
+        <Loader2 size={14} className="animate-spin text-primary" />
         Loading…
       </div>
     </div>

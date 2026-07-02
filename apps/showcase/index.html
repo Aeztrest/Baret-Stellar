@@ -6,6 +6,21 @@
     <title>Baret — Sign safe. Build on. | Stellar smart wallet</title>
     <meta name="description" content="Baret is the hard hat for your Stellar wallet — every transaction is simulated, explained, and blocked when dangerous, before your keys ever sign." />
     <meta name="theme-color" content="#FF6B00" />
+    <script>
+      /* Apply the persisted Baret theme before first paint — no flash. */
+      (function () {
+        try {
+          var m = localStorage.getItem("baret-theme") || "system";
+          var dark =
+            m === "dark" ||
+            (m === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var el = document.documentElement;
+          el.classList.toggle("dark", dark);
+          el.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
     <link
       rel="icon"
       type="image/svg+xml"

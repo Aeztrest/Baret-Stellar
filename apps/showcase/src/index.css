@@ -22,12 +22,12 @@
   }
   body {
     @apply font-sans antialiased;
-    background: var(--paper);
-    color: var(--ink);
+    background: var(--background);
+    color: var(--foreground);
     min-height: 100vh;
   }
   ::selection {
-    background: rgba(255, 107, 0, 0.25);
+    background: var(--accent-glow);
   }
 }
 
