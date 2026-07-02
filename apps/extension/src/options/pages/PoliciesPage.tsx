@@ -21,6 +21,7 @@ import {
   BALANCED_POLICY, STRICT_POLICY, PERMISSIVE_POLICY, POLICY_TEMPLATES,
   type GuardPolicy,
 } from "@stellar-thorn/swig-guard";
+import { SpotlightCard, Reveal, RevealGroup, RevealItem } from "@stellar-thorn/ui";
 import { useRpc } from "../../shared/state-context";
 
 type Mode = "form" | "json";
@@ -89,7 +90,12 @@ export function PoliciesPage() {
   }, []);
 
   if (!draft) {
-    return <div className="flex items-center gap-2 text-text-faint"><Loader2 size={14} className="animate-spin" /> Loading policy…</div>;
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 size={22} className="animate-spin text-primary" />
+        <p className="text-muted-foreground text-xs">Loading policy…</p>
+      </div>
+    );
   }
 
   const autoApprove = draft.x402AutoApprove !== false;
@@ -97,8 +103,8 @@ export function PoliciesPage() {
   return (
     <div className="space-y-6 pb-24">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Policies</h1>
-        <p className="text-text-muted text-sm mt-1">
+        <h1 className="text-3xl font-display font-bold uppercase tracking-tight text-foreground">Policies</h1>
+        <p className="text-muted-foreground text-sm mt-1">
           The firewall Baret runs on every signature. Changes apply on the next request.
         </p>
       </div>
@@ -107,48 +113,46 @@ export function PoliciesPage() {
       <section className="space-y-3">
         <SectionLabel icon={Sliders} title="Risk profile"
           hint={activeTemplate === "custom" ? "Custom — tuned below" : undefined} />
-        <div className="grid sm:grid-cols-3 gap-2.5">
+        <RevealGroup className="grid sm:grid-cols-3 gap-2.5">
           {POLICY_TEMPLATES.map((t) => {
             const active = activeTemplate === t.id;
             const meta = TEMPLATE_META[t.id];
             return (
-              <button
-                key={t.id}
-                onClick={() => applyTemplate(t.policy)}
-                className="text-left p-3.5 rounded-card transition-all relative group"
-                style={{
-                  background: active ? "rgba(20,20,20,0.07)" : "var(--bg-card)",
-                  border: `1px solid ${active ? "var(--accent)" : "var(--line)"}`,
-                  boxShadow: active ? "0 0 0 1px var(--accent)" : "none",
-                }}
+              <RevealItem key={t.id}>
+              <SpotlightCard
+                className="h-full"
+                style={active ? { borderColor: "var(--line-strong)", background: "var(--secondary)" } : undefined}
               >
-                <div className="flex items-center justify-between">
-                  <p className="font-bold text-sm">{t.name}</p>
-                  {active
-                    ? <span className="flex items-center justify-center w-4 h-4 rounded-full" style={{ background: "var(--accent)" }}><Check size={11} className="text-black" /></span>
-                    : meta && <span className={`dot dot-${meta.tone}`} />}
+                <button
+                  onClick={() => applyTemplate(t.policy)}
+                  className="absolute inset-0 z-20"
+                  aria-label={`Apply ${t.name} risk profile`}
+                />
+                <div className="text-left p-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-sm">{t.name}</p>
+                    {active
+                      ? <span className="flex items-center justify-center w-4 h-4 rounded-full" style={{ background: "var(--accent)" }}><Check size={11} className="text-primary-foreground" /></span>
+                      : meta && <span className={`dot dot-${meta.tone}`} />}
+                  </div>
+                  <p className="text-text-faint text-[11px] mt-1.5 leading-snug">
+                    {meta?.blurb ?? t.description}
+                  </p>
                 </div>
-                <p className="text-text-faint text-[11px] mt-1.5 leading-snug">
-                  {meta?.blurb ?? t.description}
-                </p>
-              </button>
+              </SpotlightCard>
+              </RevealItem>
             );
           })}
-        </div>
+        </RevealGroup>
       </section>
 
       {/* Featured: agentic x402 autopay */}
-      <section
-        className="rounded-card p-4"
-        style={{
-          background: autoApprove ? "rgba(20,20,20,0.055)" : "var(--bg-card)",
-          border: `1px solid ${autoApprove ? "var(--accent-glow)" : "var(--line)"}`,
-        }}
-      >
-        <div className="flex items-start gap-3">
-          <div className="shrink-0 w-9 h-9 rounded-input flex items-center justify-center"
-            style={{ background: autoApprove ? "var(--accent)" : "rgba(20,20,20,0.07)" }}>
-            {autoApprove ? <Zap size={16} className="text-black" /> : <Lock size={16} className="text-text-faint" />}
+      <Reveal>
+      <SpotlightCard>
+        <div className="flex items-start gap-3 p-4">
+          <div className="shrink-0 w-9 h-9 rounded-input flex items-center justify-center transition-colors"
+            style={{ background: autoApprove ? "var(--accent)" : "var(--secondary)" }}>
+            {autoApprove ? <Zap size={16} className="text-primary-foreground" /> : <Lock size={16} className="text-text-faint" />}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -170,7 +174,8 @@ export function PoliciesPage() {
           </div>
           <Switch on={autoApprove} onChange={(v) => set("x402AutoApprove", v)} />
         </div>
-      </section>
+      </SpotlightCard>
+      </Reveal>
 
       {/* Mode tabs */}
       <div className="flex gap-2">
@@ -182,16 +187,16 @@ export function PoliciesPage() {
       {mode === "json" && <JsonEditor draft={draft} setDraft={setDraft} />}
 
       {error && (
-        <div className="card !p-3 flex items-start gap-2" style={{ background: "var(--bad-dim)" }}>
-          <AlertTriangle size={14} className="text-bad shrink-0 mt-0.5" />
-          <p className="text-bad text-xs">{error}</p>
+        <div className="rounded-md p-3 flex items-start gap-2" style={{ background: "var(--bad-dim)", color: "var(--bad)" }}>
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <p className="text-xs break-words">{error}</p>
         </div>
       )}
 
       {/* Sticky save bar */}
       <div className="sticky bottom-4 z-10 flex justify-end gap-2">
-        <div className="flex items-center gap-2 px-2 py-2 rounded-card backdrop-blur"
-          style={{ background: "rgba(15,15,21,0.85)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center gap-2 px-2 py-2 rounded-card backdrop-blur shadow-lg"
+          style={{ background: "var(--popover)", border: "1px solid var(--line)" }}>
           {dirty
             ? <span className="self-center text-text-faint text-xs px-2">Unsaved changes</span>
             : success
@@ -211,8 +216,8 @@ export function PoliciesPage() {
 
 function CapChip({ label, value }: { label: string; value: number | undefined }) {
   return (
-    <span className="text-[10px] px-2 py-0.5 rounded-pill font-mono"
-      style={{ background: "rgba(20,20,20,0.07)", color: "var(--text-muted)" }}>
+    <span className="text-[10px] px-2 py-0.5 rounded-pill font-mono bg-secondary"
+      style={{ color: "var(--text-muted)" }}>
       {value === undefined ? "∞" : value} USDC <span className="text-text-faint">{label}</span>
     </span>
   );
@@ -234,7 +239,7 @@ function ModeTab({ active, onClick, icon: Icon, children }: { active: boolean; o
       onClick={onClick}
       className="flex items-center gap-1.5 px-3 py-1.5 rounded-input text-xs font-semibold transition-colors"
       style={{
-        background: active ? "rgba(20,20,20,0.07)" : "transparent",
+        background: active ? "var(--secondary)" : "transparent",
         border: `1px solid ${active ? "var(--line-strong)" : "var(--line)"}`,
         color: active ? "var(--text)" : "var(--text-faint)",
       }}
@@ -312,7 +317,7 @@ function Group({ icon: Icon, title, subtitle, children }: { icon: typeof Sliders
   return (
     <section className="card !p-0 overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-3" style={{ borderBottom: "1px solid var(--line)" }}>
-        <div className="w-7 h-7 rounded-input flex items-center justify-center shrink-0" style={{ background: "rgba(20,20,20,0.055)" }}>
+        <div className="w-7 h-7 rounded-input flex items-center justify-center shrink-0 bg-secondary">
           <Icon size={13} className="text-text-muted" />
         </div>
         <div>
@@ -349,7 +354,7 @@ function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
       role="switch"
       aria-checked={on}
       className="relative w-11 h-[26px] rounded-full transition-colors shrink-0"
-      style={{ background: on ? "var(--accent)" : "rgba(20,20,20,0.16)" }}
+      style={{ background: on ? "var(--accent)" : "var(--input)" }}
     >
       <span
         className="absolute top-[3px] rounded-full transition-all"
@@ -372,8 +377,7 @@ function NumberField({ label, hint, value, onChange, min, max, step, suffix, las
   const display = value === undefined ? "" : String(value);
   return (
     <Row label={label} hint={hint} last={last} control={
-      <div className="flex items-center rounded-input overflow-hidden"
-        style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
+      <div className="flex items-center rounded-input overflow-hidden bg-secondary border border-border">
         <input
           type="number"
           inputMode="decimal"
@@ -425,9 +429,8 @@ function JsonEditor({ draft, setDraft }: { draft: GuardPolicy; setDraft: (p: Gua
           }
         }}
         spellCheck={false}
-        className="w-full font-mono text-[11px] p-3 rounded-input outline-none"
+        className="w-full font-mono text-[11px] p-3 rounded-input outline-none bg-secondary"
         style={{
-          background: "rgba(20,20,20,0.035)",
           border: `1px solid ${parseError ? "var(--bad)" : "var(--line)"}`,
           minHeight: "320px",
           color: "var(--text)",

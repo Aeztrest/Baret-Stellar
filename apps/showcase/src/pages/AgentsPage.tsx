@@ -16,7 +16,7 @@ import {
   Bot, Terminal, ShieldCheck, Copy, Check,
   Cpu, KeyRound, Activity, Loader2, Wand2, ScrollText,
 } from "lucide-react";
-import { Verdict } from "@stellar-thorn/ui";
+import { Verdict, SpotlightCard } from "@stellar-thorn/ui";
 import {
   BackdropGrid, LandingHeader, LandingFooter, HazardRule,
 } from "../components/LandingChrome";
@@ -43,7 +43,7 @@ export default function AgentsPage() {
       <BackdropGrid />
       <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
 
-      <main className="relative max-w-5xl mx-auto px-6 pt-36 pb-24">
+      <main className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-36 pb-24">
         <Hero />
         <HowItWorks />
         <Quickstart policyId={policyId} />
@@ -73,7 +73,7 @@ function Hero() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.18em] font-bold border border-primary/30 bg-primary/[0.06] text-primary"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
       >
         <Bot size={11} /> Agent &amp; Program Wallets
       </motion.div>
@@ -135,11 +135,14 @@ function HowItWorks() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4, delay: i * 0.06 }}
-          className="rounded-xl border border-border bg-card p-5"
         >
-          <s.icon size={20} className="text-primary" />
-          <h3 className="mt-3 font-display font-semibold uppercase tracking-tight text-foreground">{s.title}</h3>
-          <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+          <SpotlightCard tilt className="h-full p-5">
+            <span className="w-10 h-10 grid place-items-center rounded-xl border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
+              <s.icon size={18} />
+            </span>
+            <h3 className="mt-4 font-display font-semibold uppercase tracking-tight text-foreground">{s.title}</h3>
+            <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+          </SpotlightCard>
         </motion.div>
       ))}
     </section>
@@ -185,7 +188,7 @@ echo "$XDR" | baret submit -      # exit 0 sent · 1 blocked · 2 error`;
           <CodeBlock code={cliSnippet} />
           <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground leading-relaxed">
             <strong className="text-foreground">Fail-closed by design.</strong> If the
-            Baret server is unreachable, <code className="text-primary">evaluate</code>{" "}
+            Baret server is unreachable, <code className="font-mono text-foreground/80">evaluate</code>{" "}
             throws and signing never happens — your agent simply does not transact
             rather than transacting blind.
           </div>
@@ -451,7 +454,7 @@ function SectionHeading({
   return (
     <div className="mb-5">
       <h2 className="flex items-center gap-2 font-display text-2xl font-semibold uppercase tracking-tight text-foreground">
-        <Icon size={20} className="text-primary" /> {title}
+        <Icon size={20} className="text-muted-foreground" /> {title}
       </h2>
       {subtitle && <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl leading-relaxed">{subtitle}</p>}
     </div>

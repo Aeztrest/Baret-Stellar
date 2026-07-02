@@ -5,7 +5,8 @@
  */
 
 import { useState } from "react";
-import { Pause, Play, X, Shield, Globe } from "lucide-react";
+import { motion } from "framer-motion";
+import { Pause, Play, X, Shield, Globe, Loader2, AlertTriangle } from "lucide-react";
 import type { AllowanceSnapshot } from "@stellar-thorn/ext-protocol";
 import { Badge, Button, Card as UiCard, Dialog, EmptyState, Meter, shortAddr, usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
@@ -15,13 +16,17 @@ export function Allowances() {
   const [rows, setRows] = useState<AllowanceSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<AllowanceSnapshot | null>(null);
 
   const refresh = async () => {
     try {
       const r = await rpc.call("ledger.list", { filter: undefined } as never);
       setRows(r as AllowanceSnapshot[]);
-    } catch { /* ignore */ }
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
     setLoading(false);
   };
 
@@ -55,7 +60,33 @@ export function Allowances() {
   };
 
   if (loading && rows.length === 0) {
-    return <div className="flex-1 flex items-center justify-center text-text-faint text-xs">Loading…</div>;
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-2.5">
+        <Loader2 size={20} className="animate-spin text-primary" />
+        <p className="text-muted-foreground text-xs">Loading grants…</p>
+      </div>
+    );
+  }
+
+  if (error && rows.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center px-6">
+        <div
+          className="w-full max-w-[18rem] rounded-md px-3.5 py-3 flex flex-col items-center text-center gap-2"
+          style={{ background: "var(--bad-dim)", color: "var(--bad)" }}
+        >
+          <AlertTriangle size={18} />
+          <p className="text-xs font-semibold">Couldn't load grants</p>
+          <p className="text-[11px] opacity-80 break-all">{error}</p>
+          <button
+            onClick={() => { setLoading(true); void refresh(); }}
+            className="mt-1 text-[11px] font-semibold px-3 py-1 rounded-md bg-secondary text-foreground hover:bg-muted transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (rows.length === 0) {
@@ -71,7 +102,12 @@ export function Allowances() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+    <motion.div
+      className="flex-1 overflow-y-auto px-3 py-3 space-y-2"
+      initial="hidden"
+      animate="show"
+      variants={{ show: { transition: { staggerChildren: 0.04 } } }}
+    >
       {rows.map((a) => (
         <Card key={a.id} a={a} busy={busy === a.id}
               onPause={() => onPause(a)}
@@ -92,7 +128,7 @@ export function Allowances() {
           </>
         }
       />
-    </div>
+    </motion.div>
   );
 }
 
@@ -111,10 +147,14 @@ function Card({ a, busy, onPause, onUnpause, onRevoke }: {
     : "ok";
 
   return (
+    <motion.div
+      variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+    >
     <UiCard padding="sm" className="space-y-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
-          <Globe size={11} className="text-accent-soft mt-1 shrink-0" />
+          <Globe size={11} className="text-muted-foreground mt-1 shrink-0" />
           <div className="min-w-0">
             <p className="text-xs font-mono text-text truncate">{a.merchantOrigin}</p>
             <p className="text-[10px] text-text-faint mt-0.5">{shortAddr(a.asset)} · {a.hits} calls</p>
@@ -146,5 +186,6 @@ function Card({ a, busy, onPause, onUnpause, onRevoke }: {
         )}
       </div>
     </UiCard>
+    </motion.div>
   );
 }

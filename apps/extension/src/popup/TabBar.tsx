@@ -4,6 +4,7 @@
  */
 
 import { Home, Clock, Shield, Settings as SettingsIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 export type PopupTab = "home" | "activity" | "allowances" | "settings";
 
@@ -41,11 +42,16 @@ export function TabBar({ active, onChange, alertCount }: Props) {
               )}
             </span>
             <span className="text-[10px] font-semibold">{label}</span>
-            <span
-              className="w-3.5 h-[3px] rounded-pill transition-opacity duration-[var(--motion-fast)]"
-              style={{ background: "var(--accent)", opacity: selected ? 1 : 0 }}
-              aria-hidden
-            />
+            <span className="relative w-3.5 h-[3px]" aria-hidden>
+              {selected && (
+                <motion.span
+                  layoutId="tab-indicator"
+                  className="absolute inset-0 rounded-pill"
+                  style={{ background: "var(--accent)" }}
+                  transition={{ type: "spring", stiffness: 520, damping: 38 }}
+                />
+              )}
+            </span>
           </button>
         );
       })}

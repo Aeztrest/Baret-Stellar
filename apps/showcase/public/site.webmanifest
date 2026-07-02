@@ -1,0 +1,14 @@
+{
+  "name": "Baret — Stellar smart wallet",
+  "short_name": "Baret",
+  "description": "The hard hat for your Stellar wallet — every transaction simulated, explained, and blocked when dangerous.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F4",
+  "theme_color": "#FF6B00",
+  "icons": [
+    { "src": "/icon-48.png", "sizes": "48x48", "type": "image/png" },
+    { "src": "/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "128x128", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

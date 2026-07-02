@@ -3,9 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary -->
     <title>Baret — Sign safe. Build on. | Stellar smart wallet</title>
-    <meta name="description" content="Baret is the hard hat for your Stellar wallet — every transaction is simulated, explained, and blocked when dangerous, before your keys ever sign." />
-    <meta name="theme-color" content="#FF6B00" />
+    <meta name="description" content="Baret is the hard hat for your Stellar wallet — every transaction is simulated, explained, and blocked when dangerous, before your keys ever sign. The first wallet-level firewall for x402 agentic payments on Stellar." />
+    <meta name="author" content="Baret" />
+    <meta name="keywords" content="Stellar wallet, transaction firewall, x402, agentic payments, Soroban, pre-sign simulation, wallet security, smart wallet, USDC, PaymentGuard" />
+    <link rel="canonical" href="https://baret.dev/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Browser chrome color: white in light, ink in dark -->
+    <meta name="theme-color" content="#FAF8F4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Baret" />
+    <meta property="og:title" content="Baret — Sign safe. Build on." />
+    <meta property="og:description" content="The hard hat for your Stellar wallet. Every transaction simulated, explained, and blocked when dangerous — before your keys ever sign. Wallet-level firewall for x402 agentic payments." />
+    <meta property="og:url" content="https://baret.dev/" />
+    <meta property="og:image" content="https://baret.dev/og-cover.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Baret — the Stellar smart wallet with a transaction firewall." />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@baretxyz" />
+    <meta name="twitter:title" content="Baret — Sign safe. Build on." />
+    <meta name="twitter:description" content="The hard hat for your Stellar wallet. Every transaction simulated, explained, and blocked when dangerous — before your keys ever sign." />
+    <meta name="twitter:image" content="https://baret.dev/og-cover.png" />
+
+    <!-- Icons + manifest -->
+    <link rel="apple-touch-icon" sizes="128x128" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <script>
       /* Apply the persisted Baret theme before first paint — no flash. */
       (function () {
@@ -32,6 +63,21 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Baret",
+        "applicationCategory": "SecurityApplication",
+        "operatingSystem": "Chrome, Firefox, Brave, Edge",
+        "description": "The Stellar smart wallet with a transaction firewall — pre-sign simulation, per-site policy, rolling spend caps, and the first wallet-level defense for the x402 agentic-payment protocol.",
+        "url": "https://baret.dev/",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "creator": { "@type": "Organization", "name": "Baret", "url": "https://baret.dev/" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

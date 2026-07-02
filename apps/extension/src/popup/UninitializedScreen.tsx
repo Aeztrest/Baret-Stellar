@@ -38,9 +38,9 @@ export function UninitializedScreen() {
 
   return (
     <div className="h-full flex flex-col px-6 py-7 gap-5 overflow-y-auto">
-      <div className="text-accent-soft flex items-center gap-2">
+      <div className="text-primary flex items-center gap-2">
         <Mark size={20} />
-        <span className="font-bold text-xs tracking-tight">Baret</span>
+        <span className="font-display font-semibold text-xs uppercase tracking-tight">Baret</span>
       </div>
 
       <div className="space-y-2">
@@ -61,8 +61,8 @@ export function UninitializedScreen() {
           {STEPS.map((line, i) => (
             <li key={line} className="flex items-start gap-2.5 text-xs text-text-muted">
               <span
-                className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-accent-soft"
-                style={{ background: "rgba(255,107,0,0.10)", border: "1px solid rgba(255,107,0,0.25)" }}
+                className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold font-mono tabular-nums text-primary"
+                style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-glow)" }}
               >
                 {i + 1}
               </span>

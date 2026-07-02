@@ -12,12 +12,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Globe, ShieldOff, ShieldCheck, Pause, Play, Trash2, Loader2,
+  ArrowLeft, Globe, ShieldOff, ShieldCheck, Pause, Play, Trash2,
   ExternalLink, AlertTriangle,
 } from "lucide-react";
 import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
-import { Button, Dialog, shortAddr, usePolling } from "@stellar-thorn/ui";
+import { Button, Dialog, shortAddr, usePolling, SpotlightCard, RevealGroup, RevealItem } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
 export function SiteDetailPage() {
@@ -128,8 +128,8 @@ export function SiteDetailPage() {
 
       <div className="flex items-start gap-4">
         <div
-          className="w-12 h-12 rounded-input flex items-center justify-center shrink-0"
-          style={{ background: blocked ? "var(--bad-dim)" : "rgba(20,20,20,0.045)", border: "1px solid var(--line)" }}
+          className={`w-12 h-12 rounded-input flex items-center justify-center shrink-0 border border-border ${blocked ? "" : "bg-secondary"}`}
+          style={blocked ? { background: "var(--bad-dim)" } : undefined}
         >
           {blocked
             ? <ShieldOff size={20} className="text-bad" />
@@ -138,28 +138,40 @@ export function SiteDetailPage() {
               : <Globe size={20} className="text-text" />}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-extrabold tracking-tight truncate">{pretty(origin)}</h1>
+          <h1 className="text-2xl font-display font-bold uppercase tracking-tight truncate text-foreground">{pretty(origin)}</h1>
           <p className="font-mono text-[11px] text-text-faint mt-1 truncate">{origin}</p>
         </div>
         {blocked && <span className="pill pill-bad"><AlertTriangle size={10} className="mr-1" /> Blocked</span>}
       </div>
 
       {err && (
-        <div className="card !p-3" style={{ background: "var(--bad-dim)" }}>
-          <p className="text-bad text-xs">{err}</p>
+        <div
+          className="rounded-md p-3 flex items-start gap-2"
+          style={{ background: "var(--bad-dim)", color: "var(--bad)" }}
+        >
+          <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+          <p className="text-xs break-words">{err}</p>
         </div>
       )}
 
-      {loading && (
-        <div className="flex items-center gap-2 text-text-faint text-sm">
-          <Loader2 size={14} className="animate-spin" /> Loading…
+      {loading && !err && (
+        <div className="space-y-4">
+          {[0, 1].map((i) => (
+            <div key={i} className="card space-y-3">
+              <div className="h-3.5 w-32 rounded bg-secondary animate-pulse" />
+              <div className="h-2.5 w-full max-w-md rounded bg-secondary animate-pulse" />
+              <div className="h-2.5 w-40 rounded bg-secondary animate-pulse" />
+            </div>
+          ))}
         </div>
       )}
 
       {!loading && (
-        <>
+        <RevealGroup className="space-y-6">
           {/* Policy toggles */}
-          <section className="card space-y-3">
+          <RevealItem>
+          <SpotlightCard>
+          <div className="p-6 space-y-3">
             <h2 className="font-bold text-sm">Site policy</h2>
             <p className="text-text-faint text-xs leading-relaxed">
               These toggles modify your <Link to="/policies" className="underline">global policy</Link>'s
@@ -182,10 +194,14 @@ export function SiteDetailPage() {
               onChange={toggleAllow}
               loading={busy === "policy:allowedMerchantOrigins"}
             />
-          </section>
+          </div>
+          </SpotlightCard>
+          </RevealItem>
 
           {/* Allowances */}
-          <section className="card space-y-4">
+          <RevealItem>
+          <SpotlightCard>
+          <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-sm">Allowances</h2>
               {allowances && allowances.length > 0 && (
@@ -209,11 +225,15 @@ export function SiteDetailPage() {
                 {allowances.map((a) => <AllowanceRow key={a.id} a={a} />)}
               </div>
             )}
-          </section>
+          </div>
+          </SpotlightCard>
+          </RevealItem>
 
           {/* History */}
           {history && history.length > 0 && (
-            <section className="card">
+            <RevealItem>
+            <SpotlightCard>
+            <div className="p-6">
               <h2 className="font-bold text-sm mb-3">Recent activity</h2>
               <ul className="space-y-2">
                 {history.slice(0, 8).map((h) => (
@@ -224,7 +244,7 @@ export function SiteDetailPage() {
                       <a
                         href={`https://stellar.expert/explorer/${explorerSeg}/tx/${h.signature}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="text-accent-soft hover:text-text inline-flex items-center gap-1"
+                        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                       >
                         explorer <ExternalLink size={9} />
                       </a>
@@ -232,9 +252,11 @@ export function SiteDetailPage() {
                   </li>
                 ))}
               </ul>
-            </section>
+            </div>
+            </SpotlightCard>
+            </RevealItem>
           )}
-        </>
+        </RevealGroup>
       )}
 
       <Dialog
@@ -276,7 +298,7 @@ function ToggleRow({
         style={{
           background: checked
             ? (dangerColor ? "var(--bad)" : "var(--accent)")
-            : "rgba(20,20,20,0.14)",
+            : "var(--input)",
         }}
       >
         <span
@@ -299,7 +321,7 @@ function AllowanceRow({ a }: { a: AllowanceSnapshot }) {
     a.status === "paused"  ? "pill-warn" :
                              "pill-bad";
   return (
-    <div className="p-3 rounded-input" style={{ background: "rgba(20,20,20,0.03)", border: "1px solid var(--line)" }}>
+    <div className="p-3 rounded-input bg-secondary border border-border transition-colors hover:border-foreground/20">
       <div className="flex items-center justify-between mb-2">
         <p className="font-mono text-xs text-text-muted truncate">{shortAddr(a.asset, { lead: 6, tail: 6 })}</p>
         <span className={`pill ${statusPill}`}>{a.status}</span>

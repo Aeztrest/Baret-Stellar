@@ -4,6 +4,7 @@
  * + balance changes — into a 360-wide column.
  */
 
+import { motion } from "framer-motion";
 import type {
   AnalyzeResponse,
   RiskFindingPayload,
@@ -12,31 +13,39 @@ import { Section, Verdict, shortAddr } from "@stellar-thorn/ui";
 
 const SEVERITY_TONE: Record<
   RiskFindingPayload["severity"],
-  { dot: string; bg: string; border: string; text: string }
+  { dot: string; bg: string; border: string; text: string; chipBg: string; chipText: string }
 > = {
   low: {
-    dot: "bg-text-faint",
-    bg: "rgba(20,20,20,0.035)",
-    border: "rgba(20,20,20,0.10)",
+    dot: "bg-muted-foreground",
+    bg: "var(--secondary)",
+    border: "var(--border)",
     text: "var(--text-faint)",
+    chipBg: "var(--secondary)",
+    chipText: "var(--text-faint)",
   },
   medium: {
     dot: "bg-warn",
-    bg: "rgba(251,191,36,0.07)",
-    border: "rgba(251,191,36,0.25)",
+    bg: "var(--warn-dim)",
+    border: "var(--warn)",
     text: "var(--warn)",
+    chipBg: "var(--warn)",
+    chipText: "var(--primary-foreground)",
   },
   high: {
     dot: "bg-bad",
-    bg: "rgba(248,113,113,0.07)",
-    border: "rgba(248,113,113,0.30)",
+    bg: "var(--bad-dim)",
+    border: "var(--bad)",
     text: "var(--bad)",
+    chipBg: "var(--bad)",
+    chipText: "var(--primary-foreground)",
   },
   critical: {
     dot: "bg-bad",
-    bg: "rgba(248,113,113,0.09)",
-    border: "rgba(248,113,113,0.35)",
+    bg: "var(--bad-dim)",
+    border: "var(--bad)",
     text: "var(--bad)",
+    chipBg: "var(--bad)",
+    chipText: "var(--primary-foreground)",
   },
 };
 
@@ -70,7 +79,13 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
 
   return (
     <div className="space-y-3">
-      <Verdict tone={tone} headline={headline} reasons={reasons.slice(0, 3)} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98, y: 4 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Verdict tone={tone} headline={headline} reasons={reasons.slice(0, 3)} />
+      </motion.div>
 
       {hasAnyChange && (
         <Section title="What changes" collapsible className="card !p-3">
@@ -183,7 +198,7 @@ function FindingRow({ finding }: { finding: RiskFindingPayload }) {
           </span>
           <span
             className="text-[9px] uppercase tracking-wider font-bold px-1 py-px rounded"
-            style={{ background: tone.border, color: tone.text }}
+            style={{ background: tone.chipBg, color: tone.chipText }}
           >
             {finding.severity}
           </span>

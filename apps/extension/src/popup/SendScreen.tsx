@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { StrKey } from "@stellar/stellar-sdk";
 import { X, Loader2, ArrowRight, ExternalLink } from "lucide-react";
 import { useRpc } from "../shared/state-context";
@@ -83,22 +84,33 @@ export function SendScreen({
       className="absolute inset-0 z-30 flex flex-col"
       style={{ background: "var(--bg)" }}
     >
-      <div
-        className="flex items-center justify-between px-4 py-3 border-b"
-        style={{ borderColor: "var(--line)" }}
-      >
-        <p className="font-semibold text-sm">Send XLM</p>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-input hover:bg-secondary"
-        >
-          <X size={16} />
-        </button>
-      </div>
+      <header className="border-b border-border shrink-0">
+        <div aria-hidden className="flex h-[3px] w-full">
+          <span className="w-8 bg-primary" />
+          <span className="flex-1 bg-border" />
+        </div>
+        <div className="flex items-center justify-between px-4 pb-3 pt-3.5">
+          <h1 className="font-display text-base font-semibold uppercase tracking-tight leading-tight text-foreground">
+            Send XLM
+          </h1>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </header>
 
       <div className="flex-1 px-4 py-4 flex flex-col gap-4 overflow-y-auto">
         {success ? (
-          <div className="card text-center">
+          <motion.div
+            className="card text-center"
+            initial={{ opacity: 0, scale: 0.98, y: 4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
             <div
               className="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center"
               style={{ background: "var(--ok-dim)", color: "var(--ok)" }}
@@ -116,14 +128,14 @@ export function SendScreen({
               href={explorer ?? "#"}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[11px] text-accent-soft hover:text-accent"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
             >
               View on Stellar Expert <ExternalLink size={10} />
             </a>
-            <button onClick={onClose} className="btn-primary w-full mt-5">
+            <motion.button whileTap={{ scale: 0.97 }} onClick={onClose} className="btn-primary w-full mt-5">
               Done
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         ) : (
           <>
             <div>
@@ -154,11 +166,7 @@ export function SendScreen({
                 <button
                   onClick={onMax}
                   disabled={balanceXlm === null || balanceXlm <= 0}
-                  className="text-[10px] text-text-faint hover:text-text disabled:opacity-40 px-2 py-0.5 rounded-input"
-                  style={{
-                    background: "rgba(20,20,20,0.045)",
-                    border: "1px solid var(--line)",
-                  }}
+                  className="text-[10px] font-mono uppercase tracking-wide text-text-faint hover:text-text disabled:opacity-40 px-2 py-0.5 rounded-input bg-secondary border border-border hover:bg-muted transition-colors"
                 >
                   Max
                 </button>
@@ -198,7 +206,8 @@ export function SendScreen({
               </div>
             )}
 
-            <button
+            <motion.button
+              whileTap={canSend ? { scale: 0.97 } : undefined}
               onClick={onSend}
               disabled={!canSend}
               className="btn-primary mt-auto"
@@ -210,7 +219,7 @@ export function SendScreen({
               ) : (
                 <>Send {amount && amountValid ? `${amountNum} XLM` : ""}</>
               )}
-            </button>
+            </motion.button>
           </>
         )}
       </div>

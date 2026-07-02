@@ -8,7 +8,7 @@ import {
   Check, ChevronRight, ArrowRight, MonitorSmartphone, FileArchive,
   FolderOpen, BookOpen, HardHat,
 } from "lucide-react";
-import { Eyebrow } from "@stellar-thorn/ui";
+import { Eyebrow, Reveal, RevealGroup, RevealItem, SpotlightCard } from "@stellar-thorn/ui";
 import { BackdropGrid, LandingHeader, LandingFooter, HazardRule } from "../components/LandingChrome";
 
 type Browser = "chrome" | "firefox" | "other";
@@ -51,7 +51,7 @@ export default function InstallPage() {
       <BackdropGrid />
       <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
 
-      <main className="relative max-w-5xl mx-auto px-6 pt-36 pb-24">
+      <main className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-36 pb-24">
         <Hero browserCopy={browserCopy} />
 
         <DownloadCard
@@ -82,7 +82,7 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.18em] font-bold border border-primary/30 bg-primary/[0.06] text-primary"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
       >
         <Download size={11} /> Install Baret
       </motion.div>
@@ -115,7 +115,7 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         transition={{ duration: 0.65, delay: 0.3 }}
         className="mt-6 flex items-center gap-2 text-[12px] text-muted-foreground"
       >
-        <MonitorSmartphone size={12} className="text-primary" /> {browserCopy}
+        <MonitorSmartphone size={12} className="text-muted-foreground" /> {browserCopy}
       </motion.p>
     </section>
   );
@@ -141,7 +141,7 @@ function DownloadCard({
       transition={{ duration: 0.6, delay: 0.2 }}
       className="mb-14"
     >
-      <div className="relative rounded-3xl overflow-hidden border border-border bg-card shadow-lift">
+      <SpotlightCard tilt className="rounded-3xl shadow-lift">
         <HazardRule className="h-1" />
         <a
           href={primary.spec.href}
@@ -149,11 +149,11 @@ function DownloadCard({
           onClick={() => onDownload(primary.key)}
           className="relative flex items-center gap-5 p-6 sm:p-7 transition-colors hover:bg-secondary"
         >
-          <div className="w-14 h-14 rounded-xl grid place-items-center shrink-0 border border-border bg-secondary text-primary">
+          <div className="w-14 h-14 rounded-xl grid place-items-center shrink-0 border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
             <Icon size={22} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-primary font-bold mb-1">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-bold mb-1">
               {done ? "Downloaded — follow the steps below" : "Primary download"}
             </p>
             <p className="font-display text-lg font-semibold uppercase tracking-tight">{primary.spec.label}</p>
@@ -164,7 +164,7 @@ function DownloadCard({
           <span className={`shrink-0 w-11 h-11 rounded-xl grid place-items-center border transition-all ${
             done ? "border-[var(--ok)]/40 bg-[var(--ok-dim)] text-[var(--ok)]" : "border-primary/40 bg-primary/[0.06] text-primary"
           }`}>
-            {done ? <Check size={16} /> : <Download size={16} />}
+            {done ? <Check size={16} /> : <Download size={16} className="transition-transform group-hover/spot:translate-y-0.5" />}
           </span>
         </a>
 
@@ -180,7 +180,7 @@ function DownloadCard({
             <Download size={11} className="ml-auto text-muted-foreground" />
           </a>
         </div>
-      </div>
+      </SpotlightCard>
     </motion.section>
   );
 }
@@ -197,7 +197,7 @@ function InstallSteps({ primary, downloaded }: { primary: Exclude<Browser, "othe
     >
       <header className="flex items-end justify-between mb-6">
         <div>
-          <Eyebrow>Three steps to live</Eyebrow>
+          <Eyebrow index="01">Three steps to live</Eyebrow>
           <h2 className="mt-3 font-display text-3xl sm:text-4xl font-semibold uppercase tracking-[-0.02em]">Load it like a developer would.</h2>
         </div>
         <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -215,13 +215,13 @@ function InstallSteps({ primary, downloaded }: { primary: Exclude<Browser, "othe
 function ChromeSteps({ downloaded }: { downloaded: boolean }) {
   return (
     <ol className="space-y-3">
-      <Step n="01" icon={FileArchive} done={downloaded} title="Unzip the file">
+      <Step n="01" i={0} icon={FileArchive} done={downloaded} title="Unzip the file">
         Right-click <Code>baret-chrome.zip</Code> → Extract All. Remember the folder.
       </Step>
-      <Step n="02" icon={FolderOpen} title="Open chrome://extensions/">
+      <Step n="02" i={1} icon={FolderOpen} title="Open chrome://extensions/">
         Paste <Code>chrome://extensions/</Code> into your address bar (or Menu → Extensions). Toggle <b>Developer mode</b> on (top right).
       </Step>
-      <Step n="03" icon={ShieldCheck} title="Load unpacked">
+      <Step n="03" i={2} icon={ShieldCheck} title="Load unpacked">
         Click <b>"Load unpacked"</b> and pick the extracted <Code>baret-chrome</Code> folder. Baret appears in your toolbar — click it to create your wallet.
       </Step>
     </ol>
@@ -231,13 +231,13 @@ function ChromeSteps({ downloaded }: { downloaded: boolean }) {
 function FirefoxSteps({ downloaded }: { downloaded: boolean }) {
   return (
     <ol className="space-y-3">
-      <Step n="01" icon={FileArchive} done={downloaded} title="Unzip the file">
+      <Step n="01" i={0} icon={FileArchive} done={downloaded} title="Unzip the file">
         Right-click <Code>baret-firefox.zip</Code> → Extract Here. Remember the folder.
       </Step>
-      <Step n="02" icon={FolderOpen} title="Open about:debugging">
+      <Step n="02" i={1} icon={FolderOpen} title="Open about:debugging">
         Paste <Code>about:debugging#/runtime/this-firefox</Code> into your address bar.
       </Step>
-      <Step n="03" icon={ShieldCheck} title="Load Temporary Add-on…">
+      <Step n="03" i={2} icon={ShieldCheck} title="Load Temporary Add-on…">
         Click <b>"Load Temporary Add-on…"</b> and pick <Code>manifest.json</Code> inside the extracted folder.
         <span className="block mt-1.5 text-muted-foreground text-[11px]">
           Firefox temporary add-ons clear on restart — re-load after each browser restart.
@@ -248,31 +248,41 @@ function FirefoxSteps({ downloaded }: { downloaded: boolean }) {
 }
 
 function Step({
-  n, icon: Icon, title, done, children,
+  n, i, icon: Icon, title, done, children,
 }: {
   n: string;
+  i: number;
   icon: typeof FileArchive;
   title: string;
   done?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <li className="flex items-start gap-4 p-5 rounded-xl border border-border bg-card">
-      <div
-        className={`relative w-11 h-11 rounded-xl grid place-items-center font-mono text-xs font-bold shrink-0 ${
-          done ? "bg-[var(--ok-dim)] text-[var(--ok)] border border-[var(--ok)]/35" : "border border-border bg-secondary text-primary"
-        }`}
-      >
-        {done ? <Check size={16} /> : <Icon size={16} />}
-        <span className="absolute -top-2 -right-2 text-[10px] font-bold font-mono text-primary-foreground bg-primary px-1.5 py-0.5 rounded-md">
-          {n}
-        </span>
-      </div>
-      <div className="flex-1 min-w-0 pt-1">
-        <p className="font-display font-semibold uppercase text-base tracking-tight">{title}</p>
-        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{children}</p>
-      </div>
-    </li>
+    <motion.li
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.4, delay: i * 0.08 }}
+    >
+      <SpotlightCard className="h-full">
+        <div className="flex items-start gap-4 p-5">
+          <div
+            className={`relative w-11 h-11 rounded-xl grid place-items-center font-mono text-xs font-bold shrink-0 transition-colors ${
+              done ? "bg-[var(--ok-dim)] text-[var(--ok)] border border-[var(--ok)]/35" : "border border-border bg-secondary text-muted-foreground group-hover/spot:text-foreground"
+            }`}
+          >
+            {done ? <Check size={16} /> : <Icon size={16} />}
+            <span className="absolute -top-2 -right-2 text-[10px] font-bold font-mono text-primary-foreground bg-primary px-1.5 py-0.5 rounded-md">
+              {n}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 pt-1">
+            <p className="font-display font-semibold uppercase text-base tracking-tight">{title}</p>
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{children}</p>
+          </div>
+        </div>
+      </SpotlightCard>
+    </motion.li>
   );
 }
 
@@ -294,27 +304,24 @@ function FeatureGrid() {
   ];
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      className="mb-16"
-    >
+    <section className="mb-16">
       <div className="mb-6">
-        <Eyebrow>Why this wallet</Eyebrow>
+        <Eyebrow index="02">Why this wallet</Eyebrow>
       </div>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <RevealGroup className="grid sm:grid-cols-3 gap-3">
         {features.map((f) => (
-          <div key={f.title} className="rounded-xl border border-border bg-card p-5">
-            <span className="w-10 h-10 grid place-items-center rounded-xl border border-border bg-secondary text-primary">
-              <f.icon size={16} />
-            </span>
-            <p className="mt-4 font-display text-base font-semibold uppercase tracking-tight">{f.title}</p>
-            <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{f.body}</p>
-          </div>
+          <RevealItem key={f.title}>
+            <SpotlightCard tilt className="h-full p-5">
+              <span className="w-10 h-10 grid place-items-center rounded-xl border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
+                <f.icon size={16} />
+              </span>
+              <p className="mt-4 font-display text-base font-semibold uppercase tracking-tight">{f.title}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{f.body}</p>
+            </SpotlightCard>
+          </RevealItem>
         ))}
-      </div>
-    </motion.section>
+      </RevealGroup>
+    </section>
   );
 }
 
@@ -322,10 +329,7 @@ function FeatureGrid() {
 
 function AfterInstallCta() {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
+    <Reveal
       className="dark relative rounded-3xl overflow-hidden bg-card text-foreground shadow-lift"
     >
       <HazardRule />
@@ -334,7 +338,7 @@ function AfterInstallCta() {
         className="absolute inset-0 opacity-40 pointer-events-none"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
+            "linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)",
           backgroundSize: "44px 44px",
           maskImage:        "radial-gradient(ellipse at 100% 100%, transparent 30%, black 90%)",
           WebkitMaskImage:  "radial-gradient(ellipse at 100% 100%, transparent 30%, black 90%)",
@@ -352,8 +356,8 @@ function AfterInstallCta() {
           catches each one live — you see the analysis before signing.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link to="/showcase" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">
-            Open the showcase <ChevronRight size={14} />
+          <Link to="/showcase" className="group inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">
+            Open the showcase <ChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
           </Link>
           <Link
             to="/docs"
@@ -363,6 +367,6 @@ function AfterInstallCta() {
           </Link>
         </div>
       </div>
-    </motion.section>
+    </Reveal>
   );
 }

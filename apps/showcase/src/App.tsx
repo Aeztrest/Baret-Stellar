@@ -5,12 +5,46 @@
  * dependency tree).
  */
 
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { ShToaster } from "@stellar-thorn/ui";
 import { Hub } from "./components/Hub";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WalletProvider } from "./wallet/context";
+
+/** Per-route <title> + meta description for a share-friendly SPA. */
+const ROUTE_META: Record<string, { title: string; description: string }> = {
+  "/": { title: "Baret — Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, rug pull, or agent drift live on Stellar testnet." },
+  "/showcase": { title: "Baret — Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, rug pull, or agent drift live on Stellar testnet." },
+  "/home": { title: "Baret — Sign safe. Build on. | Stellar smart wallet", description: "The hard hat for your Stellar wallet — every transaction simulated, explained, and blocked when dangerous, before your keys ever sign." },
+  "/docs": { title: "Baret — Docs", description: "Design notes, architecture, and the policy DSL behind Baret's transaction firewall." },
+  "/agents": { title: "Baret — Agents | Pre-sign firewall for program wallets", description: "The AgentWallet SDK and CLI: analyze, sign, and submit with a firewall in front of every agent signature." },
+  "/install": { title: "Baret — Install the wallet", description: "One-click install for Chrome, Brave, Edge, and Firefox with step-by-step load-unpacked guidance." },
+  "/scrybe": { title: "Scrybe — Pay-per-question oracle on x402", description: "A real x402 paywall on Stellar testnet: ask a question, pay ~$0.001 USDC, watch on-chain settlement." },
+  "/novaswap": { title: "NovaSwap — DeFi swap demo | Baret", description: "A production-looking Stellar DEX that hides a fund-drain attack. See Baret catch it before you sign." },
+  "/pixeldrop": { title: "PixelDrop — NFT mint demo | Baret", description: "An NFT mint that hides a wallet drainer. See Baret catch it before you sign." },
+  "/orbityield": { title: "OrbitYield — Liquid staking demo | Baret", description: "A liquid-staking site routing to an unverified pool. See Baret catch it before you sign." },
+  "/claimhub": { title: "ClaimHub — Airdrop claim demo | Baret", description: "An airdrop claim that hides a phishing approval. See Baret catch it before you sign." },
+  "/launchpad": { title: "LaunchPad — Token launch demo | Baret", description: "A token launch with a rug-pull pattern. See Baret catch it before you sign." },
+};
+const DEFAULT_META = ROUTE_META["/home"]!;
+
+function RouteMeta() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const meta = ROUTE_META[pathname] ?? DEFAULT_META;
+    document.title = meta.title;
+    let tag = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (!tag) {
+      tag = document.createElement("meta");
+      tag.name = "description";
+      document.head.appendChild(tag);
+    }
+    tag.content = meta.description;
+  }, [pathname]);
+  return null;
+}
 
 const NovaSwap  = lazy(() => import("./sites/novaswap/NovaSwap"));
 const PixelDrop = lazy(() => import("./sites/pixeldrop/PixelDrop"));
@@ -47,6 +81,7 @@ export default function App() {
     <ErrorBoundary fallbackLabel="The showcase root crashed.">
       <WalletProvider appName="Baret Showcase">
         <BrowserRouter>
+          <RouteMeta />
           <Routes>
             <Route path="/"          element={<RouteShell><Hub /></RouteShell>} />
             <Route path="/showcase"  element={<RouteShell><Hub /></RouteShell>} />
@@ -62,6 +97,7 @@ export default function App() {
             <Route path="/install"   element={<RouteShell><InstallPage /></RouteShell>} />
           </Routes>
         </BrowserRouter>
+        <ShToaster />
       </WalletProvider>
     </ErrorBoundary>
   );

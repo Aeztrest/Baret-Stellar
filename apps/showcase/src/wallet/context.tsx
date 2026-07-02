@@ -24,6 +24,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "@stellar-thorn/ui";
 import {
   discoverStellarProviders,
   WalletStandardBridge,
@@ -114,9 +115,16 @@ export function WalletProvider({
         const b = await WalletStandardBridge.connect(provider);
         setBridge(b);
         setModalOpen(false);
+        toast.success("Wallet connected", {
+          description: `${provider.name} · ${short(b.account_pubkey())}`,
+        });
         return b;
       } catch (err) {
         if (!(err instanceof WalletStandardBridgeError)) console.error(err);
+        toast.error("Couldn't connect wallet", {
+          description:
+            err instanceof Error ? err.message : "The connection was declined or failed.",
+        });
         return null;
       } finally {
         setConnecting(false);
@@ -128,6 +136,7 @@ export function WalletProvider({
   const disconnect = useCallback(async () => {
     if (bridge) await bridge.disconnect().catch(() => {});
     setBridge(null);
+    toast("Wallet disconnected");
   }, [bridge]);
 
   const openWalletModal = useCallback(() => {

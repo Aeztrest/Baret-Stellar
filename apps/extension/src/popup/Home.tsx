@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Send, Download, Sparkles, Shield } from "lucide-react";
 import { Button, EmptyState, Meter, usePolling } from "@stellar-thorn/ui";
 import type { AllowanceSnapshot } from "@stellar-thorn/ext-protocol";
@@ -91,7 +92,13 @@ export function Home() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 relative">
-      <section className="rounded-card overflow-hidden relative" style={{ border: "1px solid var(--line)", background: "var(--bg-card)" }}>
+      <motion.section
+        className="rounded-card overflow-hidden relative"
+        style={{ border: "1px solid var(--line)", background: "var(--bg-card)" }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      >
         <div className="h-[3px] w-full flex" aria-hidden>
           <span className="w-8" style={{ background: "var(--accent)" }} />
           <span className="flex-1" style={{ background: "var(--line)" }} />
@@ -122,15 +129,21 @@ export function Home() {
           )}
 
           <div className="mt-5 grid grid-cols-3 gap-2">
-            <Button variant="secondary" size="sm" className="!flex-col !gap-1 !h-auto !py-2.5" onClick={() => setOverlay("send")} leftIcon={<Send size={14} />}>
-              Send
-            </Button>
-            <Button variant="secondary" size="sm" className="!flex-col !gap-1 !h-auto !py-2.5" onClick={() => setOverlay("receive")} leftIcon={<Download size={14} />}>
-              Receive
-            </Button>
-            <Button variant="secondary" size="sm" className="!flex-col !gap-1 !h-auto !py-2.5" onClick={onAirdrop} loading={airdropping} leftIcon={<Sparkles size={14} />}>
-              Airdrop
-            </Button>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button fullWidth variant="secondary" size="sm" className="!flex-col !gap-1 !h-auto !py-2.5" onClick={() => setOverlay("send")} leftIcon={<Send size={14} />}>
+                Send
+              </Button>
+            </motion.div>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button fullWidth variant="secondary" size="sm" className="!flex-col !gap-1 !h-auto !py-2.5" onClick={() => setOverlay("receive")} leftIcon={<Download size={14} />}>
+                Receive
+              </Button>
+            </motion.div>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button fullWidth variant="secondary" size="sm" className="!flex-col !gap-1 !h-auto !py-2.5" onClick={onAirdrop} loading={airdropping} leftIcon={<Sparkles size={14} />}>
+                Airdrop
+              </Button>
+            </motion.div>
           </div>
 
           {airdropMsg && (
@@ -150,9 +163,14 @@ export function Home() {
             </div>
           )}
         </div>
-      </section>
+      </motion.section>
 
-      <section className="card flex-1 flex flex-col gap-3">
+      <motion.section
+        className="card flex-1 flex flex-col gap-3"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+      >
         <div className="flex items-center justify-between">
           <p className="label !mb-0">Active grants</p>
           {activeGrants.length > 0 && (
@@ -181,7 +199,7 @@ export function Home() {
             </div>
           )
         )}
-      </section>
+      </motion.section>
 
       {overlay === "receive" && state?.authorityAddress && (
         <ReceiveScreen

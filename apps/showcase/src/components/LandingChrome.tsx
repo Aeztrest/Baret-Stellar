@@ -67,13 +67,24 @@ export function HazardRule({ className = "" }: { className?: string }) {
   );
 }
 
-/** Negative space + a soft orange glow — no decorative grid. */
+/**
+ * A quiet, neutral backdrop — a faint technical dot-grid that fades toward the
+ * edges. No colored bloom; the single accent stays reserved for content.
+ */
 export function BackdropGrid() {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-0">
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
       <div
-        className="absolute -top-48 left-1/2 h-[1000px] w-[1000px] -translate-x-1/2 rounded-full"
-        style={{ background: "radial-gradient(closest-side, var(--accent-glow), transparent 70%)" }}
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(var(--grid-line) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+          maskImage:
+            "radial-gradient(ellipse 80% 50% at 50% 0%, #000 20%, transparent 75%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 80% 50% at 50% 0%, #000 20%, transparent 75%)",
+        }}
       />
     </div>
   );

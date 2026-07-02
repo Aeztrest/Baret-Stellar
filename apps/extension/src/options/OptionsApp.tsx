@@ -4,7 +4,8 @@
  */
 
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { Button } from "@stellar-thorn/ui";
 import { useWalletContext } from "../shared/state-context";
 import { SidebarOpt } from "./components/SidebarOpt";
 import { Onboarding } from "./pages/Onboarding";
@@ -19,22 +20,32 @@ import { PoliciesPage } from "./pages/PoliciesPage";
 const POPUP_LIKE = new Set(["/onboarding"]);
 
 function Guard({ children }: { children: React.ReactNode }) {
-  const { state, loading, error } = useWalletContext();
+  const { state, loading, error, refresh } = useWalletContext();
   const loc = useLocation();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={20} className="animate-spin text-accent-soft" />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background">
+        <Loader2 size={22} className="animate-spin text-primary" />
+        <p className="text-muted-foreground text-xs">Connecting to Baret…</p>
       </div>
     );
   }
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6 text-center">
-        <div className="space-y-2">
-          <p className="text-bad font-semibold">Couldn't reach background</p>
-          <p className="text-text-muted text-xs">{error}</p>
+      <div className="min-h-screen flex items-center justify-center px-6 bg-background">
+        <div
+          className="max-w-md w-full rounded-md p-5 flex flex-col items-center text-center gap-3"
+          style={{ background: "var(--bad-dim)", color: "var(--bad)" }}
+        >
+          <AlertTriangle size={22} />
+          <div className="space-y-1">
+            <p className="font-semibold text-sm">Couldn't reach background</p>
+            <p className="text-xs opacity-80 break-words">{error}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => void refresh()}>
+            Retry
+          </Button>
         </div>
       </div>
     );

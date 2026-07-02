@@ -38,7 +38,7 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
       }}
     >
       <div
-        className="relative rounded-modal overflow-hidden"
+        className="relative rounded-modal overflow-hidden shadow-2xl"
         style={{
           width: "100%",
           maxWidth: "420px",

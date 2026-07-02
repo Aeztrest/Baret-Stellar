@@ -20,7 +20,14 @@ import {
 } from "lucide-react";
 import { useRpc, useWalletState } from "../../shared/state-context";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
-import { shortAddr, usePolling } from "@stellar-thorn/ui";
+import {
+  shortAddr,
+  usePolling,
+  SpotlightCard,
+  Reveal,
+  RevealGroup,
+  RevealItem,
+} from "@stellar-thorn/ui";
 import {
   OptionsSendModal,
   OptionsReceiveModal,
@@ -103,21 +110,19 @@ export function HomeOpt() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Welcome back</h1>
-        <p className="text-text-muted text-sm mt-1">
+        <h1 className="text-3xl font-display font-bold uppercase tracking-tight text-foreground">
+          Welcome back
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
           Your wallet is live on {state.network}. Every transaction passes
           Baret before signing.
         </p>
       </div>
 
-      <section
-        className="rounded-card p-6 relative overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255,107,0,0.08), rgba(255,107,0,0.015))",
-          border: "1px solid var(--line)",
-        }}
-      >
+      <Reveal>
+      <SpotlightCard tilt>
+        <div aria-hidden className="absolute left-0 top-0 z-10 h-[3px] w-10 bg-primary" />
+        <div className="relative p-6">
         <p className="label">
           {heroLabel} · {shortAddr(heroAddress, { lead: 6, tail: 6 })}
         </p>
@@ -173,44 +178,62 @@ export function HomeOpt() {
             {airdropError}
           </p>
         )}
-      </section>
+        </div>
+      </SpotlightCard>
+      </Reveal>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <Link to="/policies" className="card hover:bg-secondary transition-colors">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Shield size={14} className="text-accent-soft" />
-              <h2 className="font-bold text-sm">Active policy</h2>
+      <RevealGroup className="grid md:grid-cols-2 gap-4">
+        <RevealItem>
+        <SpotlightCard className="h-full">
+          <Link to="/policies" className="absolute inset-0 z-20" aria-label="Active policy" />
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="grid size-7 place-items-center rounded-lg border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
+                  <Shield size={13} />
+                </span>
+                <h2 className="font-bold text-sm">Active policy</h2>
+              </div>
+              <ArrowRight size={13} className="text-text-faint transition-transform group-hover/spot:translate-x-0.5" />
             </div>
-            <ArrowRight size={13} className="text-text-faint" />
+            <PolicySummary policy={policy} />
           </div>
-          <PolicySummary policy={policy} />
-        </Link>
+        </SpotlightCard>
+        </RevealItem>
 
-        <Link to="/sites" className="card hover:bg-secondary transition-colors">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Clock size={14} className="text-accent-soft" />
-              <h2 className="font-bold text-sm">Connected sites</h2>
+        <RevealItem>
+        <SpotlightCard className="h-full">
+          <Link to="/sites" className="absolute inset-0 z-20" aria-label="Connected sites" />
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="grid size-7 place-items-center rounded-lg border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
+                  <Clock size={13} />
+                </span>
+                <h2 className="font-bold text-sm">Connected sites</h2>
+              </div>
+              <ArrowRight size={13} className="text-text-faint transition-transform group-hover/spot:translate-x-0.5" />
             </div>
-            <ArrowRight size={13} className="text-text-faint" />
+            <p className="text-text-faint text-xs leading-relaxed">
+              Every dApp you connect, every x402 paywall you visit. Per-origin
+              caps, pause, revoke.
+            </p>
           </div>
-          <p className="text-text-faint text-xs leading-relaxed">
-            Every dApp you connect, every x402 paywall you visit. Per-origin
-            caps, pause, revoke.
-          </p>
-        </Link>
-      </div>
+        </SpotlightCard>
+        </RevealItem>
+      </RevealGroup>
 
       {state.walletAddress && (
-        <section className="card">
+        <Reveal>
+        <SpotlightCard>
+          <div className="p-6">
           <div className="flex items-center justify-between gap-4 mb-3">
             <h2 className="font-bold text-sm">Authority key</h2>
             <a
               href={stellarExpertAddress(state.authorityAddress, state.network)}
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-accent-soft hover:text-text inline-flex items-center gap-1"
+              className="relative z-20 text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
               View on Stellar Expert <ExternalLink size={11} />
             </a>
@@ -225,7 +248,9 @@ export function HomeOpt() {
             </span>
             .
           </p>
-        </section>
+          </div>
+        </SpotlightCard>
+        </Reveal>
       )}
 
       {overlay === "send" && state.authorityAddress && (
@@ -249,7 +274,18 @@ export function HomeOpt() {
 }
 
 function PolicySummary({ policy }: { policy: GuardPolicy | null }) {
-  if (!policy) return <p className="text-xs text-text-faint">Loading…</p>;
+  if (!policy) {
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex justify-between gap-4">
+            <span className="h-3 w-28 rounded bg-secondary animate-pulse" />
+            <span className="h-3 w-10 rounded bg-secondary animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
   const rows: Array<[string, string]> = [
     [
       "Max loss per tx",

@@ -19,8 +19,11 @@ export function Container({
   return (
     <Tag
       className={cn(
+        // One consistent max width, aligned to the site header/footer (max-w-6xl).
         "mx-auto w-full px-5 sm:px-8",
-        size === "wide" ? "max-w-6xl" : "max-w-5xl",
+        "max-w-6xl",
+        // `size` retained for API compatibility; both map to the aligned width.
+        size === "wide" && "max-w-6xl",
         className,
       )}
     >

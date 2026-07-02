@@ -22,6 +22,8 @@ export { ThemeToggle } from "./theme/ThemeToggle";
 /* ── Motion primitives ── */
 export { Reveal, RevealGroup, RevealItem } from "./motion/Reveal";
 export type { RevealProps, RevealGroupProps } from "./motion/Reveal";
+export { SpotlightCard } from "./motion/SpotlightCard";
+export type { SpotlightCardProps } from "./motion/SpotlightCard";
 
 /* ── Marketing layout primitives ── */
 export { Container } from "./layout/Container";

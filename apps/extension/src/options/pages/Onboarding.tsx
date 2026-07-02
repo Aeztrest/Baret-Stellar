@@ -192,8 +192,8 @@ export function Onboarding() {
 
       {/* Error toast */}
       {error && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-md px-4 py-3 rounded-input flex items-start gap-2 text-xs"
-             style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", color: "var(--bad)" }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-md px-4 py-3 rounded-input flex items-start gap-2 text-xs shadow-lg"
+             style={{ background: "var(--bad-dim)", border: "1px solid var(--bad)", color: "var(--bad)" }}>
           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
           <span className="flex-1">{error}</span>
           <button onClick={() => setError(null)} className="opacity-70 hover:opacity-100">×</button>
@@ -210,7 +210,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
     <div className="text-center space-y-7">
       <div className="space-y-3">
         <div className="w-14 h-14 rounded-card mx-auto flex items-center justify-center text-accent-soft"
-             style={{ background: "rgba(61,109,255,0.12)", border: "1px solid rgba(61,109,255,0.25)" }}>
+             style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-glow)" }}>
           <ShieldCheck size={26} />
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
@@ -342,7 +342,7 @@ function StepGenerate({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="text-center space-y-6">
       <div className="w-14 h-14 mx-auto rounded-card flex items-center justify-center"
-           style={{ background: "rgba(61,109,255,0.12)", border: "1px solid rgba(61,109,255,0.25)" }}>
+           style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-glow)" }}>
         <Loader2 size={22} className="animate-spin text-accent-soft" />
       </div>
       <div className="space-y-2">
@@ -377,7 +377,7 @@ function StepBackup({
       </div>
 
       <div className="rounded-card p-4 flex items-start gap-3"
-           style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.2)" }}>
+           style={{ background: "var(--warn-dim)", border: "1px solid var(--warn)" }}>
         <AlertTriangle size={14} className="text-warn shrink-0 mt-0.5" />
         <p className="text-xs text-text-muted leading-relaxed">
           Anyone with this key can spend your wallet. Don't paste it into websites. Don't share it.
@@ -391,8 +391,7 @@ function StepBackup({
             {revealed ? "Hide" : "Reveal"}
           </button>
         </div>
-        <div className="font-mono text-xs break-all min-h-[3.5rem] px-3 py-3 rounded-input"
-             style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
+        <div className="font-mono text-xs break-all min-h-[3.5rem] px-3 py-3 rounded-input bg-secondary border border-border">
           {revealed ? secret : "•".repeat(80)}
         </div>
         <button onClick={onCopy} disabled={!revealed} className="btn-ghost w-full disabled:opacity-50">
@@ -472,7 +471,7 @@ function StepProvision({
   return (
     <div className="text-center space-y-6">
       <div className="w-14 h-14 mx-auto rounded-card flex items-center justify-center"
-           style={{ background: "rgba(61,109,255,0.12)", border: "1px solid rgba(61,109,255,0.25)" }}>
+           style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-glow)" }}>
         {provisioning
           ? <Loader2 size={22} className="animate-spin text-accent-soft" />
           : <Check size={22} className="text-ok" />}
@@ -510,8 +509,8 @@ function StepPolicy({
               onClick={() => onChoose(t.id)}
               className="w-full text-left p-4 rounded-card transition-colors"
               style={{
-                background: active ? "rgba(255,107,0,0.07)" : "rgba(20,20,20,0.03)",
-                border: active ? "1px solid rgba(61,109,255,0.5)" : "1px solid var(--line)",
+                background: active ? "var(--accent-dim)" : "var(--secondary)",
+                border: active ? "1px solid var(--accent)" : "1px solid var(--line)",
               }}
             >
               <div className="flex items-center justify-between mb-1">
@@ -535,7 +534,7 @@ function StepDone({ walletAddress, onEnter }: { walletAddress: string; onEnter: 
   return (
     <div className="text-center space-y-6">
       <div className="w-16 h-16 mx-auto rounded-card flex items-center justify-center"
-           style={{ background: "rgba(52,211,153,0.10)", border: "1px solid rgba(52,211,153,0.30)" }}>
+           style={{ background: "var(--ok-dim)", border: "1px solid var(--ok)" }}>
         <Check size={28} className="text-ok" />
       </div>
       <div className="space-y-2">

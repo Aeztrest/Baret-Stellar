@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import {
   Container, PageSection, SectionHeading, Eyebrow,
-  Reveal, RevealGroup, RevealItem,
+  Reveal, RevealGroup, RevealItem, SpotlightCard,
   Meter, StatTile, Verdict,
 } from "@stellar-thorn/ui";
 import { BackdropGrid, LandingHeader, LandingFooter, HazardRule } from "../components/LandingChrome";
@@ -89,7 +89,7 @@ function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.06] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-primary"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
           >
             <span className="relative flex size-2">
               <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-60" />
@@ -178,12 +178,6 @@ function PopupMockup() {
       transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="relative mx-auto max-w-sm"
     >
-      <div
-        aria-hidden
-        className="absolute -inset-8 -z-10 rounded-[2rem] opacity-70 blur-2xl"
-        style={{ background: "radial-gradient(closest-side, var(--accent-glow), transparent 70%)" }}
-      />
-
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
         <div className="h-1 bg-primary" />
 
@@ -327,7 +321,7 @@ function PillarCard({
   num: string; icon: typeof Shield; title: string; body: string; points: string[]; demo?: boolean;
 }) {
   return (
-    <div className="group relative h-full overflow-hidden rounded-xl border border-border bg-card p-7 transition-colors hover:border-foreground/30">
+    <SpotlightCard tilt className="h-full p-7">
       <span
         aria-hidden
         className="pointer-events-none absolute -top-3 right-4 select-none font-display font-bold text-transparent"
@@ -337,7 +331,7 @@ function PillarCard({
       </span>
 
       <div className="relative">
-        <span className="grid size-10 place-items-center rounded-lg border border-border bg-secondary text-primary">
+        <span className="grid size-10 place-items-center rounded-lg border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
           <Icon size={17} />
         </span>
         <h3 className="mt-6 font-display text-2xl font-semibold uppercase tracking-tight text-foreground">
@@ -365,7 +359,7 @@ function PillarCard({
           </div>
         )}
       </div>
-    </div>
+    </SpotlightCard>
   );
 }
 
@@ -404,31 +398,31 @@ function ShowcaseStrip() {
 
 function SiteCard({ path, name, tag, threat }: { path: string; name: string; tag: string; threat: string }) {
   return (
-    <Link
-      to={path}
-      className="group block h-full rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary"
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-md border border-border bg-secondary font-mono text-xs font-bold text-primary">
-              {name[0]}
-            </span>
-            <p className="font-display font-semibold uppercase tracking-tight text-foreground">{name}</p>
+    <SpotlightCard className="h-full">
+      <Link to={path} className="absolute inset-0 z-20" aria-label={`Open the ${name} demo`} />
+      <div className="p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="grid size-7 place-items-center rounded-md border border-border bg-secondary font-mono text-xs font-bold text-muted-foreground transition-colors group-hover/spot:text-foreground">
+                {name[0]}
+              </span>
+              <p className="font-display font-semibold uppercase tracking-tight text-foreground">{name}</p>
+            </div>
+            <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{tag}</p>
           </div>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{tag}</p>
+          <ArrowUpRight
+            size={16}
+            className="text-muted-foreground transition-all group-hover/spot:-translate-y-0.5 group-hover/spot:translate-x-0.5 group-hover/spot:text-primary"
+          />
         </div>
-        <ArrowUpRight
-          size={16}
-          className="text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary"
-        />
-      </div>
 
-      <div className="mt-5 flex items-center gap-2 border-t border-border pt-4 text-[11px] text-muted-foreground">
-        <ShieldAlert size={11} className="text-primary" />
-        Catches: <span className="font-semibold text-foreground">{threat}</span>
+        <div className="mt-5 flex items-center gap-2 border-t border-border pt-4 text-[11px] text-muted-foreground">
+          <ShieldAlert size={11} className="text-muted-foreground" />
+          Catches: <span className="font-semibold text-foreground">{threat}</span>
+        </div>
       </div>
-    </Link>
+    </SpotlightCard>
   );
 }
 
@@ -475,8 +469,14 @@ function FinalCta() {
             <HazardRule />
             <div
               aria-hidden
-              className="absolute -bottom-24 -right-24 size-[420px] rounded-full opacity-70"
-              style={{ background: "radial-gradient(closest-side, var(--accent-glow), transparent 70%)" }}
+              className="absolute inset-0 opacity-40"
+              style={{
+                backgroundImage:
+                  "linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)",
+                backgroundSize: "44px 44px",
+                maskImage: "radial-gradient(ellipse at 100% 100%, black 10%, transparent 70%)",
+                WebkitMaskImage: "radial-gradient(ellipse at 100% 100%, black 10%, transparent 70%)",
+              }}
             />
             <div className="relative max-w-3xl p-12 md:p-20">
               <HardHat size={26} className="text-primary" />

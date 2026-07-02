@@ -99,6 +99,10 @@
   --accent-glow:  oklch(0.702 0.196 42 / 0.22);
 
   --meter-track:  oklch(0.205 0 0 / 0.06);
+
+  /* Neutral cursor-spotlight for interactive cards (theme-aware, no accent) */
+  --spotlight:    oklch(0.205 0 0 / 0.05);
+  --grid-line:    oklch(0.205 0 0 / 0.03);
 }
 
 /* ═══════════════════ shadcn tokens — DARK ═══════════════════ */
@@ -151,6 +155,9 @@
   --accent-glow:  oklch(0.72 0.193 44 / 0.26);
 
   --meter-track:  oklch(1 0 0 / 0.08);
+
+  --spotlight:    oklch(1 0 0 / 0.09);
+  --grid-line:    oklch(1 0 0 / 0.04);
 }
 
 /* ═══════════════════ 4 · Scales ═══════════════════ */

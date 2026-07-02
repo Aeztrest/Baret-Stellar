@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { ChevronRight, Lock, ExternalLink, Trash2 } from "lucide-react";
 import browser from "webextension-polyfill";
 import { Button, Card, Dialog, versionLabel } from "@stellar-thorn/ui";
@@ -30,13 +31,21 @@ export function Settings() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+    <motion.div
+      className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3"
+      initial="hidden"
+      animate="show"
+      variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+    >
+      <motion.div variants={SETTINGS_ITEM}>
       <Card padding="none" className="divide-y divide-line overflow-hidden">
         <Row label="Network" value={state?.network ?? "—"} onClick={() => openOptions("network")} />
         <Row label="Policy"  value="Balanced template" onClick={() => openOptions("policies")} />
         <Row label="Security" value="Wallet locks after 15 min idle" onClick={() => openOptions("security")} />
       </Card>
+      </motion.div>
 
+      <motion.div variants={SETTINGS_ITEM}>
       <Card padding="none" className="divide-y divide-line overflow-hidden">
         <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2">
@@ -53,10 +62,13 @@ export function Settings() {
           <ChevronRight size={13} className="text-text-faint" />
         </button>
       </Card>
+      </motion.div>
 
+      <motion.div variants={SETTINGS_ITEM}>
       <Card
         padding="none"
-        className="divide-y divide-line overflow-hidden !bg-[rgba(248,113,113,0.04)] !border-[rgba(248,113,113,0.18)]"
+        className="divide-y divide-line overflow-hidden"
+        style={{ background: "var(--bad-dim)", borderColor: "var(--bad)" }}
       >
         <button onClick={() => setResetDialogOpen(true)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2 text-bad">
@@ -66,6 +78,7 @@ export function Settings() {
           <ChevronRight size={13} className="text-bad/60" />
         </button>
       </Card>
+      </motion.div>
 
       <p className="text-[10px] text-text-faint text-center mt-auto pt-3">{versionLabel()}</p>
 
@@ -82,9 +95,14 @@ export function Settings() {
           </>
         }
       />
-    </div>
+    </motion.div>
   );
 }
+
+const SETTINGS_ITEM = {
+  hidden: { opacity: 0, y: 6 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const } },
+};
 
 function Row({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
   return (
