@@ -5,7 +5,7 @@
 
 import { NavLink } from "react-router-dom";
 import { Home as HomeIcon, Clock, Shield, FileCode, Globe, Settings as SettingsIcon, Lock } from "lucide-react";
-import { Mark, shortAddr } from "@stellar-thorn/ui";
+import { Mark, ThemeToggle, shortAddr } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
 const NAV = [
@@ -59,7 +59,7 @@ export function SidebarOpt() {
               `flex items-center gap-3 px-3 py-2 rounded-input text-sm transition-colors ${
                 isActive
                   ? "bg-accent-dim text-text"
-                  : "text-text-muted hover:text-text hover:bg-black/[0.04]"
+                  : "text-text-muted hover:text-text hover:bg-secondary"
               }`
             }
           >
@@ -70,15 +70,20 @@ export function SidebarOpt() {
       </nav>
 
       <div className="p-3 border-t border-line">
-        {state?.phase === "ready" && (
-          <button
-            onClick={onLock}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-input text-sm text-text-faint hover:text-text hover:bg-black/[0.04] transition-colors"
-          >
-            <Lock size={13} />
-            Lock wallet
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {state?.phase === "ready" ? (
+            <button
+              onClick={onLock}
+              className="flex flex-1 items-center gap-2 px-3 py-2 rounded-input text-sm text-text-faint hover:text-text hover:bg-secondary transition-colors"
+            >
+              <Lock size={13} />
+              Lock wallet
+            </button>
+          ) : (
+            <span className="flex-1" />
+          )}
+          <ThemeToggle className="size-9 shrink-0" />
+        </div>
         <p className="text-[10px] text-text-faint px-3 py-2 leading-relaxed">
           Every signature passes through Baret before your keys are touched.
         </p>

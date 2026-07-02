@@ -176,7 +176,7 @@ export function HomeOpt() {
       </section>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <Link to="/policies" className="card hover:bg-black/[0.03] transition-colors">
+        <Link to="/policies" className="card hover:bg-secondary transition-colors">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield size={14} className="text-accent-soft" />
@@ -187,7 +187,7 @@ export function HomeOpt() {
           <PolicySummary policy={policy} />
         </Link>
 
-        <Link to="/sites" className="card hover:bg-black/[0.03] transition-colors">
+        <Link to="/sites" className="card hover:bg-secondary transition-colors">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Clock size={14} className="text-accent-soft" />

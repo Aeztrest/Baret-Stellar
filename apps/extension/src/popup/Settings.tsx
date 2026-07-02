@@ -38,14 +38,14 @@ export function Settings() {
       </Card>
 
       <Card padding="none" className="divide-y divide-line overflow-hidden">
-        <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+        <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2">
             <Lock size={13} className="text-text-faint" />
             <span className="text-sm">Lock wallet now</span>
           </div>
           <ChevronRight size={13} className="text-text-faint" />
         </button>
-        <button onClick={() => openOptions()} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+        <button onClick={() => openOptions()} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2">
             <ExternalLink size={13} className="text-text-faint" />
             <span className="text-sm">Open full settings</span>
@@ -58,7 +58,7 @@ export function Settings() {
         padding="none"
         className="divide-y divide-line overflow-hidden !bg-[rgba(248,113,113,0.04)] !border-[rgba(248,113,113,0.18)]"
       >
-        <button onClick={() => setResetDialogOpen(true)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+        <button onClick={() => setResetDialogOpen(true)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2 text-bad">
             <Trash2 size={13} />
             <span className="text-sm">Reset wallet…</span>
@@ -88,7 +88,7 @@ export function Settings() {
 
 function Row({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
       <div className="flex flex-col gap-0.5">
         <span className="text-xs text-text-faint">{label}</span>
         <span className="text-sm">{value}</span>

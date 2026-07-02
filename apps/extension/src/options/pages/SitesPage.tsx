@@ -133,7 +133,7 @@ function SiteCard({ site }: { site: SiteSummary }) {
   return (
     <Link
       to={`/sites/${b64}`}
-      className="card flex items-center gap-4 hover:bg-black/[0.03] transition-colors"
+      className="card flex items-center gap-4 hover:bg-secondary transition-colors"
     >
       <div
         className="w-10 h-10 rounded-input flex items-center justify-center shrink-0"

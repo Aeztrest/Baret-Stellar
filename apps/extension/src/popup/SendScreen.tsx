@@ -90,7 +90,7 @@ export function SendScreen({
         <p className="font-semibold text-sm">Send XLM</p>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-input hover:bg-black/5"
+          className="p-1.5 rounded-input hover:bg-secondary"
         >
           <X size={16} />
         </button>

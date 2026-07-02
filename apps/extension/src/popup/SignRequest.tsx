@@ -136,12 +136,20 @@ export function SignRequest() {
 
 function Header({ origin, verb }: { origin: string; verb: string }) {
   return (
-    <header className="px-4 pt-4 pb-3 border-b border-line shrink-0">
-      <div className="flex items-center gap-1.5 text-accent-soft text-[11px] mb-1.5">
-        <Globe size={11} />
-        <span className="font-mono truncate">{origin}</span>
+    <header className="border-b border-border shrink-0">
+      <div aria-hidden className="flex h-[3px] w-full">
+        <span className="w-8 bg-primary" />
+        <span className="flex-1 bg-border" />
       </div>
-      <h1 className="text-lg font-extrabold tracking-tight leading-tight">{verb}</h1>
+      <div className="px-4 pb-3 pt-3.5">
+        <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] text-primary">
+          <Globe size={11} />
+          <span className="truncate">{origin}</span>
+        </div>
+        <h1 className="font-display text-lg font-semibold uppercase tracking-tight leading-tight text-foreground">
+          {verb}
+        </h1>
+      </div>
     </header>
   );
 }

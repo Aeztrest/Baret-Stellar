@@ -39,7 +39,7 @@ export default function AgentsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-paper text-ink-900 antialiased">
+    <div className="min-h-screen bg-background text-foreground antialiased">
       <BackdropGrid />
       <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
 
@@ -73,7 +73,7 @@ function Hero() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.18em] font-bold border border-brand-500/30 bg-brand-50 text-brand-700"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.18em] font-bold border border-primary/30 bg-primary/[0.06] text-primary"
       >
         <Bot size={11} /> Agent &amp; Program Wallets
       </motion.div>
@@ -82,17 +82,17 @@ function Hero() {
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.05 }}
-        className="mt-5 font-display text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]"
+        className="mt-5 font-display text-4xl sm:text-5xl font-semibold uppercase tracking-[-0.02em] leading-[1.05]"
       >
         Your agent signs.<br />
-        <span className="text-brand-600">Baret checks first.</span>
+        <span className="text-primary">Baret checks first.</span>
       </motion.h1>
 
       <motion.p
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.12 }}
-        className="mt-5 max-w-2xl text-ink-500 text-lg leading-relaxed"
+        className="mt-5 max-w-2xl text-muted-foreground text-lg leading-relaxed"
       >
         The same pre-sign firewall that protects human wallets, now as a drop-in
         SDK and CLI for autonomous agents and bot wallets. Every transaction your
@@ -135,11 +135,11 @@ function HowItWorks() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4, delay: i * 0.06 }}
-          className="card shadow-card p-5"
+          className="rounded-xl border border-border bg-card p-5"
         >
-          <s.icon size={20} className="text-brand-500" />
-          <h3 className="mt-3 font-display font-bold text-ink-900">{s.title}</h3>
-          <p className="mt-1.5 text-sm text-ink-500 leading-relaxed">{s.body}</p>
+          <s.icon size={20} className="text-primary" />
+          <h3 className="mt-3 font-display font-semibold uppercase tracking-tight text-foreground">{s.title}</h3>
+          <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{s.body}</p>
         </motion.div>
       ))}
     </section>
@@ -183,9 +183,9 @@ echo "$XDR" | baret submit -      # exit 0 sent · 1 blocked · 2 error`;
         <div>
           <CodeLabel>CLI — any language</CodeLabel>
           <CodeBlock code={cliSnippet} />
-          <div className="mt-4 card shadow-card p-4 text-sm text-ink-500 leading-relaxed">
-            <strong className="text-ink-800">Fail-closed by design.</strong> If the
-            Baret server is unreachable, <code className="text-brand-600">evaluate</code>{" "}
+          <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground leading-relaxed">
+            <strong className="text-foreground">Fail-closed by design.</strong> If the
+            Baret server is unreachable, <code className="text-primary">evaluate</code>{" "}
             throws and signing never happens — your agent simply does not transact
             rather than transacting blind.
           </div>
@@ -210,17 +210,17 @@ function PolicyPicker({
             <button
               key={t.id}
               onClick={() => onPick(t.id as PolicyTemplateId)}
-              className={`text-left rounded-2xl p-5 border transition-all ${
+              className={`text-left rounded-2xl p-5 border transition-colors ${
                 active
-                  ? "border-brand-500 bg-brand-50 shadow-brand"
-                  : "border-ink-200 bg-white hover:border-ink-300 shadow-card"
+                  ? "border-primary bg-primary/[0.06] shadow-brand"
+                  : "border-border bg-card hover:border-foreground/30"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-display font-bold text-ink-900">{t.name}</span>
-                {active && <Check size={16} className="text-brand-600" />}
+                <span className="font-display font-semibold uppercase tracking-tight text-foreground">{t.name}</span>
+                {active && <Check size={16} className="text-primary" />}
               </div>
-              <p className="mt-2 text-sm text-ink-500 leading-relaxed">{t.description}</p>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{t.description}</p>
             </button>
           );
         })}
@@ -269,7 +269,7 @@ function Playground({
     <section className="mb-16">
       <SectionHeading icon={Wand2} title="Live playground" subtitle="Runs the real /v1/analyze pipeline with the policy you picked. Start the Baret server, paste an unsigned transaction XDR, and see the verdict your agent would get." />
 
-      <div className="card shadow-card p-5 grid lg:grid-cols-2 gap-5">
+      <div className="rounded-xl border border-border bg-card p-5 grid lg:grid-cols-2 gap-5">
         <div className="space-y-4">
           <div>
             <CodeLabel>Agent address (G…)</CodeLabel>
@@ -278,9 +278,9 @@ function Playground({
                 value={agentAddress}
                 onChange={(e) => onAgentAddress(e.target.value)}
                 placeholder="G… your agent's wallet"
-                className="flex-1 rounded-xl border border-ink-200 px-3 py-2.5 text-sm font-mono focus:border-brand-500 focus:outline-none"
+                className="flex-1 rounded-xl border border-input bg-card text-foreground px-3 py-2.5 text-sm font-mono focus:border-primary focus:outline-none"
               />
-              <button onClick={genAddress} className="btn-outline !px-3 !py-2" title="Generate a demo address">
+              <button onClick={genAddress} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-secondary" title="Generate a demo address">
                 <Wand2 size={14} />
               </button>
             </div>
@@ -292,7 +292,7 @@ function Playground({
               <select
                 value={network}
                 onChange={(e) => onNetwork(e.target.value as Network)}
-                className="w-full rounded-xl border border-ink-200 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none"
+                className="w-full rounded-xl border border-input bg-card text-foreground px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
               >
                 <option value="testnet">testnet</option>
                 <option value="pubnet">pubnet</option>
@@ -300,7 +300,7 @@ function Playground({
             </div>
             <div className="flex-1">
               <CodeLabel>Policy</CodeLabel>
-              <div className="rounded-xl border border-ink-200 px-3 py-2.5 text-sm bg-bone text-ink-600 capitalize">
+              <div className="rounded-xl border border-input bg-secondary px-3 py-2.5 text-sm text-muted-foreground capitalize">
                 {policyId}
               </div>
             </div>
@@ -313,14 +313,14 @@ function Playground({
               onChange={(e) => setXdr(e.target.value)}
               placeholder="AAAAAg... TransactionEnvelope XDR"
               rows={5}
-              className="w-full rounded-xl border border-ink-200 px-3 py-2.5 text-xs font-mono focus:border-brand-500 focus:outline-none resize-y"
+              className="w-full rounded-xl border border-input bg-card text-foreground px-3 py-2.5 text-xs font-mono focus:border-primary focus:outline-none resize-y"
             />
           </div>
 
           <button
             onClick={run}
             disabled={loading || !xdr.trim() || !agentAddress.trim()}
-            className="btn-brand w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)] w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
             {loading ? "Analyzing…" : "Analyze as agent"}
@@ -338,21 +338,21 @@ function VerdictPanel({
 }: { result: AnalysisResult | null; error: string | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="rounded-xl bg-bone flex items-center justify-center text-ink-400 text-sm min-h-[260px]">
+      <div className="rounded-xl bg-secondary flex items-center justify-center text-muted-foreground text-sm min-h-[260px]">
         <Loader2 size={16} className="animate-spin mr-2" /> Running simulation…
       </div>
     );
   }
   if (error) {
     return (
-      <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 min-h-[260px]">
+      <div className="rounded-xl bg-[var(--bad-dim)] border border-[var(--bad)]/30 p-4 text-sm text-[var(--bad)] min-h-[260px]">
         {error}
       </div>
     );
   }
   if (!result) {
     return (
-      <div className="rounded-xl bg-bone flex items-center justify-center text-ink-400 text-sm text-center px-6 min-h-[260px]">
+      <div className="rounded-xl bg-secondary flex items-center justify-center text-muted-foreground text-sm text-center px-6 min-h-[260px]">
         The verdict your agent would receive shows up here.
       </div>
     );
@@ -377,12 +377,12 @@ function VerdictPanel({
 
       {result.riskFindings.length > 0 && (
         <div className="mt-4">
-          <div className="text-[11px] uppercase tracking-wide font-bold text-ink-400">Risk findings</div>
+          <div className="text-[11px] uppercase tracking-wide font-bold text-muted-foreground">Risk findings</div>
           <div className="mt-1.5 space-y-1.5">
             {result.riskFindings.map((f, i) => (
-              <div key={i} className="text-xs text-ink-600">
+              <div key={i} className="text-xs text-foreground/80">
                 <span className="font-mono font-semibold">{f.code}</span>
-                <span className="text-ink-400"> [{f.severity}]</span> — {f.message}
+                <span className="text-muted-foreground"> [{f.severity}]</span> — {f.message}
               </div>
             ))}
           </div>
@@ -391,14 +391,14 @@ function VerdictPanel({
 
       {nativeMoves.length > 0 && (
         <div className="mt-4">
-          <div className="text-[11px] uppercase tracking-wide font-bold text-ink-400">Estimated XLM</div>
+          <div className="text-[11px] uppercase tracking-wide font-bold text-muted-foreground">Estimated XLM</div>
           <div className="mt-1.5 space-y-1">
             {nativeMoves.map((n, i) => {
               const xlm = Number(n.deltaStroops) / 1e7;
               return (
-                <div key={i} className="text-xs font-mono text-ink-600 flex justify-between">
+                <div key={i} className="text-xs font-mono text-foreground/80 flex justify-between">
                   <span>{n.accountId.slice(0, 10)}…</span>
-                  <span className={xlm < 0 ? "text-red-600" : "text-emerald-600"}>
+                  <span className={xlm < 0 ? "text-[var(--bad)]" : "text-[var(--ok)]"}>
                     {xlm > 0 ? "+" : ""}{xlm.toFixed(7)} XLM
                   </span>
                 </div>
@@ -431,8 +431,8 @@ function Monitor({ agentAddress }: { agentAddress: string }) {
         subtitle="A per-agent audit feed needs authenticated, server-side access — it isn't exposed to this public demo. Use the playground above to see a live verdict for a single transaction."
       />
 
-      <div className="card shadow-card overflow-hidden">
-        <div className="p-5 text-sm text-ink-400 flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="p-5 text-sm text-muted-foreground flex items-center gap-2">
           <ScrollText size={15} />
           {addr
             ? `Not available in the public demo for ${addr.slice(0, 10)}…`
@@ -450,17 +450,17 @@ function SectionHeading({
 }: { icon: typeof Cpu; title: string; subtitle?: string }) {
   return (
     <div className="mb-5">
-      <h2 className="flex items-center gap-2 font-display text-2xl font-bold text-ink-900">
-        <Icon size={20} className="text-brand-500" /> {title}
+      <h2 className="flex items-center gap-2 font-display text-2xl font-semibold uppercase tracking-tight text-foreground">
+        <Icon size={20} className="text-primary" /> {title}
       </h2>
-      {subtitle && <p className="mt-1.5 text-sm text-ink-500 max-w-2xl leading-relaxed">{subtitle}</p>}
+      {subtitle && <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl leading-relaxed">{subtitle}</p>}
     </div>
   );
 }
 
 function CodeLabel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`text-[11px] uppercase tracking-wide font-bold text-ink-400 mb-1.5 ${className}`}>
+    <div className={`text-[11px] uppercase tracking-wide font-bold text-muted-foreground mb-1.5 ${className}`}>
       {children}
     </div>
   );
@@ -478,13 +478,13 @@ function CodeBlock({ code }: { code: string }) {
     }
   };
   return (
-    <div className="relative group">
-      <pre className="rounded-xl bg-ink-900 text-ink-50 text-xs leading-relaxed p-4 overflow-x-auto font-mono">
+    <div className="dark relative group">
+      <pre className="rounded-xl border border-border bg-card text-foreground text-xs leading-relaxed p-4 overflow-x-auto font-mono">
         {code}
       </pre>
       <button
         onClick={copy}
-        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-ink-50 transition-colors"
+        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-secondary hover:bg-muted text-foreground transition-colors"
         title="Copy"
       >
         {copied ? <Check size={13} /> : <Copy size={13} />}

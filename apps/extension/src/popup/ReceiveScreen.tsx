@@ -45,7 +45,7 @@ export function ReceiveScreen({ address, network, onClose }: Props) {
     <div className="absolute inset-0 z-30 flex flex-col" style={{ background: "var(--bg)" }}>
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--line)" }}>
         <p className="font-semibold text-sm">Receive</p>
-        <button onClick={onClose} className="p-1.5 rounded-input hover:bg-black/5">
+        <button onClick={onClose} className="p-1.5 rounded-input hover:bg-secondary">
           <X size={16} />
         </button>
       </div>

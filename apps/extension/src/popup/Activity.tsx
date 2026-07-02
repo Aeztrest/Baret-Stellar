@@ -59,7 +59,7 @@ function Row({ entry, cluster }: { entry: HistoryEntry; cluster: string }) {
   const decisionTone = entry.decision === "allow" ? "ok" : "bad";
   return (
     <article
-      className="rounded-input p-2.5 flex items-start gap-2.5 hover:bg-black/[0.03] transition-colors"
+      className="rounded-input p-2.5 flex items-start gap-2.5 hover:bg-secondary transition-colors"
       style={{ background: "rgba(20,20,20,0.025)", border: "1px solid var(--line)" }}
     >
       <span className={`dot dot-${decisionTone} mt-1.5 shrink-0`} />

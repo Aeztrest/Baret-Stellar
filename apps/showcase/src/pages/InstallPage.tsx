@@ -1,4 +1,4 @@
-/** Install page — Baret light theme. */
+/** Install page — Baret, dark/light theme-aware. */
 
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -8,6 +8,7 @@ import {
   Check, ChevronRight, ArrowRight, MonitorSmartphone, FileArchive,
   FolderOpen, BookOpen, HardHat,
 } from "lucide-react";
+import { Eyebrow } from "@stellar-thorn/ui";
 import { BackdropGrid, LandingHeader, LandingFooter, HazardRule } from "../components/LandingChrome";
 
 type Browser = "chrome" | "firefox" | "other";
@@ -46,7 +47,7 @@ export default function InstallPage() {
   }, [browser]);
 
   return (
-    <div className="min-h-screen bg-paper text-ink-900 antialiased">
+    <div className="min-h-screen bg-background text-foreground antialiased">
       <BackdropGrid />
       <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
 
@@ -81,7 +82,7 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.18em] font-bold border border-brand-500/30 bg-brand-50 text-brand-700"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.18em] font-bold border border-primary/30 bg-primary/[0.06] text-primary"
       >
         <Download size={11} /> Install Baret
       </motion.div>
@@ -90,18 +91,18 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.65, delay: 0.05 }}
-        className="mt-6 font-display text-5xl sm:text-6xl lg:text-7xl font-bold tracking-[-0.03em] leading-[1.0]"
+        className="mt-6 font-display text-5xl sm:text-6xl lg:text-7xl font-semibold uppercase tracking-[-0.03em] leading-[1.0]"
       >
         Hard hat on,
         <br />
-        <span className="text-brand-500">in under a minute.</span>
+        <span className="text-primary">in under a minute.</span>
       </motion.h1>
 
       <motion.p
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.65, delay: 0.15 }}
-        className="mt-6 text-lg text-ink-500 max-w-2xl leading-relaxed"
+        className="mt-6 text-lg text-muted-foreground max-w-2xl leading-relaxed"
       >
         A Stellar smart wallet with a transaction firewall.
         Pre-sign simulation, per-site policy, x402 payment caps — all enforced
@@ -112,9 +113,9 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.65, delay: 0.3 }}
-        className="mt-6 flex items-center gap-2 text-[12px] text-ink-400"
+        className="mt-6 flex items-center gap-2 text-[12px] text-muted-foreground"
       >
-        <MonitorSmartphone size={12} className="text-brand-500" /> {browserCopy}
+        <MonitorSmartphone size={12} className="text-primary" /> {browserCopy}
       </motion.p>
     </section>
   );
@@ -140,43 +141,43 @@ function DownloadCard({
       transition={{ duration: 0.6, delay: 0.2 }}
       className="mb-14"
     >
-      <div className="relative rounded-3xl overflow-hidden card shadow-lift">
+      <div className="relative rounded-3xl overflow-hidden border border-border bg-card shadow-lift">
         <HazardRule className="h-1" />
         <a
           href={primary.spec.href}
           download
           onClick={() => onDownload(primary.key)}
-          className="relative flex items-center gap-5 p-6 sm:p-7 transition-colors hover:bg-bone"
+          className="relative flex items-center gap-5 p-6 sm:p-7 transition-colors hover:bg-secondary"
         >
-          <div className="w-14 h-14 rounded-xl grid place-items-center shrink-0 bg-ink-900 text-brand-400">
+          <div className="w-14 h-14 rounded-xl grid place-items-center shrink-0 border border-border bg-secondary text-primary">
             <Icon size={22} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-brand-600 font-bold mb-1">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-primary font-bold mb-1">
               {done ? "Downloaded — follow the steps below" : "Primary download"}
             </p>
-            <p className="font-display text-lg font-bold tracking-tight">{primary.spec.label}</p>
-            <p className="text-[12px] text-ink-400 mt-1">
+            <p className="font-display text-lg font-semibold uppercase tracking-tight">{primary.spec.label}</p>
+            <p className="text-[12px] text-muted-foreground mt-1">
               ZIP archive · Latest build · MV3 manifest
             </p>
           </div>
           <span className={`shrink-0 w-11 h-11 rounded-xl grid place-items-center border transition-all ${
-            done ? "border-emerald-500/40 bg-emerald-50 text-emerald-600" : "border-brand-500/40 bg-brand-50 text-brand-600"
+            done ? "border-[var(--ok)]/40 bg-[var(--ok-dim)] text-[var(--ok)]" : "border-primary/40 bg-primary/[0.06] text-primary"
           }`}>
             {done ? <Check size={16} /> : <Download size={16} />}
           </span>
         </a>
 
-        <div className="relative border-t border-ink-900/8">
+        <div className="relative border-t border-border">
           <a
             href={alt.spec.href}
             download
             onClick={() => onDownload(alt.key)}
-            className="flex items-center gap-3 px-6 py-3.5 text-[12px] text-ink-500 hover:text-ink-900 hover:bg-bone transition-colors"
+            className="flex items-center gap-3 px-6 py-3.5 text-[12px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             {alt.key === "chrome" ? <Chrome size={12} /> : <Globe2 size={12} />}
-            <span>Also available: <span className="text-ink-900 font-semibold">{alt.spec.label}</span></span>
-            <Download size={11} className="ml-auto text-ink-400" />
+            <span>Also available: <span className="text-foreground font-semibold">{alt.spec.label}</span></span>
+            <Download size={11} className="ml-auto text-muted-foreground" />
           </a>
         </div>
       </div>
@@ -196,13 +197,10 @@ function InstallSteps({ primary, downloaded }: { primary: Exclude<Browser, "othe
     >
       <header className="flex items-end justify-between mb-6">
         <div>
-          <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] font-bold text-brand-600">
-            <span className="w-6 h-[3px] hazard rounded-full" />
-            Three steps to live
-          </p>
-          <h2 className="mt-3 font-display text-3xl sm:text-4xl font-bold tracking-tight">Load it like a developer would.</h2>
+          <Eyebrow>Three steps to live</Eyebrow>
+          <h2 className="mt-3 font-display text-3xl sm:text-4xl font-semibold uppercase tracking-[-0.02em]">Load it like a developer would.</h2>
         </div>
-        <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-ink-400">
+        <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Sparkles size={11} /> Web Store / AMO publish pending
         </span>
       </header>
@@ -241,7 +239,7 @@ function FirefoxSteps({ downloaded }: { downloaded: boolean }) {
       </Step>
       <Step n="03" icon={ShieldCheck} title="Load Temporary Add-on…">
         Click <b>"Load Temporary Add-on…"</b> and pick <Code>manifest.json</Code> inside the extracted folder.
-        <span className="block mt-1.5 text-ink-400 text-[11px]">
+        <span className="block mt-1.5 text-muted-foreground text-[11px]">
           Firefox temporary add-ons clear on restart — re-load after each browser restart.
         </span>
       </Step>
@@ -259,20 +257,20 @@ function Step({
   children: React.ReactNode;
 }) {
   return (
-    <li className="flex items-start gap-4 p-5 card">
+    <li className="flex items-start gap-4 p-5 rounded-xl border border-border bg-card">
       <div
         className={`relative w-11 h-11 rounded-xl grid place-items-center font-mono text-xs font-bold shrink-0 ${
-          done ? "bg-emerald-50 text-emerald-600 border border-emerald-500/35" : "bg-ink-900 text-brand-400"
+          done ? "bg-[var(--ok-dim)] text-[var(--ok)] border border-[var(--ok)]/35" : "border border-border bg-secondary text-primary"
         }`}
       >
         {done ? <Check size={16} /> : <Icon size={16} />}
-        <span className="absolute -top-2 -right-2 text-[10px] font-bold font-mono text-white bg-brand-500 px-1.5 py-0.5 rounded-md">
+        <span className="absolute -top-2 -right-2 text-[10px] font-bold font-mono text-primary-foreground bg-primary px-1.5 py-0.5 rounded-md">
           {n}
         </span>
       </div>
       <div className="flex-1 min-w-0 pt-1">
-        <p className="font-display font-bold text-base tracking-tight">{title}</p>
-        <p className="text-sm text-ink-500 mt-1.5 leading-relaxed">{children}</p>
+        <p className="font-display font-semibold uppercase text-base tracking-tight">{title}</p>
+        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{children}</p>
       </div>
     </li>
   );
@@ -280,7 +278,7 @@ function Step({
 
 function Code({ children }: { children: React.ReactNode }) {
   return (
-    <code className="font-mono text-[12px] text-ink-800 bg-ink-900/[0.05] border border-ink-900/10 px-1.5 py-0.5 rounded">
+    <code className="font-mono text-[12px] text-foreground/80 bg-secondary border border-border px-1.5 py-0.5 rounded">
       {children}
     </code>
   );
@@ -302,18 +300,17 @@ function FeatureGrid() {
       viewport={{ once: true, margin: "-60px" }}
       className="mb-16"
     >
-      <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] font-bold text-brand-600 mb-6">
-        <span className="w-6 h-[3px] hazard rounded-full" />
-        Why this wallet
-      </p>
+      <div className="mb-6">
+        <Eyebrow>Why this wallet</Eyebrow>
+      </div>
       <div className="grid sm:grid-cols-3 gap-3">
         {features.map((f) => (
-          <div key={f.title} className="card p-5">
-            <span className="w-10 h-10 grid place-items-center rounded-xl bg-ink-900 text-brand-400">
+          <div key={f.title} className="rounded-xl border border-border bg-card p-5">
+            <span className="w-10 h-10 grid place-items-center rounded-xl border border-border bg-secondary text-primary">
               <f.icon size={16} />
             </span>
-            <p className="mt-4 font-display text-base font-bold tracking-tight">{f.title}</p>
-            <p className="mt-1.5 text-sm text-ink-500 leading-relaxed">{f.body}</p>
+            <p className="mt-4 font-display text-base font-semibold uppercase tracking-tight">{f.title}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{f.body}</p>
           </div>
         ))}
       </div>
@@ -329,7 +326,7 @@ function AfterInstallCta() {
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
-      className="relative rounded-3xl overflow-hidden bg-ink-900 text-white shadow-lift"
+      className="dark relative rounded-3xl overflow-hidden bg-card text-foreground shadow-lift"
     >
       <HazardRule />
       <div
@@ -344,23 +341,23 @@ function AfterInstallCta() {
         }}
       />
       <div className="relative max-w-2xl p-10 md:p-14">
-        <div className="inline-flex items-center gap-2 text-[12px] text-brand-400">
+        <div className="inline-flex items-center gap-2 text-[12px] text-primary">
           <HardHat size={14} /> After install
         </div>
-        <h2 className="mt-4 font-display text-3xl md:text-5xl font-bold tracking-tight leading-[1.05]">
+        <h2 className="mt-4 font-display text-3xl md:text-5xl font-semibold uppercase tracking-[-0.03em] leading-[1.05]">
           Take it for a spin in the showcase.
         </h2>
-        <p className="mt-5 text-white/60 leading-relaxed">
+        <p className="mt-5 text-muted-foreground leading-relaxed">
           Six fake-but-real dApps trigger six different attack patterns. Baret
           catches each one live — you see the analysis before signing.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link to="/showcase" className="btn-brand !px-5 !py-3">
+          <Link to="/showcase" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">
             Open the showcase <ChevronRight size={14} />
           </Link>
           <Link
             to="/docs"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold border border-white/20 text-white hover:bg-white/[0.06] hover:border-white/40 transition"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-md text-sm font-semibold border border-border text-foreground hover:bg-secondary hover:border-foreground/40 transition-colors"
           >
             <BookOpen size={14} /> Read the docs <ArrowRight size={14} />
           </Link>

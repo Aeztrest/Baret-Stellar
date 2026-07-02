@@ -13,6 +13,7 @@
 
 import browser from "webextension-polyfill";
 import { isEnvelope, PROTOCOL_TAG, type Envelope } from "@stellar-thorn/ext-protocol";
+import { mountBaretOverlay } from "./ui/mount";
 
 const PAGE_TAG = "__bx_ws" as const;
 
@@ -26,6 +27,22 @@ function isPageReq(d: unknown): d is PageReq {
   const r = d as Record<string, unknown>;
   return r[PAGE_TAG] === 1 && r.kind === "req" && typeof r.id === "string" && typeof r.method === "string";
 }
+
+/* ────────────── Mount the Baret page overlay (Shadow DOM) ────────────── */
+
+(function initOverlay() {
+  try {
+    if (sessionStorage.getItem("baret-overlay-dismissed") === "1") return;
+  } catch {
+    /* sessionStorage may be blocked on some origins — mount anyway */
+  }
+  const run = () => mountBaretOverlay();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  } else {
+    run();
+  }
+})();
 
 /* ────────────── Inject inpage script ────────────── */
 
