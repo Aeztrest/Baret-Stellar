@@ -88,9 +88,16 @@ export function ScrollVideoHero({
     const tick = () => {
       const dur = v.duration || 0;
       if (dur > 0) {
-        const p = Math.min(1, Math.max(0, scrollYProgress.get()));
+        const raw = Math.min(1, Math.max(0, scrollYProgress.get()));
+        // Complete the clip by HALF the runway and HOLD the final frame for the
+        // whole second half — the meter is 100% long before the section unpins,
+        // so even a fast/momentum scroll can't reach the next section while the
+        // bar is still filling.
+        const p = Math.min(1, raw / 0.5);
         const target = Math.min(p * dur, dur - 0.033);
-        current += (target - current) * 0.14;
+        // Tight tracking (all-keyframe already smooths seeks) so the bar keeps
+        // up with the scroll even on a fast flick — no lag at the transition.
+        current += (target - current) * 0.32;
         if (v.readyState >= 1 && Math.abs(current - v.currentTime) > 0.006) {
           try {
             v.currentTime = current;
@@ -144,8 +151,8 @@ export function ScrollVideoHero({
           onLoadedData={onLoadedData}
           className={videoClassName ?? "absolute inset-0 h-full w-full object-cover"}
         />
-        {/* readability gradients over the footage */}
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/50" />
+        {/* light readability wash — keeps captions legible without dulling the footage */}
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25" />
 
         {captions.map((c, i) => (
           <Caption key={i} progress={scrollYProgress} index={i} total={captions.length}>
@@ -168,8 +175,10 @@ function Caption({
   total: number;
   children: ReactNode;
 }) {
-  const lo = 0.03;
-  const hi = 0.97;
+  // Captions live within the scrub window (video completes ~0.9); the last
+  // one lands on the held final frame.
+  const lo = 0.04;
+  const hi = 0.92;
   const span = (hi - lo) / Math.max(1, total);
   const start = lo + index * span;
   const end = start + span;

@@ -86,7 +86,7 @@ function CtaOutline({ to, children }: { to: string; children: React.ReactNode })
 // Nothing renders until ENABLED flips true, so no empty black runway ships.
 const SCRUB_ENABLED = true;
 
-const scrubLine = "max-w-3xl text-balance font-display text-4xl font-semibold uppercase leading-[0.95] tracking-[-0.03em] sm:text-6xl";
+const scrubLine = "max-w-2xl text-balance font-display text-3xl font-semibold uppercase leading-[1.05] tracking-[-0.02em] sm:text-4xl md:text-5xl";
 
 function CinematicScrub() {
   if (!SCRUB_ENABLED) return null;
@@ -94,24 +94,39 @@ function CinematicScrub() {
     <ScrollVideoHero
       src="/hero-scrub.mp4"
       poster="/hero-scrub.jpg"
-      // Crop ~15% off the bottom (anchored top) to hide the generator ✦ watermark
-      // baked into the lower-right of the source clip.
-      videoClassName="absolute left-0 top-0 h-[118%] w-full object-cover object-top"
+      // Long runway so momentum scroll can't blow past before the meter fills.
+      heightVh={600}
+      // Anchor to the BOTTOM so the meter/loading bar baked into the clip stays
+      // visible (object-cover crops any excess from the top). The generator ✦
+      // watermark is already cropped out of the source (crop=1100 + rescale).
+      videoClassName="absolute inset-0 h-full w-full object-cover object-bottom"
       captions={[
         <p key="c1" className={scrubLine}>
-          Every wallet signs whatever the dApp puts in front of you.
+          Every wallet signs whatever the dApp shows you.
         </p>,
         <p key="c2" className={scrubLine}>
-          Baret <span className="text-primary">doesn't.</span>
+          A <span className="text-primary">Confirm</span> button. Then the chain decides.
         </p>,
-        <div key="c3" className="flex flex-col items-center gap-4">
-          <BaretMark size={56} />
+        <p key="c3" className={scrubLine}>
+          Baret <span className="text-primary">reads it first.</span>
+        </p>,
+        <p key="c4" className={scrubLine}>
+          Simulated. Decoded. 25+ detectors.
+        </p>,
+        <p key="c5" className={scrubLine}>
+          Rolling caps. Per-site policy. On-chain guard.
+        </p>,
+        <p key="c6" className={scrubLine}>
+          Safe, or <span className="text-primary">blocked</span> — before your keys move.
+        </p>,
+        <div key="c7" className="flex flex-col items-center gap-3">
+          <BaretMark size={52} />
           <span className="font-mono text-xs uppercase tracking-[0.3em] text-white/60">Introducing</span>
-          <span className="font-display text-6xl font-semibold uppercase tracking-tight sm:text-8xl">
+          <span className="font-display text-5xl font-semibold uppercase tracking-tight sm:text-7xl">
             Baret<span className="text-primary">.</span>
           </span>
-          <span className="max-w-md text-balance text-base text-white/70 sm:text-lg">
-            The hard hat for your Stellar wallet — every transaction simulated, explained, and blocked when dangerous.
+          <span className="max-w-sm text-balance text-sm text-white/70 sm:text-base">
+            The hard hat for your Stellar wallet.
           </span>
         </div>,
       ]}
