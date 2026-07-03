@@ -1,7 +1,7 @@
 /**
  * Top-level error boundary for the showcase.
  *
- * Replaces silent blank screens — when a child route or component throws
+ * Replaces silent blank screens. When a child route or component throws
  * during render, we surface the error text + stack + a "Reset" button
  * instead of crashing into a blank document. Critical for dev: without
  * this, a single typo anywhere in the tree shows nothing in the DOM.

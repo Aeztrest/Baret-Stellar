@@ -31,7 +31,7 @@ export type RiskDetectionInput = {
 };
 
 /**
- * Fans the tx out through every detector — the order is significant only
+ * Fans the tx out through every detector. the order is significant only
  * insofar as "simulation failed" needs to surface first so downstream
  * detectors don't double-report it.
  */

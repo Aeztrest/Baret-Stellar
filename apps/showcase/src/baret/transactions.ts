@@ -4,7 +4,7 @@
  * Each scenario produces a different Stellar tx shape so Baret's policy
  * gate has something distinct to evaluate. Safe scenarios use plain XLM
  * payments or USDC Soroban transfers; danger scenarios reach for the
- * common Stellar attack primitives — unlimited trustlines, account merge to
+ * common Stellar attack primitives. unlimited trustlines, account merge to
  * an attacker address, Soroban allowance grants to unknown contracts.
  *
  * The returned XDR is unsigned; the demo wallet signs + submits (or, when
@@ -46,7 +46,7 @@ const NETWORK_PASSPHRASE: NetworksType = Networks.TESTNET;
 const USDC_SAC_TESTNET =
   "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
 
-// Synthetic contract addresses for danger scenarios — recognizable as
+// Synthetic contract addresses for danger scenarios. recognizable as
 // untrusted because they're not on any known-safe allowlist.
 const FAKE_DEX_CONTRACT =
   "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -201,7 +201,7 @@ export async function buildScenario(
             }),
           )
           .addMemo(Memo.text("claimhub:account-drain")),
-        "ClaimHub: AccountMerge — drains entire XLM balance to attacker",
+        "ClaimHub: AccountMerge. drains entire XLM balance to attacker",
       );
 
     case "launchpad-safe":
@@ -235,7 +235,7 @@ export async function buildScenario(
 }
 
 /**
- * Submit an already-signed transaction directly to Horizon — no Baret
+ * Submit an already-signed transaction directly to Horizon. no Baret
  * analyze call, no wallet-side policy gate. This is the actual "without
  * protection" path: it never touches the Baret pipeline at all.
  */

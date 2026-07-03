@@ -1,4 +1,4 @@
-/** Docs index — Baret, dark/light theme-aware. */
+/** Docs index. Baret, dark/light theme-aware. */
 
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";

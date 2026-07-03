@@ -28,7 +28,7 @@ import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
 
 const THEME = {
-  primary: "#c026d3", // fuchsia-600 — reads on light + dark
+  primary: "#c026d3", // fuchsia-600, reads on light + dark
   accent: "#06b6d4", // cyan-500
   name: "PixelDrop",
   logo: (
@@ -40,14 +40,14 @@ const THEME = {
 
 const NFT_COLLECTION = {
   name: "Cyber Phantoms",
-  description: "10,000 unique generative Phantoms on Stellar. Each one grants DAO voting rights.",
+  description: "10,000 generative Phantoms, minted on Stellar. Every Phantom is one vote in the DAO.",
   supply: 10000,
   minted: 6843,
   price: "0.1 XLM",
   priceUsd: "$17.50",
 };
 
-// Headline collection metrics — neon stat tiles.
+// Headline collection metrics, neon stat tiles.
 const COLLECTION_STATS = [
   { icon: Layers, label: "Items", value: "10,000" },
   { icon: Users, label: "Owners", value: "4,127" },
@@ -56,7 +56,7 @@ const COLLECTION_STATS = [
   { icon: Wallet, label: "Minted", value: "68.4%" },
 ];
 
-// Generated gallery of Cyber Phantoms — CSS gradient tiles + rarity chips.
+// Generated gallery of Cyber Phantoms, CSS gradient tiles + rarity chips.
 const GALLERY: {
   id: number;
   glyph: string;
@@ -186,9 +186,9 @@ export default function PixelDrop() {
       }
     }
   }
-  // "Without protection" — a genuinely different wallet (Freighter) signs the
-  // same scenario over its own key and submits straight to Horizon; Baret's
-  // connected account can only ever be signed by Baret, by design.
+  // The "without protection" path: a genuinely different wallet (Freighter)
+  // signs the same scenario over its own key and submits straight to Horizon.
+  // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
     try {
@@ -208,7 +208,7 @@ export default function PixelDrop() {
 
   const pct = (NFT_COLLECTION.minted / NFT_COLLECTION.supply) * 100;
 
-  // Neon glass panel — reads on both themes.
+  // Neon glass panel, reads on both themes.
   const panel =
     "rounded-2xl border backdrop-blur-xl bg-white/70 border-fuchsia-200/70 shadow-[0_4px_24px_-10px_rgba(217,70,239,0.3)] dark:bg-white/[0.04] dark:border-fuchsia-500/20 dark:shadow-[0_0_40px_-14px_rgba(217,70,239,0.45)]";
 
@@ -265,7 +265,7 @@ export default function PixelDrop() {
             <p className="mx-auto max-w-lg text-neutral-600 dark:text-neutral-400">{NFT_COLLECTION.description}</p>
           </div>
 
-          {/* Collection stats bar — neon tiles */}
+          {/* Collection stats bar, neon tiles */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -292,7 +292,7 @@ export default function PixelDrop() {
           </motion.div>
 
           <div className="grid items-start gap-10 md:grid-cols-2">
-            {/* NFT preview — always-dark generative art block */}
+            {/* NFT preview, always-dark generative art block */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
               <div className="relative aspect-square overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-[#0a0713] shadow-[0_0_50px_-12px_rgba(217,70,239,0.55)]">
                 {/* grid overlay */}

@@ -56,7 +56,7 @@ export function extractEstimatedChanges(
       const asset = canonicalAssetIdentifier(b.assetCode, b.assetIssuer);
       const key = `${accountId}|${asset}`;
       // Horizon serves balances as decimal strings (e.g. "100.0000000").
-      // Downstream math is bigint-only — convert to stroops at the boundary.
+      // Downstream math is bigint-only. convert to stroops at the boundary.
       const balanceStroops = decimalToStroops(b.balance).toString();
       assets.set(key, {
         accountId,
@@ -147,7 +147,7 @@ function applyClassicOperationEffects(
       break;
     }
     case "accountMerge": {
-      // Native balance flows entirely to destination — sweeping the source.
+      // Native balance flows entirely to destination. sweeping the source.
       const o = op as Operation.AccountMerge;
       const sourcePre =
         native.get(opSource)?.preStroops ?? "0";
@@ -191,7 +191,7 @@ function applyClassicOperationEffects(
  *
  * The event topics are SCV-encoded; we read the function name (topic 0) and
  * the from/to addresses (topics 1/2) and the amount from the data field.
- * Failures here are silent — a malformed event must not poison the rest of
+ * Failures here are silent. a malformed event must not poison the rest of
  * the analyze response.
  */
 function parseSorobanTokenEvent(

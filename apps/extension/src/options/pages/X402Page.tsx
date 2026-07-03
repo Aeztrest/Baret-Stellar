@@ -1,10 +1,10 @@
 /**
- * x402 Console — the live dashboard for the agentic-payment protocol no other
+ * x402 Console. The live dashboard for the agentic-payment protocol no other
  * wallet protects. Two real-time feeds, polled every few seconds:
  *
- *   1. A payment ticker — every x402 micropayment the firewall auto-approved,
+ *   1. A payment ticker. Every x402 micropayment the firewall auto-approved,
  *      newest first (`history.list { type: "x402" }`).
- *   2. The per-merchant ledger — rolling caps, spend, and status per merchant
+ *   2. The per-merchant ledger. Rolling caps, spend, and status per merchant
  *      (`ledger.list`).
  *
  * Lives at /x402 in the Options HashRouter.
@@ -56,7 +56,7 @@ export function X402Page() {
           <Shield size={24} className="text-muted-foreground" /> x402 Console
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Live view of every x402 micropayment the firewall settled under your caps —
+          Live view of every x402 micropayment the firewall settled under your caps,
           and the rolling ledger that keeps each merchant in check.
         </p>
       </div>

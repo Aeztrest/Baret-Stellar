@@ -122,7 +122,7 @@ export function WalletModal({
                       </span>
                     </div>
                     <p className="text-xs text-ink-500 mt-0.5">
-                      Pre-flight simulation + live monitoring on Stellar
+                      Reads every transaction before you sign it, on Stellar testnet
                     </p>
                   </div>
                   {connecting ? (
@@ -166,9 +166,9 @@ export function WalletModal({
 
             <div className="px-5 pb-5 space-y-2">
               <p className="text-xs text-ink-400 leading-relaxed">
-                Baret sits between this site and your signature. Every
-                Stellar transaction is preflighted, policy-checked, and surfaced
-                at the wallet level — not on this page.
+                Baret sits between this site and your signature. It reads every
+                Stellar transaction, checks it against your policy, and shows you
+                the verdict in the wallet, not on this page.
               </p>
             </div>
           </motion.div>

@@ -18,7 +18,7 @@ const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /**
- * Hand-rolled — no Radix dependency (packages/ui stays intentionally light for
+ * Hand-rolled. no Radix dependency (packages/ui stays intentionally light for
  * the extension's MV3 popup bundle). Focus-traps, closes on Esc/click-outside,
  * restores focus to the previously-focused element on close.
  */

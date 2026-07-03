@@ -7,9 +7,9 @@ export interface CompareSplitProps {
   rightLabel: string;
   left: ReactNode;
   right: ReactNode;
-  /** "before" side reads as the unguarded/problem state — subdued, no accent. */
+  /** "before" side reads as the unguarded/problem state. subdued, no accent. */
   leftTone?: "neutral" | "bad";
-  /** "after" side reads as Baret's addition — accented. */
+  /** "after" side reads as Baret's addition. accented. */
   rightTone?: "neutral" | "accent";
   /** Show a connecting arrow between the two panels on wide screens. */
   connector?: boolean;
@@ -27,7 +27,7 @@ const RIGHT_TONE_STYLE: Record<NonNullable<CompareSplitProps["rightTone"]>, stri
 };
 
 /**
- * Two-track before/after layout — built for explaining "the protocol alone"
+ * Two-track before/after layout. built for explaining "the protocol alone"
  * vs "the protocol with Baret," but generic enough for any comparison.
  */
 export function CompareSplit({

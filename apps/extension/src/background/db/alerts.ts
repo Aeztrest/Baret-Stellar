@@ -1,5 +1,5 @@
 /**
- * Alerts store — drift / verify-orphan / no-delivery / cap-hit incidents.
+ * Alerts store. drift / verify-orphan / no-delivery / cap-hit incidents.
  * Most rows arrive in T27 (post-sign monitor); CRUD lives here so the
  * popup can render the inbox today.
  *

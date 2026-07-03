@@ -1,10 +1,10 @@
 /**
- * Policies editor — production policy DSL UI for Baret.
+ * Policies editor. Production policy DSL UI for Baret.
  *
  * Three modes:
- *  1. Risk profile — one-click Strict / Balanced / Permissive presets.
- *  2. Toggles      — every boolean + numeric policy field, grouped by domain.
- *  3. Raw JSON     — copy-paste for power users.
+ *  1. Risk profile. One-click Strict / Balanced / Permissive presets.
+ *  2. Toggles.      Every boolean + numeric policy field, grouped by domain.
+ *  3. Raw JSON.     Copy-paste for power users.
  *
  * Every change writes through `policy.write`, which validates via the shared
  * `validatePolicy` from @stellar-thorn/swig-guard and persists to browser.storage.
@@ -112,7 +112,7 @@ export function PoliciesPage() {
       {/* Risk profile presets */}
       <section className="space-y-3">
         <SectionLabel icon={Sliders} title="Risk profile"
-          hint={activeTemplate === "custom" ? "Custom — tuned below" : undefined} />
+          hint={activeTemplate === "custom" ? "Custom, tuned below" : undefined} />
         <RevealGroup className="grid sm:grid-cols-3 gap-2.5">
           {POLICY_TEMPLATES.map((t) => {
             const active = activeTemplate === t.id;
@@ -160,9 +160,9 @@ export function PoliciesPage() {
               <Bot size={13} className="text-text-faint" />
             </div>
             <p className="text-text-faint text-[11px] mt-1 leading-relaxed">
-              Pay HTTP-402 micro-amounts in the background — no popup — as long as they
+              Pay HTTP-402 micro-amounts in the background, no popup, as long as they
               pass every check below and stay within your caps. The caps are the firewall.
-              Anything over a cap still stops and asks.
+              Anything over a cap still stops and asks you first.
             </p>
             {autoApprove && (
               <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -259,7 +259,7 @@ function FormEditor({ draft, set }: { draft: GuardPolicy; set: <K extends keyof 
           value={draft.maxLossPercent} onChange={(v) => set("maxLossPercent", v)} min={0} max={100} suffix="%" />
         <NumberField label="Min post-tx USDC balance" hint="Refuse if your USDC balance after the tx falls below this floor."
           value={draft.minPostUsdcBalance} onChange={(v) => set("minPostUsdcBalance", v)} min={0} suffix="USDC" />
-        <BoolField label="Block Soroban allowance grants" hint="The classic drainer vector — `approve(spender, amount)` to a contract."
+        <BoolField label="Block Soroban allowance grants" hint="The classic drainer vector. An `approve(spender, amount)` to a contract."
           value={draft.blockSorobanAllowanceGrants} onChange={(v) => set("blockSorobanAllowanceGrants", v)} />
         <BoolField label="Block trustline changes" hint="Refuse classic `changeTrust` ops."
           value={draft.blockTrustlineChanges} onChange={(v) => set("blockTrustlineChanges", v)} />
@@ -284,7 +284,7 @@ function FormEditor({ draft, set }: { draft: GuardPolicy; set: <K extends keyof 
           value={draft.requireFeePayerSupportedCheck} onChange={(v) => set("requireFeePayerSupportedCheck", v)} />
         <BoolField label="Block amount anomalies" hint="Refuse payments far outside this merchant's running mean."
           value={draft.blockAmountAnomalies} onChange={(v) => set("blockAmountAnomalies", v)} />
-        <NumberField label="Anomaly threshold" hint="Std deviations. Default 4 — higher is looser." suffix="σ" last
+        <NumberField label="Anomaly threshold" hint="Std deviations. Default 4. Higher is looser." suffix="σ" last
           value={draft.anomalyStdDev} onChange={(v) => set("anomalyStdDev", v)} min={1} step={0.5} />
       </Group>
 

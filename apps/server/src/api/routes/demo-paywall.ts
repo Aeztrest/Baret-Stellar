@@ -1,5 +1,5 @@
 /**
- * x402 demo paywall route — `/demo/scrybe?q=<question>`.
+ * x402 demo paywall route. `/demo/scrybe?q=<question>`.
  *
  * Real x402 endpoint backed by a Built-on-Stellar facilitator (OpenZeppelin
  * Relayer or Coinbase CDP). Unauthenticated requests get HTTP 402 +
@@ -7,7 +7,7 @@
  * populated by the Baret extension) get the resource after on-chain
  * settlement.
  *
- * No mocking — settlement is a real Stellar testnet/pubnet transaction.
+ * No mocking. settlement is a real Stellar testnet/pubnet transaction.
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -154,7 +154,7 @@ async function buildRequirements(
   q: string,
 ) {
   // Built-on-Stellar facilitators sponsor fees, so we still ask which signer
-  // address the client should expect to fee-bump the inner tx — the value
+  // address the client should expect to fee-bump the inner tx. the value
   // ends up in `extra.sponsorBy` on the requirements.
   const sponsor = await facilitator
     .resolveFeePayer(merchant.network)

@@ -1,5 +1,5 @@
 /**
- * Popup Activity tab — every dApp signature, message, declined attempt, and
+ * Popup Activity tab. Every dApp signature, message, declined attempt, and
  * alert the wallet processed.
  * Spec: docs/wallet-spec.md §4.
  */
@@ -71,7 +71,7 @@ export function Activity() {
         <EmptyState
           icon={<Clock size={16} />}
           title="No activity yet"
-          description="Connect to a dApp or sign your first transaction. We log every verdict, including the ones we decline."
+          description="Connect to a dApp or sign your first transaction. Baret logs every verdict here, including the ones it declines."
         />
       </div>
     );

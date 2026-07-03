@@ -5,7 +5,7 @@ import { cn } from "../lib/cn";
  * The signature section marker: a mono, wide-tracked, uppercase label led by
  * a tabular accent index and a short orange tick line. This is the one place
  * (besides primary actions and the Meter) the brand accent is allowed to
- * appear in body content — so it stays rare and reads as a deliberate signal.
+ * appear in body content. so it stays rare and reads as a deliberate signal.
  */
 export function Eyebrow({
   index,

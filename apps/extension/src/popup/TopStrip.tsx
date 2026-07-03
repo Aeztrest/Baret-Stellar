@@ -1,5 +1,5 @@
 /**
- * Compact top strip on the popup home — account label + alert badge + settings shortcut.
+ * Compact top strip on the popup home. Account label, alert badge, and settings shortcut.
  * Spec: docs/wallet-spec.md §3.1.
  */
 

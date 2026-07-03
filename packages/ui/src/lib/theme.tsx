@@ -1,5 +1,5 @@
 /**
- * Baret theme controller — one class-based system for every surface
+ * Baret theme controller. one class-based system for every surface
  * (web, extension popup/options, and the content-script shadow root).
  *
  * The house pattern: a single button that cycles system → light → dark.

@@ -98,7 +98,7 @@ export class WalletStandardBridge {
   }
 
   async disconnect(): Promise<void> {
-    // Stellar Freighter API has no `disconnect` — wallets manage their own
+    // Stellar Freighter API has no `disconnect`. wallets manage their own
     // session lifecycle. Treat as a no-op so the UI can clear local state.
   }
 
@@ -130,7 +130,7 @@ export class WalletStandardBridge {
   ): Promise<{ signedAuthEntry: string; signerAddress: string }> {
     if (typeof this.provider.signAuthEntry !== "function") {
       throw new WalletStandardBridgeError(
-        `${this.provider.name} doesn't support signAuthEntry — reconnect with a SEP-43 wallet (BARET or Freighter).`,
+        `${this.provider.name} doesn't support signAuthEntry. reconnect with a SEP-43 wallet (BARET or Freighter).`,
         "NO_SIGN_AUTH_ENTRY",
       );
     }
@@ -184,14 +184,14 @@ export class WalletStandardBridge {
  * Discover registered Stellar wallet providers on the page. Baret
  * registers as `window.baretStellar`; Freighter is detected via the
  * `@stellar/freighter-api` package, which talks to the extension over its
- * own bridge. Returns a stable list the picker can render — the demo's
+ * own bridge. Returns a stable list the picker can render. the demo's
  * "without BARET" comparison stands up only when at least one other
  * Stellar wallet is present.
  */
 export function discoverStellarProviders(): StellarWalletProvider[] {
   const out: StellarWalletProvider[] = [];
   if (window.baretStellar) out.push(window.baretStellar);
-  // Always advertise Freighter — the adapter explains the missing-extension
+  // Always advertise Freighter. the adapter explains the missing-extension
   // case in `requestAccess()` so the picker doesn't need to know whether
   // the user actually has it installed yet.
   out.push(freighterAdapter);

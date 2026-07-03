@@ -71,7 +71,7 @@ export async function buildX402Payment(
   const pending = tx.needsNonInvokerSigningBy();
   if (!pending.includes(payerAddress)) {
     throw new Error(
-      `x402 payment can't be authorized by your wallet — tx needs [${pending.join(", ") || "no one"}], not ${payerAddress}.`,
+      `x402 payment can't be authorized by your wallet. tx needs [${pending.join(", ") || "no one"}], not ${payerAddress}.`,
     );
   }
   if (!tx.built) {
@@ -83,7 +83,7 @@ export async function buildX402Payment(
 
 /**
  * Sign the payer's ADDRESS-credential auth entry inside an unsigned x402
- * transfer — NOT the transaction envelope. The facilitator rebuilds, fee-bumps
+ * transfer. NOT the transaction envelope. The facilitator rebuilds, fee-bumps
  * and submits, so an envelope signature would be wrong and source-account
  * credentials are rejected. `authorizeEntry` sets the facilitator-enforced
  * `signatureExpirationLedger` and signs the entry's preimage.

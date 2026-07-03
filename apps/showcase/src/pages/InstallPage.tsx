@@ -1,4 +1,4 @@
-/** Install page — Baret, dark/light theme-aware. */
+/** Install page. Baret, dark/light theme-aware. */
 
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -93,7 +93,7 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         transition={{ duration: 0.65, delay: 0.05 }}
         className="mt-6 font-display text-5xl sm:text-6xl lg:text-7xl font-semibold uppercase tracking-[-0.03em] leading-[1.0]"
       >
-        Hard hat on,
+        Set up Baret
         <br />
         <span className="text-primary">in under a minute.</span>
       </motion.h1>
@@ -104,9 +104,9 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         transition={{ duration: 0.65, delay: 0.15 }}
         className="mt-6 text-lg text-muted-foreground max-w-2xl leading-relaxed"
       >
-        A Stellar smart wallet with a transaction firewall.
-        Pre-sign simulation, per-site policy, x402 payment caps — all enforced
-        before your keys ever sign.
+        A Stellar wallet with a transaction firewall. It simulates every
+        transaction, checks it against your policy, and caps what each x402 agent
+        can spend, all before your keys ever sign.
       </motion.p>
 
       <motion.p
@@ -154,7 +154,7 @@ function DownloadCard({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-bold mb-1">
-              {done ? "Downloaded — follow the steps below" : "Primary download"}
+              {done ? "Downloaded. Follow the steps below" : "Primary download"}
             </p>
             <p className="font-display text-lg font-semibold uppercase tracking-tight">{primary.spec.label}</p>
             <p className="text-[12px] text-muted-foreground mt-1">
@@ -222,7 +222,7 @@ function ChromeSteps({ downloaded }: { downloaded: boolean }) {
         Paste <Code>chrome://extensions/</Code> into your address bar (or Menu → Extensions). Toggle <b>Developer mode</b> on (top right).
       </Step>
       <Step n="03" i={2} icon={ShieldCheck} title="Load unpacked">
-        Click <b>"Load unpacked"</b> and pick the extracted <Code>baret-chrome</Code> folder. Baret appears in your toolbar — click it to create your wallet.
+        Click <b>"Load unpacked"</b> and pick the extracted <Code>baret-chrome</Code> folder. Baret appears in your toolbar. Click it to create your wallet.
       </Step>
     </ol>
   );
@@ -240,7 +240,7 @@ function FirefoxSteps({ downloaded }: { downloaded: boolean }) {
       <Step n="03" i={2} icon={ShieldCheck} title="Load Temporary Add-on…">
         Click <b>"Load Temporary Add-on…"</b> and pick <Code>manifest.json</Code> inside the extracted folder.
         <span className="block mt-1.5 text-muted-foreground text-[11px]">
-          Firefox temporary add-ons clear on restart — re-load after each browser restart.
+          Firefox temporary add-ons clear on restart. Re-load Baret after each browser restart.
         </span>
       </Step>
     </ol>
@@ -298,9 +298,9 @@ function Code({ children }: { children: React.ReactNode }) {
 
 function FeatureGrid() {
   const features = [
-    { icon: Eye,  title: "Pre-sign simulation", body: "Every transaction is decoded and simulated before the popup even asks you to sign." },
-    { icon: Cpu,  title: "x402 firewall",       body: "HTTP 402 payments are gated by your hourly/daily caps, anomaly checks, allowlists." },
-    { icon: Lock, title: "On-chain revoke",     body: "Per-site sub-keys you can yank with one tap — the rug-pull antidote." },
+    { icon: Eye,  title: "Pre-sign simulation", body: "Baret decodes and simulates every transaction before the popup asks you to sign." },
+    { icon: Cpu,  title: "x402 firewall",       body: "Baret caps HTTP 402 payments by the hour and the day, and checks them against your allowlist." },
+    { icon: Lock, title: "On-chain revoke",     body: "Each site gets its own sub-key. Revoke it on-chain with one tap." },
   ];
 
   return (
@@ -353,7 +353,7 @@ function AfterInstallCta() {
         </h2>
         <p className="mt-5 text-muted-foreground leading-relaxed">
           Six fake-but-real dApps trigger six different attack patterns. Baret
-          catches each one live — you see the analysis before signing.
+          catches each one live. You see the analysis before you sign.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link to="/showcase" className="group inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">

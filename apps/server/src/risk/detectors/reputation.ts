@@ -2,7 +2,7 @@ import type { RiskFinding } from "../../domain/findings.js";
 import { getReputationDb } from "../../data/reputation-db.js";
 
 /**
- * Reputation-based detector — checks both classic G… accounts and Soroban C…
+ * Reputation-based detector. checks both classic G… accounts and Soroban C…
  * contract ids against the reputation DB. Code path is shape-stable across
  * chains; the DB itself is what carries the Stellar entries.
  */

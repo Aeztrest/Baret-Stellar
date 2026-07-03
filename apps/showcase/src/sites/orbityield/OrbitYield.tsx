@@ -48,9 +48,9 @@ const CHART_SERIES: Record<string, number[]> = {
 const TIMEFRAMES = ["1W", "1M", "3M", "1Y"] as const;
 
 const HOW_STEPS = [
-  { icon: Coins, title: "Deposit XLM", body: "Stake any amount of XLM into an audited validator pool. No lockups, no minimums." },
-  { icon: Orbit, title: "Receive yXLM", body: "Get liquid staking tokens 1:1 that keep earning while you trade, lend, or provide liquidity." },
-  { icon: Gift, title: "Earn rewards", body: "Staking rewards accrue automatically and compound into your position every epoch." },
+  { icon: Coins, title: "Deposit XLM", body: "Stake any amount into an audited validator pool. No lockups, no minimums." },
+  { icon: Orbit, title: "Receive yXLM", body: "Get liquid staking tokens 1:1. They keep earning while you trade, lend, or provide liquidity." },
+  { icon: Gift, title: "Earn rewards", body: "Rewards accrue automatically and compound into your position every epoch." },
 ];
 
 // Build line + area SVG paths from a numeric series.
@@ -112,9 +112,9 @@ export default function OrbitYield() {
       }
     }
   }
-  // "Without protection" — a genuinely different wallet (Freighter) signs the
-  // same scenario over its own key and submits straight to Horizon; Baret's
-  // connected account can only ever be signed by Baret, by design.
+  // The "without protection" path: a genuinely different wallet (Freighter)
+  // signs the same scenario over its own key and submits straight to Horizon.
+  // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
     try {
@@ -190,7 +190,7 @@ export default function OrbitYield() {
                 Stake XLM, stay <span className="text-gradient">liquid.</span>
               </h1>
               <p className="mx-auto mt-3 max-w-md text-slate-500 dark:text-slate-400">
-                Earn staking rewards while your yXLM stays free to trade, lend, and farm across Stellar.
+                Your XLM earns staking rewards. Your yXLM stays free to trade, lend, and farm anywhere on Stellar.
               </p>
             </motion.div>
 

@@ -1,5 +1,5 @@
 /**
- * Connect-approval surface — surfaces a per-origin "Allow this site to
+ * Connect-approval surface. Surfaces a per-origin "Allow this site to
  * connect?" decision to the user, Freighter-style.
  *
  * Mounted by PopupApp when the current pending request kind === "connect".
@@ -61,7 +61,7 @@ export function ConnectApproval() {
   };
 
   const host = (() => { try { return new URL(request.origin).host; } catch { return request.origin; } })();
-  const short = (s: string | null) => s ? `${s.slice(0, 6)}…${s.slice(-4)}` : "—";
+  const short = (s: string | null) => s ? `${s.slice(0, 6)}…${s.slice(-4)}` : "–";
 
   return (
     <div className="h-full flex flex-col bg-bg">

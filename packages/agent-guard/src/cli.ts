@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `baret` — command-line firewall for agent / program wallets.
+ * `baret`. command-line firewall for agent / program wallets.
  *
  * Every subcommand resolves config from flags → env (BARET_*) → ~/.baret/config.json.
  * Designed to be scripted from ANY language: build a transaction, pipe its XDR
@@ -115,7 +115,7 @@ function printEvaluation(ev: GuardEvaluation, json: boolean, address: string): v
   if (findings.length) {
     process.stdout.write("\n  Risk findings:\n");
     for (const f of findings) {
-      process.stdout.write(`    ${severityTag(f.severity)} [${f.severity}] ${f.code} — ${f.message}\n`);
+      process.stdout.write(`    ${severityTag(f.severity)} [${f.severity}] ${f.code}. ${f.message}\n`);
     }
   }
 
@@ -168,7 +168,7 @@ async function cmdSign(xdrArg: string | undefined, flags: GlobalFlags): Promise<
     if (flags.json) {
       process.stdout.write(JSON.stringify({ ok: true, signedXdr, analysis }, null, 2) + "\n");
     } else {
-      process.stdout.write(`\n  ✓ ALLOW — signed by ${wallet.address}\n\n${signedXdr}\n\n`);
+      process.stdout.write(`\n  ✓ ALLOW. signed by ${wallet.address}\n\n${signedXdr}\n\n`);
     }
     return EXIT_OK;
   } catch (err) {
@@ -209,7 +209,7 @@ function handleSignError(err: unknown, flags: GlobalFlags): number {
       );
     } else {
       const reasons = err.blockingReasons.length ? err.blockingReasons : [err.message];
-      process.stderr.write(`\n  ✕ BLOCK — not signed\n`);
+      process.stderr.write(`\n  ✕ BLOCK. not signed\n`);
       for (const r of reasons) process.stderr.write(`    • ${r}\n`);
       process.stderr.write("\n");
     }
@@ -275,8 +275,8 @@ function cmdInit(flags: GlobalFlags): number {
     process.stdout.write(`    server:  ${next.serverUrl}\n`);
     process.stdout.write(`    network: ${next.network}\n`);
     process.stdout.write(`    policy:  ${typeof next.policy === "string" ? next.policy : "custom"}\n`);
-    process.stdout.write(`    apiKey:  ${next.apiKey ? "set" : "—"}\n`);
-    process.stdout.write(`\n  The agent secret is never stored here — pass BARET_AGENT_SECRET at runtime.\n\n`);
+    process.stdout.write(`    apiKey:  ${next.apiKey ? "set" : ". "}\n`);
+    process.stdout.write(`\n  The agent secret is never stored here. pass BARET_AGENT_SECRET at runtime.\n\n`);
   }
   return EXIT_OK;
 }
@@ -287,7 +287,7 @@ function isTemplateId(v: string | undefined): v is "strict" | "balanced" | "perm
 
 function printHelp(): void {
   process.stdout.write(`
-  baret — pre-sign firewall for agent & program wallets
+  baret. pre-sign firewall for agent & program wallets
 
   Usage
     baret <command> [<xdr>|-] [flags]
@@ -310,7 +310,7 @@ function printHelp(): void {
     -h, --help        Show this help
 
   Secrets
-    BARET_AGENT_SECRET   ed25519 seed (S…) — required only for sign / submit.
+    BARET_AGENT_SECRET   ed25519 seed (S…). required only for sign / submit.
 
   Exit codes: 0 allowed/ok · 1 blocked by policy · 2 error
 `);

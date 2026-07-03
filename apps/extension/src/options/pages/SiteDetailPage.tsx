@@ -2,9 +2,9 @@
  * Per-site policy + allowance management. Lives at /sites/:b64.
  *
  * Two-section page:
- *   1. Allowances for this origin — per-asset rolling caps, status, controls
+ *   1. Allowances for this origin. Per-asset rolling caps, status, controls
  *      (pause/unpause/revoke via the ledger.* RPCs). Live-refreshed.
- *   2. Site policy — origin-scoped toggles backed by GuardPolicy's
+ *   2. Site policy. Origin-scoped toggles backed by GuardPolicy's
  *      allowedMerchantOrigins / blockedMerchantOrigins arrays. Toggling
  *      writes the new policy through policy.write so the change persists.
  */
@@ -215,8 +215,8 @@ export function SiteDetailPage() {
 
             {allowances && allowances.length === 0 && (
               <p className="text-text-faint text-xs">
-                No allowances yet. This site has connected to the wallet but hasn't made any x402 payments —
-                so it has no spending grants to manage.
+                No allowances yet. This site has connected but hasn't made any x402 payments,
+                so there are no spending grants to manage.
               </p>
             )}
 

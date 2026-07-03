@@ -8,7 +8,7 @@ import {
 /**
  * Decodes a base64-encoded `TransactionEnvelope` XDR into a Stellar
  * `Transaction` or `FeeBumpTransaction`. The network passphrase is required
- * so the parsed tx can be safely re-built / signed later — the SDK refuses
+ * so the parsed tx can be safely re-built / signed later. the SDK refuses
  * to operate on a passphrase-less envelope.
  */
 export function decodeStellarTransactionXdr(
@@ -25,7 +25,7 @@ export function isFeeBumpTransaction(
 }
 
 /**
- * Unwraps fee-bump envelopes to the inner tx — analysis is done on the
+ * Unwraps fee-bump envelopes to the inner tx. analysis is done on the
  * inner tx (the inner is what actually mutates state); the outer only
  * supplies a different fee source.
  */

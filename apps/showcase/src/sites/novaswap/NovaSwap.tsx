@@ -129,7 +129,7 @@ export default function NovaSwap() {
     if (!connected || !walletAddress) { openWalletModal(); return; }
     try {
       const __built = await buildScenario(dangerous ? "novaswap-danger" : "novaswap-safe", walletAddress); const tx = __built.transactionXdr;
-      setPreviewTx(tx);   // opens RiskPreview — user decides how to send
+      setPreviewTx(tx);   // opens RiskPreview, user decides how to send
     } catch (e) {
       setResultState("error");
       setResultMessage(e instanceof Error ? e.message : String(e));
@@ -151,9 +151,9 @@ export default function NovaSwap() {
       }
     }
   }
-  // "Without protection" — Baret enforces its policy at sign time inside its
-  // own popup, so there is no code path that skips the check for its own
-  // account. The only honest comparison is a genuinely different wallet
+  // The "without protection" path. Baret enforces its policy at sign time
+  // inside its own popup, so there is no code path that skips the check for its
+  // own account. The only honest comparison is a genuinely different wallet
   // signing the same scenario over its own key: connects a second wallet
   // (Freighter) and submits directly to Horizon, no Baret pipeline involved.
   async function sendRaw() {
@@ -238,11 +238,11 @@ export default function NovaSwap() {
               Best execution on Stellar
             </span>
             <h1 className="mb-3 font-display text-4xl font-black tracking-tight text-slate-900 sm:text-5xl dark:text-white">
-              Swap any token,{" "}
-              <span className="text-gradient">instantly.</span>
+              Swap any token at the{" "}
+              <span className="text-gradient">best rate.</span>
             </h1>
             <p className="mx-auto max-w-md text-slate-500 dark:text-slate-400">
-              Best rates across all Stellar liquidity sources. Powered by Soroswap routing.
+              We route every order across Stellar's liquidity and fill it at the best price we find. Routing by Soroswap.
             </p>
           </motion.div>
 
@@ -274,7 +274,7 @@ export default function NovaSwap() {
 
           {/* ── Two-column: left analytics · right swap ── */}
           <div className="grid gap-6 lg:grid-cols-3">
-            {/* LEFT — chart + token table */}
+            {/* LEFT: chart + token table */}
             <div className="space-y-6 lg:col-span-2">
               {/* Price chart panel */}
               <motion.div
@@ -398,7 +398,7 @@ export default function NovaSwap() {
               </motion.div>
             </div>
 
-            {/* RIGHT — swap card */}
+            {/* RIGHT: swap card */}
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
@@ -506,7 +506,7 @@ export default function NovaSwap() {
 
                 {/* Demo toggle */}
                 <div className="pt-2">
-                  <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate malicious swap" activeColor="#dc2626" />
+                  <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate a drainer swap" activeColor="#dc2626" />
                 </div>
               </div>
             </motion.div>

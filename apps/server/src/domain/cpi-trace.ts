@@ -14,7 +14,7 @@ export type CpiNode = {
   functionName: string;
   /** Depth in the auth tree (0 = root). */
   depth: number;
-  /** Authorizer for this node — `null` when the entry is `auth_as_curr_contract`. */
+  /** Authorizer for this node. `null` when the entry is `auth_as_curr_contract`. */
   authorizer: string | null;
   /** Arg XDRs (base64) preserved for detector inspection. */
   argsXdr: string[];

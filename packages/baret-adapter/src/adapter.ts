@@ -29,11 +29,11 @@ export interface BaretAdapterOptions {
 }
 
 export interface ConnectedAccount {
-  /** Smart-wallet address — assets live here. Use as `source` in Stellar ops. */
+  /** Smart-wallet address. assets live here. Use as `source` in Stellar ops. */
   walletAddress: string;
-  /** Authority `G…` key — signs auth entries via Passkey / sub-key. */
+  /** Authority `G…` key. signs auth entries via Passkey / sub-key. */
   authorityAddress: string;
-  /** Smart-wallet contract address — same family as `walletAddress`. */
+  /** Smart-wallet contract address. same family as `walletAddress`. */
   smartWalletAddress: string;
 }
 
@@ -48,8 +48,7 @@ type Listener = (msg: PopupOutgoing) => void;
  * returns signed `TransactionEnvelope` XDRs.
  *
  * Every signature is gated by the wallet's policy. The wallet runs the
- * Baret analysis and shows it to the user before allowing the sign —
- * this adapter cannot bypass that, by design.
+ * Baret analysis and shows it to the user before allowing the sign.  * this adapter cannot bypass that, by design.
  *
  * The transport is XDR strings (base64). Callers serialize / deserialize via
  * `tx.toXDR()` / `TransactionBuilder.fromXDR(xdr, passphrase)` so this

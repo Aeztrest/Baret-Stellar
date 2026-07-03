@@ -53,7 +53,7 @@ export type SorobanAllowanceChange = {
   fromAddress: string;
   /** Spender being authorized. */
   spender: string;
-  /** Allowance amount (stroops/atomic — string for precision). */
+  /** Allowance amount (stroops/atomic. string for precision). */
   amount: string;
   /** Ledger up to which the allowance is valid; null if unbounded. */
   expirationLedger: number | null;

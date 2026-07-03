@@ -7,12 +7,12 @@ import {
 import type { CpiNode, CpiTrace } from "../domain/cpi-trace.js";
 
 /**
- * Builds the Soroban auth tree — a directed graph of contract → contract
+ * Builds the Soroban auth tree. a directed graph of contract → contract
  * calls that the transaction is requesting authorization for. The root
  * invocations correspond to the entries on the tx's `InvokeHostFunction`
  * op; descendants come from `subInvocations()` on each entry.
  *
- * This is the Soroban authorization tree — downstream detectors score it
+ * This is the Soroban authorization tree. downstream detectors score it
  * on depth, breadth, and identity exposure.
  */
 export function parseSorobanAuthTree(tx: Transaction): CpiTrace {
@@ -61,7 +61,7 @@ function invocationToNode(
     fn.switch().value !==
     xdr.SorobanAuthorizedFunctionType.sorobanAuthorizedFunctionTypeContractFn().value
   ) {
-    // CreateContract / WASM upload entries — represented as zero-arg roots
+    // CreateContract / WASM upload entries. represented as zero-arg roots
     // so detectors still see them.
     return {
       contractAddress: "",
@@ -103,7 +103,7 @@ function authorizerFromCredentials(
     credentials.switch().value !==
     xdr.SorobanCredentialsType.sorobanCredentialsAddress().value
   ) {
-    return null; // `auth_as_curr_contract` — no separate authorizer.
+    return null; // `auth_as_curr_contract`. no separate authorizer.
   }
   return scAddressToString(credentials.address().address());
 }

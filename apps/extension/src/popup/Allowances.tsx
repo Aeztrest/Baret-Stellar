@@ -1,5 +1,5 @@
 /**
- * Popup Allowances tab — active grants with rolling cap progress and one-tap
+ * Popup Allowances tab. Active grants with rolling cap progress and one-tap
  * pause/revoke. The visual heart of the Baret wedge.
  * Spec: docs/wallet-spec.md §5.
  */

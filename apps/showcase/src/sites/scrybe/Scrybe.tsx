@@ -1,5 +1,5 @@
 /**
- * Scrybe — pay-per-question oracle, x402 over Stellar testnet.
+ * Scrybe: pay-per-question oracle, x402 over Stellar testnet.
  *
  * This is Baret's flagship demo. The user types a question, the merchant
  * server responds HTTP 402 with PaymentRequirements, this page builds the
@@ -66,7 +66,7 @@ const SUGGESTIONS = [
 const EXAMPLES: { q: string; a: string; ms: number }[] = [
   {
     q: "What is a Stellar path payment?",
-    a: "A path payment sends one asset and delivers another, hopping through the built-in DEX order books in a single atomic operation — the sender picks the max to spend, the receiver the exact amount to get.",
+    a: "A path payment sends one asset and delivers another, hopping through the built-in DEX order books in a single atomic operation. The sender picks the max to spend, the receiver the exact amount to get.",
     ms: 820,
   },
   {
@@ -141,7 +141,7 @@ export default function Scrybe() {
       setHistory((prev) => prev.map((e) => e.id === entryId ? { ...e, ...patch } : e));
 
     try {
-      // 1. First request — expect 402
+      // 1. First request, expect 402
       const initial = await fetch(`/api/demo/scrybe?q=${encodeURIComponent(q)}`, {
         headers: { accept: "application/json" },
       });
@@ -181,7 +181,7 @@ export default function Scrybe() {
       }
 
       // 3 + 4. Build the x402 payment and have the wallet sign the Soroban
-      // AUTH ENTRY (SEP-43) — not the whole transaction. BARET runs its
+      // AUTH ENTRY (SEP-43), not the whole transaction. BARET runs its
       // pre-sign analysis on the auth entry here. The facilitator rebuilds,
       // fee-bumps and submits the transaction itself.
       update({ phase: "signing" });
@@ -339,7 +339,7 @@ export default function Scrybe() {
               </h2>
               <p className="mt-3 max-w-xl leading-relaxed text-slate-600 dark:text-slate-400">
                 A pay-per-question oracle speaking the HTTP&nbsp;402 protocol on Stellar testnet.
-                Your wallet pays $0.001 in USDC — under your caps — and every answer settles on-chain.
+                Your wallet pays $0.001 in USDC, under your caps, and every answer settles on-chain.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {[
@@ -778,7 +778,7 @@ function SetupCard({ entry, walletAddress, onSetupTrustline, onRetry }: {
         <>
           <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
             Your wallet doesn't trust USDC yet, so it can't hold or spend it.
-            Establish the trustline once — a tiny on-chain change your wallet signs.
+            Establish the trustline once. It's a tiny on-chain change your wallet signs.
           </p>
           <button
             onClick={onSetupTrustline}
@@ -834,7 +834,7 @@ function friendlyError(msg: string): string {
   if (m.includes("trustline") || m.includes("(contract, #13)") || m.includes("error(contract, #13)")) {
     // The page pre-checks the payer's own USDC trustline + balance before
     // building, so a #13 here means the recipient (merchant) can't receive
-    // USDC yet — a server-side setup gap, not the user's wallet.
+    // USDC yet, a server-side setup gap, not the user's wallet.
     return "The merchant account isn't set up to receive USDC yet. On the server, run `pnpm --filter @stellar-thorn/server x402-setup` to add its USDC trustline, then try again.";
   }
   if (m.includes("insufficient") || m.includes("(contract, #10)")) {

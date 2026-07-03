@@ -27,7 +27,7 @@ export function PopupApp() {
 
   // When phase=signing, the head of the queue may be a transaction OR a
   // connect-approval. Poll the queue head so the popup routes to the right
-  // screen — SignRequest for txs/messages, ConnectApproval for connect.
+  // screen. SignRequest for txs and messages, ConnectApproval for connect.
   useEffect(() => {
     if (state?.phase !== "signing") setPendingKind(null);
   }, [state?.phase]);

@@ -50,7 +50,7 @@ export const paymentRequirementsSchema = z.object({
     .object({
       /** Stellar sponsorship: address that pays fees on behalf of the user. */
       sponsorBy: z.string().optional(),
-      /** Some x402 implementations still send `feePayer` — accept both. */
+      /** Some x402 implementations still send `feePayer`. accept both. */
       feePayer: z.string().optional(),
       memo: z.string().optional(),
     })

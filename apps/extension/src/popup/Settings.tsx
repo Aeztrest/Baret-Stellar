@@ -39,7 +39,7 @@ export function Settings() {
     >
       <motion.div variants={SETTINGS_ITEM}>
       <Card padding="none" className="divide-y divide-line overflow-hidden">
-        <Row label="Network" value={state?.network ?? "—"} onClick={() => openOptions("network")} />
+        <Row label="Network" value={state?.network ?? "–"} onClick={() => openOptions("network")} />
         <Row label="Policy"  value="Balanced template" onClick={() => openOptions("policies")} />
         <Row label="Security" value="Wallet locks after 15 min idle" onClick={() => openOptions("security")} />
       </Card>
@@ -86,7 +86,7 @@ export function Settings() {
         open={resetDialogOpen}
         onOpenChange={setResetDialogOpen}
         title="Reset wallet?"
-        description="This wipes the wallet from this browser. Make sure you've exported your secret first — this can't be undone."
+        description="This wipes the wallet from this browser. Export your secret first. This can't be undone."
         tone="danger"
         footer={
           <>

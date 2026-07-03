@@ -1,7 +1,7 @@
 /**
- * Baret home — the flagship landing.
- * Voice: construction-site safety for your signature. "Sign safe. Build on."
- * Token-driven and dark/light from the ground up; big uppercase display type,
+ * Baret home, the flagship landing.
+ * Voice: a firewall for your signature. Read the transaction before you sign it.
+ * Token-driven and dark/light from the ground up. Big uppercase display type,
  * mono eyebrows with the accent tick, restrained scroll reveals.
  */
 
@@ -117,7 +117,7 @@ function CinematicScrub() {
           Rolling caps. Per-site policy. On-chain guard.
         </p>,
         <p key="c6" className={scrubLine}>
-          Safe, or <span className="text-primary">blocked</span> — before your keys move.
+          Safe, or <span className="text-primary">blocked</span>, before your keys move.
         </p>,
         <div key="c7" className="flex flex-col items-center gap-3">
           <BaretMark size={52} />
@@ -126,7 +126,7 @@ function CinematicScrub() {
             Baret<span className="text-primary">.</span>
           </span>
           <span className="max-w-sm text-balance text-sm text-white/70 sm:text-base">
-            The hard hat for your Stellar wallet.
+            A firewall for your signature.
           </span>
         </div>,
       ]}
@@ -160,9 +160,9 @@ function Hero() {
             transition={{ duration: 0.7, delay: 0.05 }}
             className="mt-6 font-display text-[clamp(3rem,7.5vw,6.25rem)] font-semibold uppercase leading-[0.9] tracking-[-0.03em] text-balance"
           >
-            Sign safe.
+            Read it first.
             <br />
-            <span className="text-primary">Build on.</span>
+            <span className="text-primary">Then sign.</span>
           </motion.h1>
 
           <motion.p
@@ -171,9 +171,9 @@ function Hero() {
             transition={{ duration: 0.7, delay: 0.15 }}
             className="mt-7 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground"
           >
-            Baret is the hard hat for your Stellar wallet — every transaction is
-            simulated, explained in plain language, and blocked when dangerous,
-            before your keys ever touch it.
+            Baret reads every Stellar transaction before you sign it. It decodes
+            the transaction, simulates what it will do, and gives you a verdict
+            in plain language. Safe, caution, or blocked, before your keys move.
           </motion.p>
 
           <motion.div
@@ -197,10 +197,10 @@ function Hero() {
             transition={{ duration: 0.7, delay: 0.4 }}
             className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground"
           >
-            <Trust icon={ShieldCheck} label="Pre-sign simulation" />
-            <Trust icon={Eye} label="Plain-language findings" />
-            <Trust icon={Lock} label="Stateful allowances" />
-            <Trust icon={BellRing} label="Real-time drift alerts" />
+            <Trust icon={ShieldCheck} label="Simulated before signing" />
+            <Trust icon={Eye} label="Verdict in plain words" />
+            <Trust icon={Lock} label="Rolling spend caps" />
+            <Trust icon={BellRing} label="Alerts on drift" />
           </motion.div>
         </div>
 
@@ -222,7 +222,7 @@ function Trust({ icon: Icon, label }: { icon: typeof Shield; label: string }) {
 }
 
 /**
- * A framed miniature of the REAL SignRequest popup — the marketing mockup and
+ * A framed miniature of the REAL SignRequest popup. The marketing mockup and
  * the actual wallet screen you'll see after installing look identical, down to
  * the shared Verdict component.
  */
@@ -329,14 +329,14 @@ function ThreePillars() {
       num: "01",
       illus: "/illus-guard.jpg",
       title: "Pre-sign Guard",
-      body: "Every transaction is decoded and simulated server-side, then 25+ risk detectors fire findings the popup explains in one sentence.",
+      body: "Baret decodes and simulates every transaction on the server, then runs 25+ risk detectors. The popup explains each finding in one sentence.",
       points: ["Server simulation", "25+ risk detectors", "Policy DSL gate"],
     },
     {
       num: "02",
       illus: "/illus-ledger.jpg",
       title: "Authorization Ledger",
-      body: "Every approval becomes a row with a cap, an expiry, and a live progress bar. No more ‘unlimited approvals’ you forgot existed.",
+      body: "Every approval becomes a row with a cap, a clock, and a live progress bar. No more unlimited approval you forgot about.",
       points: ["Rolling caps", "One-tap revoke", "Pause / resume"],
       demo: true,
     },
@@ -344,7 +344,7 @@ function ThreePillars() {
       num: "03",
       illus: "/illus-monitor.jpg",
       title: "Post-sign Monitor",
-      body: "WebSocket subscription on your authority and smart wallet. If something moves that Baret didn't sign, you get a browser notification immediately.",
+      body: "Baret subscribes to your account and smart wallet over a WebSocket. If something moves that it didn't sign, you get a browser notification right away.",
       points: ["WebSocket subscribe", "Drift detection", "Cold-boot backfill"],
     },
   ];
@@ -355,8 +355,8 @@ function ThreePillars() {
         <SectionHeading
           index="01"
           eyebrow="The product"
-          title="Three layers, one hard hat"
-          lead="A signing path that's fortified end-to-end. Each layer is independently useful — together they close the gap that lets drainers, drift, and silent agents win today."
+          title="Three layers, one signature"
+          lead="Baret runs three checks before your keys move. Each one stands on its own. Together they close the gap that lets drainers, stale approvals, and silent agents through today."
         />
       </Reveal>
 
@@ -410,7 +410,7 @@ function PillarCard({
         {demo && (
           <div className="mt-6 border-t border-border pt-5">
             <Meter
-              label="acme-dex.xyz — daily cap"
+              label="acme-dex.xyz daily cap"
               value={62}
               max={100}
               formatValue={(v, m) => `${v} / ${m} USDC`}
@@ -433,7 +433,7 @@ function ShowcaseStrip() {
             index="04"
             eyebrow="Try it yourself"
             title="Six fake-but-real dApps"
-            lead="Connect a wallet, click a button. Baret catches the threat live — no slides, no mocks."
+            lead="Connect a wallet and click a button. Baret catches the threat live. No slides, no mocks."
           />
           <Link
             to="/showcase"
@@ -540,8 +540,8 @@ function FinalCta() {
             <div className="relative max-w-3xl p-12 md:p-20">
               <HardHat size={26} className="text-primary" />
               <h2 className="mt-6 font-display text-4xl font-semibold uppercase leading-[0.95] tracking-[-0.03em] md:text-6xl">
-                Hard hats on.
-                <br /> <span className="text-primary">Sign with sight.</span>
+                Sign with your
+                <br /> <span className="text-primary">eyes open.</span>
               </h2>
               <p className="mt-6 max-w-xl text-lg text-muted-foreground">
                 Open the showcase, connect a wallet, and watch Baret refuse a wallet drainer in real time.

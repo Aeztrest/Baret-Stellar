@@ -1,5 +1,5 @@
 /**
- * Options page root — router + layout shell.
+ * Options page root. router + layout shell.
  * Spec: docs/wallet-spec.md §7.
  */
 

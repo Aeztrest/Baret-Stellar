@@ -3,7 +3,7 @@
  *
  * Polls Horizon for new transactions touching the user's authority +
  * smart-wallet addresses. Every confirmed tx is reconciled against the
- * local history table. Unmatched txs trigger a *drift alert* — something
+ * local history table. Unmatched txs trigger a *drift alert*. something
  * moved through the wallet that Baret never approved.
  *
  * MV3 caveats:
@@ -137,7 +137,7 @@ class Monitor {
     const matched = recent.find((h) => h.signature === tx.hash);
     if (matched) return; // legitimate
 
-    // Unknown tx — drift.
+    // Unknown tx. drift.
     await appendAlert({
       severity: "high",
       kind: "drift",
@@ -152,7 +152,7 @@ class Monitor {
       type: "alert",
       signature: tx.hash,
       origin: null,
-      summary: `Drift detected — unauthorized tx on ${scope === "wallet" ? "smart wallet" : "authority"}`,
+      summary: `Drift detected. unauthorized tx on ${scope === "wallet" ? "smart wallet" : "authority"}`,
       decision: "block",
       reasons: [
         "Baret didn't sign this transaction. Investigate before continuing.",

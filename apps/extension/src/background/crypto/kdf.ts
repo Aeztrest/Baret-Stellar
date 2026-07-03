@@ -2,8 +2,7 @@
  * PBKDF2 + AES-GCM key derivation and authenticated encryption.
  * Spec: docs/extension-architecture.md §8.1.
  *
- * We use Web Crypto exclusively — never a userland AES implementation —
- * because Web Crypto guarantees constant-time operations and protects key
+ * We use Web Crypto exclusively. never a userland AES implementation.  * because Web Crypto guarantees constant-time operations and protects key
  * material from JS introspection.
  */
 
@@ -111,7 +110,7 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 /**
- * Securely zero a typed array. Best-effort — JS doesn't guarantee the engine
+ * Securely zero a typed array. Best-effort. JS doesn't guarantee the engine
  * won't have already copied the buffer, but this prevents trivial inspection
  * of the same backing store.
  */

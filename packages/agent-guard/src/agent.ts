@@ -1,5 +1,5 @@
 /**
- * AgentWallet — the batteries-included guard for autonomous agent / program
+ * AgentWallet. the batteries-included guard for autonomous agent / program
  * wallets. Wraps swig-guard's TransactionGuard and adds the two things a
  * headless agent needs that the SDK-free guard deliberately omits: holding an
  * ed25519 keypair and submitting to Horizon.
@@ -11,7 +11,7 @@
  *
  * Fail-closed: if the analyze server is unreachable, evaluate() throws
  * AnalyzeError and signing never happens. The agent simply does not transact
- * rather than transacting blind — unless `allowOffline` is explicitly set.
+ * rather than transacting blind. unless `allowOffline` is explicitly set.
  */
 
 import {

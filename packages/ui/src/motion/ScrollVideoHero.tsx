@@ -1,8 +1,8 @@
 /**
- * ScrollVideoHero — a scroll-scrubbed cinematic set-piece.
+ * ScrollVideoHero. a scroll-scrubbed cinematic set-piece.
  *
  * The video never autoplays; the user's scroll position IS the playhead.
- * Scroll down and the film advances, scroll up and it rewinds — a "scrub".
+ * Scroll down and the film advances, scroll up and it rewinds. a "scrub".
  * Use it ONCE, as the single cinematic moment; its power is in being rare.
  *
  * How it works (the 8 load-bearing details):
@@ -11,7 +11,7 @@
  *  2. Framer Motion `useScroll({ target, offset:["start start","end end"] })`
  *     gives 0→1 progress across the section.
  *  3. A rAF lerp scrubs the playhead: currentTime eases toward progress*duration
- *     (`current += (target-current)*0.14`) — never set directly, or it stutters.
+ *     (`current += (target-current)*0.14`). never set directly, or it stutters.
  *     Guards: only seek when readyState≥1 and |diff|>0.006, clamp target to
  *     [0, duration-0.033], wrap the seek in try/catch.
  *  4. As a top opener the panel pins `top-0 h-[100dvh]` (the header floats over
@@ -21,11 +21,11 @@
  *  6. Captions (ReactNode) fade in sequence, each owning an equal window of
  *     [0.03, 0.97], with a small y-rise.
  *  7. Encode the clip all-keyframe (GOP=1) so every frame is instantly seekable
- *     — see ASSET_PROMPTS.md §5 for the exact ffmpeg recipe.
+ *. see ASSET_PROMPTS.md §5 for the exact ffmpeg recipe.
  *  8. Desktop-only (mobile never downloads the heavy clip) and reduced-motion
  *     falls back to a static poster + stacked captions in normal flow.
  *
- * `videoClassName` overrides the <video> class — e.g. crop a baked-in generator
+ * `videoClassName` overrides the <video> class. e.g. crop a baked-in generator
  * watermark: `absolute left-0 top-0 h-[118%] w-full object-cover object-top`.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -78,7 +78,7 @@ export function ScrollVideoHero({
 
   const activeScrub = desktop && !reduce;
 
-  // rAF lerp scrubbing — the heart of the smoothness.
+  // rAF lerp scrubbing. the heart of the smoothness.
   useEffect(() => {
     if (!activeScrub) return;
     const v = videoRef.current;
@@ -90,19 +90,19 @@ export function ScrollVideoHero({
       if (dur > 0) {
         const raw = Math.min(1, Math.max(0, scrollYProgress.get()));
         // Complete the clip by HALF the runway and HOLD the final frame for the
-        // whole second half — the meter is 100% long before the section unpins,
+        // whole second half. the meter is 100% long before the section unpins,
         // so even a fast/momentum scroll can't reach the next section while the
         // bar is still filling.
         const p = Math.min(1, raw / 0.5);
         const target = Math.min(p * dur, dur - 0.033);
         // Tight tracking (all-keyframe already smooths seeks) so the bar keeps
-        // up with the scroll even on a fast flick — no lag at the transition.
+        // up with the scroll even on a fast flick. no lag at the transition.
         current += (target - current) * 0.32;
         if (v.readyState >= 1 && Math.abs(current - v.currentTime) > 0.006) {
           try {
             v.currentTime = current;
           } catch {
-            /* seeking mid-decode can throw — ignore and retry next frame */
+            /* seeking mid-decode can throw. ignore and retry next frame */
           }
         }
       }
@@ -151,7 +151,7 @@ export function ScrollVideoHero({
           onLoadedData={onLoadedData}
           className={videoClassName ?? "absolute inset-0 h-full w-full object-cover"}
         />
-        {/* light readability wash — keeps captions legible without dulling the footage */}
+        {/* light readability wash. keeps captions legible without dulling the footage */}
         <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25" />
 
         {captions.map((c, i) => (

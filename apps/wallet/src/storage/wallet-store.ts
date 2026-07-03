@@ -1,7 +1,7 @@
 /**
  * Persistent storage for the wallet's authority keypair (Stellar build).
  * Versioned so future schema changes can migrate cleanly. The v2 key is a
- * clean v2 break from the prior storage shape — old v1 blobs are ignored.
+ * clean v2 break from the prior storage shape. old v1 blobs are ignored.
  */
 const KEY = "baret.wallet.v2";
 

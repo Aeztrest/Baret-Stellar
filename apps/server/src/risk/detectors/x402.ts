@@ -10,10 +10,10 @@ import type { RiskFinding } from "../../domain/findings.js";
  * optional memo).
  *
  * Codes emitted:
- *  - X402_MEMO_MISSING — policy requires a memo but the tx has none.
- *  - X402_DESTINATION_MISMATCH — payTo is not present anywhere in the tx.
- *  - X402_ASSET_MISMATCH — required asset is not referenced by the tx.
- *  - X402_NON_CANONICAL_ASSET — asset is not on the policy's allowed list.
+ *  - X402_MEMO_MISSING. policy requires a memo but the tx has none.
+ *  - X402_DESTINATION_MISMATCH. payTo is not present anywhere in the tx.
+ *  - X402_ASSET_MISMATCH. required asset is not referenced by the tx.
+ *  - X402_NON_CANONICAL_ASSET. asset is not on the policy's allowed list.
  *
  * Amount + per-transfer destination checks remain in the Soroban event
  * pipeline (delta extractor → policy.engine), since the spend amount is

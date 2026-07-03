@@ -155,7 +155,7 @@ export interface AnalyzeResponse {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/* 3. RPC method registry — popup/options ↔ background                       */
+/* 3. RPC method registry. popup/options ↔ background                       */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export interface ExtRpc {
@@ -205,7 +205,7 @@ export type ExtRpcRequest<M extends ExtRpcMethod>  = ExtRpc[M]["req"];
 export type ExtRpcResponse<M extends ExtRpcMethod> = ExtRpc[M]["rsp"];
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/* 4. Events — background → surfaces                                          */
+/* 4. Events. background → surfaces                                          */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export interface ExtEvents {

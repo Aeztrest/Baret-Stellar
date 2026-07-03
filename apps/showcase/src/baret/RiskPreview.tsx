@@ -1,5 +1,5 @@
 /**
- * RiskPreview — pre-sign analysis overlay rendered ON THE SITE before the
+ * RiskPreview: pre-sign analysis overlay rendered ON THE SITE before the
  * wallet popup opens. Calls Baret's analyze server with the candidate
  * transaction, surfaces the verdict + reasons + balance deltas + findings,
  * and lets the user decide:
@@ -10,7 +10,7 @@
  *     signs+sends via the connected wallet. Lets visitors viscerally
  *     compare a guarded site vs a vanilla one.
  *
- * Spec: docs/wallet-spec.md §8 — same hero verdict + findings as the
+ * Spec: docs/wallet-spec.md §8. Same hero verdict + findings as the
  * extension's SignRequest, just rendered on the dApp side.
  */
 
@@ -124,7 +124,7 @@ export function RiskPreview({
                   onClick={() => { void onProceedRaw(); }}
                   className="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 text-ink-600"
                   style={{ background: "#fff", border: "1px solid rgba(20,20,20,0.14)" }}
-                  title="Connects a second wallet (no Baret) and submits directly — a genuine unprotected comparison"
+                  title="Connects a second wallet (no Baret) and submits directly, a genuine unprotected comparison"
                 >
                   <EyeOff size={11} /> Send with unprotected wallet
                 </button>
@@ -147,8 +147,8 @@ export function RiskPreview({
                 same checks fire as the wallet's authoritative gatekeeper.
                 "Unprotected wallet" connects a second, non-Baret wallet (e.g.
                 Freighter) and submits the same scenario straight to the
-                network — no analyze call, no policy gate, a genuine
-                comparison rather than a simulated one.
+                network. No analyze call, no policy gate. It's a real
+                comparison, not a simulated one.
               </p>
             </footer>
           </motion.div>

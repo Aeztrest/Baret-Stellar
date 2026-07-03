@@ -1,6 +1,6 @@
 /**
  * In-memory state store for the background service worker.
- * Singleton — the worker holds exactly one instance.
+ * Singleton. the worker holds exactly one instance.
  *
  * Subscribers receive state diffs; the message router fans them out to
  * connected popup/options/content-script ports as `state.changed` events.
@@ -40,7 +40,7 @@ export function subscribe(l: Listener): () => void {
   return () => listeners.delete(l);
 }
 
-/** Replace the current state wholesale — only for cold-boot rehydration. */
+/** Replace the current state wholesale. only for cold-boot rehydration. */
 export function rehydrate(s: WalletState): void {
   current = s;
 }

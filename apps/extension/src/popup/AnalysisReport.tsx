@@ -1,7 +1,7 @@
 /**
  * Compact AnalysisReport for the popup (Stellar build).
- * Renders an AnalyzeResponse — the Baret simulation verdict + findings
- * + balance changes — into a 360-wide column.
+ * Renders an AnalyzeResponse (the Baret verdict, findings, and balance
+ * changes) into a 360-wide column.
  */
 
 import { motion } from "framer-motion";
@@ -73,7 +73,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
       ? "Blocked by your policy"
       : result.decision === "advisory"
         ? result.offline
-          ? "Sim unavailable"
+          ? "Simulation unavailable"
           : "Sign with caution"
         : "Safe to sign";
 

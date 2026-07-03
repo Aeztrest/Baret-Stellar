@@ -10,7 +10,7 @@
  *  - `payTo` may be either a classic G… account or a C… contract.
  *  - `extra.sponsorBy` carries the facilitator's fee-bump signer (Stellar's
  *    equivalent of `feePayer`). Some implementations still send `feePayer`
- *    for backwards compatibility — both are accepted.
+ *    for backwards compatibility. both are accepted.
  */
 
 import { StrKey } from "@stellar/stellar-sdk";

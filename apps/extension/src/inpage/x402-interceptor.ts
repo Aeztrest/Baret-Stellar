@@ -5,7 +5,7 @@
  * `PaymentRequirements`. When detected, posts the requirements to the
  * background via the page bridge; on approval, retries the original fetch
  * with the `PAYMENT-SIGNATURE` header populated. dApps that don't speak
- * x402 are unaffected — non-402 responses pass through untouched.
+ * x402 are unaffected. non-402 responses pass through untouched.
  *
  * The shape of `PaymentRequirements` is chain-agnostic at the protocol
  * layer; the background-side handlers route Stellar-specific fields
@@ -51,7 +51,7 @@ export function installX402Interceptor(): void {
     if (res.status !== 402) return res;
 
     const requirements = await parseRequirements(res);
-    if (!requirements) return res; // Non-x402 402 — bubble up.
+    if (!requirements) return res; // Non-x402 402. bubble up.
 
     const requestUrl =
       typeof input === "string"

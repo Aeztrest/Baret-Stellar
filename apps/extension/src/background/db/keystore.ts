@@ -4,8 +4,8 @@
  *       + §8.1 (encryption).
  *
  * Persistence is double-layered:
- *  1. IndexedDB (`keystore` object store) — primary, fast random read.
- *  2. browser.storage.local (key BACKUP_KEY)  — durable mirror.
+ *  1. IndexedDB (`keystore` object store). primary, fast random read.
+ *  2. browser.storage.local (key BACKUP_KEY). durable mirror.
  *
  * The mirror exists because Firefox temporary add-ons sometimes wipe
  * extension IndexedDB on reload, and `storage.local` is generally more
@@ -39,7 +39,7 @@ export async function readKeystore(): Promise<KeystoreRow | null> {
   });
   if (fromIdb) return fromIdb;
 
-  // IDB miss — fall back to the storage.local mirror. If we find one,
+  // IDB miss. fall back to the storage.local mirror. If we find one,
   // hydrate IDB so subsequent reads are fast and consistent.
   try {
     const all = await browser.storage.local.get(BACKUP_KEY);
@@ -61,7 +61,7 @@ export async function writeKeystore(row: KeystoreRow): Promise<void> {
   await tx("keystore", "readwrite", async (t) => {
     await asPromise(t.objectStore("keystore").put(row));
   });
-  // Mirror to storage.local. Failure here must not block the write — IDB is
+  // Mirror to storage.local. Failure here must not block the write. IDB is
   // the source of truth, the mirror is best-effort.
   try {
     await browser.storage.local.set({ [BACKUP_KEY]: row });

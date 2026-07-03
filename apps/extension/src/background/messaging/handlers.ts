@@ -1,5 +1,5 @@
 /**
- * RPC handlers — one per method in @stellar-thorn/ext-protocol's ExtRpc (Stellar build).
+ * RPC handlers. one per method in @stellar-thorn/ext-protocol's ExtRpc (Stellar build).
  *
  * Many methods land progressively as their subsystems are built; today the
  * wallet lifecycle, balance, transfer, airdrop, sign drain, ledger, history
@@ -87,7 +87,7 @@ const notImplemented = <M extends ExtRpcMethod>(
   hint: string,
 ): Handler<M> =>
   (async () => {
-    throw new Error(`${method} not implemented yet — ${hint}`);
+    throw new Error(`${method} not implemented yet. ${hint}`);
   }) as Handler<M>;
 
 const EMPTY_CHANGES = {
@@ -217,7 +217,7 @@ const airdropHandler: Handler<"wallet.airdrop"> = async () => {
   );
   if (!res.ok) {
     const text = await safeText(res);
-    // Already-funded accounts return 400 — treat as success since the account
+    // Already-funded accounts return 400. treat as success since the account
     // already holds testnet XLM and the user can proceed.
     if (res.status === 400 && /already funded|op_already_exists/i.test(text)) {
       return { transactionHash: "already-funded", amountXlm: 0 };
@@ -253,7 +253,7 @@ const policyWriteHandler: Handler<"policy.write"> = async ({ policy }) => {
   return { ok: true };
 };
 
-// Circle's USDC issuers per network — used to surface the wallet's USDC
+// Circle's USDC issuers per network. used to surface the wallet's USDC
 // balance (the asset x402 payments spend in).
 const USDC_ISSUER: Record<string, string> = {
   testnet: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
@@ -264,7 +264,7 @@ const balanceHandler: Handler<"wallet.balance"> = async ({ address }) => {
   const snap = getSnapshot();
   const target = address ?? snap.authorityAddress;
   if (!target)
-    throw new Error("No address available — wallet not initialized.");
+    throw new Error("No address available. wallet not initialized.");
   const horizon = getHorizon();
   try {
     const account = await horizon.loadAccount(target);
@@ -377,7 +377,7 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
       type: "alert",
       signature: null,
       origin: merchantOrigin,
-      summary: `Revoked allowance for ${merchantOrigin} (local-only — no on-chain sub-key)`,
+      summary: `Revoked allowance for ${merchantOrigin} (local-only. no on-chain sub-key)`,
       decision: "block",
       reasons: ["No active smart-wallet sub-key registered for this merchant"],
       broadcast: false,
@@ -475,7 +475,7 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
   const req = peekById(requestId);
   if (!req)
     throw new Error(
-      "Sign request not found — it may already have been processed.",
+      "Sign request not found. it may already have been processed.",
     );
   const snap = getSnapshot();
   if (!snap.authorityAddress) throw new Error("Wallet not initialized.");
@@ -483,7 +483,7 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
     const note =
       req.kind === "connect"
         ? "Site is requesting connection. No funds move until you approve a signature."
-        : "Plain message — no funds move on-chain.";
+        : "Plain message. no funds move on-chain.";
     return {
       decision: "advisory" as const,
       safe: true,
@@ -504,7 +504,7 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
       safe: true,
       blockingReasons: [],
       advisoryReasons: [
-        "Signing a Soroban authorization entry — no on-chain submit yet.",
+        "Signing a Soroban authorization entry. no on-chain submit yet.",
       ],
       reasons: [],
       riskFindings: [],
@@ -532,7 +532,7 @@ async function loadPolicy(): Promise<GuardPolicy | null> {
 
 /**
  * Called after each sign/connect decision. When the queue is empty, end the
- * sign flow AND close the programmatically-opened popup window — otherwise the
+ * sign flow AND close the programmatically-opened popup window. otherwise the
  * dedicated window lingers on the Home screen after the user signs.
  */
 function endSignFlowIfDrained(): void {
@@ -550,7 +550,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
   const req = takeSign(requestId);
   if (!req)
     throw new Error(
-      "Unknown sign request — it may have already been processed.",
+      "Unknown sign request. it may have already been processed.",
     );
 
   if (req.kind === "connect") {

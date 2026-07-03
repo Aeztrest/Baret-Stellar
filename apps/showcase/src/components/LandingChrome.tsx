@@ -1,5 +1,5 @@
 /**
- * Baret brand chrome — logo mark, header, footer, backdrop.
+ * Baret brand chrome: logo mark, header, footer, backdrop.
  *
  * Identity: "Baret" = hard hat. Near-white / bone surfaces in light, warm
  * near-black in dark; safety-orange (#FF6B00) as the single accent; the Meter
@@ -31,7 +31,7 @@ const NAV_LINKS = [
   { label: "Install", to: "/install" },
 ];
 
-/** The Baret hard-hat mark — theme-aware ink tile, orange dome + brim. */
+/** The Baret hard-hat mark. Theme-aware ink tile, orange dome and brim. */
 export function BaretMark({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
@@ -57,7 +57,7 @@ export function Wordmark({ className = "" }: { className?: string }) {
   );
 }
 
-/** Flat rule with an orange leading tick — the Meter motif as a divider. */
+/** Flat rule with an orange leading tick, the Meter motif as a divider. */
 export function HazardRule({ className = "" }: { className?: string }) {
   return (
     <div aria-hidden className={cn("flex h-1.5 w-full", className)}>
@@ -68,7 +68,7 @@ export function HazardRule({ className = "" }: { className?: string }) {
 }
 
 /**
- * A quiet, neutral backdrop — a faint technical dot-grid that fades toward the
+ * A quiet, neutral backdrop, a faint technical dot-grid that fades toward the
  * edges. No colored bloom; the single accent stays reserved for content.
  */
 export function BackdropGrid() {
@@ -224,7 +224,7 @@ export function LandingFooter() {
                 BARET<span className="text-primary">.</span>
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                The hard hat for your Stellar wallet.
+                A firewall for your signature.
               </p>
             </div>
           </div>

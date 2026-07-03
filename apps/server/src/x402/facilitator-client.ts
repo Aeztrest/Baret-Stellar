@@ -2,11 +2,11 @@
  * PayAI x402 facilitator HTTP client (testnet by default).
  *
  * Three endpoints we care about:
- *   GET  /supported   — published signers + supported networks
- *   POST /verify      — facilitator validates a signed PaymentPayload
- *   POST /settle      — facilitator sponsors the fee bump + broadcasts
+ *   GET  /supported. published signers + supported networks
+ *   POST /verify. facilitator validates a signed PaymentPayload
+ *   POST /settle. facilitator sponsors the fee bump + broadcasts
  *
- * No SDK dependency — plain fetch. Spec is the x402 spec (`coinbase/x402`) + `@x402/stellar`.
+ * No SDK dependency. plain fetch. Spec is the x402 spec (`coinbase/x402`) + `@x402/stellar`.
  */
 
 const DEFAULT_FACILITATOR_URL = "https://facilitator.payai.network";

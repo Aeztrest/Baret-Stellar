@@ -1,5 +1,5 @@
 /**
- * SpotlightCard — an interactive surface with a cursor-tracked spotlight and a
+ * SpotlightCard. an interactive surface with a cursor-tracked spotlight and a
  * border that lights up near the pointer. The glow is NEUTRAL (theme-aware
  * `--spotlight`, never the brand accent) so it reads as premium depth, not a
  * cheap colored bloom. Optional subtle 3D tilt. Respects reduced-motion.

@@ -1,12 +1,12 @@
 /**
- * Showcase hub — the "inspection yard". Six fake-but-real dApps, each wired to
+ * Showcase hub, the "inspection yard". Six fake-but-real dApps, each wired to
  * a different attack pattern Baret catches live.
  *
  * Design: interactive, restrained. The brand orange stays rare (CTAs, eyebrow
- * tick, one hover accent); each scenario instead carries its THREAT-CLASS color
- * (semantic risk tokens — red drainer / amber trap / cyan silent), which is
- * information, not decoration. Cards use a neutral cursor spotlight + subtle
- * tilt; the filter uses a shared-layout sliding pill; the walkthrough is a live
+ * tick, one hover accent). Each scenario instead carries its THREAT-CLASS color
+ * (semantic risk tokens: red drainer, amber trap, cyan silent), which is
+ * information, not decoration. Cards use a neutral cursor spotlight and a subtle
+ * tilt, the filter uses a shared-layout sliding pill, the walkthrough is a live
  * auto-advancing stepper. No colored ambient bloom.
  */
 
@@ -62,7 +62,7 @@ const SHOWCASE: SiteSpec[] = [
   {
     index: "03", path: "/orbityield", name: "OrbitYield", category: "Staking",
     tagline: "Liquid staking · 14% APY",
-    description: "A liquid-staking landing page. The pool exists, but it's an anonymous fork with no on-chain unstake path — a one-way deposit.",
+    description: "A liquid-staking landing page. The pool exists, but it's an anonymous fork with no on-chain unstake path. It's a one-way deposit.",
     catches: ["Pool program unverified", "No discoverable unstake instruction", "TVL inflated by self-deposits"],
     threat: "Trust trap · No unstake path", verdict: "Caution", icon: TrendingUp, bucket: "trap",
   },
@@ -157,8 +157,8 @@ function Hero() {
           className="mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground"
         >
           Each site below looks production-ready and behaves like the real thing.
-          Connect a wallet, push a button, and watch Baret intercept the attack —
-          in plain language, before your keys ever sign.
+          Connect a wallet, push a button, and watch Baret catch the attack in
+          plain language, before your keys ever sign.
         </motion.p>
 
         <motion.div
@@ -281,7 +281,7 @@ function ShowcaseSection() {
           </div>
         </Reveal>
 
-        {/* filter — shared-layout sliding pill */}
+        {/* filter: shared-layout sliding pill */}
         <div className="mb-8 flex flex-wrap items-center gap-2">
           {FILTERS.map((f) => {
             const count = f.bucket === "all" ? SHOWCASE.length : SHOWCASE.filter((s) => s.bucket === f.bucket).length;
@@ -309,7 +309,7 @@ function ShowcaseSection() {
             );
           })}
           <span className="ml-auto hidden items-center gap-1.5 text-xs text-muted-foreground md:flex">
-            <Eye size={11} /> Hover a card — it tracks your cursor
+            <Eye size={11} /> Hover a card. It tracks your cursor
           </span>
         </div>
 
@@ -353,7 +353,7 @@ function SiteCard({ site, featured }: { site: SiteSpec; featured: boolean }) {
                 <p className="mt-0.5 text-[12px] text-muted-foreground">{site.tagline}</p>
               </div>
             </div>
-            {/* threat-class tag — semantic risk color, not the brand accent */}
+            {/* threat-class tag: semantic risk color, not the brand accent */}
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider"
               style={{ background: b.dim, color: b.color }}
@@ -415,7 +415,7 @@ function VerdictPreview({ site }: { site: SiteSpec }) {
         <span className="font-display text-2xl font-semibold uppercase tracking-tight" style={{ color: b.color }}>{site.verdict}</span>
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-        Rendered before the wallet popup opens — with the findings above spelled out in one line each.
+        Rendered before the wallet popup opens, with each finding above spelled out in one line.
       </p>
     </div>
   );
@@ -519,13 +519,13 @@ function DetectorGrid() {
               </h2>
               <p className="mt-5 leading-relaxed text-muted-foreground">
                 Each scenario triggers a different subset. The popup shows you only
-                the findings that matter — the ones that explain why the transaction
-                is suspicious, in one sentence.
+                the findings that matter. Each one explains why the transaction is
+                suspicious, in one sentence.
               </p>
               <div className="mt-8 grid max-w-md grid-cols-1 gap-3">
                 <DetectorPill icon={ShieldAlert} title="Pre-sign Guard" body="Server simulation + 25 detectors run on the unsigned tx." />
                 <DetectorPill icon={Layers} title="Authorization Ledger" body="Every grant is a row with a cap, expiry, and live progress bar." />
-                <DetectorPill icon={Network} title="Post-sign Monitor" body="WebSocket subscribe — alerts on anything you didn't sign." />
+                <DetectorPill icon={Network} title="Post-sign Monitor" body="WebSocket subscribe. Alerts on anything you didn't sign." />
               </div>
             </div>
 

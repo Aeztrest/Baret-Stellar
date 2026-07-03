@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 /*
- * Baret wallet — white-first, safety-orange + ink-black.
+ * Baret wallet. white-first, safety-orange + ink-black.
  * Colors sourced from @stellar-thorn/ui/tokens.css (imported above), the
  * single source of truth shared with the extension and showcase.
  */

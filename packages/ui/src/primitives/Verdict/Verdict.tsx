@@ -21,7 +21,7 @@ const DEFAULT_ICON: Record<VerdictTone, ReactNode> = {
 };
 
 /**
- * The tri-state pre-sign verdict panel — Baret's other signature moment
+ * The tri-state pre-sign verdict panel. Baret's other signature moment
  * alongside Meter. Previously hand-duplicated per surface (extension's
  * SignRequest hero, the showcase mockup, the agents playground); one
  * component now renders identically everywhere so the marketing demo and

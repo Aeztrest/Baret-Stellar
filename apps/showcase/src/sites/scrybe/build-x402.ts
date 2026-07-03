@@ -4,11 +4,11 @@
  * This delegates to the reference `@x402/stellar` implementation rather than
  * hand-rolling the transaction. The exact scheme is **auth-entry based**:
  *   - The payer signs only the Soroban authorization entry (SEP-43
- *     `signAuthEntry`) — NOT the whole transaction. The transaction source is
+ *     `signAuthEntry`). NOT the whole transaction. The transaction source is
  *     a null account; the facilitator rebuilds it, wraps it in a fee-bump and
  *     submits. (A full-tx signature produces source-account credentials, which
  *     the facilitator rejects with `unsupported_credential_type`.)
- *   - No memo — Soroban transactions can't carry one.
+ *   - No memo. Soroban transactions can't carry one.
  *   - The auth entry's `signatureExpirationLedger` is short (~maxTimeoutSeconds
  *     worth of ledgers); the wallet must honor it, not impose its own.
  *
@@ -42,7 +42,7 @@ export interface PaymentRequirements {
   payTo: string;
   maxTimeoutSeconds: number;
   extra: {
-    /** Required by the exact scheme — the facilitator sponsors the fee. */
+    /** Required by the exact scheme. the facilitator sponsors the fee. */
     areFeesSponsored?: boolean;
     /** Facilitator's published fee signer (informational). */
     sponsorBy?: string;
@@ -88,7 +88,7 @@ function passphraseFor(network: string): NetworksType {
  * but Freighter-style wallets (incl. BARET) take a full
  * `SorobanAuthorizationEntry` and return a signed entry. Passing the preimage
  * to such a wallet fails with `unknown SorobanCredentialsType member for value
- * 9`. The callback hands the wallet the full entry — its native convention.
+ * 9`. The callback hands the wallet the full entry. its native convention.
  *
  * The entry's `signatureExpirationLedger` is set to a short window the
  * facilitator enforces; the wallet must honor it.
@@ -123,7 +123,7 @@ export async function createX402PaymentHeader(
   const pending = tx.needsNonInvokerSigningBy();
   if (!pending.includes(signer.address)) {
     throw new Error(
-      `Payment can't be authorized by your wallet — the transaction needs [${pending.join(", ") || "no one"}], not ${signer.address}.`,
+      `Payment can't be authorized by your wallet. the transaction needs [${pending.join(", ") || "no one"}], not ${signer.address}.`,
     );
   }
 
@@ -162,8 +162,7 @@ export async function createX402PaymentHeader(
 /* ───────── USDC trustline setup ─────────
  *
  * A fresh Stellar account can't hold USDC until it trusts the issuer. Without
- * the trustline the SAC `transfer` aborts with `Error(Contract, #13)` —
- * "trustline entry is missing". These helpers let the Scrybe page detect that
+ * the trustline the SAC `transfer` aborts with `Error(Contract, #13)`.  * "trustline entry is missing". These helpers let the Scrybe page detect that
  * and establish the trustline with a one-tap classic `changeTrust` tx before
  * the user funds via the Circle faucet.
  */

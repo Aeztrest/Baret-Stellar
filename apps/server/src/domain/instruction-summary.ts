@@ -1,5 +1,5 @@
 /**
- * Stellar operation taxonomy — covers both classic ops (`payment`, `path_payment`,
+ * Stellar operation taxonomy. covers both classic ops (`payment`, `path_payment`,
  * `change_trust`…) and Soroban host-fn calls (`InvokeHostFunction` instances we
  * decode further into `soroban_transfer` / `soroban_approve` / etc).
  */

@@ -4,8 +4,8 @@
  * Stellar version: sub-keys are additional ed25519 signers on the user's
  * smart-wallet contract (Passkey Kit + custom allowance contract). The
  * smart wallet exposes:
- *   - `add_signer(signer, allowance)` — register a new signer with caps.
- *   - `remove_signer(signer)` — drop the signer.
+ *   - `add_signer(signer, allowance)`. register a new signer with caps.
+ *   - `remove_signer(signer)`. drop the signer.
  *
  * Both functions return an unsigned preflighted `Transaction` (as XDR) with
  * the main authority as tx source. The sign queue routes them through the
@@ -44,7 +44,7 @@ export interface SubKeyProvisionResult {
  * Build the `add_signer` invocation that registers `subKey` as an
  * additional signer on the user's smart wallet. `allowance` carries the
  * per-merchant caps (max-per-tx, hourly, daily) the contract enforces
- * on-chain — leaving v1 caps wide open and relying on the off-chain policy
+ * on-chain. leaving v1 caps wide open and relying on the off-chain policy
  * gate as a stop-gap until the on-chain caps land.
  */
 export async function buildAddSubKeyTransaction(

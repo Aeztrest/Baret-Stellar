@@ -1,21 +1,20 @@
 /*
- * BARET — Design Tokens (single source of truth)
+ * BARET. Design Tokens (single source of truth)
  * ────────────────────────────────────────────────────────────────────────
  * The visual contract for every surface: apps/extension (popup + options +
  * injected content UI) and apps/showcase. Editing this one file re-skins the
- * entire product — that property is load-bearing, never hardcode a color in a
+ * entire product. that property is load-bearing, never hardcode a color in a
  * component.
  *
- * LOCKED LAYER — the palette. Baret's identity is safety-orange (#FF6B00) as
+ * LOCKED LAYER. the palette. Baret's identity is safety-orange (#FF6B00) as
  * the single accent, ink-black (#141414) type, and near-white / bone surfaces.
  * The hues below are that identity expressed in oklch; do not "improve" them.
  * Signature motif: the Meter (threshold-colored cap bar) + the orange tick.
  *
  * STRUCTURE
  *   1. shadcn/ui token names (background/foreground/card/primary/muted/border/
- *      ring/…) in oklch, light `:root` + dark `.dark`. These are canonical —
- *      new components reference `bg-primary`, `text-muted-foreground`, etc.
- *   2. Baret semantic tokens (ok/warn/bad/live) — risk states need their own
+ *      ring/…) in oklch, light `:root` + dark `.dark`. These are canonical.  *      new components reference `bg-primary`, `text-muted-foreground`, etc.
+ *   2. Baret semantic tokens (ok/warn/bad/live). risk states need their own
  *      differentiation and are NOT the single accent.
  *   3. Legacy aliases (--bg, --text, --accent, --line …) mapped onto the new
  *      tokens so the existing 180+ call sites keep working AND become
@@ -23,17 +22,17 @@
  *   4. Scales: type, spacing, radius, motion, font stacks.
  *
  * The one brand accent is `--primary` (== legacy `--accent`). shadcn neutral
- * hover surfaces use `--secondary` / `--muted`, never the accent — so the
+ * hover surfaces use `--secondary` / `--muted`, never the accent. so the
  * orange stays rare and powerful.
  */
 
-/* ═══════════════════ 1 · shadcn tokens — LIGHT ═══════════════════ */
+/* ═══════════════════ 1 · shadcn tokens. LIGHT ═══════════════════ */
 :root {
   color-scheme: light;
 
   --radius: 0.625rem;
 
-  /* Surfaces — bone canvas, paper cards */
+  /* Surfaces. bone canvas, paper cards */
   --background:          oklch(0.977 0.004 84);   /* bone  #FAF8F4 */
   --foreground:          oklch(0.205 0 0);        /* ink   #141414 */
   --card:                oklch(1 0 0);            /* paper #FFFFFF */
@@ -41,7 +40,7 @@
   --popover:             oklch(1 0 0);
   --popover-foreground:  oklch(0.205 0 0);
 
-  /* The ONE accent — safety orange */
+  /* The ONE accent. safety orange */
   --primary:             oklch(0.702 0.196 42);   /* #FF6B00 */
   --primary-foreground:  oklch(0.985 0 0);
 
@@ -105,7 +104,7 @@
   --grid-line:    oklch(0.205 0 0 / 0.03);
 }
 
-/* ═══════════════════ shadcn tokens — DARK ═══════════════════ */
+/* ═══════════════════ shadcn tokens. DARK ═══════════════════ */
 .dark {
   color-scheme: dark;
 
@@ -136,7 +135,7 @@
 
   --brand:                var(--primary);
 
-  /* Semantic — brighter on black */
+  /* Semantic. brighter on black */
   --ok:        oklch(0.72 0.16 163);
   --ok-dim:    oklch(0.72 0.16 163 / 0.16);
   --warn:      oklch(0.80 0.14 70);

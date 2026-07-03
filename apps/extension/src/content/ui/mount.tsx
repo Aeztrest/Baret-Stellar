@@ -1,16 +1,16 @@
 /**
- * Content-script UI mount — a Shadow-DOM island for Baret's injected overlay.
+ * Content-script UI mount. a Shadow-DOM island for Baret's injected overlay.
  *
  * Why a shadow root: the host page's CSS can't bleed into ours and ours can't
  * leak onto the page. We inject the app's COMPILED Tailwind CSS as a <style>
  * inside the shadow root (MV3-safe: compiled CSS, no inline scripts).
  *
  * Two details that make it actually work:
- *  1. Token scoping — tokens.css declares vars on `:root` / `.dark`, but inside
+ *  1. Token scoping. tokens.css declares vars on `:root` / `.dark`, but inside
  *     a shadow tree `:root` matches nothing. We rewrite those selectors to
  *     `:host` / `:host(.dark)` at inject time, and toggle the `.dark` class on
  *     the shadow HOST (not the inner wrapper) so `:host(.dark)` resolves.
- *  2. Radix portals — Dialog/Popover/Tooltip default to `document.body`, which
+ *  2. Radix portals. Dialog/Popover/Tooltip default to `document.body`, which
  *     is OUTSIDE our shadow root. We provide the in-shadow wrapper as the
  *     PortalContainer so every overlay stays inside the shadow tree and keeps
  *     our styles.

@@ -4,7 +4,7 @@ import { useTheme } from "../lib/theme";
 type ShToasterProps = React.ComponentProps<typeof SonnerToaster>;
 
 /**
- * Baret toaster — sonner styled with our tokens and driven by the shared
+ * Baret toaster. sonner styled with our tokens and driven by the shared
  * theme controller (so a manual dark toggle also flips toasts, not just OS
  * preference). Mount once near the app root, inside <ThemeProvider>.
  */

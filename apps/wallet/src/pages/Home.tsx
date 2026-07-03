@@ -25,19 +25,19 @@ export function Home() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-black font-display text-ink-900 tracking-tight">Welcome back</h1>
-        <p className="text-ink-500 text-sm mt-1">Your wallet is guarded by Baret — every signature is simulated first.</p>
+        <p className="text-ink-500 text-sm mt-1">Your wallet is guarded by Baret. every signature is simulated first.</p>
       </div>
 
-      {/* Balance hero — deliberate dark inspection console on the light page */}
+      {/* Balance hero. deliberate dark inspection console on the light page */}
       <div className="card !bg-ink-900 !border-ink-900 rounded-3xl p-6 relative overflow-hidden">
         <div className="hazard h-1 absolute top-0 left-0 right-0" />
         <p className="text-[10px] uppercase tracking-wider text-accent font-semibold mb-2 mt-1">{balanceLabel}</p>
         <p className="text-5xl font-black font-display text-white">
-          {balance === null ? "—" : balance.toFixed(4)}
+          {balance === null ? ". " : balance.toFixed(4)}
           <span className="text-2xl text-white/40 font-bold ml-2">XLM</span>
         </p>
         <p className="text-xs text-white/40 mt-2">
-          {provisioned ? "Funds held by your smart wallet" : "Send funds to authority — they'll move into the smart wallet on first transaction"}
+          {provisioned ? "Funds held by your smart wallet" : "Send funds to authority. they'll move into the smart wallet on first transaction"}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
@@ -77,7 +77,7 @@ export function Home() {
             <Link to="/history" className="text-xs text-ink-500 hover:text-accent">All →</Link>
           </div>
           {history.length === 0 ? (
-            <p className="text-xs text-ink-400 py-6 text-center">No activity yet — try a Send to see Baret in action.</p>
+            <p className="text-xs text-ink-400 py-6 text-center">No activity yet. try a Send to see Baret in action.</p>
           ) : (
             <ul className="space-y-1.5">
               {history.map((h) => (
@@ -100,7 +100,7 @@ export function Home() {
         </div>
         <div className="flex-1">
           <p className="font-bold text-ink-900 text-sm">Customize your protection</p>
-          <p className="text-xs text-ink-500">Tune every Baret rule — loss caps, program allowlists, approval blocks.</p>
+          <p className="text-xs text-ink-500">Tune every Baret rule. loss caps, program allowlists, approval blocks.</p>
         </div>
         <ArrowRight size={14} className="text-ink-300 group-hover:text-accent transition-colors" />
       </Link>

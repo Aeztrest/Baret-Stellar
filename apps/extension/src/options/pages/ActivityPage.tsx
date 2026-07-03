@@ -1,5 +1,5 @@
 /**
- * Activity page — a plain-language feed of everything the wallet has done:
+ * Activity page. A plain-language feed of everything the wallet has done:
  * dApp connections, signatures, x402 payments, sends/receives, and alerts,
  * each with Baret's verdict and reason. Polls `history.list` so the feed
  * updates itself while open. Lives at /activity in the Options HashRouter.
@@ -51,7 +51,7 @@ export function ActivityPage() {
           Activity
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Every connection, signature, and x402 payment the wallet handled — with the
+          Every connection, signature, and x402 payment the wallet handled, with the
           verdict and the reason behind it. Updates live.
         </p>
       </div>
@@ -89,7 +89,7 @@ export function ActivityPage() {
           <EmptyState
             icon={<Clock size={22} />}
             title="No activity yet"
-            description="Connect to a dApp or sign your first transaction. Every verdict is logged here — including the ones the firewall declines."
+            description="Connect to a dApp or sign your first transaction. Every verdict is logged here, including the ones Baret declines."
           />
         </div>
       )}

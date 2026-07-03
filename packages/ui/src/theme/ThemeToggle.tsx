@@ -14,7 +14,7 @@ const LABEL: Record<ThemeMode, string> = {
 };
 
 /**
- * The house theme control — a single icon button that cycles
+ * The house theme control. a single icon button that cycles
  * system → light → dark. No popup. Reflects the user's chosen `mode`
  * (not the resolved theme) so the icon communicates intent.
  */
@@ -25,7 +25,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={cycle}
-      aria-label={`${LABEL[mode]} — click to change`}
+      aria-label={`${LABEL[mode]}. click to change`}
       title={LABEL[mode]}
       className={cn(
         "inline-grid size-9 place-items-center rounded-md border border-border text-muted-foreground",

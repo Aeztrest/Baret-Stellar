@@ -41,13 +41,13 @@ export function SettingsOpt() {
 
       <Section icon={<Cpu size={14} />} title="Network" className="card p-5">
         <Row label="Network" value={state.network} />
-        <Row label="Horizon" value={HORIZON_BY_NETWORK[state.network] ?? "—"} mono />
+        <Row label="Horizon" value={HORIZON_BY_NETWORK[state.network] ?? "–"} mono />
         <Row label="Wallet protocol" value="Baret smart wallet (Stellar)" />
       </Section>
 
       <Section icon={<KeyRound size={14} />} title="Smart wallet" className="card p-5">
-        <Row label="Smart wallet" value={state.walletAddress ?? "—"} mono link={explorerAddress(state.walletAddress, state.network)} />
-        <Row label="Authority" value={state.authorityAddress ?? "—"} mono link={explorerAddress(state.authorityAddress, state.network)} />
+        <Row label="Smart wallet" value={state.walletAddress ?? "–"} mono link={explorerAddress(state.walletAddress, state.network)} />
+        <Row label="Authority" value={state.authorityAddress ?? "–"} mono link={explorerAddress(state.authorityAddress, state.network)} />
       </Section>
 
       <Section
@@ -57,8 +57,8 @@ export function SettingsOpt() {
         className="card p-5 !bg-[rgba(248,113,113,0.04)] !border-[rgba(248,113,113,0.18)]"
       >
         <p className="text-xs text-text-muted leading-relaxed mb-3">
-          Reset wipes the keypair, policy, and history from this browser. The on-chain account stays —
-          but without the authority key you can't spend from it. <strong className="text-bad">Make sure you've backed up your secret first.</strong>
+          Reset wipes the keypair, policy, and history from this browser. The on-chain account stays,
+          but without the authority key you can't spend from it. <strong className="text-bad">Back up your secret first.</strong>
         </p>
         <Button variant="danger" onClick={onReset} leftIcon={<Trash2 size={13} />}>
           {confirming ? "Click again to confirm reset" : "Reset wallet"}

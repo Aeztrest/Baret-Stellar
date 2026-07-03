@@ -1,5 +1,5 @@
 /**
- * x402 review handler — runs when the inpage interceptor catches a 402
+ * x402 review handler. runs when the inpage interceptor catches a 402
  * response and asks Baret whether to pay.
  *
  * Pipeline (Stellar build):
@@ -203,8 +203,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   }
 
   // 7. Sign. Everything above already enforced the user's policy + caps + the
-  // per-merchant allowance, so by default we AUTO-APPROVE in the background —
-  // the agentic-payments flow: micropayments settle without a popup, the caps
+  // per-merchant allowance, so by default we AUTO-APPROVE in the background.   // the agentic-payments flow: micropayments settle without a popup, the caps
   // are the firewall. Set `x402AutoApprove: false` (Strict) to confirm each.
   const payTo = requirements.payTo;
   let signedTxXdr: string;
@@ -229,7 +228,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
       origin,
       summary: `Auto-paid x402 · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`,
       decision: "allow",
-      reasons: ["Within policy caps — auto-approved"],
+      reasons: ["Within policy caps. auto-approved"],
       broadcast: false,
       createdAt: Date.now(),
     });
@@ -261,7 +260,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   };
   const headerValue = btoa(JSON.stringify(paymentPayload));
 
-  // 9. Increment allowance ledger (optimistic — drift catches non-settlement).
+  // 9. Increment allowance ledger (optimistic. drift catches non-settlement).
   await recordHit(allowanceId, amountUi);
 
   return { action: "approve", headerValue };

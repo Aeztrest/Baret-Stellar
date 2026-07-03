@@ -2,7 +2,7 @@
  * First-run onboarding wizard. 8 steps.
  * Spec: docs/wallet-spec.md §9.
  *
- * Production-grade UX — every screen has one purpose, one CTA, plain copy.
+ * Production-grade UX. Every screen has one purpose, one CTA, plain copy.
  * Generates the wallet, secures it under a passphrase, funds the authority,
  * provisions the smart wallet on-chain, and saves the chosen policy.
  */
@@ -64,7 +64,7 @@ export function Onboarding() {
       const res = await rpc.call("wallet.create", { passphrase, network: "testnet" });
       setAuthorityAddress(res.authorityAddress);
       setWalletAddress(res.walletAddress);
-      // Pull the secret for the backup screen — only available right after creation.
+      // Pull the secret for the backup screen. Only available right after creation.
       const sec = await rpc.call("wallet.exportSecret", { passphrase, format: "base58" });
       setSecret(sec.secret);
       setStep(4);
@@ -118,7 +118,7 @@ export function Onboarding() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
-      {/* Top bar — progress segments */}
+      {/* Top bar, progress segments */}
       <div className="border-b border-line">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
           <div className="text-accent-soft"><Mark size={20} /></div>
@@ -214,18 +214,18 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
           <ShieldCheck size={26} />
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
-          A wallet that watches what happens<br />after you sign.
+          A wallet that reads the transaction<br />before you sign it.
         </h1>
         <p className="text-text-muted max-w-md mx-auto leading-relaxed">
-          Every transaction simulated first, every grant tracked over time, every misuse caught the moment it leaves.
+          Baret reads it first. It tells you what the transaction does, then blocks the dangerous ones before your keys move.
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2.5 max-w-xl mx-auto">
         {[
-          { Icon: ShieldCheck, title: "Pre-flight", body: "Sim before sign, every time." },
-          { Icon: KeyRound,   title: "Your rules", body: "You set the policy. Always." },
-          { Icon: Sparkles,   title: "Live watch", body: "We see drift before you do." },
+          { Icon: ShieldCheck, title: "Reads it", body: "Every transaction, before you sign." },
+          { Icon: KeyRound,   title: "Caps it", body: "A running cap on what each site spends." },
+          { Icon: Sparkles,   title: "Holds it", body: "Agent x402 payments stay capped, on-chain." },
         ].map(({ Icon, title, body }) => (
           <div key={title} className="card !p-4 text-left">
             <Icon size={14} className="text-accent-soft mb-2" />
@@ -441,7 +441,7 @@ function StepFund({
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-text-faint">Balance</span>
-          <span className="font-mono">{balance === null ? "—" : `${balance.toFixed(4)} XLM`}</span>
+          <span className="font-mono">{balance === null ? "–" : `${balance.toFixed(4)} XLM`}</span>
         </div>
       </div>
 
@@ -455,7 +455,7 @@ function StepFund({
       </div>
 
       <p className="text-[11px] text-text-faint text-center">
-        Faucet rate-limited? Friendbot funds testnet accounts — open <a href="https://laboratory.stellar.org/#account-creator?network=test" target="_blank" rel="noreferrer"
+        Faucet rate-limited? Friendbot funds testnet accounts. Open <a href="https://laboratory.stellar.org/#account-creator?network=test" target="_blank" rel="noreferrer"
            className="text-accent-soft hover:text-text">the Stellar Laboratory</a>.
       </p>
     </div>

@@ -85,7 +85,7 @@ export function SidebarOpt() {
           <ThemeToggle className="size-9 shrink-0" />
         </div>
         <p className="text-[10px] text-text-faint px-3 py-2 leading-relaxed">
-          Every signature passes through Baret before your keys are touched.
+          Every signature passes through Baret before your keys sign.
         </p>
       </div>
     </aside>

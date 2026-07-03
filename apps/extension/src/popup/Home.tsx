@@ -111,20 +111,20 @@ export function Home() {
             <BalanceRow
               asset="XLM"
               hint="network fees"
-              value={balance === null ? "—" : balance.toFixed(4)}
+              value={balance === null ? "–" : balance.toFixed(4)}
             />
             <div style={{ borderTop: "1px solid var(--line)" }} />
             <BalanceRow
               asset="USDC"
               hint="x402 payments"
-              value={usdc === null ? (hasUsdcTrustline ? "0.0000" : "—") : usdc.toFixed(4)}
+              value={usdc === null ? (hasUsdcTrustline ? "0.0000" : "–") : usdc.toFixed(4)}
               warn={!hasUsdcTrustline}
             />
           </div>
 
           {!hasUsdcTrustline && (
             <p className="text-[11px] mt-2.5" style={{ color: "var(--warn)" }}>
-              No USDC trustline yet — add USDC to pay on x402.
+              No USDC trustline yet. Add USDC to pay on x402.
             </p>
           )}
 
@@ -184,7 +184,7 @@ export function Home() {
           <EmptyState
             icon={<Shield size={16} />}
             title="No active grants yet"
-            description="When you authorize a merchant or x402 service, its rolling cap shows up here — live."
+            description="Authorize a merchant or x402 service and its cap shows up here, counting up live as it spends."
           />
         ) : (
           busiestGrant && (

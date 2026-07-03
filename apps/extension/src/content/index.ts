@@ -1,5 +1,5 @@
 /**
- * Content script — runs in the page's ISOLATED world at document_start.
+ * Content script. runs in the page's ISOLATED world at document_start.
  *
  * Two jobs:
  * 1. Inject the inpage script as a <script> element so it executes in MAIN
@@ -34,7 +34,7 @@ function isPageReq(d: unknown): d is PageReq {
   try {
     if (sessionStorage.getItem("baret-overlay-dismissed") === "1") return;
   } catch {
-    /* sessionStorage may be blocked on some origins — mount anyway */
+    /* sessionStorage may be blocked on some origins. mount anyway */
   }
   const run = () => mountBaretOverlay();
   if (document.readyState === "loading") {
@@ -49,7 +49,7 @@ function isPageReq(d: unknown): d is PageReq {
 (function injectInpage() {
   try {
     // Load the bundled inpage entry (stable filename, emitted by vite rollupOptions).
-    // The raw TS source can't be loaded directly — its bare module specifiers
+    // The raw TS source can't be loaded directly. its bare module specifiers
     // (e.g. "@wallet-standard/wallet") don't resolve in the browser.
     const url = browser.runtime.getURL("inpage.js");
     const script = document.createElement("script");

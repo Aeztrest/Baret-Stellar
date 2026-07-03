@@ -54,7 +54,7 @@ export function createDeltagX402(config: AppConfig): BaretX402 {
     url: config.x402.facilitatorUrl,
   });
 
-  // Generic registration API — `register(network, scheme)` lets us plug the
+  // Generic registration API. `register(network, scheme)` lets us plug the
   // Stellar implementation into the x402ResourceServer. The scheme handles
   // the chain-specific shape of `accepts`.
   const resourceServer = new x402ResourceServer(facilitator).register(

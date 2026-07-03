@@ -1,5 +1,5 @@
 /**
- * Receive overlay — shows the authority address as a copyable string + QR.
+ * Receive overlay. Shows the authority address as a copyable string plus QR.
  * Freighter-style. Address is what other wallets send XLM / Stellar assets to.
  *
  * Sent in popup overlay mode by Home.tsx.

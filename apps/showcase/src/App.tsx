@@ -15,18 +15,18 @@ import { WalletProvider } from "./wallet/context";
 
 /** Per-route <title> + meta description for a share-friendly SPA. */
 const ROUTE_META: Record<string, { title: string; description: string }> = {
-  "/": { title: "Baret — Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, rug pull, or agent drift live on Stellar testnet." },
-  "/showcase": { title: "Baret — Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, rug pull, or agent drift live on Stellar testnet." },
-  "/home": { title: "Baret — Sign safe. Build on. | Stellar smart wallet", description: "The hard hat for your Stellar wallet — every transaction simulated, explained, and blocked when dangerous, before your keys ever sign." },
-  "/docs": { title: "Baret — Docs", description: "Design notes, architecture, and the policy DSL behind Baret's transaction firewall." },
-  "/agents": { title: "Baret — Agents | Pre-sign firewall for program wallets", description: "The AgentWallet SDK and CLI: analyze, sign, and submit with a firewall in front of every agent signature." },
-  "/install": { title: "Baret — Install the wallet", description: "One-click install for Chrome, Brave, Edge, and Firefox with step-by-step load-unpacked guidance." },
-  "/scrybe": { title: "Scrybe — Pay-per-question oracle on x402", description: "A real x402 paywall on Stellar testnet: ask a question, pay ~$0.001 USDC, watch on-chain settlement." },
-  "/novaswap": { title: "NovaSwap — DeFi swap demo | Baret", description: "A production-looking Stellar DEX that hides a fund-drain attack. See Baret catch it before you sign." },
-  "/pixeldrop": { title: "PixelDrop — NFT mint demo | Baret", description: "An NFT mint that hides a wallet drainer. See Baret catch it before you sign." },
-  "/orbityield": { title: "OrbitYield — Liquid staking demo | Baret", description: "A liquid-staking site routing to an unverified pool. See Baret catch it before you sign." },
-  "/claimhub": { title: "ClaimHub — Airdrop claim demo | Baret", description: "An airdrop claim that hides a phishing approval. See Baret catch it before you sign." },
-  "/launchpad": { title: "LaunchPad — Token launch demo | Baret", description: "A token launch with a rug-pull pattern. See Baret catch it before you sign." },
+  "/": { title: "Baret Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, a rug pull, or agent drift, live on Stellar testnet." },
+  "/showcase": { title: "Baret Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, a rug pull, or agent drift, live on Stellar testnet." },
+  "/home": { title: "Baret | Read the transaction before you sign it", description: "Baret reads every Stellar transaction before your keys move. It decodes it, simulates what it does, and blocks the dangerous ones." },
+  "/docs": { title: "Baret Docs", description: "Design notes, architecture, and the policy DSL behind Baret's transaction firewall." },
+  "/agents": { title: "Baret Agents | A firewall in front of every agent signature", description: "The AgentWallet SDK and CLI. Analyze, sign, and submit with a firewall that checks every transaction before the key signs." },
+  "/install": { title: "Install Baret", description: "One-click install for Chrome, Brave, Edge, and Firefox, with step-by-step load-unpacked guidance." },
+  "/scrybe": { title: "Scrybe | Pay-per-question oracle on x402", description: "A real x402 paywall on Stellar testnet. Ask a question, pay about $0.001 USDC, and watch it settle on-chain." },
+  "/novaswap": { title: "NovaSwap, a DeFi swap demo | Baret", description: "A Stellar DEX that looks real and hides a fund-drain attack. Watch Baret catch it before you sign." },
+  "/pixeldrop": { title: "PixelDrop, an NFT mint demo | Baret", description: "An NFT mint that hides a wallet drainer. Watch Baret catch it before you sign." },
+  "/orbityield": { title: "OrbitYield, a liquid staking demo | Baret", description: "A liquid-staking site that routes to an unverified pool. Watch Baret catch it before you sign." },
+  "/claimhub": { title: "ClaimHub, an airdrop claim demo | Baret", description: "An airdrop claim that hides a phishing approval. Watch Baret catch it before you sign." },
+  "/launchpad": { title: "LaunchPad, a token launch demo | Baret", description: "A token launch with a rug-pull pattern. Watch Baret catch it before you sign." },
 };
 const DEFAULT_META = ROUTE_META["/home"]!;
 

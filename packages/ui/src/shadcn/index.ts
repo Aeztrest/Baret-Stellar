@@ -1,5 +1,5 @@
 /**
- * Baret's shadcn/ui layer — Radix primitives + Tailwind, copy-in source we
+ * Baret's shadcn/ui layer. Radix primitives + Tailwind, copy-in source we
  * own and edit freely. Exported under the `Sh*` prefix so they coexist with
  * Baret's higher-level product primitives (Button, Card, …) during migration.
  * Neutral hover surfaces use `secondary`/`muted`, never the brand accent.

@@ -1,11 +1,11 @@
 /**
- * Wallet Standard handlers — the dApp-facing surface (Stellar build).
+ * Wallet Standard handlers. the dApp-facing surface (Stellar build).
  *
  * `ws.connect` / `ws.disconnect` resolve immediately (no popup) when the
  * wallet is unlocked. Sign methods enqueue a sign request and wait for the
  * popup to call `tx.sign` with an accept verdict.
  *
- * The transport is XDR strings (base64) — handlers never see plain bytes.
+ * The transport is XDR strings (base64). handlers never see plain bytes.
  */
 
 import {
@@ -77,12 +77,12 @@ export const wsConnect: WsHandler = async (raw) => {
   const s = getState();
   if (s.phase === "uninitialized") {
     throw new Error(
-      "Baret wallet not initialized — open the wallet to set it up first.",
+      "Baret wallet not initialized. open the wallet to set it up first.",
     );
   }
   if (s.phase === "locked") {
     throw new Error(
-      "Baret wallet is locked — open the wallet to unlock it first.",
+      "Baret wallet is locked. open the wallet to unlock it first.",
     );
   }
   if (!s.walletAddress || !s.authorityAddress) {
@@ -176,7 +176,7 @@ export const wsIsConnected: WsHandler = async (raw) => {
 export const wsGetAddress: WsHandler = async (_raw) => {
   const s = getState();
   if (!s.authorityAddress)
-    throw new Error("Wallet not ready — no authority address.");
+    throw new Error("Wallet not ready. no authority address.");
   return { authorityAddress: s.authorityAddress };
 };
 
@@ -188,7 +188,7 @@ export const wsGetNetwork: WsHandler = async (_raw) => {
   };
 };
 
-/* ────────────── Sign methods — queue + popup ────────────── */
+/* ────────────── Sign methods. queue + popup ────────────── */
 
 function queueAndWait(
   kind: SignKind,
@@ -252,11 +252,11 @@ export const wsSignAuthEntry: WsHandler = async (raw) => {
 
   // x402 agentic-payments path: dApps that implement the exact scheme client-
   // side (e.g. the Scrybe showcase) ask the wallet to sign the Soroban AUTH
-  // ENTRY directly — they never trip the fetch-interceptor that routes through
+  // ENTRY directly. they never trip the fetch-interceptor that routes through
   // `x402.review`, so the user's `x402AutoApprove` policy would otherwise be
   // ignored and every micropayment would pop a confirmation. Mirror the review
   // pipeline here: if the entry is a SAC `transfer` from our own account and it
-  // sits inside the user's x402 policy + caps, sign in the background — no
+  // sits inside the user's x402 policy + caps, sign in the background. no
   // popup. Strict mode, an unrecognized entry, or anything outside the caps
   // falls through to the manual confirmation below (the safe default).
   if (isUnlocked()) {
@@ -292,12 +292,12 @@ export const wsSignAuthEntry: WsHandler = async (raw) => {
 /**
  * The SAC `transfer(from, to, amount)` an x402 payment authorizes, parsed out
  * of a Soroban authorization entry. Returns null when the entry isn't a
- * recognizable token transfer — the caller then defers to manual confirmation.
+ * recognizable token transfer. the caller then defers to manual confirmation.
  */
 interface TransferIntent {
-  /** Token contract (`C…`) — the x402 `asset`. */
+  /** Token contract (`C…`). the x402 `asset`. */
   contract: string;
-  /** Payer (`G…`/`C…`) — must be our own account to auto-approve. */
+  /** Payer (`G…`/`C…`). must be our own account to auto-approve. */
   from: string;
   /** Merchant (`G…`/`C…`). */
   to: string;
@@ -353,7 +353,7 @@ async function tryAutoApproveX402AuthEntry(
   if (policy.x402AutoApprove === false) return null;
 
   const intent = parseTransferAuthEntry(authEntryXdr);
-  if (!intent) return null; // Not a token transfer — let the user review it.
+  if (!intent) return null; // Not a token transfer. let the user review it.
 
   // Only auto-sign payments leaving our own account.
   const authority = useAuthority();
@@ -417,7 +417,7 @@ async function tryAutoApproveX402AuthEntry(
     origin,
     summary: `Auto-paid x402 · ${amountUi.toFixed(6)} → ${intent.to.slice(0, 6)}…${intent.to.slice(-4)}`,
     decision: "allow",
-    reasons: ["Within policy caps — auto-approved"],
+    reasons: ["Within policy caps. auto-approved"],
     broadcast: false,
     createdAt: Date.now(),
   });
@@ -449,7 +449,7 @@ async function deriveValidUntilLedger(): Promise<number> {
     const head = latest.records[0]?.sequence ?? 0;
     return Number(head) + 720; // ≈ 1 hour buffer
   } catch {
-    // Fallback if Horizon is unreachable — caller's auth-entry may simply fail
+    // Fallback if Horizon is unreachable. caller's auth-entry may simply fail
     // to verify if it lands after expiry; the user can re-sign.
     return 9_999_999;
   }
@@ -459,7 +459,7 @@ async function deriveValidUntilLedger(): Promise<number> {
 
 /**
  * Signs a payload. When `signerPubkey` is set, uses the per-merchant sub-key
- * from cache instead of the main authority — gives compromise of one
+ * from cache instead of the main authority. gives compromise of one
  * merchant's sub-key zero blast radius beyond that merchant.
  */
 export async function performSign(
@@ -489,7 +489,7 @@ export async function performSign(
     );
     // SEP-43: honor an expiration the dApp already baked into the entry. The
     // x402 exact scheme sets a short `signatureExpirationLedger` that the
-    // facilitator enforces (`signature_expiration_too_far`) — overriding it
+    // facilitator enforces (`signature_expiration_too_far`). overriding it
     // with our own ~1h default would make every x402 payment fail to verify.
     // Only fall back to the derived ledger when the entry left it unset (0).
     const passphrase = getNetworkPassphrase();

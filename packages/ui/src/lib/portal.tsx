@@ -5,7 +5,7 @@
  * `document.body` by default. Inside the extension's content-script UI that
  * lands OUTSIDE our Shadow DOM and renders unstyled/mispositioned. Every
  * shadcn overlay in this package reads `usePortalContainer()` and passes it to
- * its Radix `*Portal container={…}` — so in the popup/options/web it stays
+ * its Radix `*Portal container={…}`. so in the popup/options/web it stays
  * undefined (normal `document.body` behavior) and in the content script we
  * provide the shadow root and overlays stay inside it, fully styled.
  */

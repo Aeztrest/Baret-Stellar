@@ -1,5 +1,5 @@
 /**
- * Scroll-reveal primitives — the house motion pattern.
+ * Scroll-reveal primitives. the house motion pattern.
  *
  * Content fades in with a small rise the first time it scrolls into view
  * (once), fast and inevitable. `RevealGroup` staggers its children. Both

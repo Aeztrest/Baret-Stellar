@@ -6,7 +6,7 @@ export interface StatTileProps {
   value: ReactNode;
   suffix?: string;
   icon?: ReactNode;
-  /** "display" for statement-style counts (25+, 6, 3) — "mono" for tabular financial/data figures. */
+  /** "display" for statement-style counts (25+, 6, 3). "mono" for tabular financial/data figures. */
   variant?: "display" | "mono";
   className?: string;
 }

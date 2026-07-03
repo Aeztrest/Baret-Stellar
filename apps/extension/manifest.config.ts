@@ -14,10 +14,10 @@ export default defineManifest(({ mode }) => {
 
   return {
     manifest_version: 3,
-    name: "Baret — Smart Wallet",
+    name: "Baret Smart Wallet",
     short_name: "Baret",
     version: pkg.version,
-    description: "The hard hat for your Stellar wallet — every transaction simulated, explained, and blocked when dangerous.",
+    description: "The Stellar wallet that reads every transaction before you sign, tells you what it does, and blocks the dangerous ones.",
 
     icons: {
       "16":  "icons/16.png",
@@ -64,7 +64,7 @@ export default defineManifest(({ mode }) => {
       },
     ],
 
-    // `windows` is required for `browser.windows.create()` — opening the
+    // `windows` is required for `browser.windows.create()`, opening the
     // BARET popup as a focused window when a dApp queues a sign or
     // connect request, so the user doesn't have to manually click the
     // extension icon. MV3 disallows programmatic `chrome.action.openPopup()`,
@@ -72,11 +72,11 @@ export default defineManifest(({ mode }) => {
     permissions: ["storage", "alarms", "notifications", "windows"],
 
     host_permissions: [
-      // Stellar testnet — Horizon classic + Soroban RPC + friendbot.
+      // Stellar testnet: Horizon classic + Soroban RPC + friendbot.
       "https://horizon-testnet.stellar.org/*",
       "https://soroban-testnet.stellar.org/*",
       "https://friendbot.stellar.org/*",
-      // Stellar pubnet — Horizon + a public Soroban RPC.
+      // Stellar pubnet: Horizon + a public Soroban RPC.
       "https://horizon.stellar.org/*",
       "https://soroban-rpc.creit.tech/*",
       // x402 facilitator (Built-on-Stellar / Coinbase CDP).

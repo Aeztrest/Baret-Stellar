@@ -2,7 +2,7 @@
  * Options home dashboard (Stellar build).
  *
  * Live-polls authority + smart-wallet balances every 8 seconds. Until the
- * smart-wallet contract is provisioned, the authority key IS the wallet — we
+ * smart-wallet contract is provisioned, the authority key IS the wallet, so we
  * surface its balance in the hero so the user always sees a real number.
  */
 
@@ -64,7 +64,7 @@ export function HomeOpt() {
         setAuthBal(Number(r.stroops) / STROOPS_PER_XLM);
       }
     } catch {
-      /* ignore — UI shows last known */
+      /* ignore, UI shows last known */
     }
   }, [state, rpc]);
 
@@ -127,14 +127,14 @@ export function HomeOpt() {
           {heroLabel} · {shortAddr(heroAddress, { lead: 6, tail: 6 })}
         </p>
         <p className="text-5xl font-extrabold leading-none font-mono tracking-tight">
-          {heroBalance === null ? "—" : heroBalance.toFixed(4)}
+          {heroBalance === null ? "–" : heroBalance.toFixed(4)}
           <span className="text-2xl text-text-faint font-bold ml-2">XLM</span>
         </p>
         <p className="text-text-faint text-xs mt-2">
           {state.walletAddress
             ? walletBal && walletBal > 0
               ? "Funds available in your smart-wallet contract."
-              : "Smart wallet empty — receive XLM or move some from your authority."
+              : "Smart wallet empty. Receive XLM or move some from your authority key."
             : "Provision the smart-wallet contract from Settings to upgrade (Passkey sub-keys, x402 allowances)."}
         </p>
 
@@ -244,7 +244,7 @@ export function HomeOpt() {
           <p className="text-text-faint text-xs">
             Signs auth entries + tx envelopes on your behalf. Balance:{" "}
             <span className="font-mono text-text-muted">
-              {authBal === null ? "—" : `${authBal.toFixed(4)} XLM`}
+              {authBal === null ? "–" : `${authBal.toFixed(4)} XLM`}
             </span>
             .
           </p>
@@ -289,7 +289,7 @@ function PolicySummary({ policy }: { policy: GuardPolicy | null }) {
   const rows: Array<[string, string]> = [
     [
       "Max loss per tx",
-      policy.maxLossPercent != null ? `${policy.maxLossPercent}%` : "—",
+      policy.maxLossPercent != null ? `${policy.maxLossPercent}%` : "–",
     ],
     ["Block risky contracts", policy.blockRiskyContracts ? "On" : "Off"],
     ["Block Soroban allowances", policy.blockSorobanAllowanceGrants ? "On" : "Off"],
@@ -301,7 +301,7 @@ function PolicySummary({ policy }: { policy: GuardPolicy | null }) {
       "x402 hourly cap",
       policy.x402HourlyCap != null
         ? `$${policy.x402HourlyCap.toFixed(2)}`
-        : "—",
+        : "–",
     ],
   ];
   return (

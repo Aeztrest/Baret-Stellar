@@ -1,5 +1,5 @@
 /**
- * @stellar-thorn/agent-guard — pre-sign transaction firewall for autonomous
+ * @stellar-thorn/agent-guard. pre-sign transaction firewall for autonomous
  * agent & program wallets.
  *
  * Single entry point: construct an AgentWallet, then evaluate / guardedSign /

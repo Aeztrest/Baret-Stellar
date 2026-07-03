@@ -25,7 +25,7 @@ import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
 
 const THEME = {
-  primary: "#7c3aed", // violet-600 — reads on light + dark
+  primary: "#7c3aed", // violet-600, reads on light + dark
   accent: "#3b82f6", // blue-500
   name: "ClaimHub",
   logo: (
@@ -149,9 +149,9 @@ export default function ClaimHub() {
       }
     }
   }
-  // "Without protection" — a genuinely different wallet (Freighter) signs the
-  // same scenario over its own key and submits straight to Horizon; Baret's
-  // connected account can only ever be signed by Baret, by design.
+  // The "without protection" path: a genuinely different wallet (Freighter)
+  // signs the same scenario over its own key and submits straight to Horizon.
+  // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
     try {
@@ -169,7 +169,7 @@ export default function ClaimHub() {
     }
   }
 
-  // Soft glassy card — reads on both themes.
+  // Soft glassy card, reads on both themes.
   const panel =
     "rounded-2xl border backdrop-blur-xl bg-white/80 border-violet-200/70 shadow-[0_8px_30px_-12px_rgba(124,58,237,0.22)] dark:bg-white/[0.04] dark:border-violet-500/20 dark:shadow-[0_0_40px_-14px_rgba(124,58,237,0.35)]";
 
@@ -222,7 +222,7 @@ export default function ClaimHub() {
                 Stellar Airdrop
               </span>
             </h1>
-            <p className="mx-auto max-w-md text-neutral-600 dark:text-neutral-400">Community distribution — check if your wallet is eligible for the Stellar ecosystem reward program.</p>
+            <p className="mx-auto max-w-md text-neutral-600 dark:text-neutral-400">The community reward program is live. Check whether your wallet qualifies for an allocation.</p>
           </motion.div>
 
           {/* Program stats bar */}
@@ -264,7 +264,7 @@ export default function ClaimHub() {
               />
             </div>
             <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
-              Claim window closes in 14 days 06 hours — unclaimed tokens return to the DAO treasury.
+              Claim window closes in 14 days 06 hours. Unclaimed tokens return to the DAO treasury.
             </p>
           </motion.div>
 
@@ -406,7 +406,7 @@ export default function ClaimHub() {
                 { icon: Wallet, label: "Connect your wallet", detail: "Link the wallet that qualifies", done: connected },
                 { icon: CheckCircle, label: "Verify eligibility", detail: "Confirm your allocation on-chain", done: checked },
                 { icon: Gift, label: "Claim your tokens", detail: "Sign the claim transaction", done: success },
-                { icon: Award, label: "Stake for bonus APR", detail: "Optional — earn on vested tokens", done: false },
+                { icon: Award, label: "Stake for bonus APR", detail: "Optional, earn on vested tokens", done: false },
               ].map(({ icon: Icon, label, detail, done }) => (
                 <div key={label} className="flex items-center gap-3 p-3">
                   <span

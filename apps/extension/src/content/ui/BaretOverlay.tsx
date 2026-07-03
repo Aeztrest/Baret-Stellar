@@ -1,5 +1,5 @@
 /**
- * Baret's injected page overlay — a quiet corner indicator that Baret is
+ * Baret's injected page overlay. a quiet corner indicator that Baret is
  * guarding signatures on this origin. Unobtrusive, dismissible, theme-aware.
  *
  * It exercises the full content-script pattern: rendered inside a Shadow DOM,

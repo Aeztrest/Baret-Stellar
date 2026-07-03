@@ -1,10 +1,10 @@
 /**
- * Sites page — per-origin overview of every dApp / x402 paywall the wallet
+ * Sites page. Per-origin overview of every dApp / x402 paywall the wallet
  * has interacted with. Lives at /sites in the Options HashRouter.
  *
  * No mock data. Origins are pulled from two real sources:
- *   1. `ledger.list` — origins that have an active/paused/revoked allowance row
- *   2. `history.list` — origins recorded via wsConnect's history append
+ *   1. `ledger.list`, origins that have an active/paused/revoked allowance row
+ *   2. `history.list`, origins recorded via wsConnect's history append
  *
  * Click a card → drills into /sites/:b64 (SiteDetailPage) with full controls.
  */
@@ -131,7 +131,7 @@ export function SitesPage() {
           <EmptyState
             icon={<Globe size={22} />}
             title="No sites yet"
-            description="Connect to a dApp or visit an x402 paywall and the wallet will start tracking it here — then you can pause, revoke, or set per-origin policy."
+            description="Connect to a dApp or visit an x402 paywall. The wallet starts tracking it here, so you can pause, revoke, or set per-origin policy."
           />
         </div>
       )}

@@ -2,7 +2,7 @@
  * Programmatic popup launcher.
  *
  * Chrome MV3 disallows `chrome.action.openPopup()` from background contexts
- * without a user gesture — so when a dApp queues a sign / connect request
+ * without a user gesture. so when a dApp queues a sign / connect request
  * we open the popup HTML in a small focused window instead. Freighter uses
  * the same trick.
  *
@@ -60,11 +60,11 @@ export async function closePopupWindow(): Promise<void> {
   try {
     await browser.windows.remove(id);
   } catch {
-    // Already closed by the user — nothing to do.
+    // Already closed by the user. nothing to do.
   }
 }
 
-/** Wallet locked / session reset — drop the cached id so the next sign request opens fresh. */
+/** Wallet locked / session reset. drop the cached id so the next sign request opens fresh. */
 export function resetPopupWindow(): void {
   currentPopupWindowId = null;
 }

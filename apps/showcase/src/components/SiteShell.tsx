@@ -1,5 +1,5 @@
 /**
- * SiteShell — common chrome (nav + content slot + Baret badge) shared by every
+ * SiteShell. common chrome (nav + content slot + Baret badge) shared by every
  * showcase dApp site. Each fake dApp keeps its OWN accent (`theme.primary`) and
  * its own full-bleed canvas (set inside its content), so the showcase reads as a
  * family of distinct-looking third-party apps that Baret inspects. Dark/light

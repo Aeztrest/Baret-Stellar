@@ -1,9 +1,9 @@
 /**
- * "The Wedge" — the section that has to do the one job the rest of the site
+ * "The Wedge", the section that has to do the one job the rest of the site
  * only gestured at: explain, explicitly, that x402 is a STATELESS payment
- * protocol (no allowance object, no revoke endpoint, no spend cap — by
- * design) and that Baret is a STATEFUL control-plane layer bolted on top of
- * it, not the protocol itself. Content sourced from docs/x402-defense.md.
+ * protocol (no allowance object, no revoke endpoint, no spend cap, all by
+ * design) and that Baret is a STATEFUL control-plane layer on top of it, not
+ * the protocol itself. Content sourced from docs/x402-defense.md.
  */
 
 import { ArrowDown, KeyRound, Layers, ShieldAlert } from "lucide-react";
@@ -16,18 +16,18 @@ const TRACK_STEPS = ["402 Challenge", "Sign", "Pay", "Settle"];
 const CALLOUTS = [
   {
     icon: Layers,
-    gap: "Silent agent drift — an agent re-signs N micro-payments per minute; the protocol has no allowance object, so there's no aggregate view.",
-    response: "Rolling per-merchant caps (hour/day). Every signature decrements a real number. Cap hit → block.",
+    gap: "Silent agent drift. An agent re-signs micro-payments every minute. The protocol has no allowance object, so nothing shows the running total.",
+    response: "Rolling per-merchant caps by the hour and the day. Every signature spends down a real number. Hit the cap and Baret blocks the next one.",
   },
   {
     icon: ShieldAlert,
-    gap: "Look-alike asset swap — a merchant publishes an “USDC” that isn't the canonical issuer; the spec only checks the asset field matches, not which issuer is real.",
-    response: "Wallet-side asset allow-list seeded with network-canonical USDC. Unknown issuers require explicit override.",
+    gap: "Look-alike asset swap. A merchant serves a token labeled USDC from the wrong issuer. The spec checks that the asset field matches, not which issuer is real.",
+    response: "A wallet-side asset allowlist seeded with the network-canonical USDC. Unknown issuers need an explicit override before you sign.",
   },
   {
     icon: KeyRound,
-    gap: "Authority key compromise — if the signing key leaks, x402 has no per-merchant scope to contain the blast radius.",
-    response: "Per-merchant scoped sub-key. A compromised key drains only that merchant's remaining cap. One-tap on-chain revoke.",
+    gap: "Authority key compromise. If the signing key leaks, x402 has no per-merchant scope to limit the damage.",
+    response: "A per-merchant scoped sub-key. A leaked key drains only that merchant's remaining cap, and you revoke it on-chain with one tap.",
   },
 ];
 
@@ -42,12 +42,12 @@ export function ProtocolWedge() {
               x402 is stateless. Baret isn't.
             </h2>
             <p className="leading-relaxed text-muted-foreground">
-              x402 — the agentic-payment protocol now live on Stellar — is, by design, a{" "}
-              <strong className="text-foreground">stateless</strong> challenge/pay/settle handshake. Every
-              payment is a fresh signed transfer: no allowance object, no revoke endpoint, no spend cap
-              baked into the protocol itself. Baret is not the protocol — it's a{" "}
-              <strong className="text-foreground">stateful control-plane</strong> that sits on top of it,
-              adding exactly the safety primitives x402 omits on purpose.
+              x402 is the agentic-payment protocol now live on Stellar. By design it's a{" "}
+              <strong className="text-foreground">stateless</strong> challenge, pay, settle handshake.
+              Every payment is a fresh signed transfer. No allowance object, no revoke endpoint, no spend
+              cap in the protocol itself. Baret isn't the protocol. It's a{" "}
+              <strong className="text-foreground">stateful control plane</strong> on top of it, and it
+              adds the caps x402 leaves out on purpose.
             </p>
           </div>
         </Reveal>
@@ -136,7 +136,7 @@ function TrackWithGuard({ steps, note }: { steps: string[]; note: string }) {
       <p className="text-xs leading-relaxed text-muted-foreground">{note}</p>
       <div className="pt-1">
         <Meter
-          label="scrybe.baret.dev — daily cap"
+          label="scrybe.baret.dev daily cap"
           value={0.7}
           max={1.0}
           formatValue={(v, m) => `${v.toFixed(2)} / ${m.toFixed(2)} USDC`}

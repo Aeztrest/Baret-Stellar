@@ -9,7 +9,7 @@ const BASE_URL = (import.meta.env.VITE_BARET_BASE_URL as string | undefined) ?? 
 
 /**
  * Bearer key for the analyze endpoint. The default matches the dev server's
- * DELTAG_API_KEYS=dev-key-change-me — production deployments should override.
+ * DELTAG_API_KEYS=dev-key-change-me. production deployments should override.
  */
 const API_KEY = (import.meta.env.VITE_BARET_API_KEY as string | undefined) ?? "dev-key-change-me";
 

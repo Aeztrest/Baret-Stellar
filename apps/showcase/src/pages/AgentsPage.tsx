@@ -1,11 +1,11 @@
 /**
- * /agents — control page for the agent / program-wallet guard.
+ * /agents, the control page for the agent and program-wallet guard.
  *
  * Explains, in plain terms, how an autonomous agent routes every transaction
- * through Baret BEFORE signing — the same firewall the wallet uses, delivered
- * as the @stellar-thorn/agent-guard SDK + `baret` CLI. Includes a live
- * playground (real /v1/analyze call) and a live audit monitor scoped to the
- * agent addresses you enter.
+ * through Baret BEFORE signing. It's the same firewall the wallet uses,
+ * delivered as the @stellar-thorn/agent-guard SDK and `baret` CLI. Includes a
+ * live playground (real /v1/analyze call) and a live audit monitor scoped to
+ * the agent addresses you enter.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -94,11 +94,10 @@ function Hero() {
         transition={{ duration: 0.55, delay: 0.12 }}
         className="mt-5 max-w-2xl text-muted-foreground text-lg leading-relaxed"
       >
-        The same pre-sign firewall that protects human wallets, now as a drop-in
-        SDK and CLI for autonomous agents and bot wallets. Every transaction your
-        agent builds is simulated and policy-checked <em>before</em> the key ever
-        touches it — drains, unlimited approvals and rogue contracts are blocked,
-        not signed.
+        The same pre-sign firewall that guards your wallet, now as an SDK and CLI
+        for agents and bot wallets. Baret simulates and policy-checks every
+        transaction your agent builds <em>before</em> the key touches it. Drains,
+        unlimited approvals, and rogue contracts get blocked, not signed.
       </motion.p>
 
       <HazardRule className="mt-10" />
@@ -118,7 +117,7 @@ function HowItWorks() {
     {
       icon: KeyRound,
       title: "2 · Configure a policy",
-      body: "Pick Strict, Balanced or Permissive — the firewall rules your agent must obey.",
+      body: "Pick Strict, Balanced, or Permissive. Those are the firewall rules your agent has to obey.",
     },
     {
       icon: ShieldCheck,
@@ -163,7 +162,7 @@ const agent = AgentWallet.fromSecret(process.env.BARET_AGENT_SECRET!, {
 
 // Build your transaction XDR however you like, then:
 const { hash, explorerUrl } = await agent.guardedSubmit(transactionXdr);
-//  ↳ throws GuardBlockedError if the policy blocks it — the key never signs.
+//  ↳ throws GuardBlockedError if the policy blocks it. The key never signs.
 console.log("sent:", hash, explorerUrl);`;
 
   const cliSnippet = `# One-time config (secret stays out of the file)
@@ -180,17 +179,17 @@ echo "$XDR" | baret submit -      # exit 0 sent · 1 blocked · 2 error`;
         <div>
           <CodeLabel>Install</CodeLabel>
           <CodeBlock code="pnpm add @stellar-thorn/agent-guard" />
-          <CodeLabel className="mt-4">SDK — TypeScript / Node</CodeLabel>
+          <CodeLabel className="mt-4">SDK · TypeScript / Node</CodeLabel>
           <CodeBlock code={sdkSnippet} />
         </div>
         <div>
-          <CodeLabel>CLI — any language</CodeLabel>
+          <CodeLabel>CLI · any language</CodeLabel>
           <CodeBlock code={cliSnippet} />
           <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground leading-relaxed">
             <strong className="text-foreground">Fail-closed by design.</strong> If the
             Baret server is unreachable, <code className="font-mono text-foreground/80">evaluate</code>{" "}
-            throws and signing never happens — your agent simply does not transact
-            rather than transacting blind.
+            throws and signing never happens. Your agent stops instead of signing
+            blind.
           </div>
         </div>
       </div>
@@ -385,7 +384,7 @@ function VerdictPanel({
             {result.riskFindings.map((f, i) => (
               <div key={i} className="text-xs text-foreground/80">
                 <span className="font-mono font-semibold">{f.code}</span>
-                <span className="text-muted-foreground"> [{f.severity}]</span> — {f.message}
+                <span className="text-muted-foreground"> [{f.severity}]</span> · {f.message}
               </div>
             ))}
           </div>
@@ -418,7 +417,7 @@ function VerdictPanel({
 
 /**
  * The public showcase can't safely call an authenticated cross-user audit
- * feed from the browser — any key baked into this client bundle is visible
+ * feed from the browser. Any key baked into this client bundle is visible
  * to every visitor via devtools. Run the playground above for a live,
  * single-request verdict instead; a real per-agent audit log needs a
  * server-side view backed by proper auth, not a public demo endpoint.
@@ -431,7 +430,7 @@ function Monitor({ agentAddress }: { agentAddress: string }) {
       <SectionHeading
         icon={Activity}
         title="Live monitor"
-        subtitle="A per-agent audit feed needs authenticated, server-side access — it isn't exposed to this public demo. Use the playground above to see a live verdict for a single transaction."
+        subtitle="A per-agent audit feed needs authenticated, server-side access. It isn't part of this public demo. Use the playground above to see a live verdict for one transaction."
       />
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">

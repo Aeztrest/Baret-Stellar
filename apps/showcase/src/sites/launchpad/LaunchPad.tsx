@@ -13,8 +13,8 @@ import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
 
 const THEME = {
-  primary: "#16a34a", // green-600 — readable on both light and dark
-  accent: "#a3e635", // lime-400 — high-energy launch accent
+  primary: "#16a34a", // green-600, readable on both light and dark
+  accent: "#a3e635", // lime-400, launch accent
   name: "LaunchPad",
   logo: (
     <div
@@ -91,9 +91,9 @@ export default function LaunchPad() {
       }
     }
   }
-  // "Without protection" — a genuinely different wallet (Freighter) signs the
-  // same scenario over its own key and submits straight to Horizon; Baret's
-  // connected account can only ever be signed by Baret, by design.
+  // The "without protection" path: a genuinely different wallet (Freighter)
+  // signs the same scenario over its own key and submits straight to Horizon.
+  // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
     setResultState("awaiting"); setSignature(null); setResultMessage(null);
     try {
@@ -128,8 +128,8 @@ export default function LaunchPad() {
   const projectName = dangerous ? "ScamToken" : "NovaBridge";
   const ticker = dangerous ? "SCAM" : "NOVA";
   const tagline = dangerous
-    ? "Revolutionary memecoin with 1000x potential. First mover in the nothing market."
-    : "Cross-chain Stellar bridge enabling seamless asset transfers across 12 networks. Audited by OtterSec.";
+    ? "Memecoin with 1000x potential. First mover in a market that doesn't exist yet."
+    : "Cross-chain Stellar bridge that moves native assets across 12 networks. Audited by OtterSec.";
 
   const saleDetails = [
     { icon: Coins, label: "Token price", value: dangerous ? "$0.0001" : "$0.05" },
@@ -140,7 +140,7 @@ export default function LaunchPad() {
     { icon: Calendar, label: "TGE / listing", value: dangerous ? "TBA" : "Aug 2026" },
   ];
 
-  // Vesting schedule — each group's tokens release over the timeline.
+  // Vesting schedule: each group's tokens release over the timeline.
   // segments sum to 100 (share of the release timeline), keyed by kind.
   const vesting = dangerous
     ? [{ label: "Team · 100%", segs: [{ w: 100, kind: "danger" as const }] }]
@@ -354,8 +354,8 @@ export default function LaunchPad() {
                     <h2 className="font-display text-lg font-black tracking-tight">About {projectName}</h2>
                     <p className="mt-1 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
                       {dangerous
-                        ? "No audit, no team, no lock. The contract lets a single wallet mint and drain liquidity at will — a textbook rug pull the danger toggle recreates."
-                        : "NovaBridge routes native assets across 12 chains with sub-second finality on Stellar. Fully audited by OtterSec, backed by tier-1 funds, with liquidity locked for 24 months post-listing."}
+                        ? "No audit, no team, no lock. The contract lets a single wallet mint and drain liquidity at will. That is a textbook rug pull, and the danger toggle recreates it."
+                        : "NovaBridge moves native assets across 12 chains with sub-second finality on Stellar. Audited by OtterSec, backed by tier-1 funds, with liquidity locked for 24 months after listing."}
                     </p>
                   </div>
                 </div>

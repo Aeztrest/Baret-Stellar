@@ -1,5 +1,5 @@
 /**
- * Send overlay — recipient address + amount in XLM → broadcast via the
+ * Send overlay. Recipient address plus amount in XLM, broadcast via the
  * `wallet.transferXlm` RPC. Minimal flow: paste, type, send.
  *
  * Validates the address client-side (StrKey ed25519) before enabling the
@@ -183,7 +183,7 @@ export function SendScreen({
               />
               <p className="text-text-faint text-[10px] mt-1.5">
                 Balance:{" "}
-                {balanceXlm === null ? "—" : `${balanceXlm.toFixed(4)} XLM`}
+                {balanceXlm === null ? "–" : `${balanceXlm.toFixed(4)} XLM`}
               </p>
               {amount && !amountValid && (
                 <p className="text-bad text-[10px] mt-1.5">

@@ -2,7 +2,7 @@ import type { ElementType, ReactNode } from "react";
 import { cn } from "../lib/cn";
 
 /**
- * One consistent max width with generous side padding — every marketing
+ * One consistent max width with generous side padding. every marketing
  * section builds on this so vertical rhythm stays identical page to page.
  */
 export function Container({

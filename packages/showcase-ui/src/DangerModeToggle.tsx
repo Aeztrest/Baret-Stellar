@@ -1,6 +1,6 @@
 /**
  * The "simulate malicious X" pill switch. Copy-pasted near-identically
- * across all six showcase demo dApps before this extraction — same markup,
+ * across all six showcase demo dApps before this extraction. same markup,
  * same interaction, only the label and accent color varied per site.
  */
 

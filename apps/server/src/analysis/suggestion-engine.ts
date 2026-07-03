@@ -27,8 +27,8 @@ export type SuggestionResult = {
 };
 
 const STROOPS_PER_UNIT = 10_000_000n;
-const HIGH_BASE_FEE_STROOPS = 1_000_000n; // 0.1 XLM — anomalously high for a single tx.
-const HIGH_RESOURCE_FEE_STROOPS = 50_000_000n; // 5 XLM — unusually expensive Soroban call.
+const HIGH_BASE_FEE_STROOPS = 1_000_000n; // 0.1 XLM. anomalously high for a single tx.
+const HIGH_RESOURCE_FEE_STROOPS = 50_000_000n; // 5 XLM. unusually expensive Soroban call.
 
 export function generateSuggestions(
   tx: Transaction,
@@ -184,7 +184,7 @@ function checkGeneralRisks(decision: Decision): TransactionSuggestion[] {
 }
 
 function maxStellarLimit(): string {
-  // Stellar uses an int64 max for "unlimited" trustlines — 922337203685.4775807 in decimal,
+  // Stellar uses an int64 max for "unlimited" trustlines. 922337203685.4775807 in decimal,
   // serialized as the stroop string below.
   return "9223372036854775807";
 }
