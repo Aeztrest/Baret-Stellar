@@ -29,7 +29,14 @@
  * watermark: `absolute left-0 top-0 h-[118%] w-full object-cover object-top`.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from "framer-motion";
+import {
+  motion,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
 import { cn } from "../lib/cn";
 
 export interface ScrollVideoHeroProps {
@@ -44,6 +51,12 @@ export interface ScrollVideoHeroProps {
   className?: string;
   /** Override the <video> element class (e.g. to crop a watermark). */
   videoClassName?: string;
+  /**
+   * Optional "Skip intro" pill. When set, a discreet button appears once the
+   * user has scrubbed ~2% in and smooth-scrolls them past the runway to the
+   * content below. It never changes the runway or the scrub itself.
+   */
+  skipLabel?: string;
 }
 
 function useIsDesktop(): boolean {
@@ -66,6 +79,7 @@ export function ScrollVideoHero({
   heightVh = 300,
   className,
   videoClassName,
+  skipLabel,
 }: ScrollVideoHeroProps) {
   const reduce = useReducedMotion();
   const desktop = useIsDesktop();
@@ -122,6 +136,19 @@ export function ScrollVideoHero({
     }
   };
 
+  // "Skip intro": visible only while the user is inside the runway (past ~2%,
+  // before the very end) so it never covers the content below.
+  const [showSkip, setShowSkip] = useState(false);
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    setShowSkip(Boolean(skipLabel) && v > 0.02 && v < 0.98);
+  });
+  const skipIntro = () => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const top = el.offsetTop + el.offsetHeight - window.innerHeight + 1;
+    window.scrollTo({ top, behavior: "smooth" });
+  };
+
   // Fallback (mobile or reduced-motion): static poster + captions in flow.
   if (!activeScrub) {
     return (
@@ -159,6 +186,21 @@ export function ScrollVideoHero({
             {c}
           </Caption>
         ))}
+
+        {skipLabel && (
+          <motion.button
+            type="button"
+            onClick={skipIntro}
+            initial={false}
+            animate={{ opacity: showSkip ? 1 : 0, y: showSkip ? 0 : 8 }}
+            transition={{ duration: 0.25 }}
+            style={{ pointerEvents: showSkip ? "auto" : "none" }}
+            className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/20 bg-black/50 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur transition-colors hover:border-white/40 hover:text-white"
+            tabIndex={showSkip ? 0 : -1}
+          >
+            {skipLabel}
+          </motion.button>
+        )}
       </div>
     </section>
   );

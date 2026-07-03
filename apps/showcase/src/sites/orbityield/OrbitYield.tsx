@@ -17,9 +17,10 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { orbityieldScenario, ORBITYIELD_DANGER_POOL } from "../../baret/scenarios";
 
 const THEME = {
   primary: "#10b981",
@@ -76,20 +77,26 @@ export default function OrbitYield() {
   const [selectedPool, setSelectedPool] = useState(0);
   const [dangerous, setDangerous] = useState(false);
   const [resultState, setResultState] = useState<ResultState>("idle");
-  const [signature, setSignature] = useState<string | null>(null);
+  const [via, setVia] = useState<ResultVia>("baret");
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [previewTx, setPreviewTx] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("1M");
-  const success = signature !== null;
+  const success = txHash !== null;
   const pool = POOLS[selectedPool];
-  const scenarioLabel = dangerous
-    ? `Stake ${amount} XLM in an unverified pool (warn scenario)`
-    : `Stake ${amount} XLM in ${pool?.name ?? "?"}`;
+  const scenario = orbityieldScenario(dangerous, amount, pool?.name ?? "?");
+  const scenarioLabel = scenario.label;
+
+  function reset() {
+    setTxHash(null);
+    setResultMessage(null);
+    setResultState("idle");
+  }
 
   async function handleStake() {
     if (!connected || !walletAddress) { openWalletModal(); return; }
     try {
-      const __built = await buildScenario(dangerous ? "orbityield-warn" : "orbityield-safe", walletAddress); const tx = __built.transactionXdr;
+      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
       setPreviewTx(tx);
     } catch (e) {
       setResultState("error");
@@ -100,10 +107,11 @@ export default function OrbitYield() {
   async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("baret");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
-      const { signature: sig } = await adapter.signAndSendTransaction(previewTx);
-      setSignature(sig); setResultState("confirmed");
+      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -116,13 +124,14 @@ export default function OrbitYield() {
   // signs the same scenario over its own key and submits straight to Horizon.
   // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("raw");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
       const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "orbityield-warn" : "orbityield-safe", raw.address);
+      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
       const { signedTxXdr } = await raw.signTransaction(rawTx);
       const hash = await submitSignedTransaction(signedTxXdr);
-      setSignature(hash); setResultState("confirmed");
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -131,7 +140,10 @@ export default function OrbitYield() {
       }
     }
   }
-  const estimatedYearly = parseFloat(amount || "0") * (parseFloat(pool.apy) / 100);
+  // Yearly estimate always follows the pool the user is actually staking into,
+  // including the unverified 48% pool behind the danger toggle.
+  const activeApyPct = dangerous ? ORBITYIELD_DANGER_POOL.apyPct : parseFloat(pool.apy);
+  const estimatedYearly = parseFloat(amount || "0") * (activeApyPct / 100);
 
   // ── chart derived values ──
   const series = CHART_SERIES[timeframe];
@@ -150,12 +162,14 @@ export default function OrbitYield() {
   return (
     <SiteShell
       theme={THEME}
-      navLinks={[{ label: "Stake" }, { label: "Pools" }, { label: "Portfolio" }, { label: "Docs" }]}
+      navLinks={[{ label: "Stake", href: "#stake" }, { label: "Pools", href: "#pools" }, { label: "Portfolio", href: "#portfolio" }, { label: "Docs", href: "#docs" }]}
     >
       <ResultOverlay
         state={resultState}
-        signature={signature}
+        via={via}
+        txHash={txHash}
         message={resultMessage}
+        scenarioLabel={scenarioLabel}
         onClose={() => setResultState("idle")}
       />
 
@@ -270,7 +284,7 @@ export default function OrbitYield() {
             <div className="grid gap-8 md:grid-cols-5">
               {/* Validators / pools table */}
               <div className="space-y-4 md:col-span-3">
-                <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <h2 id="pools" className="mb-1 flex scroll-mt-24 items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <ShieldCheck size={15} className="text-emerald-500 dark:text-emerald-400" /> Validators
                 </h2>
                 <div className="overflow-hidden rounded-3xl border border-emerald-500/15 bg-white/85 shadow-[0_20px_60px_-32px_rgba(16,185,129,0.5)] backdrop-blur-xl dark:border-emerald-400/15 dark:bg-slate-950/70">
@@ -351,7 +365,7 @@ export default function OrbitYield() {
                 </div>
 
                 {/* Your positions */}
-                <h2 className="mb-1 mt-6 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <h2 id="portfolio" className="mb-1 mt-6 flex scroll-mt-24 items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <Wallet size={15} className="text-emerald-500 dark:text-emerald-400" /> Your positions
                 </h2>
                 <div className="space-y-3 rounded-3xl border border-emerald-500/15 bg-white/85 p-5 shadow-[0_20px_60px_-32px_rgba(16,185,129,0.5)] backdrop-blur-xl dark:border-emerald-400/15 dark:bg-slate-950/70">
@@ -386,7 +400,7 @@ export default function OrbitYield() {
               </div>
 
               {/* Stake form */}
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="md:col-span-2">
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} id="stake" className="scroll-mt-24 md:col-span-2">
                 <div className="space-y-5 rounded-3xl border border-emerald-500/15 bg-white/85 p-6 shadow-[0_20px_60px_-28px_rgba(16,185,129,0.45)] backdrop-blur-xl dark:border-emerald-400/15 dark:bg-slate-950/70 md:sticky md:top-24">
                   <h2 className="font-display font-bold text-slate-900 dark:text-white">Stake XLM</h2>
 
@@ -415,9 +429,9 @@ export default function OrbitYield() {
 
                   <div className="space-y-3 rounded-2xl border border-emerald-500/20 bg-emerald-50/70 p-4 dark:border-emerald-400/15 dark:bg-emerald-500/[0.06]">
                     {[
-                      { label: "Staking pool", value: dangerous ? "SuperYield Protocol" : pool.name },
-                      { label: "Annual APY", value: dangerous ? "48.0%" : pool.apy },
-                      { label: "You receive", value: dangerous ? "syXLM" : "yXLM" },
+                      { label: "Staking pool", value: dangerous ? ORBITYIELD_DANGER_POOL.name : pool.name },
+                      { label: "Annual APY", value: dangerous ? `${ORBITYIELD_DANGER_POOL.apyPct.toFixed(1)}%` : pool.apy },
+                      { label: "You receive", value: dangerous ? ORBITYIELD_DANGER_POOL.receiveToken : "yXLM" },
                       { label: "Estimated yearly", value: `+${estimatedYearly.toFixed(4)} XLM` },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex justify-between text-sm">
@@ -428,8 +442,16 @@ export default function OrbitYield() {
                   </div>
 
                   {success ? (
-                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                      ✓ {amount} XLM Staked
+                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
+                      <div className="w-full rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        ✓ {amount} XLM Staked
+                      </div>
+                      <button
+                        onClick={reset}
+                        className="w-full rounded-xl border border-black/10 py-2.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:text-white"
+                      >
+                        Run it again
+                      </button>
                     </motion.div>
                   ) : (
                     <button
@@ -439,6 +461,9 @@ export default function OrbitYield() {
                       {connected ? "Stake Now" : "Connect Wallet to Stake"}
                     </button>
                   )}
+
+                  {/* Demo toggle, right under the primary CTA */}
+                  <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate unverified pool" activeColor="#dc2626" />
 
                   <p className="flex items-center justify-center gap-1 text-center text-xs text-slate-400 dark:text-slate-500">
                     <ShieldCheck size={11} /> Non-custodial · unstake anytime after cooldown
@@ -452,7 +477,8 @@ export default function OrbitYield() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="mt-12"
+              id="docs"
+              className="mt-12 scroll-mt-24"
             >
               <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <Zap size={15} className="text-emerald-500 dark:text-emerald-400" /> How liquid staking works
@@ -476,10 +502,6 @@ export default function OrbitYield() {
               </div>
             </motion.div>
 
-            {/* Demo toggle */}
-            <div className="mt-10 flex justify-center">
-              <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate unverified pool" activeColor="#dc2626" />
-            </div>
           </div>
         </div>
       </div>

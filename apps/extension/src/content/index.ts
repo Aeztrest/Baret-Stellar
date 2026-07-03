@@ -30,17 +30,25 @@ function isPageReq(d: unknown): d is PageReq {
 
 /* ────────────── Mount the Baret page overlay (Shadow DOM) ────────────── */
 
+const OVERLAY_HIDDEN_KEY = "baret.overlayHidden.v1";
+
 (function initOverlay() {
-  try {
-    if (sessionStorage.getItem("baret-overlay-dismissed") === "1") return;
-  } catch {
-    /* sessionStorage may be blocked on some origins. mount anyway */
-  }
-  const run = () => mountBaretOverlay();
+  const run = async () => {
+    try {
+      // "Hide here" persists per-origin in extension storage.
+      const all = await browser.storage.local.get(OVERLAY_HIDDEN_KEY);
+      const map =
+        (all[OVERLAY_HIDDEN_KEY] as Record<string, boolean> | undefined) ?? {};
+      if (map[window.location.origin] === true) return;
+    } catch {
+      /* storage may be unavailable. mount anyway */
+    }
+    mountBaretOverlay();
+  };
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
+    document.addEventListener("DOMContentLoaded", () => void run(), { once: true });
   } else {
-    run();
+    void run();
   }
 })();
 

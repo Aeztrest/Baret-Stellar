@@ -189,7 +189,7 @@ export async function buildScenario(
             ]),
           )
           .addMemo(Memo.text("claimhub:airdrop-claim")),
-        "ClaimHub: claim 0.1 USDC airdrop",
+        "ClaimHub: airdrop claim call on the demo claim contract",
       );
 
     case "claimhub-danger":

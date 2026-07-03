@@ -20,9 +20,10 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { claimhubScenario, CLAIMHUB_AIRDROP } from "../../baret/scenarios";
 
 const THEME = {
   primary: "#7c3aed", // violet-600, reads on light + dark
@@ -37,7 +38,7 @@ const THEME = {
 
 // Program-wide metrics.
 const PROGRAM_STATS = [
-  { icon: Coins, label: "Total Allocation", value: "50M TOKEN" },
+  { icon: Coins, label: "Total Allocation", value: "50M LUMA" },
   { icon: Users, label: "Eligible Wallets", value: "142,841" },
   { icon: TrendingUp, label: "Claimed", value: "63%" },
   { icon: Clock, label: "Deadline", value: "14d 06h" },
@@ -101,15 +102,15 @@ export default function ClaimHub() {
   const { connected, openWalletModal, walletAddress, adapter, shortAddress, connectRawWallet } = useWallet();
   const [dangerous, setDangerous] = useState(false);
   const [resultState, setResultState] = useState<ResultState>("idle");
-  const [signature, setSignature] = useState<string | null>(null);
+  const [via, setVia] = useState<ResultVia>("baret");
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [pendingCheck, setPendingCheck] = useState(false);
   const [previewTx, setPreviewTx] = useState<string | null>(null);
-  const success = signature !== null;
-  const scenarioLabel = dangerous
-    ? "Claim airdrop (danger scenario · unlimited token approval to attacker)"
-    : "Claim airdrop · transfers 1,500 BONK to your wallet";
+  const success = txHash !== null;
+  const scenario = claimhubScenario(dangerous);
+  const scenarioLabel = scenario.label;
 
   useEffect(() => {
     if (connected && pendingCheck) {
@@ -123,10 +124,16 @@ export default function ClaimHub() {
     setChecked(true);
   }
 
+  function reset() {
+    setTxHash(null);
+    setResultMessage(null);
+    setResultState("idle");
+  }
+
   async function handleClaim() {
     if (!walletAddress) return;
     try {
-      const __built = await buildScenario(dangerous ? "claimhub-danger" : "claimhub-safe", walletAddress); const tx = __built.transactionXdr;
+      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
       setPreviewTx(tx);
     } catch (e) {
       setResultState("error");
@@ -137,10 +144,11 @@ export default function ClaimHub() {
   async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("baret");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
-      const { signature: sig } = await adapter.signAndSendTransaction(previewTx);
-      setSignature(sig); setResultState("confirmed");
+      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -153,13 +161,14 @@ export default function ClaimHub() {
   // signs the same scenario over its own key and submits straight to Horizon.
   // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("raw");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
       const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "claimhub-danger" : "claimhub-safe", raw.address);
+      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
       const { signedTxXdr } = await raw.signTransaction(rawTx);
       const hash = await submitSignedTransaction(signedTxXdr);
-      setSignature(hash); setResultState("confirmed");
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -176,12 +185,14 @@ export default function ClaimHub() {
   return (
     <SiteShell
       theme={THEME}
-      navLinks={[{ label: "Airdrops" }, { label: "History" }, { label: "Leaderboard" }]}
+      navLinks={[{ label: "Airdrops", href: "#airdrops" }, { label: "History", href: "#history" }, { label: "Leaderboard", href: "#leaderboard" }]}
     >
       <ResultOverlay
         state={resultState}
-        signature={signature}
+        via={via}
+        txHash={txHash}
         message={resultMessage}
+        scenarioLabel={scenarioLabel}
         onClose={() => setResultState("idle")}
       />
 
@@ -251,7 +262,7 @@ export default function ClaimHub() {
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="inline-flex items-center gap-1.5 font-semibold text-neutral-900 dark:text-neutral-100">
                 <Timer size={14} className="text-violet-500 dark:text-violet-300" />
-                31.4M / 50M TOKEN distributed
+                31.4M / 50M LUMA distributed
               </span>
               <span className="font-bold text-violet-700 dark:text-violet-300">63%</span>
             </div>
@@ -269,7 +280,7 @@ export default function ClaimHub() {
           </motion.div>
 
           {/* Claim card */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className={`${panel} overflow-hidden`}>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} id="airdrops" className={`${panel} scroll-mt-24 overflow-hidden`}>
             <div className="border-b border-violet-200/60 p-6 dark:border-white/10">
               <h2 className="mb-1 flex items-center gap-2 font-display font-bold text-neutral-900 dark:text-neutral-100">
                 <Sparkles size={16} className="text-violet-500 dark:text-violet-300" />
@@ -323,13 +334,13 @@ export default function ClaimHub() {
                     <div className="mt-3 flex items-center justify-between border-t border-violet-200/70 pt-3 dark:border-white/10">
                       <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Total allocation</span>
                       <div className="text-right">
-                        <p className="font-display text-lg font-black text-violet-700 dark:text-violet-300">2,500 TOKEN</p>
+                        <p className="font-display text-lg font-black text-violet-700 dark:text-violet-300">{CLAIMHUB_AIRDROP.amountLabel}</p>
                         <p className="text-xs text-neutral-500 dark:text-neutral-400">≈ $250.00</p>
                       </div>
                     </div>
                     <div className="mt-2 flex justify-between text-xs">
-                      <span className="text-neutral-500 dark:text-neutral-400">Merkle proof</span>
-                      <span className="font-mono text-neutral-500 dark:text-neutral-400">0x4f3a…8c2d</span>
+                      <span className="text-neutral-500 dark:text-neutral-400">Eligibility proof</span>
+                      <span className="font-mono text-neutral-500 dark:text-neutral-400">4f3a…8c2d</span>
                     </div>
                   </div>
 
@@ -337,22 +348,35 @@ export default function ClaimHub() {
                   <div className="flex items-start gap-2 rounded-xl border border-blue-200/60 bg-blue-50/60 p-3 text-xs text-neutral-600 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-neutral-300">
                     <Clock size={14} className="mt-0.5 shrink-0 text-blue-500 dark:text-blue-300" />
                     <span>
-                      <strong className="text-neutral-900 dark:text-neutral-100">625 TOKEN</strong> unlock now (25%). The
+                      <strong className="text-neutral-900 dark:text-neutral-100">{CLAIMHUB_AIRDROP.unlockNowLabel}</strong> unlock now (25%). The
                       rest vests linearly over 6 months.
                     </span>
                   </div>
 
                   {success ? (
-                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full rounded-xl border border-emerald-600/25 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">
-                      ✓ 2,500 TOKEN Claimed!
+                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
+                      <div className="w-full rounded-xl border border-emerald-600/25 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        ✓ {CLAIMHUB_AIRDROP.amountLabel} Claimed!
+                      </div>
+                      <button
+                        onClick={reset}
+                        className="w-full rounded-xl border border-violet-200/70 py-2.5 text-xs font-semibold text-neutral-500 transition-colors hover:text-neutral-900 dark:border-white/10 dark:text-neutral-400 dark:hover:text-white"
+                      >
+                        Run it again
+                      </button>
                     </motion.div>
                   ) : (
                     <button onClick={handleClaim} className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-500 py-4 font-bold text-white shadow-[0_10px_30px_-8px_rgba(124,58,237,0.55)] transition-all hover:brightness-110 active:scale-[0.99]">
-                      Claim 2,500 TOKEN
+                      Claim {CLAIMHUB_AIRDROP.amountLabel}
                     </button>
                   )}
                 </motion.div>
               )}
+
+              {/* Demo toggle, right under the primary CTA */}
+              <div className="pt-1">
+                <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate phishing claim" />
+              </div>
             </div>
           </motion.div>
 
@@ -435,7 +459,7 @@ export default function ClaimHub() {
           </section>
 
           {/* Stats strip + recent claims */}
-          <section className="mt-14 grid gap-6 lg:grid-cols-5">
+          <section id="leaderboard" className="mt-14 grid scroll-mt-24 gap-6 lg:grid-cols-5">
             <div className="grid grid-cols-2 gap-4 lg:col-span-2 lg:grid-cols-1">
               <div className={`${panel} p-5`}>
                 <Users size={16} className="mb-2 text-violet-600 dark:text-violet-300" />
@@ -445,21 +469,17 @@ export default function ClaimHub() {
               <div className={`${panel} p-5`}>
                 <Coins size={16} className="mb-2 text-blue-500 dark:text-blue-300" />
                 <p className="font-display text-2xl font-black text-neutral-900 dark:text-neutral-50">31.4M</p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">TOKEN distributed</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">LUMA distributed</p>
               </div>
             </div>
-            <div className={`${panel} p-5 lg:col-span-3`}>
+            <div id="history" className={`${panel} scroll-mt-24 p-5 lg:col-span-3`}>
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-neutral-900 dark:text-neutral-100">
                   <Sparkles size={14} className="text-violet-500 dark:text-violet-300" />
                   Recent Claims
                 </h3>
-                <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-                  <span className="relative flex size-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                    <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                  </span>
-                  Live
+                <span className="rounded-full border border-neutral-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:border-white/10 dark:text-neutral-500">
+                  Sample data
                 </span>
               </div>
               <div className="space-y-1">
@@ -477,7 +497,7 @@ export default function ClaimHub() {
                     </span>
                     <span className="font-mono text-xs text-neutral-600 dark:text-neutral-300">{c.addr}</span>
                     <span className="ml-auto text-sm font-semibold text-violet-700 dark:text-violet-300">
-                      {c.amount} <span className="text-xs font-normal text-neutral-400 dark:text-neutral-500">TOKEN</span>
+                      {c.amount} <span className="text-xs font-normal text-neutral-400 dark:text-neutral-500">LUMA</span>
                     </span>
                     <span className="w-16 shrink-0 text-right text-xs text-neutral-400 dark:text-neutral-500">{c.when}</span>
                   </motion.div>
@@ -486,10 +506,6 @@ export default function ClaimHub() {
             </div>
           </section>
 
-          {/* Demo toggle */}
-          <div className="mt-14 flex justify-center">
-            <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate phishing claim" />
-          </div>
         </div>
       </div>
 

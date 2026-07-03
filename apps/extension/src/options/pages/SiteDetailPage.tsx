@@ -216,7 +216,7 @@ export function SiteDetailPage() {
             {allowances && allowances.length === 0 && (
               <p className="text-text-faint text-xs">
                 No allowances yet. This site has connected but hasn't made any x402 payments,
-                so there are no spending grants to manage.
+                so there are no allowances to manage.
               </p>
             )}
 
@@ -341,7 +341,7 @@ function AllowanceRow({ a }: { a: AllowanceSnapshot }) {
 function Stat({ label, value, spent }: { label: string; value: number; spent?: number }) {
   return (
     <div>
-      <p className="text-text-faint uppercase tracking-wider text-[9px]">{label}</p>
+      <p className="text-text-faint uppercase tracking-wider text-[10px]">{label}</p>
       <p className="font-mono text-text">
         {spent !== undefined ? `${spent.toFixed(3)} / ${value.toFixed(3)}` : value.toFixed(3)}
       </p>

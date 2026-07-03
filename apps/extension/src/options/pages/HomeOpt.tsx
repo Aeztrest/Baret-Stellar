@@ -40,6 +40,7 @@ export function HomeOpt() {
   const rpc = useRpc();
   const [walletBal, setWalletBal] = useState<number | null>(null);
   const [authBal, setAuthBal] = useState<number | null>(null);
+  const [hasUsdcTrustline, setHasUsdcTrustline] = useState(false);
   const [policy, setPolicy] = useState<GuardPolicy | null>(null);
   const [airdropping, setAirdropping] = useState(false);
   const [airdropMsg, setAirdropMsg] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function HomeOpt() {
           address: state.authorityAddress,
         });
         setAuthBal(Number(r.stroops) / STROOPS_PER_XLM);
+        setHasUsdcTrustline(r.hasUsdcTrustline);
       }
     } catch {
       /* ignore, UI shows last known */
@@ -258,6 +260,7 @@ export function HomeOpt() {
           authorityAddress={state.authorityAddress}
           network={state.network}
           balanceXlm={authBal}
+          hasUsdcTrustline={hasUsdcTrustline}
           onClose={() => setOverlay(null)}
           onSent={refresh}
         />

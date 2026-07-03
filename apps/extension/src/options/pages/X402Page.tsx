@@ -56,7 +56,7 @@ export function X402Page() {
           <Shield size={24} className="text-muted-foreground" /> x402 Console
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Live view of every x402 micropayment the firewall settled under your caps,
+          Live view of every payment on x402, the machine-payments protocol, that the firewall settled under your caps,
           and the rolling ledger that keeps each merchant in check.
         </p>
       </div>

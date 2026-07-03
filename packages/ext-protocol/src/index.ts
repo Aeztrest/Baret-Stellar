@@ -164,15 +164,25 @@ export interface ExtRpc {
   "wallet.unlock":     { req: { passphrase: string };                     rsp: { ok: true } };
   "wallet.lock":       { req: void;                                       rsp: { ok: true } };
   "wallet.create":     { req: { passphrase: string; network: StellarNetwork };   rsp: { walletAddress: string; authorityAddress: string } };
+  /** Restore an existing wallet from an exported secret key (base58 seed,
+   *  hex seed, or an S… Stellar secret). Mirrors `wallet.create`: encrypts
+   *  the seed under the passphrase and stores it in the keystore. */
+  "wallet.import":     { req: { secret: string; passphrase: string; network: StellarNetwork }; rsp: { walletAddress: string; authorityAddress: string } };
   "wallet.reset":      { req: { confirmation: "I-UNDERSTAND" };           rsp: { ok: true } };
   "wallet.exportSecret": { req: { passphrase: string; format: "mnemonic" | "base58" | "hex" }; rsp: { secret: string } };
+  /** Whether the user has confirmed they backed up their secret key. */
+  "wallet.backupStatus":      { req: void;                                rsp: { acknowledged: boolean } };
+  "wallet.acknowledgeBackup": { req: void;                                rsp: { ok: true } };
   "wallet.airdrop":    { req: void;                                       rsp: { transactionHash: string; amountXlm: number } };
   "wallet.provisionSmartWallet": { req: void;                             rsp: { smartWalletAddress: string; walletAddress: string; alreadyOnChain: boolean } };
   "wallet.balance":    { req: { address?: string };                       rsp: { stroops: string; usdc: string | null; hasUsdcTrustline: boolean } };
   /** User-initiated native XLM transfer from the authority key.
    *  Builds + signs + broadcasts a Payment op locally; the popup never
    *  sees the private key. */
-  "wallet.transferXlm": { req: { to: string; amountXlm: number };          rsp: { transactionHash: string } };
+  "wallet.transferXlm": { req: { to: string; amountXlm: number; memo?: string }; rsp: { transactionHash: string } };
+  /** Add a classic ChangeTrust line for the network's USDC asset, signed by
+   *  the authority key and submitted immediately. */
+  "wallet.addUsdcTrustline": { req: void;                                 rsp: { transactionHash: string } };
 
   /* Sign + tx ────────────────────────────── */
   "tx.sign":           { req: { requestId: string; accept: boolean; remember?: boolean };     rsp: { signed?: string; signature?: string; rejection?: string; ok?: true } };

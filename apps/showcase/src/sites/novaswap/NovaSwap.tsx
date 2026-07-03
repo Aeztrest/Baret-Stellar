@@ -17,9 +17,10 @@ import {
 } from "lucide-react";
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { novaswapScenario } from "../../baret/scenarios";
 import { useWallet } from "../../wallet/context";
 
 const THEME = {
@@ -34,36 +35,42 @@ const THEME = {
 };
 
 const TOKENS = [
-  { symbol: "XLM", name: "Stellar", price: 175.0 },
+  { symbol: "XLM", name: "Stellar", price: 0.4 },
   { symbol: "USDC", name: "USD Coin", price: 1.0 },
-  { symbol: "AQUA", name: "Aquarius", price: 3.4 },
-  { symbol: "yXLM", name: "Yield XLM", price: 0.000028 },
+  { symbol: "AQUA", name: "Aquarius", price: 0.08 },
+  { symbol: "yXLM", name: "Yield XLM", price: 0.41 },
 ];
 
 // ── Market data (mock) ──────────────────────────────────────────────
 const MARKET = [
-  { symbol: "XLM", name: "Stellar", price: 175.0, change: 2.41, volume: "$18.4M", spark: [34, 36, 33, 38, 41, 39, 44, 43, 47, 46, 50, 52] },
+  { symbol: "XLM", name: "Stellar", price: 0.4, change: 2.41, volume: "$18.4M", spark: [34, 36, 33, 38, 41, 39, 44, 43, 47, 46, 50, 52] },
   { symbol: "USDC", name: "USD Coin", price: 1.0, change: 0.02, volume: "$22.1M", spark: [40, 40, 41, 40, 40, 41, 40, 40, 41, 40, 40, 40] },
-  { symbol: "AQUA", name: "Aquarius", price: 3.4, change: -1.84, volume: "$4.9M", spark: [52, 50, 51, 48, 46, 47, 44, 45, 42, 41, 39, 38] },
-  { symbol: "yXLM", name: "Yield XLM", price: 176.2, change: 3.12, volume: "$2.6M", spark: [30, 32, 31, 35, 34, 38, 40, 39, 43, 45, 48, 51] },
-  { symbol: "SHX", name: "Stronghold", price: 0.42, change: 5.67, volume: "$1.8M", spark: [22, 24, 27, 26, 30, 33, 32, 37, 39, 42, 44, 48] },
+  { symbol: "AQUA", name: "Aquarius", price: 0.08, change: -1.84, volume: "$4.9M", spark: [52, 50, 51, 48, 46, 47, 44, 45, 42, 41, 39, 38] },
+  { symbol: "yXLM", name: "Yield XLM", price: 0.41, change: 3.12, volume: "$2.6M", spark: [30, 32, 31, 35, 34, 38, 40, 39, 43, 45, 48, 51] },
+  { symbol: "SHX", name: "Stronghold", price: 0.06, change: 5.67, volume: "$1.8M", spark: [22, 24, 27, 26, 30, 33, 32, 37, 39, 42, 44, 48] },
 ];
 
-// ── Price chart series per timeframe (mock) ─────────────────────────
+function fmtUsd(price: number): string {
+  if (price >= 1000) return price.toLocaleString();
+  if (price >= 0.1) return price.toFixed(2);
+  return price.toFixed(4);
+}
+
+// ── Price chart series per timeframe (mock, XLM/USDC) ───────────────
 const CHART_SERIES: Record<string, number[]> = {
-  "1H": [172.1, 172.6, 172.2, 173.0, 173.4, 173.1, 173.9, 174.2, 173.8, 174.5, 174.9, 175.0],
-  "1D": [168.4, 169.1, 170.6, 169.8, 171.2, 172.0, 171.4, 173.1, 172.6, 174.0, 174.8, 175.0],
-  "1W": [161.2, 163.5, 162.0, 165.4, 164.1, 167.9, 169.2, 168.0, 171.6, 170.3, 173.4, 175.0],
-  "1M": [148.0, 151.2, 149.6, 154.8, 158.1, 156.4, 161.0, 159.7, 165.3, 168.9, 172.1, 175.0],
+  "1H": [0.394, 0.395, 0.393, 0.396, 0.397, 0.396, 0.398, 0.399, 0.398, 0.399, 0.4, 0.4],
+  "1D": [0.383, 0.385, 0.388, 0.386, 0.39, 0.392, 0.391, 0.395, 0.393, 0.397, 0.399, 0.4],
+  "1W": [0.362, 0.368, 0.365, 0.373, 0.371, 0.38, 0.383, 0.381, 0.389, 0.386, 0.394, 0.4],
+  "1M": [0.328, 0.336, 0.332, 0.345, 0.352, 0.349, 0.36, 0.357, 0.371, 0.379, 0.388, 0.4],
 };
 const TIMEFRAMES = ["1H", "1D", "1W", "1M"] as const;
 
 const RECENT_SWAPS = [
-  { addr: "GBX7…K29F", from: "XLM", to: "USDC", amount: "1,240", value: "$7,102", ago: "12s" },
+  { addr: "GBX7…K29F", from: "XLM", to: "USDC", amount: "1,240", value: "$496", ago: "12s" },
   { addr: "GDA4…9QL1", from: "USDC", to: "AQUA", amount: "820", value: "$820", ago: "48s" },
-  { addr: "GCF2…M8TR", from: "yXLM", to: "XLM", amount: "56.4", value: "$9,932", ago: "1m" },
-  { addr: "GBP9…3VZK", from: "AQUA", to: "USDC", amount: "3,410", value: "$11,594", ago: "2m" },
-  { addr: "GDE1…7WQP", from: "XLM", to: "SHX", amount: "640", value: "$3,668", ago: "4m" },
+  { addr: "GCF2…M8TR", from: "yXLM", to: "XLM", amount: "5,640", value: "$2,312", ago: "1m" },
+  { addr: "GBP9…3VZK", from: "AQUA", to: "USDC", amount: "3,410", value: "$273", ago: "2m" },
+  { addr: "GDE1…7WQP", from: "XLM", to: "SHX", amount: "640", value: "$256", ago: "4m" },
 ];
 
 const POOLS = [
@@ -114,21 +121,27 @@ export default function NovaSwap() {
   const [amount, setAmount] = useState("0.5");
   const [dangerous, setDangerous] = useState(false);
   const [resultState, setResultState] = useState<ResultState>("idle");
-  const [signature, setSignature] = useState<string | null>(null);
+  const [via, setVia] = useState<ResultVia>("baret");
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [previewTx, setPreviewTx] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("1D");
 
   const outputAmount = fromToken.price * parseFloat(amount || "0") / toToken.price;
-  const success = signature !== null;
-  const scenarioLabel = dangerous
-    ? `Swap ${amount} ${fromToken.symbol} → ${toToken.symbol} (danger scenario · drainer pattern)`
-    : `Swap ${amount} ${fromToken.symbol} → ${outputAmount.toFixed(4)} ${toToken.symbol}`;
+  const success = txHash !== null;
+  const scenario = novaswapScenario(dangerous, amount, fromToken.symbol, toToken.symbol, outputAmount);
+  const scenarioLabel = scenario.label;
+
+  function reset() {
+    setTxHash(null);
+    setResultMessage(null);
+    setResultState("idle");
+  }
 
   async function handleSwap() {
     if (!connected || !walletAddress) { openWalletModal(); return; }
     try {
-      const __built = await buildScenario(dangerous ? "novaswap-danger" : "novaswap-safe", walletAddress); const tx = __built.transactionXdr;
+      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
       setPreviewTx(tx);   // opens RiskPreview, user decides how to send
     } catch (e) {
       setResultState("error");
@@ -139,10 +152,11 @@ export default function NovaSwap() {
   async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("baret");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
-      const { signature: sig } = await adapter.signAndSendTransaction(previewTx);
-      setSignature(sig); setResultState("confirmed");
+      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -157,13 +171,14 @@ export default function NovaSwap() {
   // signing the same scenario over its own key: connects a second wallet
   // (Freighter) and submits directly to Horizon, no Baret pipeline involved.
   async function sendRaw() {
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("raw");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
       const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "novaswap-danger" : "novaswap-safe", raw.address);
+      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
       const { signedTxXdr } = await raw.signTransaction(rawTx);
       const hash = await submitSignedTransaction(signedTxXdr);
-      setSignature(hash); setResultState("confirmed");
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -190,7 +205,7 @@ export default function NovaSwap() {
   const stats = [
     { label: "24h Volume", value: "$48.2M", change: "+6.8%", up: true, icon: BarChart3 },
     { label: "Total Value Locked", value: "$312M", change: "+1.2%", up: true, icon: Layers },
-    { label: "XLM Price", value: "$175.00", change: "+2.4%", up: true, icon: TrendingUp },
+    { label: "XLM Price", value: "$0.40", change: "+2.4%", up: true, icon: TrendingUp },
     { label: "Active Pairs", value: "128", change: "+3", up: true, icon: Activity },
   ];
 
@@ -198,16 +213,18 @@ export default function NovaSwap() {
     <SiteShell
       theme={THEME}
       navLinks={[
-        { label: "Swap" },
-        { label: "Liquidity" },
-        { label: "Analytics" },
-        { label: "Governance" },
+        { label: "Swap", href: "#swap" },
+        { label: "Liquidity", href: "#liquidity" },
+        { label: "Analytics", href: "#analytics" },
+        { label: "Governance", href: "#governance" },
       ]}
     >
       <ResultOverlay
         state={resultState}
-        signature={signature}
+        via={via}
+        txHash={txHash}
         message={resultMessage}
+        scenarioLabel={scenarioLabel}
         onClose={() => setResultState("idle")}
       />
 
@@ -281,7 +298,8 @@ export default function NovaSwap() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="rounded-3xl border border-indigo-500/15 bg-white/85 p-5 shadow-[0_20px_60px_-30px_rgba(79,70,229,0.5)] backdrop-blur-xl dark:border-indigo-400/15 dark:bg-slate-950/70"
+                id="analytics"
+                className="scroll-mt-24 rounded-3xl border border-indigo-500/15 bg-white/85 p-5 shadow-[0_20px_60px_-30px_rgba(79,70,229,0.5)] backdrop-blur-xl dark:border-indigo-400/15 dark:bg-slate-950/70"
               >
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
                   <div>
@@ -290,7 +308,7 @@ export default function NovaSwap() {
                       XLM / USDC
                     </div>
                     <div className="mt-1 flex items-baseline gap-2">
-                      <span className="font-display text-3xl font-black text-slate-900 dark:text-white">$175.00</span>
+                      <span className="font-display text-3xl font-black text-slate-900 dark:text-white">$0.40</span>
                       <span className={`flex items-center gap-0.5 text-sm font-semibold ${chartUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                         {chartUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
                         {chartUp ? "+" : ""}{chartChange.toFixed(2)}%
@@ -342,7 +360,8 @@ export default function NovaSwap() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="rounded-3xl border border-indigo-500/15 bg-white/85 p-5 shadow-[0_20px_60px_-30px_rgba(79,70,229,0.5)] backdrop-blur-xl dark:border-indigo-400/15 dark:bg-slate-950/70"
+                id="governance"
+                className="scroll-mt-24 rounded-3xl border border-indigo-500/15 bg-white/85 p-5 shadow-[0_20px_60px_-30px_rgba(79,70,229,0.5)] backdrop-blur-xl dark:border-indigo-400/15 dark:bg-slate-950/70"
               >
                 <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                   <BarChart3 size={15} className="text-indigo-500 dark:text-indigo-400" /> Top tokens
@@ -378,7 +397,7 @@ export default function NovaSwap() {
                               </div>
                             </td>
                             <td className="py-3 text-right font-medium tabular-nums text-slate-900 dark:text-white">
-                              ${t.price < 1 ? t.price.toFixed(2) : t.price.toLocaleString()}
+                              ${fmtUsd(t.price)}
                             </td>
                             <td className={`py-3 text-right font-semibold tabular-nums ${up ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                               {up ? "+" : ""}{t.change.toFixed(2)}%
@@ -403,7 +422,8 @@ export default function NovaSwap() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="h-fit w-full rounded-3xl bg-gradient-to-b from-indigo-500/40 via-violet-500/20 to-transparent p-px shadow-[0_20px_60px_-24px_rgba(79,70,229,0.55)] lg:sticky lg:top-24"
+              id="swap"
+              className="h-fit w-full scroll-mt-24 rounded-3xl bg-gradient-to-b from-indigo-500/40 via-violet-500/20 to-transparent p-px shadow-[0_20px_60px_-24px_rgba(79,70,229,0.55)] lg:sticky lg:top-24"
             >
               <div className="space-y-3 rounded-[calc(1.5rem-1px)] bg-white/90 p-5 backdrop-blur-xl dark:bg-slate-950/80">
                 <div className="mb-1 flex items-center justify-between">
@@ -488,12 +508,16 @@ export default function NovaSwap() {
 
                 {/* Swap button */}
                 {success ? (
-                  <motion.div
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    className="w-full rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
-                  >
-                    ✓ Swap Successful
+                  <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
+                    <div className="w-full rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                      ✓ Swap Successful
+                    </div>
+                    <button
+                      onClick={reset}
+                      className="w-full rounded-xl border border-black/10 py-2.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:text-white"
+                    >
+                      Run it again
+                    </button>
                   </motion.div>
                 ) : (
                   <button
@@ -558,7 +582,8 @@ export default function NovaSwap() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="rounded-3xl border border-indigo-500/15 bg-white/85 p-5 shadow-[0_20px_60px_-30px_rgba(79,70,229,0.5)] backdrop-blur-xl dark:border-indigo-400/15 dark:bg-slate-950/70"
+              id="liquidity"
+              className="scroll-mt-24 rounded-3xl border border-indigo-500/15 bg-white/85 p-5 shadow-[0_20px_60px_-30px_rgba(79,70,229,0.5)] backdrop-blur-xl dark:border-indigo-400/15 dark:bg-slate-950/70"
             >
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 <Droplets size={15} className="text-indigo-500 dark:text-indigo-400" /> Liquidity pools

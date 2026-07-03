@@ -6,7 +6,7 @@ import {
   ArrowUpRight, BookOpen, Shield, FileText, Zap, Layers, Globe,
 } from "lucide-react";
 import { Eyebrow, Reveal, RevealGroup, RevealItem, SpotlightCard } from "@stellar-thorn/ui";
-import { LandingHeader, LandingFooter } from "../components/LandingChrome";
+import { BackdropGrid, LandingHeader, LandingFooter } from "../components/LandingChrome";
 
 const DOCS = [
   { title: "Vision",                 desc: "Why a transaction firewall belongs in the wallet, not the dApp.",      file: "vision.md",                 icon: BookOpen },
@@ -22,9 +22,10 @@ const DOCS = [
 export default function DocsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <BackdropGrid />
       <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
 
-      <main className="max-w-6xl mx-auto px-5 sm:px-8 pt-36 pb-24">
+      <main className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-36 pb-24">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <Eyebrow index="01">Documentation</Eyebrow>
           <h1 className="mt-5 font-display text-5xl md:text-6xl font-semibold uppercase tracking-[-0.03em] leading-[1.04]">
@@ -50,7 +51,7 @@ export default function DocsPage() {
             <p className="mt-2 text-muted-foreground max-w-md mx-auto">
               The showcase puts every layer of the wallet through its paces in your browser.
             </p>
-            <Link to="/" className="group mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">
+            <Link to="/showcase" className="group mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">
               Open the showcase <ArrowUpRight size={14} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             </Link>
           </div>
@@ -73,7 +74,7 @@ function DocCard({
   return (
     <SpotlightCard className="h-full">
       <a
-        href={`https://github.com/Aeztrest/DeltaProtokol/blob/main/docs/${file}`}
+        href={`https://github.com/Aeztrest/Baret-Stellar/blob/main/docs/${file}`}
         target="_blank"
         rel="noreferrer"
         aria-label={`Open ${title} docs`}

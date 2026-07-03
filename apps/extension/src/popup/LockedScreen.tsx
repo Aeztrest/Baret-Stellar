@@ -70,7 +70,8 @@ export function LockedScreen() {
       </form>
 
       <p className="text-text-faint text-[10px] text-center px-4">
-        Lost your passphrase? You'll need to reset and restore from your secret key.
+        Lost your passphrase? Reset the wallet from Settings, then pick "I
+        already have a key" in setup to restore from your secret key backup.
       </p>
     </div>
   );

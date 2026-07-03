@@ -37,7 +37,7 @@ export function ProtocolWedge() {
       <Container>
         <Reveal>
           <div className="mb-14 flex max-w-3xl flex-col gap-5">
-            <Eyebrow index="02">The wedge</Eyebrow>
+            <Eyebrow index="02">The x402 gap</Eyebrow>
             <h2 className="font-display text-4xl font-semibold uppercase leading-[0.95] tracking-[-0.03em] text-foreground md:text-5xl">
               x402 is stateless. Baret isn't.
             </h2>

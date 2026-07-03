@@ -4,8 +4,8 @@
  * Explains, in plain terms, how an autonomous agent routes every transaction
  * through Baret BEFORE signing. It's the same firewall the wallet uses,
  * delivered as the @stellar-thorn/agent-guard SDK and `baret` CLI. Includes a
- * live playground (real /v1/analyze call) and a live audit monitor scoped to
- * the agent addresses you enter.
+ * live playground (real /v1/analyze call) that talks to a locally running
+ * Baret server; it is framed as a developer tool on the page itself.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -14,7 +14,7 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { POLICY_TEMPLATES, type PolicyTemplateId } from "@stellar-thorn/swig-guard";
 import {
   Bot, Terminal, ShieldCheck, Copy, Check,
-  Cpu, KeyRound, Activity, Loader2, Wand2, ScrollText,
+  Cpu, KeyRound, Loader2, Wand2,
 } from "lucide-react";
 import { Verdict, SpotlightCard } from "@stellar-thorn/ui";
 import {
@@ -56,7 +56,6 @@ export default function AgentsPage() {
           network={network}
           onNetwork={setNetwork}
         />
-        <Monitor agentAddress={agentAddress} />
       </main>
 
       <LandingFooter />
@@ -269,7 +268,15 @@ function Playground({
 
   return (
     <section className="mb-16">
-      <SectionHeading icon={Wand2} title="Live playground" subtitle="Runs the real /v1/analyze pipeline with the policy you picked. Start the Baret server, paste an unsigned transaction XDR, and see the verdict your agent would get." />
+      <SectionHeading icon={Wand2} title="Live playground" subtitle="Runs the real /v1/analyze pipeline with the policy you picked. Paste an unsigned transaction XDR and see the verdict your agent would get." />
+
+      <div className="mb-4 rounded-xl border border-border bg-secondary px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
+        <strong className="text-foreground">For developers.</strong> This playground
+        talks to a Baret server running on your machine at{" "}
+        <code className="font-mono text-foreground/80">localhost:8080</code>. Start it
+        with <code className="font-mono text-foreground/80">pnpm dev:server</code> from
+        the repo root.
+      </div>
 
       <div className="rounded-xl border border-border bg-card p-5 grid lg:grid-cols-2 gap-5">
         <div className="space-y-4">
@@ -331,6 +338,11 @@ function Playground({
 
         <VerdictPanel result={result} error={error} loading={loading} />
       </div>
+
+      <p className="mt-4 text-[12px] text-muted-foreground">
+        A per-agent audit monitor needs authenticated server-side access, so it is not
+        part of this public demo. The playground above is the live surface.
+      </p>
     </section>
   );
 }
@@ -359,6 +371,13 @@ function VerdictPanel({
       </div>
     );
   }
+  if (result.offline) {
+    return (
+      <div className="rounded-xl bg-secondary flex items-center justify-center text-muted-foreground text-sm text-center px-6 min-h-[260px]">
+        No Baret server reachable. This playground is for developers running the stack locally.
+      </div>
+    );
+  }
 
   const blocked = result.decision === "block";
   const advisory = result.decision === "advisory";
@@ -373,7 +392,7 @@ function VerdictPanel({
     <div className="min-h-[260px] overflow-auto space-y-4">
       <Verdict
         tone={tone}
-        headline={result.offline ? `${label} (offline)` : label}
+        headline={label}
         reasons={result.reasons}
       />
 
@@ -410,38 +429,6 @@ function VerdictPanel({
         </div>
       )}
     </div>
-  );
-}
-
-/* ════════════════════════ monitor ════════════════════════ */
-
-/**
- * The public showcase can't safely call an authenticated cross-user audit
- * feed from the browser. Any key baked into this client bundle is visible
- * to every visitor via devtools. Run the playground above for a live,
- * single-request verdict instead; a real per-agent audit log needs a
- * server-side view backed by proper auth, not a public demo endpoint.
- */
-function Monitor({ agentAddress }: { agentAddress: string }) {
-  const addr = agentAddress.trim();
-
-  return (
-    <section className="mb-4">
-      <SectionHeading
-        icon={Activity}
-        title="Live monitor"
-        subtitle="A per-agent audit feed needs authenticated, server-side access. It isn't part of this public demo. Use the playground above to see a live verdict for one transaction."
-      />
-
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="p-5 text-sm text-muted-foreground flex items-center gap-2">
-          <ScrollText size={15} />
-          {addr
-            ? `Not available in the public demo for ${addr.slice(0, 10)}…`
-            : "Not available in the public demo."}
-        </div>
-      </div>
-    </section>
   );
 }
 

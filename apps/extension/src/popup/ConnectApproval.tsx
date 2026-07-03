@@ -24,7 +24,7 @@ export function ConnectApproval() {
   const rpc = useRpc();
   const state = useWalletState();
   const [request, setRequest] = useState<PendingRequest | null>(null);
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +36,8 @@ export function ConnectApproval() {
     } catch { /* ignore */ }
   }, [rpc]);
 
-  usePolling(pollRequest, 1000);
+  // Poll only until the request loads; once we hold it, stop.
+  usePolling(pollRequest, 1000, { enabled: request === null });
 
   if (!request || !state) {
     return (
@@ -108,7 +109,8 @@ export function ConnectApproval() {
           <p className="label">Your wallet</p>
           <p className="font-mono text-[11px] text-text-muted break-all">{state.walletAddress}</p>
           <p className="text-text-faint text-[10px] mt-1">
-            authority {short(state.authorityAddress)} · network {state.network}
+            authority {short(state.authorityAddress)} · network{" "}
+            {state.network === "pubnet" ? "mainnet" : state.network}
           </p>
         </section>
 
@@ -122,7 +124,7 @@ export function ConnectApproval() {
           <span className="text-xs leading-snug">
             <span className="text-text font-semibold">Trust this site for next time</span>
             <span className="block text-text-faint text-[11px] mt-0.5">
-              Skip this prompt on future connects from {host}. You can revoke trust from <span className="text-text">Options → Sites</span>.
+              Skip this prompt on future connects from {host}. You can revoke this anytime in Baret settings → Sites.
             </span>
           </span>
         </label>
@@ -138,11 +140,11 @@ export function ConnectApproval() {
 
       <footer className="p-3 border-t border-line flex gap-2 shrink-0 bg-bg-elevated">
         <button onClick={() => decide(false)} disabled={working} className="btn-ghost flex-1">
-          <X size={13} /> Reject
+          <X size={13} /> Decline
         </button>
         <button onClick={() => decide(true)} disabled={working} className="btn-primary flex-1">
           {working
-            ? <><Loader2 size={13} className="animate-spin" /> …</>
+            ? <><Loader2 size={13} className="animate-spin" /> Connecting…</>
             : <><Check size={13} /> Connect</>}
         </button>
       </footer>

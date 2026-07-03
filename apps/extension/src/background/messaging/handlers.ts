@@ -75,6 +75,7 @@ import {
 import { buildRemoveSubKeyTransaction } from "../swig/sub-keys";
 
 const POLICY_STORAGE_KEY = "baret.policy.v1";
+const BACKUP_ACK_STORAGE_KEY = "baret.backupAck.v1";
 const FRIENDBOT_URL = "https://friendbot.stellar.org";
 const STROOPS_PER_XLM = 10_000_000n;
 
@@ -128,6 +129,9 @@ const createHandler: Handler<"wallet.create"> = async ({
 
   unlockWith(seedBytes);
 
+  // Fresh wallet: the user has not confirmed a backup yet.
+  await browser.storage.local.set({ [BACKUP_ACK_STORAGE_KEY]: false });
+
   dispatch({ type: "network.set", network });
   // Smart-wallet contract not yet provisioned; surface the authority as the
   // logical wallet address so UIs can render a non-null value.
@@ -141,6 +145,104 @@ const createHandler: Handler<"wallet.create"> = async ({
     walletAddress: authority.publicKey(),
     authorityAddress: authority.publicKey(),
   };
+};
+
+const importHandler: Handler<"wallet.import"> = async ({
+  secret,
+  passphrase,
+  network,
+}) => {
+  if (await hasKeystore()) {
+    throw new Error(
+      "A wallet already exists. Reset it before restoring another.",
+    );
+  }
+  if (typeof passphrase !== "string" || passphrase.length < 8) {
+    throw new Error("Passphrase must be at least 8 characters.");
+  }
+
+  const seedBytes = parseSecretInput(secret);
+  const authority = Keypair.fromRawEd25519Seed(Buffer.from(seedBytes));
+
+  const blob = await encryptWithPassphrase(seedBytes, passphrase);
+  await writeKeystore({
+    id: "primary",
+    blob,
+    authorityPubkey: authority.publicKey(),
+    smartWalletAddress: null,
+    createdAt: Date.now(),
+  });
+
+  unlockWith(seedBytes);
+  seedBytes.fill(0);
+
+  // The user restored from a backup they already hold. no nag needed.
+  await browser.storage.local.set({ [BACKUP_ACK_STORAGE_KEY]: true });
+
+  dispatch({ type: "network.set", network });
+  dispatch({
+    type: "wallet.created",
+    walletAddress: authority.publicKey(),
+    authorityAddress: authority.publicKey(),
+  });
+
+  return {
+    walletAddress: authority.publicKey(),
+    authorityAddress: authority.publicKey(),
+  };
+};
+
+/**
+ * Accepts the same formats `wallet.exportSecret` produces: the base58 seed
+ * shown during onboarding, a 64-char hex seed, or a standard S… Stellar
+ * secret key. Returns the raw 32-byte ed25519 seed.
+ */
+function parseSecretInput(raw: string): Uint8Array {
+  const input = raw.trim();
+  if (!input) throw new Error("Paste your secret key first.");
+
+  // S… strkey secret (the standard Stellar format).
+  if (/^S[A-Z2-7]{55}$/.test(input)) {
+    try {
+      return new Uint8Array(StrKey.decodeEd25519SecretSeed(input));
+    } catch {
+      throw new Error("That S… secret key doesn't decode. Check for typos.");
+    }
+  }
+
+  // 64-char hex seed.
+  if (/^[0-9a-fA-F]{64}$/.test(input)) {
+    const out = new Uint8Array(32);
+    for (let i = 0; i < 32; i++)
+      out[i] = parseInt(input.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
+
+  // Base58 seed (what Baret's backup screen shows).
+  const bytes = base58ToBytes(input);
+  if (bytes === null) {
+    throw new Error(
+      "Unrecognized secret format. Paste the key from your Baret backup screen, a 64-character hex seed, or an S… secret key.",
+    );
+  }
+  if (bytes.length !== 32) {
+    throw new Error(
+      `That key decodes to ${bytes.length} bytes; a wallet seed is 32. Check you copied the whole key.`,
+    );
+  }
+  return bytes;
+}
+
+const backupStatusHandler: Handler<"wallet.backupStatus"> = async () => {
+  const all = await browser.storage.local.get(BACKUP_ACK_STORAGE_KEY);
+  return { acknowledged: all[BACKUP_ACK_STORAGE_KEY] === true };
+};
+
+const acknowledgeBackupHandler: Handler<
+  "wallet.acknowledgeBackup"
+> = async () => {
+  await browser.storage.local.set({ [BACKUP_ACK_STORAGE_KEY]: true });
+  return { ok: true };
 };
 
 const unlockHandler: Handler<"wallet.unlock"> = async ({ passphrase }) => {
@@ -179,6 +281,7 @@ const resetHandler: Handler<"wallet.reset"> = async ({ confirmation }) => {
   }
   lock();
   await clearKeystore();
+  await browser.storage.local.remove(BACKUP_ACK_STORAGE_KEY);
   dispatch({ type: "wallet.reset" });
   return { ok: true };
 };
@@ -294,6 +397,7 @@ const balanceHandler: Handler<"wallet.balance"> = async ({ address }) => {
 const transferXlmHandler: Handler<"wallet.transferXlm"> = async ({
   to,
   amountXlm,
+  memo,
 }) => {
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
   if (!Number.isFinite(amountXlm) || amountXlm <= 0) {
@@ -302,6 +406,44 @@ const transferXlmHandler: Handler<"wallet.transferXlm"> = async ({
   if (!StrKey.isValidEd25519PublicKey(to)) {
     throw new Error("Invalid recipient address.");
   }
+  const memoText = typeof memo === "string" ? memo.trim() : "";
+  if (Buffer.byteLength(memoText, "utf8") > 28) {
+    throw new Error("Memo is longer than 28 bytes.");
+  }
+
+  const authority = useAuthority();
+  const horizon = getHorizon();
+  const passphrase = getNetworkPassphrase();
+  const sourceAccount = await horizon.loadAccount(authority.publicKey());
+
+  const builder = new TransactionBuilder(sourceAccount, {
+    fee: BASE_FEE,
+    networkPassphrase: passphrase as NetworksType,
+  }).addOperation(
+    Operation.payment({
+      destination: to,
+      asset: Asset.native(),
+      amount: amountXlm.toFixed(7),
+    }),
+  );
+  if (memoText) builder.addMemo(Memo.text(memoText));
+  const tx = builder.setTimeout(60).build();
+  tx.sign(authority);
+
+  try {
+    const result = await horizon.submitTransaction(tx);
+    return { transactionHash: result.hash };
+  } catch (err) {
+    throw new Error(horizonSubmitErrorMessage(err));
+  }
+};
+
+const addUsdcTrustlineHandler: Handler<
+  "wallet.addUsdcTrustline"
+> = async () => {
+  if (!isUnlocked()) throw new Error("Unlock the wallet first.");
+  const snap = getSnapshot();
+  const issuer = USDC_ISSUER[snap.network] ?? USDC_ISSUER.testnet!;
 
   const authority = useAuthority();
   const horizon = getHorizon();
@@ -313,20 +455,48 @@ const transferXlmHandler: Handler<"wallet.transferXlm"> = async ({
     networkPassphrase: passphrase as NetworksType,
   })
     .addOperation(
-      Operation.payment({
-        destination: to,
-        asset: Asset.native(),
-        amount: amountXlm.toFixed(7),
+      Operation.changeTrust({
+        asset: new Asset("USDC", issuer),
       }),
     )
-    .addMemo(Memo.text("baret:transferXlm"))
     .setTimeout(60)
     .build();
   tx.sign(authority);
 
-  const result = await horizon.submitTransaction(tx);
-  return { transactionHash: result.hash };
+  try {
+    const result = await horizon.submitTransaction(tx);
+    return { transactionHash: result.hash };
+  } catch (err) {
+    throw new Error(horizonSubmitErrorMessage(err));
+  }
 };
+
+/**
+ * Horizon submit failures bury the useful result codes in
+ * `response.data.extras.result_codes`. Surface them in the error message so
+ * the UI can map them to human copy (and show the raw code as detail).
+ */
+function horizonSubmitErrorMessage(err: unknown): string {
+  const e = err as {
+    response?: {
+      data?: {
+        extras?: {
+          result_codes?: { transaction?: string; operations?: string[] };
+        };
+      };
+    };
+    message?: string;
+  };
+  const codes = e?.response?.data?.extras?.result_codes;
+  if (codes) {
+    const parts = [
+      ...(codes.transaction ? [codes.transaction] : []),
+      ...(codes.operations ?? []),
+    ];
+    if (parts.length > 0) return parts.join(", ");
+  }
+  return err instanceof Error ? err.message : String(err);
+}
 
 /* ────────────── Network ────────────── */
 
@@ -649,14 +819,18 @@ function kindLabel(
 export const handlers: { [M in ExtRpcMethod]: Handler<M> } = {
   "wallet.getState": getStateHandler,
   "wallet.create": createHandler,
+  "wallet.import": importHandler,
   "wallet.unlock": unlockHandler,
   "wallet.lock": lockHandler,
   "wallet.reset": resetHandler,
   "wallet.exportSecret": exportSecretHandler,
+  "wallet.backupStatus": backupStatusHandler,
+  "wallet.acknowledgeBackup": acknowledgeBackupHandler,
   "wallet.airdrop": airdropHandler,
   "wallet.provisionSmartWallet": provisionSmartWalletHandler,
   "wallet.balance": balanceHandler,
   "wallet.transferXlm": transferXlmHandler,
+  "wallet.addUsdcTrustline": addUsdcTrustlineHandler,
 
   "network.set": networkSet,
 
@@ -730,6 +904,27 @@ function bytesToBase58(b: Uint8Array): string {
     else break;
   }
   return out;
+}
+
+/** Inverse of `bytesToBase58`. Returns null when the string isn't base58. */
+function base58ToBytes(s: string): Uint8Array | null {
+  let n = 0n;
+  let leadingZeros = 0;
+  let counting = true;
+  for (const ch of s) {
+    const idx = BASE58_ALPHABET.indexOf(ch);
+    if (idx === -1) return null;
+    if (counting && ch === "1") leadingZeros++;
+    else counting = false;
+    n = n * 58n + BigInt(idx);
+  }
+  const bytes: number[] = [];
+  while (n > 0n) {
+    bytes.unshift(Number(n & 0xffn));
+    n >>= 8n;
+  }
+  for (let i = 0; i < leadingZeros; i++) bytes.unshift(0);
+  return new Uint8Array(bytes);
 }
 
 // Re-export Networks for any consumer that needs the passphrase enum.

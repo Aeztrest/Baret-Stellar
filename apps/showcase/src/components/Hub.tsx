@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence, useInView } from "framer-motion";
+import { motion, AnimatePresence, useInView, useReducedMotion } from "framer-motion";
 import {
   Shield, ShieldCheck, ShieldAlert, ArrowRight, ArrowUpRight,
   Wallet, Sparkles, Radar, Activity, BookOpen,
@@ -33,9 +33,12 @@ interface SiteSpec {
   description: string;
   catches: string[];
   threat: string;
+  /** One factual sentence on why this attack class matters. No invented stats. */
+  note: string;
   verdict: string;
   icon: typeof Shield;
   bucket: Bucket;
+  flagship?: boolean;
 }
 
 const BUCKET: Record<Bucket, { label: string; color: string; dim: string }> = {
@@ -46,46 +49,58 @@ const BUCKET: Record<Bucket, { label: string; color: string; dim: string }> = {
 
 const SHOWCASE: SiteSpec[] = [
   {
-    index: "01", path: "/novaswap", name: "NovaSwap", category: "DeFi",
-    tagline: "Soroswap-routed token swap",
-    description: "A clean DEX aggregator clone. Toggle danger mode and a hidden instruction redirects your output token to a fresh wallet.",
-    catches: ["Output transfer to unknown wallet", "Compute-price abuse vs simulated baseline", "Program unverified by reputation index"],
-    threat: "Fund drain · Unknown program", verdict: "Blocked", icon: ArrowLeftRight, bucket: "drainer",
+    index: "01", path: "/scrybe", name: "Scrybe", category: "x402",
+    tagline: "Pay-per-question oracle", flagship: true,
+    description: "An AI Q&A service that charges $0.001 USDC per answer over x402, the machine-payments protocol. A real 402 challenge, a real on-chain settlement, and a wallet that caps the agent's spend.",
+    catches: ["Per-merchant rolling spend cap", "Facilitator allowlist enforcement", "Asset allowlist for the payment leg"],
+    threat: "Silent agent · Drift risk",
+    note: "Agent payments repeat by design, so a small leak compounds with every request.",
+    verdict: "Capped", icon: Sparkles, bucket: "silent",
   },
   {
-    index: "02", path: "/pixeldrop", name: "PixelDrop", category: "NFT",
+    index: "02", path: "/novaswap", name: "NovaSwap", category: "DeFi",
+    tagline: "Soroswap-routed token swap",
+    description: "A clean DEX aggregator clone. Toggle danger mode and a hidden operation redirects your output token to a fresh wallet.",
+    catches: ["Output transfer to an unknown wallet", "Fee or resource abuse vs simulated baseline", "Contract unverified by reputation index"],
+    threat: "Fund drain · Unknown contract",
+    note: "Output redirects hide well because the swap itself still succeeds.",
+    verdict: "Blocked", icon: ArrowLeftRight, bucket: "drainer",
+  },
+  {
+    index: "03", path: "/pixeldrop", name: "PixelDrop", category: "NFT",
     tagline: "Generative NFT mint",
     description: "A Cyber Phantoms mint page. Behind the artwork sits a hidden authorization change that drains every asset in your wallet.",
-    catches: ["SetAuthority on unrelated token accounts", "Wallet-drainer pattern signature", "Mint authority leaves the buyer"],
-    threat: "Wallet drainer · Authority theft", verdict: "Blocked", icon: ImageIcon, bucket: "drainer",
+    catches: ["Signer or trustline changes you didn't ask for", "Wallet-drainer pattern signature", "Transfers of assets unrelated to the mint"],
+    threat: "Wallet drainer · Authority theft",
+    note: "Mint pages make a good drainer disguise because buyers expect to sign fast.",
+    verdict: "Blocked", icon: ImageIcon, bucket: "drainer",
   },
   {
-    index: "03", path: "/orbityield", name: "OrbitYield", category: "Staking",
+    index: "04", path: "/orbityield", name: "OrbitYield", category: "Staking",
     tagline: "Liquid staking · 14% APY",
     description: "A liquid-staking landing page. The pool exists, but it's an anonymous fork with no on-chain unstake path. It's a one-way deposit.",
-    catches: ["Pool program unverified", "No discoverable unstake instruction", "TVL inflated by self-deposits"],
-    threat: "Trust trap · No unstake path", verdict: "Caution", icon: TrendingUp, bucket: "trap",
+    catches: ["Pool contract unverified", "No discoverable unstake function", "TVL inflated by self-deposits"],
+    threat: "Trust trap · No unstake path",
+    note: "A one-way deposit looks fine in the UI. The missing exit only shows up on-chain.",
+    verdict: "Caution", icon: TrendingUp, bucket: "trap",
   },
   {
-    index: "04", path: "/claimhub", name: "ClaimHub", category: "Airdrop",
+    index: "05", path: "/claimhub", name: "ClaimHub", category: "Airdrop",
     tagline: "Ecosystem airdrop claim",
     description: "Looks like every airdrop site you've used. The 'eligibility check' actually signs an unlimited approval over your stablecoins.",
-    catches: ["Unlimited approval to spender wallet", "Domain unverified by allowlist", "Claim ix wraps a transfer in disguise"],
-    threat: "Phishing · Unlimited approval", verdict: "Blocked", icon: Gift, bucket: "drainer",
+    catches: ["Unlimited approval to a spender wallet", "Domain unverified by allowlist", "Claim operation wraps a transfer in disguise"],
+    threat: "Phishing · Unlimited approval",
+    note: "Approval drainers are the most common wallet attack anywhere signatures are blind.",
+    verdict: "Blocked", icon: Gift, bucket: "drainer",
   },
   {
-    index: "05", path: "/launchpad", name: "LaunchPad", category: "Launch",
+    index: "06", path: "/launchpad", name: "LaunchPad", category: "Launch",
     tagline: "Vetted token IDO",
-    description: "A polished launchpad with countdown and tokenomics. Simulation reveals the dev wallet keeps mint authority and the LP is not locked.",
-    catches: ["Mint authority retained by deployer", "Liquidity pool not locked", "Token freezable post-launch"],
-    threat: "Rug pull · No LP lock", verdict: "Caution", icon: Rocket, bucket: "trap",
-  },
-  {
-    index: "06", path: "/scrybe", name: "Scrybe", category: "x402",
-    tagline: "Pay-per-question oracle",
-    description: "An AI Q&A service that auto-charges $0.001 USDC per answer via x402 + PayAI. Tests whether the wallet caps an agent's spend.",
-    catches: ["Per-merchant rolling spend cap", "Facilitator allowlist enforcement", "Mint allowlist for the payment leg"],
-    threat: "Silent agent · Drift risk", verdict: "Capped", icon: Sparkles, bucket: "silent",
+    description: "A polished launchpad with countdown and tokenomics. Simulation reveals the deployer keeps the token admin key and the LP is not locked.",
+    catches: ["Deployer keeps the token admin key", "Liquidity pool not locked", "Token freezable after launch"],
+    threat: "Rug pull · No LP lock",
+    note: "A retained admin key lets a deployer mint or freeze long after launch day.",
+    verdict: "Caution", icon: Rocket, bucket: "trap",
   },
 ];
 
@@ -97,10 +112,10 @@ const FILTERS: { label: string; bucket: Bucket | "all" }[] = [
 ];
 
 const DETECTOR_TAGS = [
-  "Wallet drainer", "Unauthorized approval", "Hidden CPI", "Mint authority swap",
-  "Compute-price abuse", "Look-alike mint", "Memo omission", "Rug-pull pattern",
-  "Drift detected", "Allowance overflow", "Facilitator impostor", "Unknown program",
-  "LP unlock", "Token freeze", "Phishing payload", "Silent re-sign",
+  "Wallet drainer", "Unlimited approval", "Hidden cross-contract call", "Admin key handoff",
+  "Fee abuse vs simulated baseline", "Look-alike asset", "Memo omission", "Rug-pull pattern",
+  "Agent drift", "Allowance overflow", "Facilitator impostor", "Unknown contract",
+  "LP unlock", "Trustline freeze", "Phishing payload", "Silent re-sign",
 ];
 
 export function Hub() {
@@ -166,7 +181,7 @@ function Hero() {
           className="mt-9 flex flex-wrap items-center gap-3"
         >
           <a href="#showcase" className="group inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">
-            Pick a scenario
+            See the scenarios
             <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
           </a>
           <Link to="/install" className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-secondary">
@@ -183,13 +198,27 @@ function Hero() {
   );
 }
 
+const TICKER_PHRASES = ["wallet drainers", "unlimited approvals", "rug-pull patterns", "silent agent drift", "look-alike assets", "hidden contract calls"];
+
 function ThreatTicker() {
-  const phrases = ["wallet drainers", "unlimited approvals", "rug-pull patterns", "silent agent drift", "look-alike mints", "hidden CPI calls"];
+  const reduce = useReducedMotion();
   const [i, setI] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setI((v) => (v + 1) % phrases.length), 2200);
+    if (reduce) return;
+    const id = setInterval(() => setI((v) => (v + 1) % TICKER_PHRASES.length), 2200);
     return () => clearInterval(id);
-  }, [phrases.length]);
+  }, [reduce]);
+
+  // Reduced motion: the full list, static.
+  if (reduce) {
+    return (
+      <div className="mt-10 flex max-w-2xl flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+        <Radar size={14} className="shrink-0 text-primary" />
+        <span>Baret watches for</span>
+        <span className="font-semibold text-foreground">{TICKER_PHRASES.join(", ")}.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-10 inline-flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
@@ -198,11 +227,11 @@ function ThreatTicker() {
       <span className="relative inline-block h-5 min-w-[170px] overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.span
-            key={phrases[i]}
+            key={TICKER_PHRASES[i]}
             initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} transition={{ duration: 0.35 }}
             className="absolute inset-0 font-semibold text-foreground"
           >
-            {phrases[i]}.
+            {TICKER_PHRASES[i]}.
           </motion.span>
         </AnimatePresence>
       </span>
@@ -217,7 +246,7 @@ function StatsRow() {
     { value: 6, suffix: "", label: "Demo dApps" },
     { value: 3, suffix: "", label: "Threat classes" },
     { value: 25, suffix: "+", label: "Risk detectors" },
-    { value: 100, suffix: "%", label: "Live, no mocks" },
+    { value: 1, suffix: "", label: "Soroban contract on testnet" },
   ];
   return (
     <section className="px-5 pb-16 pt-8 sm:px-8">
@@ -240,11 +269,12 @@ function StatsRow() {
 }
 
 function Counter({ to, duration = 1.2 }: { to: number; duration?: number }) {
+  const reduce = useReducedMotion();
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const [n, setN] = useState(0);
   useEffect(() => {
-    if (!inView) return;
+    if (!inView || reduce) return;
     const start = performance.now();
     let raf = 0;
     const tick = (t: number) => {
@@ -254,8 +284,12 @@ function Counter({ to, duration = 1.2 }: { to: number; duration?: number }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [inView, to, duration]);
-  return <span ref={ref}>{n}</span>;
+  }, [inView, to, duration, reduce]);
+  return (
+    <span ref={ref} aria-label={String(to)}>
+      {reduce ? to : n}
+    </span>
+  );
 }
 
 /* ─────────────────────────── showcase ─────────────────────────── */
@@ -291,6 +325,7 @@ function ShowcaseSection() {
               <button
                 key={f.bucket}
                 onClick={() => setActive(f.bucket)}
+                aria-pressed={on}
                 className="relative inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors"
               >
                 {on && (
@@ -349,6 +384,11 @@ function SiteCard({ site, featured }: { site: SiteSpec; featured: boolean }) {
                 <div className="flex items-center gap-2">
                   <p className="font-display text-base font-semibold uppercase tracking-tight">{site.name}</p>
                   <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{site.category}</span>
+                  {site.flagship && (
+                    <span className="rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+                      Flagship
+                    </span>
+                  )}
                 </div>
                 <p className="mt-0.5 text-[12px] text-muted-foreground">{site.tagline}</p>
               </div>
@@ -363,6 +403,11 @@ function SiteCard({ site, featured }: { site: SiteSpec; featured: boolean }) {
           </div>
 
           <p className={`mt-5 text-sm leading-relaxed text-muted-foreground ${featured ? "lg:max-w-lg" : ""}`}>{site.description}</p>
+
+          <p className={`mt-3 text-[12px] leading-snug text-foreground/70 ${featured ? "lg:max-w-lg" : ""}`}>
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Why it matters · </span>
+            {site.note}
+          </p>
 
           <div className={featured ? "mt-5 grid gap-5 lg:grid-cols-2" : "contents"}>
             <div className={featured ? "" : "contents"}>
@@ -427,16 +472,18 @@ function HowItWorks() {
   const steps = [
     { n: "01", title: "Connect wallet", desc: "Pick Baret or any Wallet Standard wallet from the picker.", icon: Wallet },
     { n: "02", title: "Trigger an action", desc: "Press Swap, Mint, Stake, Claim, or Buy. The site builds the transaction.", icon: Activity },
-    { n: "03", title: "Baret inspects", desc: "Server-side simulation + 25 detectors + your local policy run on the unsigned tx.", icon: Radar },
-    { n: "04", title: "Safe or blocked", desc: "You see plain-language findings and either Sign with eyes open, or Reject.", icon: ShieldCheck },
+    { n: "03", title: "Baret inspects", desc: "Server-side simulation + 25+ detectors + your local policy run on the unsigned tx.", icon: Radar },
+    { n: "04", title: "The verdict", desc: "Safe / Caution / Blocked, with each finding in plain language. You sign with your eyes open, or reject.", icon: ShieldCheck },
   ];
+  const reduce = useReducedMotion();
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Reduced motion: no auto-advance. The stepper is manual (click or hover).
   useEffect(() => {
-    if (paused) return;
+    if (paused || reduce) return;
     const id = setInterval(() => setActive((v) => (v + 1) % steps.length), 2600);
     return () => clearInterval(id);
-  }, [paused, steps.length]);
+  }, [paused, reduce, steps.length]);
 
   return (
     <section className="px-5 py-24 sm:px-8">
@@ -445,7 +492,7 @@ function HowItWorks() {
           <div className="max-w-2xl">
             <Eyebrow index="02">How a scenario plays out</Eyebrow>
             <h2 className="mt-3 font-display text-4xl font-semibold uppercase leading-[1.05] tracking-[-0.03em] md:text-5xl">
-              Four steps. Same outcome:<br /> you stay solvent.
+              Four steps. Same outcome:<br /> your funds stay put.
             </h2>
           </div>
         </Reveal>
@@ -470,6 +517,8 @@ function HowItWorks() {
             return (
               <motion.button
                 key={s.n}
+                onClick={() => setActive(i)}
+                onFocus={() => setActive(i)}
                 onMouseEnter={() => setActive(i)}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -523,7 +572,7 @@ function DetectorGrid() {
                 suspicious, in one sentence.
               </p>
               <div className="mt-8 grid max-w-md grid-cols-1 gap-3">
-                <DetectorPill icon={ShieldAlert} title="Pre-sign Guard" body="Server simulation + 25 detectors run on the unsigned tx." />
+                <DetectorPill icon={ShieldAlert} title="Pre-sign Guard" body="Server simulation + 25+ detectors run on the unsigned tx." />
                 <DetectorPill icon={Layers} title="Authorization Ledger" body="Every grant is a row with a cap, expiry, and live progress bar." />
                 <DetectorPill icon={Network} title="Post-sign Monitor" body="WebSocket subscribe. Alerts on anything you didn't sign." />
               </div>
@@ -585,7 +634,7 @@ function FinalCta() {
         />
         <div className="relative max-w-3xl p-12 md:p-20">
           <div className="flex items-center gap-2 text-sm text-primary">
-            <HardHat size={15} /> <span>For the jury, the engineer, the user who's been rugged before.</span>
+            <HardHat size={15} /> <span>For the engineer, the skeptic, and anyone who has signed something they regretted.</span>
           </div>
           <h2 className="mt-6 font-display text-4xl font-semibold uppercase leading-[1.02] tracking-[-0.03em] md:text-6xl">
             Pick a card.<br /> <span className="text-primary">See the firewall fire.</span>
@@ -596,10 +645,10 @@ function FinalCta() {
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <a href="#showcase" className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-brand transition-colors hover:bg-[var(--accent-soft)]">
-              <Gauge size={14} /> Jump to the grid
+              <Gauge size={14} /> See the scenarios
             </a>
             <Link to="/install" className="inline-flex items-center gap-2 rounded-md border border-border px-6 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground/40 hover:bg-secondary">
-              Get the wallet <ArrowRight size={14} />
+              Install the wallet <ArrowRight size={14} />
             </Link>
           </div>
         </div>

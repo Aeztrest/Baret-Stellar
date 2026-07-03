@@ -4,6 +4,7 @@
  * changes) into a 360-wide column.
  */
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import type {
   AnalyzeResponse,
@@ -13,47 +14,64 @@ import { Section, Verdict, shortAddr } from "@stellar-thorn/ui";
 
 const SEVERITY_TONE: Record<
   RiskFindingPayload["severity"],
-  { dot: string; bg: string; border: string; text: string; chipBg: string; chipText: string }
+  { dot: string; bg: string; border: string; text: string; chipBg: string; chipText: string; chipBorder?: string }
 > = {
   low: {
     dot: "bg-muted-foreground",
     bg: "var(--secondary)",
     border: "var(--border)",
     text: "var(--text-faint)",
-    chipBg: "var(--secondary)",
-    chipText: "var(--text-faint)",
+    chipBg: "var(--bg-elevated)",
+    chipText: "var(--text-muted)",
+    chipBorder: "var(--line-strong)",
   },
   medium: {
     dot: "bg-warn",
     bg: "var(--warn-dim)",
     border: "var(--warn)",
     text: "var(--warn)",
-    chipBg: "var(--warn)",
-    chipText: "var(--primary-foreground)",
+    chipBg: "transparent",
+    chipText: "var(--warn)",
+    chipBorder: "var(--warn)",
   },
   high: {
     dot: "bg-bad",
     bg: "var(--bad-dim)",
     border: "var(--bad)",
     text: "var(--bad)",
-    chipBg: "var(--bad)",
-    chipText: "var(--primary-foreground)",
+    chipBg: "transparent",
+    chipText: "var(--bad)",
+    chipBorder: "var(--bad)",
   },
+  // Critical reads visibly stronger than high: filled bad chip, ink-on-red.
   critical: {
     dot: "bg-bad",
     bg: "var(--bad-dim)",
     border: "var(--bad)",
     text: "var(--bad)",
     chipBg: "var(--bad)",
-    chipText: "var(--primary-foreground)",
+    chipText: "#fff",
+    chipBorder: "var(--bad)",
   },
 };
 
+const SEVERITY_LABEL: Record<RiskFindingPayload["severity"], string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  critical: "Critical",
+};
+
 const STROOPS_PER_XLM = 10_000_000n;
+const REASONS_PREVIEW = 3;
 
 export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
+  const [reasonsExpanded, setReasonsExpanded] = useState(false);
   const findings = result.riskFindings ?? [];
   const reasons = result.reasons ?? [];
+  const hiddenReasons = Math.max(0, reasons.length - REASONS_PREVIEW);
+  const shownReasons =
+    reasonsExpanded || hiddenReasons === 0 ? reasons : reasons.slice(0, REASONS_PREVIEW);
   const changes = result.estimatedChanges;
   const significantNative = changes.native.filter(
     (n) =>
@@ -84,7 +102,15 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Verdict tone={tone} headline={headline} reasons={reasons.slice(0, 3)} />
+        <Verdict tone={tone} headline={headline} reasons={shownReasons} />
+        {hiddenReasons > 0 && !reasonsExpanded && (
+          <button
+            onClick={() => setReasonsExpanded(true)}
+            className="mt-1 px-1 text-[10px] font-semibold text-text-faint hover:text-text transition-colors"
+          >
+            +{hiddenReasons} more {hiddenReasons === 1 ? "reason" : "reasons"}
+          </button>
+        )}
       </motion.div>
 
       {hasAnyChange && (
@@ -178,6 +204,9 @@ function DeltaRow({
   );
 }
 
+/**
+ * One finding. The human sentence leads; the machine code is the footnote.
+ */
 function FindingRow({ finding }: { finding: RiskFindingPayload }) {
   const tone = SEVERITY_TONE[finding.severity];
   return (
@@ -189,22 +218,26 @@ function FindingRow({ finding }: { finding: RiskFindingPayload }) {
         className={`w-1.5 h-1.5 rounded-pill mt-1 shrink-0 ${tone.dot}`}
       />
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[11px] font-bold text-text leading-snug">
+            {finding.message}
+          </p>
           <span
-            className="font-mono text-[10px] font-semibold"
-            style={{ color: tone.text }}
+            className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-px rounded shrink-0"
+            style={{
+              background: tone.chipBg,
+              color: tone.chipText,
+              border: `1px solid ${tone.chipBorder ?? tone.chipBg}`,
+            }}
           >
-            {finding.code}
-          </span>
-          <span
-            className="text-[9px] uppercase tracking-wider font-bold px-1 py-px rounded"
-            style={{ background: tone.chipBg, color: tone.chipText }}
-          >
-            {finding.severity}
+            {SEVERITY_LABEL[finding.severity]}
           </span>
         </div>
-        <p className="text-[11px] text-text-muted mt-0.5 leading-relaxed">
-          {finding.message}
+        <p
+          className="font-mono text-[10px] mt-1"
+          style={{ color: "var(--text-faint)" }}
+        >
+          {finding.code}
         </p>
       </div>
     </div>

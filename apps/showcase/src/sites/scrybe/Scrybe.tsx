@@ -47,6 +47,8 @@ interface AnswerEntry {
   network?: string;
   paywall?: PaymentRequirements;
   error?: string;
+  /** Optional command shown as a "running this locally?" note for developers. */
+  errorDevCommand?: string;
   /** When phase === "setup": what the wallet is missing before it can pay. */
   needs?: "trustline" | "funds";
   /** Trustline tx in flight. */
@@ -56,9 +58,9 @@ interface AnswerEntry {
 }
 
 const SUGGESTIONS = [
-  "What is Marinade Finance?",
-  "How does Jito MEV work?",
-  "What does Jupiter aggregate?",
+  "What is Soroswap?",
+  "How do Stellar AMM pools work?",
+  "What does the Blend protocol do?",
   "Explain USDC on Stellar",
 ];
 
@@ -216,7 +218,13 @@ export default function Scrybe() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      update({ phase: "error", error: friendlyError(msg), finishedAt: Date.now() });
+      const friendly = friendlyError(msg);
+      update({
+        phase: "error",
+        error: friendly.message,
+        errorDevCommand: friendly.devCommand,
+        finishedAt: Date.now(),
+      });
     } finally {
       setPending(false);
     }
@@ -237,7 +245,13 @@ export default function Scrybe() {
       updateE({ setupBusy: false, needs: "funds" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      updateE({ setupBusy: false, phase: "error", error: friendlyError(msg) });
+      const friendly = friendlyError(msg);
+      updateE({
+        setupBusy: false,
+        phase: "error",
+        error: friendly.message,
+        errorDevCommand: friendly.devCommand,
+      });
     }
   }
 
@@ -303,6 +317,7 @@ export default function Scrybe() {
             {connected ? (
               <button
                 onClick={() => void disconnect()}
+                title="Disconnect wallet"
                 className="flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-mono font-medium text-emerald-700 dark:text-emerald-300"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -490,7 +505,7 @@ function ConversationEntry({ entry, walletAddress, onSetupTrustline, onRetry }: 
             </p>
             {entry.settlement && (
               <SettlementReceipt
-                signature={entry.settlement}
+                txHash={entry.settlement}
                 payer={entry.payer}
                 network={entry.network}
                 elapsedMs={(entry.finishedAt ?? Date.now()) - entry.startedAt}
@@ -501,9 +516,20 @@ function ConversationEntry({ entry, walletAddress, onSetupTrustline, onRetry }: 
       )}
 
       {entry.phase === "error" && (
-        <div className="ml-10 flex items-start gap-2 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3 text-sm">
-          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-rose-500" />
-          <span className="text-rose-600 dark:text-rose-300">{entry.error}</span>
+        <div className="ml-10 space-y-2 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3 text-sm">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-rose-500" />
+            <span className="text-rose-600 dark:text-rose-300">{entry.error}</span>
+          </div>
+          {entry.errorDevCommand && (
+            <p className="pl-6 text-xs text-slate-500 dark:text-slate-400">
+              Running this demo locally? Run{" "}
+              <code className="rounded bg-slate-900/8 px-1 py-px font-mono text-[11px] dark:bg-white/10">
+                {entry.errorDevCommand}
+              </code>{" "}
+              on the server, then ask again.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -557,12 +583,14 @@ function ProgressStep({ entry }: { entry: AnswerEntry }) {
   );
 }
 
-function SettlementReceipt({ signature, payer, network, elapsedMs }: {
-  signature: string; payer?: string; network?: string; elapsedMs: number;
+function SettlementReceipt({ txHash, payer, network, elapsedMs }: {
+  txHash: string; payer?: string; network?: string; elapsedMs: number;
 }) {
-  const cluster = network?.includes("testnet") ? "testnet"
-                : network?.includes("testnet") ? "testnet" : "pubnet";
-  const explorer = `https://stellar.expert/explorer/testnet/tx/${signature}?cluster=${cluster}`;
+  // stellar.expert segments: /explorer/testnet/… and /explorer/public/…
+  const segment = network && (network.includes("public") || network.includes("pubnet"))
+    ? "public"
+    : "testnet";
+  const explorer = `https://stellar.expert/explorer/${segment}/tx/${txHash}`;
 
   return (
     <motion.div
@@ -576,11 +604,12 @@ function SettlementReceipt({ signature, payer, network, elapsedMs }: {
       </div>
       <div className="min-w-0 flex-1">
         <p className="mb-1 font-medium text-emerald-700 dark:text-emerald-300">
-          Paid · settled on {cluster} in {(elapsedMs / 1000).toFixed(1)}s
+          Paid · settled on {segment === "public" ? "the public network" : "testnet"} in {(elapsedMs / 1000).toFixed(1)}s
         </p>
         <a href={explorer} target="_blank" rel="noopener noreferrer"
+           title="Transaction hash on stellar.expert"
            className="inline-flex items-center gap-1 break-all font-mono text-[11px] text-emerald-700/80 hover:text-emerald-800 dark:text-emerald-300/80 dark:hover:text-emerald-200">
-          {signature.slice(0, 12)}…{signature.slice(-8)} <ExternalLink size={10} className="shrink-0" />
+          {txHash.slice(0, 12)}…{txHash.slice(-8)} <ExternalLink size={10} className="shrink-0" />
         </a>
         {payer && (
           <p className="mt-1 break-all font-mono text-[10px] text-slate-500 dark:text-slate-500">
@@ -723,9 +752,14 @@ function OracleStats() {
 function RecentFeed() {
   return (
     <div className="space-y-3">
-      <p className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-        <Clock size={12} className="text-indigo-400" /> Recent questions
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <Clock size={12} className="text-indigo-400" /> Recent questions
+        </p>
+        <span className="rounded-full border border-slate-900/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:border-white/10 dark:text-slate-500">
+          Sample data
+        </span>
+      </div>
       <div className="divide-y divide-slate-900/8 overflow-hidden rounded-2xl border border-slate-900/10 bg-white/70 shadow-sm dark:divide-indigo-400/10 dark:border-indigo-400/12 dark:bg-white/[0.03]">
         {RECENT_QUESTIONS.map((r) => (
           <div key={r.q} className="flex items-center gap-3 px-4 py-3">
@@ -829,22 +863,26 @@ function atomicLt(balanceDecimal: string, amountAtomic: string): boolean {
   return balanceAtomic < BigInt(amountAtomic);
 }
 
-function friendlyError(msg: string): string {
+function friendlyError(msg: string): { message: string; devCommand?: string } {
   const m = msg.toLowerCase();
   if (m.includes("trustline") || m.includes("(contract, #13)") || m.includes("error(contract, #13)")) {
     // The page pre-checks the payer's own USDC trustline + balance before
     // building, so a #13 here means the recipient (merchant) can't receive
     // USDC yet, a server-side setup gap, not the user's wallet.
-    return "The merchant account isn't set up to receive USDC yet. On the server, run `pnpm --filter @stellar-thorn/server x402-setup` to add its USDC trustline, then try again.";
+    return {
+      message:
+        "The merchant account isn't set up to receive USDC yet, so this payment can't settle. Nothing left your wallet. Try again once the merchant finishes setup.",
+      devCommand: "pnpm --filter @stellar-thorn/server x402-setup",
+    };
   }
   if (m.includes("insufficient") || m.includes("(contract, #10)")) {
-    return "Your wallet doesn't have enough testnet USDC. Get some from faucet.circle.com (Stellar, testnet).";
+    return { message: "Your wallet doesn't have enough testnet USDC. Get some from faucet.circle.com (Stellar, testnet)." };
   }
   if (m.includes("user rejected") || m.includes("rejected")) {
-    return "You declined the signature. No money moved.";
+    return { message: "You declined the signature. No money moved." };
   }
   if (m.includes("no sign") || msg.includes("NO_SIGN_TRANSACTION")) {
-    return "Your wallet doesn't support partial signing. Reconnect with Baret or Freighter.";
+    return { message: "Your wallet doesn't support partial signing. Reconnect with Baret or Freighter." };
   }
-  return msg;
+  return { message: msg };
 }

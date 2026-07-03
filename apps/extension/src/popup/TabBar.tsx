@@ -17,7 +17,7 @@ interface Props {
 const TABS: { id: PopupTab; label: string; icon: typeof Home }[] = [
   { id: "home",       label: "Home",       icon: Home },
   { id: "activity",   label: "Activity",   icon: Clock },
-  { id: "allowances", label: "Grants",     icon: Shield },
+  { id: "allowances", label: "Allowances", icon: Shield },
   { id: "settings",   label: "Settings",   icon: SettingsIcon },
 ];
 
@@ -31,6 +31,7 @@ export function TabBar({ active, onChange, alertCount }: Props) {
           <button
             key={id}
             onClick={() => onChange(id)}
+            aria-current={selected ? "page" : undefined}
             className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               selected ? "text-text" : "text-text-faint hover:text-text-muted"
             }`}
@@ -38,7 +39,12 @@ export function TabBar({ active, onChange, alertCount }: Props) {
             <span className="relative">
               <Icon size={16} />
               {showBadge && (
-                <span className="absolute -top-1 -right-1.5 w-1.5 h-1.5 rounded-pill" style={{ background: "var(--bad)" }} />
+                <span
+                  role="status"
+                  aria-label={`${alertCount} unread ${alertCount === 1 ? "alert" : "alerts"}`}
+                  className="absolute -top-1 -right-1.5 w-1.5 h-1.5 rounded-pill"
+                  style={{ background: "var(--bad)" }}
+                />
               )}
             </span>
             <span className="text-[10px] font-semibold">{label}</span>

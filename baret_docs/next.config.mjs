@@ -19,6 +19,15 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/**/*': ['./src/app/**/*.mdx'],
   },
+  async redirects() {
+    // Old template slugs, renamed to match their content. Keeps shared links alive.
+    return [
+      { source: '/conversations', destination: '/batch', permanent: true },
+      { source: '/attachments', destination: '/replay', permanent: true },
+      { source: '/pagination', destination: '/detectors', permanent: true },
+      { source: '/webhooks', destination: '/policies', permanent: true },
+    ]
+  },
 }
 
 export default withSearch(withMDX(nextConfig))

@@ -12,6 +12,7 @@ interface SendProps {
   authorityAddress: string;
   network: string;
   balanceXlm: number | null;
+  hasUsdcTrustline: boolean;
   onClose: () => void;
   onSent: () => void | Promise<void>;
 }
@@ -60,6 +61,7 @@ export function OptionsSendModal(props: SendProps) {
         authorityAddress={props.authorityAddress}
         network={props.network}
         balanceXlm={props.balanceXlm}
+        hasUsdcTrustline={props.hasUsdcTrustline}
         onClose={props.onClose}
         onSent={() => { void props.onSent(); }}
       />

@@ -95,7 +95,7 @@ function Hero({ browserCopy }: { browserCopy: string }) {
       >
         Set up Baret
         <br />
-        <span className="text-primary">in under a minute.</span>
+        <span className="text-primary">in a few minutes.</span>
       </motion.h1>
 
       <motion.p
@@ -105,8 +105,9 @@ function Hero({ browserCopy }: { browserCopy: string }) {
         className="mt-6 text-lg text-muted-foreground max-w-2xl leading-relaxed"
       >
         A Stellar wallet with a transaction firewall. It simulates every
-        transaction, checks it against your policy, and caps what each x402 agent
-        can spend, all before your keys ever sign.
+        transaction, checks it against your policy, and caps what each agent can
+        spend over x402, the machine-payments protocol, all before your keys
+        ever sign. It loads like a developer build until the store listings land.
       </motion.p>
 
       <motion.p
@@ -195,12 +196,12 @@ function InstallSteps({ primary, downloaded }: { primary: Exclude<Browser, "othe
       transition={{ duration: 0.6, delay: 0.3 }}
       className="mb-16"
     >
-      <header className="flex items-end justify-between mb-6">
+      <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <Eyebrow index="01">Three steps to live</Eyebrow>
           <h2 className="mt-3 font-display text-3xl sm:text-4xl font-semibold uppercase tracking-[-0.02em]">Load it like a developer would.</h2>
         </div>
-        <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Sparkles size={11} /> Web Store / AMO publish pending
         </span>
       </header>
@@ -216,13 +217,13 @@ function ChromeSteps({ downloaded }: { downloaded: boolean }) {
   return (
     <ol className="space-y-3">
       <Step n="01" i={0} icon={FileArchive} done={downloaded} title="Unzip the file">
-        Right-click <Code>baret-chrome.zip</Code> → Extract All. Remember the folder.
+        Unzip <Code>baret-chrome.zip</Code> (double-click on macOS, Extract All on Windows). Remember the folder.
       </Step>
       <Step n="02" i={1} icon={FolderOpen} title="Open chrome://extensions/">
         Paste <Code>chrome://extensions/</Code> into your address bar (or Menu → Extensions). Toggle <b>Developer mode</b> on (top right).
       </Step>
       <Step n="03" i={2} icon={ShieldCheck} title="Load unpacked">
-        Click <b>"Load unpacked"</b> and pick the extracted <Code>baret-chrome</Code> folder. Baret appears in your toolbar. Click it to create your wallet.
+        Click <b>"Load unpacked"</b> and pick the extracted <Code>baret-chrome</Code> folder. Baret appears in your toolbar. Click it to create your wallet. Setup opens in a full tab: passphrase, secret key backup, testnet funding. About three minutes.
       </Step>
     </ol>
   );
@@ -232,7 +233,7 @@ function FirefoxSteps({ downloaded }: { downloaded: boolean }) {
   return (
     <ol className="space-y-3">
       <Step n="01" i={0} icon={FileArchive} done={downloaded} title="Unzip the file">
-        Right-click <Code>baret-firefox.zip</Code> → Extract Here. Remember the folder.
+        Unzip <Code>baret-firefox.zip</Code> (double-click on macOS, Extract All on Windows). Remember the folder.
       </Step>
       <Step n="02" i={1} icon={FolderOpen} title="Open about:debugging">
         Paste <Code>about:debugging#/runtime/this-firefox</Code> into your address bar.
@@ -299,7 +300,7 @@ function Code({ children }: { children: React.ReactNode }) {
 function FeatureGrid() {
   const features = [
     { icon: Eye,  title: "Pre-sign simulation", body: "Baret decodes and simulates every transaction before the popup asks you to sign." },
-    { icon: Cpu,  title: "x402 firewall",       body: "Baret caps HTTP 402 payments by the hour and the day, and checks them against your allowlist." },
+    { icon: Cpu,  title: "x402 firewall",       body: "Baret caps HTTP 402 payments per hour and per day, and checks them against your allowlist." },
     { icon: Lock, title: "On-chain revoke",     body: "Each site gets its own sub-key. Revoke it on-chain with one tap." },
   ];
 

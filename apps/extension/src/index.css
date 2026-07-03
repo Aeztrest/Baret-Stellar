@@ -30,21 +30,16 @@
 }
 
 @layer components {
-  .glass {
-    background: rgba(255, 255, 255, 0.82);
-    border: 1px solid var(--line);
-    backdrop-filter: blur(8px);
-  }
-
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-input font-semibold text-sm;
     transition: all var(--motion-fast) var(--motion-curve);
   }
+  /* Ink on orange: white on #FF6B00 fails AA; --primary-foreground is ink. */
   .btn-primary {
     @apply btn;
-    background: var(--accent);
-    color: #fff;
-    box-shadow: 0 4px 14px -2px rgba(255, 107, 0, 0.30);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: 0 4px 14px -2px var(--accent-glow);
   }
   .btn-primary:hover { background: var(--accent-soft); }
   .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; box-shadow: none; }
@@ -55,7 +50,7 @@
     border: 1px solid var(--line-strong);
     color: var(--text);
   }
-  .btn-ghost:hover { background: var(--bg); border-color: rgba(20,20,20,0.28); }
+  .btn-ghost:hover { background: var(--bg); border-color: var(--line-strong); }
 
   .btn-danger {
     @apply btn;
@@ -126,4 +121,13 @@
     0%, 100% { opacity: 0.4; }
     50%      { opacity: 1; }
   }
+}
+
+/* AA contrast on primary buttons: the shared Button component hardcodes
+   text-white on the orange accent, which fails AA. Ink on orange passes
+   (~7.4:1). This override keeps the design system untouched while every
+   primary button in the extension renders ink-on-orange. */
+button[class*="bg-[var(--accent)]"],
+a[class*="bg-[var(--accent)]"] {
+  color: var(--primary-foreground);
 }

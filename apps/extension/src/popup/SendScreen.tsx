@@ -1,39 +1,91 @@
 /**
- * Send overlay. Recipient address plus amount in XLM, broadcast via the
- * `wallet.transferXlm` RPC. Minimal flow: paste, type, send.
+ * Send overlay. Recipient, amount, optional memo, then an explicit review
+ * step before broadcast via the `wallet.transferXlm` RPC.
  *
- * Validates the address client-side (StrKey ed25519) before enabling the
- * Send button. The background handler enforces balance + builds + confirms.
+ * Validates the address client-side (StrKey) before enabling Review. The
+ * background handler enforces balance, builds, signs, and broadcasts. Max is
+ * reserve-aware: it keeps the Stellar minimum balance (1 XLM base + 0.5 XLM
+ * per subentry) plus a fee buffer in the account.
  */
 
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { StrKey } from "@stellar/stellar-sdk";
-import { X, Loader2, ArrowRight, ExternalLink } from "lucide-react";
+import { X, ArrowRight, ExternalLink, ChevronLeft } from "lucide-react";
+import { Button } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 
 interface Props {
   authorityAddress: string;
   network: string;
   balanceXlm: number | null;
+  hasUsdcTrustline: boolean;
   onClose: () => void;
   onSent: () => void;
 }
 
 const FEE_BUFFER_XLM = 0.00001; // 100 stroops base fee per op + small buffer.
+const BASE_RESERVE_XLM = 1; // 2 × 0.5 XLM base reserve.
+const PER_SUBENTRY_XLM = 0.5; // each trustline, offer, etc.
+const MEMO_MAX_BYTES = 28;
+
+/** Map raw Horizon result codes to one honest sentence. */
+const FRIENDLY_ERRORS: Array<{ match: RegExp; message: string }> = [
+  {
+    match: /op_no_destination/,
+    message:
+      "That account doesn't exist yet. Send at least 1 XLM to create it.",
+  },
+  {
+    match: /op_underfunded|tx_insufficient_balance/,
+    message:
+      "Not enough XLM. The account has to keep its minimum reserve after the send.",
+  },
+  {
+    match: /tx_bad_seq/,
+    message: "The network rejected the sequence number. Try again.",
+  },
+  {
+    match: /tx_too_late|tx_too_early/,
+    message: "The transaction expired before it reached the network. Try again.",
+  },
+  {
+    match: /op_no_trust/,
+    message: "The recipient doesn't hold a trustline for this asset.",
+  },
+  {
+    match: /tx_bad_auth/,
+    message: "Signature check failed. Lock and unlock the wallet, then retry.",
+  },
+];
+
+function friendlyError(raw: string): { friendly: string; raw: string | null } {
+  for (const { match, message } of FRIENDLY_ERRORS) {
+    if (match.test(raw)) return { friendly: message, raw };
+  }
+  return { friendly: raw, raw: null };
+}
+
+function memoBytes(s: string): number {
+  return new TextEncoder().encode(s).length;
+}
 
 export function SendScreen({
   authorityAddress,
   network,
   balanceXlm,
+  hasUsdcTrustline,
   onClose,
   onSent,
 }: Props) {
   const rpc = useRpc();
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
+  const [memo, setMemo] = useState("");
+  const [maxUsed, setMaxUsed] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ friendly: string; raw: string | null } | null>(null);
   const [success, setSuccess] = useState<{ transactionHash: string } | null>(
     null,
   );
@@ -43,33 +95,45 @@ export function SendScreen({
     return StrKey.isValidEd25519PublicKey(to.trim());
   }, [to]);
 
+  // Minimum balance the account must keep: 1 XLM base + 0.5 per subentry.
+  // Subentry count isn't cheap to fetch here, so count the USDC trustline
+  // when the balance card shows one.
+  const minReserve =
+    BASE_RESERVE_XLM + (hasUsdcTrustline ? PER_SUBENTRY_XLM : 0);
+
   const amountNum = Number(amount);
   const amountValid = Number.isFinite(amountNum) && amountNum > 0;
   const overBalance =
     balanceXlm !== null && amountNum + FEE_BUFFER_XLM > balanceXlm;
   const sameAsSelf = addressValid && to.trim() === authorityAddress;
-  const canSend =
-    addressValid && amountValid && !overBalance && !sameAsSelf && !sending;
+  const memoLen = memoBytes(memo);
+  const memoValid = memoLen <= MEMO_MAX_BYTES;
+  const canReview =
+    addressValid && amountValid && memoValid && !overBalance && !sameAsSelf && !sending;
 
   const onMax = () => {
     if (balanceXlm === null) return;
-    const max = Math.max(0, balanceXlm - FEE_BUFFER_XLM);
+    const max = Math.max(0, balanceXlm - minReserve - FEE_BUFFER_XLM);
     setAmount(max.toFixed(7));
+    setMaxUsed(true);
   };
 
   const onSend = async () => {
-    if (!canSend) return;
+    if (sending) return;
     setSending(true);
     setError(null);
     try {
       const r = await rpc.call("wallet.transferXlm", {
         to: to.trim(),
         amountXlm: amountNum,
+        ...(memo.trim() ? { memo: memo.trim() } : {}),
       });
       setSuccess({ transactionHash: r.transactionHash });
       onSent();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const raw = err instanceof Error ? err.message : String(err);
+      setError(friendlyError(raw));
+      setReviewing(false);
     } finally {
       setSending(false);
     }
@@ -91,7 +155,7 @@ export function SendScreen({
         </div>
         <div className="flex items-center justify-between px-4 pb-3 pt-3.5">
           <h1 className="font-display text-base font-semibold uppercase tracking-tight leading-tight text-foreground">
-            Send XLM
+            {reviewing && !success ? "Review send" : "Send XLM"}
           </h1>
           <button
             onClick={onClose}
@@ -119,7 +183,7 @@ export function SendScreen({
             </div>
             <p className="font-bold mb-1">Sent</p>
             <p className="text-text-faint text-[11px] mb-4">
-              {amount} XLM →{" "}
+              {amount} XLM to{" "}
               <span className="font-mono">
                 {to.slice(0, 6)}…{to.slice(-4)}
               </span>
@@ -132,10 +196,58 @@ export function SendScreen({
             >
               View on Stellar Expert <ExternalLink size={10} />
             </a>
-            <motion.button whileTap={{ scale: 0.97 }} onClick={onClose} className="btn-primary w-full mt-5">
+            <Button variant="primary" fullWidth className="mt-5" onClick={onClose}>
               Done
-            </motion.button>
+            </Button>
           </motion.div>
+        ) : reviewing ? (
+          <>
+            <div className="card !p-4 space-y-3">
+              <ReviewRow label="To">
+                <span className="font-mono text-[11px] break-all" title={to.trim()}>
+                  {to.trim()}
+                </span>
+              </ReviewRow>
+              <ReviewRow label="Amount">
+                <span className="font-mono font-bold tabular-nums">
+                  {amountNum} XLM
+                </span>
+              </ReviewRow>
+              <ReviewRow label="Network fee">
+                <span className="font-mono tabular-nums text-text-muted">
+                  ~{FEE_BUFFER_XLM.toFixed(5)} XLM
+                </span>
+              </ReviewRow>
+              <ReviewRow label="Memo">
+                <span className={memo.trim() ? "font-mono text-[11px]" : "text-text-faint text-[11px]"}>
+                  {memo.trim() || "None"}
+                </span>
+              </ReviewRow>
+            </div>
+
+            {error && <ErrorCard error={error} />}
+
+            <div className="mt-auto flex flex-col gap-2">
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={onSend}
+                loading={sending}
+                disabled={sending}
+              >
+                {sending ? "Sending…" : "Confirm and send"}
+              </Button>
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => setReviewing(false)}
+                disabled={sending}
+                leftIcon={<ChevronLeft size={13} />}
+              >
+                Back
+              </Button>
+            </div>
+          </>
         ) : (
           <>
             <div>
@@ -179,12 +291,17 @@ export function SendScreen({
                 min="0"
                 placeholder="0.0"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => { setAmount(e.target.value); setMaxUsed(false); }}
               />
               <p className="text-text-faint text-[10px] mt-1.5">
                 Balance:{" "}
                 {balanceXlm === null ? "–" : `${balanceXlm.toFixed(4)} XLM`}
               </p>
+              {maxUsed && (
+                <p className="text-text-faint text-[10px] mt-1">
+                  Keeps the {minReserve.toFixed(1)} XLM reserve Stellar requires, plus fees.
+                </p>
+              )}
               {amount && !amountValid && (
                 <p className="text-bad text-[10px] mt-1.5">
                   Enter a positive number.
@@ -197,32 +314,68 @@ export function SendScreen({
               )}
             </div>
 
-            {error && (
-              <div
-                className="p-2.5 rounded-input text-[11px]"
-                style={{ background: "var(--bad-dim)", color: "var(--bad)" }}
-              >
-                {error}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="label !mb-0">Memo (optional)</span>
+                <span
+                  className="text-[10px] font-mono tabular-nums"
+                  style={{ color: memoValid ? "var(--text-faint)" : "var(--bad)" }}
+                >
+                  {memoLen}/{MEMO_MAX_BYTES}
+                </span>
               </div>
-            )}
-
-            <motion.button
-              whileTap={canSend ? { scale: 0.97 } : undefined}
-              onClick={onSend}
-              disabled={!canSend}
-              className="btn-primary mt-auto"
-            >
-              {sending ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" /> Confirming…
-                </>
-              ) : (
-                <>Send {amount && amountValid ? `${amountNum} XLM` : ""}</>
+              <input
+                className="input"
+                placeholder="Needed for most exchange deposits"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                spellCheck={false}
+              />
+              {!memoValid && (
+                <p className="text-bad text-[10px] mt-1.5">
+                  Memo is over the 28-byte limit. Shorten it.
+                </p>
               )}
-            </motion.button>
+            </div>
+
+            {error && <ErrorCard error={error} />}
+
+            <div className="mt-auto">
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={() => { setError(null); setReviewing(true); }}
+                disabled={!canReview}
+              >
+                Review {amount && amountValid ? `${amountNum} XLM` : "send"}
+              </Button>
+            </div>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function ReviewRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3 text-xs">
+      <span className="text-text-faint shrink-0">{label}</span>
+      <div className="text-right min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function ErrorCard({ error }: { error: { friendly: string; raw: string | null } }) {
+  return (
+    <div
+      className="p-2.5 rounded-input text-[11px] space-y-1"
+      style={{ background: "var(--bad-dim)", color: "var(--bad)" }}
+    >
+      <p>{error.friendly}</p>
+      {error.raw && (
+        <p className="font-mono text-[10px] opacity-70 break-all">{error.raw}</p>
+      )}
     </div>
   );
 }

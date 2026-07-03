@@ -1,16 +1,27 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, ShieldX, Loader2, ExternalLink } from "lucide-react";
+import { ShieldCheck, ShieldX, Loader2, ExternalLink, Copy, Check } from "lucide-react";
 
 export type ResultState = "idle" | "awaiting" | "confirmed" | "blocked" | "error";
 
+/** Which path produced this result: through Baret, or the raw unprotected wallet. */
+export type ResultVia = "baret" | "raw";
+
 interface Props {
   state: ResultState;
-  signature?: string | null;
+  via: ResultVia;
+  txHash?: string | null;
   message?: string | null;
+  /** Canonical scenario label, used by the "Copy the catch" summary. */
+  scenarioLabel?: string;
   onClose: () => void;
 }
 
-export function ResultOverlay({ state, signature, message, onClose }: Props) {
+function explorerUrl(txHash: string): string {
+  return `https://stellar.expert/explorer/testnet/tx/${txHash}`;
+}
+
+export function ResultOverlay({ state, via, txHash, message, scenarioLabel, onClose }: Props) {
   const open = state !== "idle";
   return (
     <AnimatePresence>
@@ -20,8 +31,7 @@ export function ResultOverlay({ state, signature, message, onClose }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={state !== "awaiting" ? onClose : undefined}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(20,20,20,0.45)", backdropFilter: "blur(8px)" }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-md"
         >
           <motion.div
             initial={{ scale: 0.94, opacity: 0, y: 12 }}
@@ -29,12 +39,13 @@ export function ResultOverlay({ state, signature, message, onClose }: Props) {
             exit={{ scale: 0.94, opacity: 0, y: 12 }}
             transition={{ type: "spring", stiffness: 340, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl p-7 text-center bg-white shadow-lift"
-            style={{ border: "1px solid rgba(20,20,20,0.10)" }}
+            className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-7 text-center shadow-lift dark:border-white/10 dark:bg-neutral-900"
           >
-            {state === "awaiting" && <Awaiting />}
-            {state === "confirmed" && <Confirmed signature={signature ?? null} onClose={onClose} />}
-            {state === "blocked" && <Blocked message={message ?? null} onClose={onClose} />}
+            {state === "awaiting" && <Awaiting via={via} />}
+            {state === "confirmed" && <Confirmed via={via} txHash={txHash ?? null} onClose={onClose} />}
+            {state === "blocked" && (
+              <Blocked via={via} message={message ?? null} scenarioLabel={scenarioLabel} onClose={onClose} />
+            )}
             {state === "error" && <ErrorState message={message ?? null} onClose={onClose} />}
           </motion.div>
         </motion.div>
@@ -43,85 +54,164 @@ export function ResultOverlay({ state, signature, message, onClose }: Props) {
   );
 }
 
-function Awaiting() {
+function CloseLink({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      onClick={onClose}
+      className="block mx-auto pt-2 text-xs text-neutral-400 hover:text-neutral-900 dark:text-neutral-500 dark:hover:text-neutral-100"
+    >
+      Close
+    </button>
+  );
+}
+
+function Awaiting({ via }: { via: ResultVia }) {
   return (
     <div className="space-y-4">
-      <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(255,107,0,0.10)", border: "1px solid rgba(255,107,0,0.35)" }}>
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-500/35 bg-brand-500/10">
         <Loader2 size={22} className="animate-spin text-brand-500" />
       </div>
       <div>
-        <p className="text-lg font-bold text-ink-900">Approve in your Baret wallet</p>
-        <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
-          We've opened the wallet popup. It's simulating this transaction with Baret
-          and checking your policy. Approve there to continue.
+        <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+          {via === "baret" ? "Approve in your Baret wallet" : "Approve in your wallet"}
+        </p>
+        <p className="mt-1.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+          {via === "baret"
+            ? "We've opened the wallet popup. It's simulating this transaction with Baret and checking your policy. Approve there to continue."
+            : "We've asked the unprotected wallet to sign. Nothing checks this transaction. Whatever you approve goes straight to the network."}
         </p>
       </div>
-      <p className="text-[10px] text-ink-400">Don't see a popup? Allow popups for this site.</p>
+      <p className="text-[10px] text-neutral-400 dark:text-neutral-500">
+        Don't see a popup? Allow popups for this site.
+      </p>
     </div>
   );
 }
 
-function Confirmed({ signature, onClose }: { signature: string | null; onClose: () => void }) {
+function Confirmed({ via, txHash, onClose }: { via: ResultVia; txHash: string | null; onClose: () => void }) {
   return (
     <div className="space-y-4">
-      <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.35)" }}>
-        <ShieldCheck size={24} className="text-emerald-600" />
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/35 bg-emerald-500/10">
+        <ShieldCheck size={24} className="text-emerald-600 dark:text-emerald-400" />
       </div>
       <div>
-        <p className="text-lg font-bold text-emerald-600">Transaction confirmed</p>
-        <p className="text-xs text-ink-500 mt-1.5">Baret approved + your wallet signed.</p>
+        <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">Transaction confirmed</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+          {via === "baret"
+            ? "Baret read it, approved it, and your wallet signed."
+            : "Sent through the unprotected wallet. No analysis, no policy gate. This is what every other wallet does."}
+        </p>
       </div>
-      {signature && (
-        <a href={`https://stellar.expert/explorer/testnet/tx/${signature}?cluster=testnet`} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-ink-900 transition-colors font-semibold">
-          View on Stellar Explorer <ExternalLink size={11} />
-        </a>
+      {txHash && (
+        <div className="space-y-1">
+          <p className="font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
+            Transaction hash: {txHash.slice(0, 8)}…{txHash.slice(-8)}
+          </p>
+          <a
+            href={explorerUrl(txHash)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:text-neutral-900 dark:text-emerald-400 dark:hover:text-neutral-100"
+          >
+            View on stellar.expert <ExternalLink size={11} />
+          </a>
+        </div>
       )}
-      <button onClick={onClose} className="block mx-auto text-xs text-ink-400 hover:text-ink-900 pt-2">Close</button>
+      <CloseLink onClose={onClose} />
     </div>
   );
 }
 
-function Blocked({ message, onClose }: { message: string | null; onClose: () => void }) {
+function Blocked({ via, message, scenarioLabel, onClose }: {
+  via: ResultVia;
+  message: string | null;
+  scenarioLabel?: string;
+  onClose: () => void;
+}) {
+  const byBaret = via === "baret";
   return (
     <div className="space-y-4">
-      <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(255,107,0,0.10)", border: "1px solid rgba(255,107,0,0.40)" }}>
-        <ShieldX size={24} className="text-brand-600" />
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-500/40 bg-brand-500/10">
+        <ShieldX size={24} className="text-brand-600 dark:text-brand-400" />
       </div>
       <div>
-        <p className="text-lg font-bold text-brand-600">Blocked at the wallet</p>
-        <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
-          Baret's policy refused to sign this transaction. Your funds never moved.
+        <p className="text-lg font-bold text-brand-600 dark:text-brand-400">
+          {byBaret ? "Blocked at the wallet" : "Rejected in your wallet"}
+        </p>
+        <p className="mt-1.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+          {byBaret
+            ? "Baret's policy refused to sign this transaction. Your funds never moved."
+            : "You rejected it in your wallet. Baret wasn't involved."}
         </p>
       </div>
       {message && (
-        <p className="text-[11px] text-ink-500 px-3 py-2 rounded-lg" style={{ background: "rgba(20,20,20,0.04)" }}>
+        <p className="rounded-lg bg-black/[0.04] px-3 py-2 text-[11px] text-neutral-500 dark:bg-white/[0.06] dark:text-neutral-400">
           {message}
         </p>
       )}
-      <button onClick={onClose} className="block mx-auto text-xs text-ink-400 hover:text-ink-900 pt-2">Close</button>
+      {byBaret && <CopyCatch scenarioLabel={scenarioLabel} message={message} />}
+      <CloseLink onClose={onClose} />
     </div>
+  );
+}
+
+function CopyCatch({ scenarioLabel, message }: { scenarioLabel?: string; message: string | null }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    const text = [
+      scenarioLabel ? `Scenario: ${scenarioLabel}` : null,
+      "Verdict: Blocked by Baret before signing",
+      message ? `Reason: ${message}` : null,
+      "Caught by Baret, the Stellar wallet that reads the transaction before it signs.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+  return (
+    <button
+      onClick={() => void copy()}
+      className="mx-auto flex items-center gap-1.5 rounded-lg border border-black/10 bg-black/[0.03] px-3 py-1.5 text-[11px] font-semibold text-neutral-600 transition-colors hover:border-black/25 dark:border-white/10 dark:bg-white/[0.05] dark:text-neutral-300 dark:hover:border-white/25"
+    >
+      {copied ? (
+        <>
+          <Check size={11} className="text-emerald-500" /> Copied
+        </>
+      ) : (
+        <>
+          <Copy size={11} /> Copy the catch
+        </>
+      )}
+    </button>
   );
 }
 
 function ErrorState({ message, onClose }: { message: string | null; onClose: () => void }) {
   return (
     <div className="space-y-4">
-      <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(20,20,20,0.05)", border: "1px solid rgba(20,20,20,0.18)" }}>
-        <ShieldX size={24} className="text-ink-600" />
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-black/15 bg-black/5 dark:border-white/15 dark:bg-white/5">
+        <ShieldX size={24} className="text-neutral-600 dark:text-neutral-300" />
       </div>
-      <p className="text-lg font-bold text-ink-900">Couldn't reach the wallet</p>
+      <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100">Couldn't reach the wallet</p>
+      <p className="text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+        Check that popups are allowed for this site, then try again.
+      </p>
       {message && (
-        <p className="text-[11px] text-ink-500 px-3 py-2 rounded-lg" style={{ background: "rgba(20,20,20,0.04)" }}>
+        <p className="rounded-lg bg-black/[0.04] px-3 py-2 text-[11px] text-neutral-500 dark:bg-white/[0.06] dark:text-neutral-400">
           {message}
         </p>
       )}
-      <p className="text-xs text-ink-400">Make sure the wallet is running at <code>localhost:5180</code> and popups are allowed.</p>
-      <button onClick={onClose} className="block mx-auto text-xs text-ink-400 hover:text-ink-900 pt-2">Close</button>
+      <p className="text-[10px] text-neutral-400 dark:text-neutral-500">
+        Running this demo locally? The wallet dev server should be up at{" "}
+        <code className="rounded bg-black/5 px-1 py-px font-mono dark:bg-white/10">localhost:5180</code>.
+      </p>
+      <CloseLink onClose={onClose} />
     </div>
   );
 }

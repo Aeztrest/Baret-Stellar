@@ -6,7 +6,7 @@
  */
 
 import { lazy, Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { ShToaster } from "@stellar-thorn/ui";
 import { Hub } from "./components/Hub";
@@ -15,9 +15,8 @@ import { WalletProvider } from "./wallet/context";
 
 /** Per-route <title> + meta description for a share-friendly SPA. */
 const ROUTE_META: Record<string, { title: string; description: string }> = {
-  "/": { title: "Baret Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, a rug pull, or agent drift, live on Stellar testnet." },
+  "/": { title: "Baret | Read the transaction before you sign it", description: "Baret reads every Stellar transaction before your keys move. It decodes it, simulates what it does, and blocks the dangerous ones." },
   "/showcase": { title: "Baret Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, a rug pull, or agent drift, live on Stellar testnet." },
-  "/home": { title: "Baret | Read the transaction before you sign it", description: "Baret reads every Stellar transaction before your keys move. It decodes it, simulates what it does, and blocks the dangerous ones." },
   "/docs": { title: "Baret Docs", description: "Design notes, architecture, and the policy DSL behind Baret's transaction firewall." },
   "/agents": { title: "Baret Agents | A firewall in front of every agent signature", description: "The AgentWallet SDK and CLI. Analyze, sign, and submit with a firewall that checks every transaction before the key signs." },
   "/install": { title: "Install Baret", description: "One-click install for Chrome, Brave, Edge, and Firefox, with step-by-step load-unpacked guidance." },
@@ -28,21 +27,64 @@ const ROUTE_META: Record<string, { title: string; description: string }> = {
   "/claimhub": { title: "ClaimHub, an airdrop claim demo | Baret", description: "An airdrop claim that hides a phishing approval. Watch Baret catch it before you sign." },
   "/launchpad": { title: "LaunchPad, a token launch demo | Baret", description: "A token launch with a rug-pull pattern. Watch Baret catch it before you sign." },
 };
-const DEFAULT_META = ROUTE_META["/home"]!;
+const DEFAULT_META = ROUTE_META["/"]!;
+const SITE_ORIGIN = "https://baret.dev";
+
+function setNamedMeta(name: string, content: string) {
+  let tag = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.name = name;
+    document.head.appendChild(tag);
+  }
+  tag.content = content;
+}
+
+function setPropertyMeta(property: string, content: string) {
+  let tag = document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.setAttribute("property", property);
+    document.head.appendChild(tag);
+  }
+  tag.content = content;
+}
+
+function setCanonical(href: string) {
+  let tag = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!tag) {
+    tag = document.createElement("link");
+    tag.rel = "canonical";
+    document.head.appendChild(tag);
+  }
+  tag.href = href;
+}
 
 function RouteMeta() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   useEffect(() => {
     const meta = ROUTE_META[pathname] ?? DEFAULT_META;
+    const url = pathname === "/" ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${pathname}`;
     document.title = meta.title;
-    let tag = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!tag) {
-      tag = document.createElement("meta");
-      tag.name = "description";
-      document.head.appendChild(tag);
-    }
-    tag.content = meta.description;
+    setNamedMeta("description", meta.description);
+    setPropertyMeta("og:title", meta.title);
+    setPropertyMeta("og:description", meta.description);
+    setPropertyMeta("og:url", url);
+    setNamedMeta("twitter:title", meta.title);
+    setNamedMeta("twitter:description", meta.description);
+    setCanonical(url);
   }, [pathname]);
+
+  // In-page anchors (e.g. footer links to /#faq) need a manual scroll in a SPA.
+  useEffect(() => {
+    if (!hash) return;
+    const id = hash.slice(1);
+    const t = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [pathname, hash]);
+
   return null;
 }
 
@@ -83,9 +125,10 @@ export default function App() {
         <BrowserRouter>
           <RouteMeta />
           <Routes>
-            <Route path="/"          element={<RouteShell><Hub /></RouteShell>} />
+            <Route path="/"          element={<RouteShell><HomePage /></RouteShell>} />
             <Route path="/showcase"  element={<RouteShell><Hub /></RouteShell>} />
-            <Route path="/home"      element={<RouteShell><HomePage /></RouteShell>} />
+            {/* Old links: /home used to be the landing. Keep it working. */}
+            <Route path="/home"      element={<Navigate to="/" replace />} />
             <Route path="/docs"      element={<RouteShell><DocsPage /></RouteShell>} />
             <Route path="/agents"    element={<RouteShell><AgentsPage /></RouteShell>} />
             <Route path="/novaswap"  element={<RouteShell><NovaSwap /></RouteShell>} />

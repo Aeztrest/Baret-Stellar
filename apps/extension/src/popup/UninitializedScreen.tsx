@@ -76,7 +76,7 @@ export function UninitializedScreen() {
         {[
           "It reads every transaction before you sign.",
           "It keeps a ledger of every cap, with one tap to pause or revoke.",
-          "It caps what agents spend over x402, enforced on-chain.",
+          "It caps what agents spend over x402, the machine-payments protocol.",
         ].map((line) => (
           <li key={line} className="flex items-start gap-2 text-text-muted">
             <ShieldCheck size={11} className="mt-0.5 text-accent-soft shrink-0" />

@@ -23,9 +23,10 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { pixeldropScenario, PIXELDROP_MINT } from "../../baret/scenarios";
 
 const THEME = {
   primary: "#c026d3", // fuchsia-600, reads on light + dark
@@ -39,19 +40,19 @@ const THEME = {
 };
 
 const NFT_COLLECTION = {
-  name: "Cyber Phantoms",
+  name: PIXELDROP_MINT.collection,
   description: "10,000 generative Phantoms, minted on Stellar. Every Phantom is one vote in the DAO.",
   supply: 10000,
   minted: 6843,
-  price: "0.1 XLM",
-  priceUsd: "$17.50",
+  price: PIXELDROP_MINT.priceLabel,
+  priceUsd: PIXELDROP_MINT.priceUsdLabel,
 };
 
 // Headline collection metrics, neon stat tiles.
 const COLLECTION_STATS = [
   { icon: Layers, label: "Items", value: "10,000" },
   { icon: Users, label: "Owners", value: "4,127" },
-  { icon: TrendingUp, label: "Floor", value: "0.14 XLM" },
+  { icon: TrendingUp, label: "Floor", value: "34 XLM" },
   { icon: Coins, label: "Volume", value: "182K XLM" },
   { icon: Wallet, label: "Minted", value: "68.4%" },
 ];
@@ -98,7 +99,7 @@ const ROADMAP = [
     title: "Genesis Mint",
     icon: Rocket,
     status: "live" as const,
-    body: "10,000 Phantoms mint live on Stellar. Fair 0.1 XLM price, 5 per wallet.",
+    body: "10,000 Phantoms mint live on Stellar. Fair 25 XLM price, 5 per wallet.",
   },
   {
     phase: "Phase 02",
@@ -139,7 +140,7 @@ const FAQ = [
   },
   {
     q: "How much does it cost to mint?",
-    a: "0.1 XLM per Phantom (~$17.50) plus network fees. Wallets are capped at 5 to keep the drop fair.",
+    a: "25 XLM per Phantom (about $10) plus network fees. Wallets are capped at 5 to keep the drop fair.",
   },
   {
     q: "When do traits reveal?",
@@ -152,18 +153,24 @@ export default function PixelDrop() {
   const [qty, setQty] = useState(1);
   const [dangerous, setDangerous] = useState(false);
   const [resultState, setResultState] = useState<ResultState>("idle");
-  const [signature, setSignature] = useState<string | null>(null);
+  const [via, setVia] = useState<ResultVia>("baret");
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [previewTx, setPreviewTx] = useState<string | null>(null);
-  const success = signature !== null;
-  const scenarioLabel = dangerous
-    ? `Mint ${qty} Cyber Freighter NFT(s) (danger scenario · drainer pattern)`
-    : `Mint ${qty} Cyber Freighter NFT(s) for ${(qty * 0.1).toFixed(2)} XLM`;
+  const success = txHash !== null;
+  const scenario = pixeldropScenario(dangerous, qty);
+  const scenarioLabel = scenario.label;
+
+  function reset() {
+    setTxHash(null);
+    setResultMessage(null);
+    setResultState("idle");
+  }
 
   async function handleMint() {
     if (!connected || !walletAddress) { openWalletModal(); return; }
     try {
-      const __built = await buildScenario(dangerous ? "pixeldrop-danger" : "pixeldrop-safe", walletAddress); const tx = __built.transactionXdr;
+      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
       setPreviewTx(tx);
     } catch (e) {
       setResultState("error");
@@ -174,10 +181,11 @@ export default function PixelDrop() {
   async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("baret");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
-      const { signature: sig } = await adapter.signAndSendTransaction(previewTx);
-      setSignature(sig); setResultState("confirmed");
+      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -190,13 +198,14 @@ export default function PixelDrop() {
   // signs the same scenario over its own key and submits straight to Horizon.
   // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("raw");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
       const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "pixeldrop-danger" : "pixeldrop-safe", raw.address);
+      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
       const { signedTxXdr } = await raw.signTransaction(rawTx);
       const hash = await submitSignedTransaction(signedTxXdr);
-      setSignature(hash); setResultState("confirmed");
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -215,12 +224,14 @@ export default function PixelDrop() {
   return (
     <SiteShell
       theme={THEME}
-      navLinks={[{ label: "Mint" }, { label: "Gallery" }, { label: "Roadmap" }, { label: "Community" }]}
+      navLinks={[{ label: "Mint", href: "#mint" }, { label: "Gallery", href: "#gallery" }, { label: "Roadmap", href: "#roadmap" }, { label: "Community", href: "#community" }]}
     >
       <ResultOverlay
         state={resultState}
-        signature={signature}
+        via={via}
+        txHash={txHash}
         message={resultMessage}
+        scenarioLabel={scenarioLabel}
         onClose={() => setResultState("idle")}
       />
 
@@ -341,7 +352,7 @@ export default function PixelDrop() {
             </motion.div>
 
             {/* Mint panel */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }} className="space-y-6">
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }} id="mint" className="space-y-6 scroll-mt-24">
               {/* Live mint progress */}
               <div className={`${panel} space-y-3 p-5`}>
                 <div className="flex items-center justify-between">
@@ -393,13 +404,21 @@ export default function PixelDrop() {
                 </div>
                 <div className="flex justify-between border-t border-fuchsia-200/70 pt-4 dark:border-white/10">
                   <span className="text-sm text-neutral-500 dark:text-neutral-400">Total</span>
-                  <span className="font-bold text-neutral-900 dark:text-neutral-100">{(0.1 * qty).toFixed(2)} XLM <span className="text-xs font-normal text-neutral-400 dark:text-neutral-500">${(17.5 * qty).toFixed(2)}</span></span>
+                  <span className="font-bold text-neutral-900 dark:text-neutral-100">{(PIXELDROP_MINT.priceXlm * qty).toFixed(0)} XLM <span className="text-xs font-normal text-neutral-400 dark:text-neutral-500">${(PIXELDROP_MINT.priceUsd * qty).toFixed(2)}</span></span>
                 </div>
               </div>
 
               {success ? (
-                <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full rounded-xl border border-cyan-400/40 bg-cyan-50 py-4 text-center font-bold text-cyan-600 dark:border-cyan-400/30 dark:bg-cyan-500/10 dark:text-cyan-300">
-                  ✓ {qty} Phantom{qty > 1 ? "s" : ""} Minted!
+                <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
+                  <div className="w-full rounded-xl border border-cyan-400/40 bg-cyan-50 py-4 text-center font-bold text-cyan-600 dark:border-cyan-400/30 dark:bg-cyan-500/10 dark:text-cyan-300">
+                    ✓ {qty} Phantom{qty > 1 ? "s" : ""} Minted!
+                  </div>
+                  <button
+                    onClick={reset}
+                    className="w-full rounded-xl border border-fuchsia-200/70 py-2.5 text-xs font-semibold text-neutral-500 transition-colors hover:text-neutral-900 dark:border-white/10 dark:text-neutral-400 dark:hover:text-white"
+                  >
+                    Run it again
+                  </button>
                 </motion.div>
               ) : (
                 <button onClick={handleMint} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-pink-500 py-4 font-bold text-white shadow-[0_8px_30px_-8px_rgba(217,70,239,0.6)] transition-all hover:shadow-[0_10px_40px_-6px_rgba(217,70,239,0.8)] hover:brightness-110 active:scale-[0.99]">
@@ -407,6 +426,9 @@ export default function PixelDrop() {
                   <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
                 </button>
               )}
+
+              {/* Demo toggle, right under the primary CTA */}
+              <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate wallet drainer" />
 
               {/* Traits */}
               <div className="grid grid-cols-3 gap-2">
@@ -421,7 +443,7 @@ export default function PixelDrop() {
           </div>
 
           {/* Gallery */}
-          <section className="mt-24">
+          <section id="gallery" className="mt-24 scroll-mt-24">
             <div className="mb-8 flex items-end justify-between">
               <div>
                 <h2 className="font-display text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
@@ -473,7 +495,7 @@ export default function PixelDrop() {
                     <span className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-100">
                       #{item.id}
                     </span>
-                    <span className="text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-300">0.1 XLM</span>
+                    <span className="text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-300">25 XLM</span>
                   </div>
                 </motion.div>
               ))}
@@ -525,7 +547,7 @@ export default function PixelDrop() {
           </section>
 
           {/* Roadmap */}
-          <section className="mt-24">
+          <section id="roadmap" className="mt-24 scroll-mt-24">
             <h2 className="mb-2 font-display text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
               Roadmap
             </h2>
@@ -571,7 +593,7 @@ export default function PixelDrop() {
           </section>
 
           {/* Traits + FAQ */}
-          <section className="mt-24 grid gap-10 lg:grid-cols-2">
+          <section id="community" className="mt-24 grid scroll-mt-24 gap-10 lg:grid-cols-2">
             <div>
               <h2 className="mb-2 font-display text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
                 Trait Library
@@ -608,10 +630,6 @@ export default function PixelDrop() {
             </div>
           </section>
 
-          {/* Demo toggle */}
-          <div className="mt-24 flex justify-center">
-            <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate wallet drainer" />
-          </div>
         </motion.div>
       </div>
 

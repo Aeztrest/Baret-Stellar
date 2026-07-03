@@ -62,6 +62,15 @@ export function PopupApp() {
   if (!state || state.phase === "uninitialized") return <UninitializedScreen />;
   if (state.phase === "locked") return <LockedScreen />;
   if (state.phase === "signing") {
+    // Hold a neutral spinner until we know WHICH surface to show. rendering
+    // SignRequest before the queue head resolves flashes the wrong screen.
+    if (pendingKind === null) {
+      return (
+        <div className="h-full flex items-center justify-center text-text-faint">
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      );
+    }
     if (pendingKind === "connect") return <ConnectApproval />;
     return <SignRequest />;
   }
@@ -70,7 +79,6 @@ export function PopupApp() {
     <div className="h-full flex flex-col">
       <TopStrip
         state={state}
-        onOpenAccount={() => { /* T22: account picker sheet */ }}
         onOpenSettings={() => setTab("settings")}
       />
 

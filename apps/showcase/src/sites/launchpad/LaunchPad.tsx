@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Rocket, Timer, Users, ShieldCheck, ExternalLink, Flame, Skull,
+  Rocket, Timer, Users, ShieldCheck, ExternalLink, FileSearch,
   Coins, TrendingUp, Calendar, Lock, CheckCircle2, Circle,
   Building2, Award, Target, Layers, Globe, Wallet,
 } from "lucide-react";
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState } from "../../baret/ResultOverlay";
+import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
 import { RiskPreview } from "../../baret/RiskPreview";
 import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { launchpadScenario, LAUNCHPAD_PROJECTS } from "../../baret/scenarios";
 
 const THEME = {
   primary: "#16a34a", // green-600, readable on both light and dark
@@ -50,25 +51,31 @@ export default function LaunchPad() {
   const [contribution, setContribution] = useState("500");
   const [dangerous, setDangerous] = useState(false);
   const [resultState, setResultState] = useState<ResultState>("idle");
-  const [signature, setSignature] = useState<string | null>(null);
+  const [via, setVia] = useState<ResultVia>("baret");
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [previewTx, setPreviewTx] = useState<string | null>(null);
-  const success = signature !== null;
+  const success = txHash !== null;
 
   const countdown = useCountdown(LAUNCH_AT);
 
-  const raised = dangerous ? 82000 : 1_240_000;
+  const raised = dangerous ? 1_640_000 : 1_240_000;
   const goal = 2_000_000;
   const pct = (raised / goal) * 100;
-  const participants = dangerous ? 12 : 3847;
-  const scenarioLabel = dangerous
-    ? `Contribute ${contribution} USDC to a rug-pull launchpad (danger scenario)`
-    : `Contribute ${contribution} USDC to a vetted token launch`;
+  const participants = dangerous ? 2113 : 3847;
+  const scenario = launchpadScenario(dangerous, contribution);
+  const scenarioLabel = scenario.label;
+
+  function reset() {
+    setTxHash(null);
+    setResultMessage(null);
+    setResultState("idle");
+  }
 
   async function handleBuy() {
     if (!connected || !walletAddress) { openWalletModal(); return; }
     try {
-      const __built = await buildScenario(dangerous ? "launchpad-danger" : "launchpad-safe", walletAddress); const tx = __built.transactionXdr;
+      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
       setPreviewTx(tx);
     } catch (e) {
       setResultState("error");
@@ -79,10 +86,11 @@ export default function LaunchPad() {
   async function sendViaBaret() {
     if (!previewTx) return;
     setPreviewTx(null);
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("baret");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
-      const { signature: sig } = await adapter.signAndSendTransaction(previewTx);
-      setSignature(sig); setResultState("confirmed");
+      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -95,13 +103,14 @@ export default function LaunchPad() {
   // signs the same scenario over its own key and submits straight to Horizon.
   // Baret's connected account can only ever be signed by Baret, by design.
   async function sendRaw() {
-    setResultState("awaiting"); setSignature(null); setResultMessage(null);
+    setVia("raw");
+    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
     try {
       const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(dangerous ? "launchpad-danger" : "launchpad-safe", raw.address);
+      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
       const { signedTxXdr } = await raw.signTransaction(rawTx);
       const hash = await submitSignedTransaction(signedTxXdr);
-      setSignature(hash); setResultState("confirmed");
+      setTxHash(hash); setResultState("confirmed");
     } catch (e) {
       if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
         setResultState("blocked"); setResultMessage(e.message);
@@ -111,11 +120,16 @@ export default function LaunchPad() {
     }
   }
 
+  // The danger project looks as polished as the safe one on purpose. The red
+  // flags are the quiet kind Baret reads for you: a 45% team allocation with
+  // no vesting buried in the tokenomics, an unverified contract, pseudonymous
+  // founders behind stock avatars, and an audit that stays "in progress".
   const tokenomics = dangerous
     ? [
-        { label: "Team · no vesting", pct: 87, color: "#ef4444" },
-        { label: "Public Sale", pct: 8, color: "#f43f5e" },
-        { label: "Liquidity", pct: 5, color: "#fca5a5" },
+        { label: "Team · no vesting", pct: 45, color: "#22c55e" },
+        { label: "Public Sale", pct: 20, color: "#a3e635" },
+        { label: "Marketing", pct: 20, color: "#0ea5e9" },
+        { label: "Liquidity", pct: 15, color: "#2563eb" },
       ]
     : [
         { label: "Public Sale", pct: 20, color: "#a3e635" },
@@ -125,25 +139,26 @@ export default function LaunchPad() {
       ];
 
   const TOTAL_SUPPLY = 1_000_000_000;
-  const projectName = dangerous ? "ScamToken" : "NovaBridge";
-  const ticker = dangerous ? "SCAM" : "NOVA";
+  const project = dangerous ? LAUNCHPAD_PROJECTS.danger : LAUNCHPAD_PROJECTS.safe;
+  const projectName = project.name;
+  const ticker = project.ticker;
   const tagline = dangerous
-    ? "Memecoin with 1000x potential. First mover in a market that doesn't exist yet."
+    ? "Yield routing for idle stablecoins. Deposit once and Nimbus moves your liquidity to the best rate on Stellar, every hour."
     : "Cross-chain Stellar bridge that moves native assets across 12 networks. Audited by OtterSec.";
 
   const saleDetails = [
-    { icon: Coins, label: "Token price", value: dangerous ? "$0.0001" : "$0.05" },
+    { icon: Coins, label: "Token price", value: dangerous ? "$0.02" : "$0.05" },
     { icon: Target, label: "Total raise · hard cap", value: "$2,000,000" },
     { icon: Wallet, label: "Allocation / wallet", value: "$100 – $10,000" },
     { icon: Globe, label: "Accepted asset", value: "USDC (Stellar)" },
-    { icon: Lock, label: "Vesting", value: dangerous ? "None · 100% unlocked" : "10% TGE · 3-mo cliff · 12-mo linear" },
+    { icon: Lock, label: "Vesting", value: dangerous ? "None · 100% at TGE" : "10% TGE · 3-mo cliff · 12-mo linear" },
     { icon: Calendar, label: "TGE / listing", value: dangerous ? "TBA" : "Aug 2026" },
   ];
 
   // Vesting schedule: each group's tokens release over the timeline.
   // segments sum to 100 (share of the release timeline), keyed by kind.
   const vesting = dangerous
-    ? [{ label: "Team · 100%", segs: [{ w: 100, kind: "danger" as const }] }]
+    ? [{ label: "All allocations", segs: [{ w: 100, kind: "tge" as const }] }]
     : [
         { label: "Public Sale", segs: [{ w: 10, kind: "tge" as const }, { w: 15, kind: "cliff" as const }, { w: 75, kind: "linear" as const }] },
         { label: "Team", segs: [{ w: 0, kind: "tge" as const }, { w: 50, kind: "cliff" as const }, { w: 50, kind: "linear" as const }] },
@@ -153,10 +168,10 @@ export default function LaunchPad() {
 
   const roadmap = dangerous
     ? [
-        { phase: "Stealth", date: "???", status: "done" as const, desc: "Anonymous team, zero docs" },
-        { phase: "Pump", date: "Now", status: "active" as const, desc: "Manufactured buy pressure" },
-        { phase: "Dump", date: "Soon", status: "upcoming" as const, desc: "Insiders exit at the top" },
-        { phase: "Rug", date: "TBA", status: "upcoming" as const, desc: "Liquidity pulled, team vanishes" },
+        { phase: "Private Round", date: "Q1 2026", status: "done" as const, desc: "Closed round with strategic partners" },
+        { phase: "Public Sale", date: "Now", status: "active" as const, desc: "IDO live now on LaunchPad" },
+        { phase: "TGE", date: "TBA", status: "upcoming" as const, desc: "Date to be announced" },
+        { phase: "Mainnet", date: "TBA", status: "upcoming" as const, desc: "Timeline under review" },
       ]
     : [
         { phase: "Seed Round", date: "Q4 2025", status: "done" as const, desc: "$1.2M raised across 6 funds" },
@@ -167,8 +182,8 @@ export default function LaunchPad() {
 
   const team = dangerous
     ? [
-        { name: "0xAn0n", role: "“Founder”", initials: "??" },
-        { name: "ghost.eth", role: "“Dev”", initials: "??" },
+        { name: "Cirrus", role: "Founder · prefers to stay private", initials: "C" },
+        { name: "Stratus", role: "Lead engineer · prefers to stay private", initials: "S" },
       ]
     : [
         { name: "Elena Vasquez", role: "CEO · ex-Stripe", initials: "EV" },
@@ -178,14 +193,14 @@ export default function LaunchPad() {
       ];
 
   const backers = dangerous
-    ? ["Anonymous", "Unknown DAO"]
+    ? ["Undisclosed private investors"]
     : ["Stellar Foundation", "OtterSec", "Wintermute", "Delphi Digital", "Fenbushi"];
 
   const projectStats = [
-    { icon: Layers, label: "FDV", value: dangerous ? "$0.1M" : "$50M" },
-    { icon: Target, label: "MCap at listing", value: dangerous ? "?" : "$10M" },
+    { icon: Layers, label: "FDV", value: dangerous ? "$200M" : "$50M" },
+    { icon: Target, label: "MCap at listing", value: dangerous ? "TBA" : "$10M" },
     { icon: Coins, label: "Initial circ. supply", value: dangerous ? "3%" : "20%" },
-    { icon: TrendingUp, label: "Listing price", value: dangerous ? "$0.0001" : "$0.06" },
+    { icon: TrendingUp, label: "Listing price", value: dangerous ? "$0.03" : "$0.06" },
     { icon: Globe, label: "Supported networks", value: dangerous ? "1" : "12" },
   ];
 
@@ -197,12 +212,14 @@ export default function LaunchPad() {
   return (
     <SiteShell
       theme={THEME}
-      navLinks={[{ label: "Active Launches" }, { label: "Upcoming" }, { label: "Portfolio" }, { label: "Leaderboard" }]}
+      navLinks={[{ label: "Active Launches", href: "#launches" }, { label: "Upcoming", href: "#upcoming" }, { label: "Portfolio", href: "#portfolio" }, { label: "Leaderboard", href: "#leaderboard" }]}
     >
       <ResultOverlay
         state={resultState}
-        signature={signature}
+        via={via}
+        txHash={txHash}
         message={resultMessage}
+        scenarioLabel={scenarioLabel}
         onClose={() => setResultState("idle")}
       />
 
@@ -230,18 +247,15 @@ export default function LaunchPad() {
         <div className="relative mx-auto max-w-5xl space-y-6 md:space-y-8">
           {/* ───────── In-code hero ───────── */}
           <motion.section
+            id="launches"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-3xl border p-6 shadow-[0_24px_70px_-28px_rgba(22,163,74,0.55)] sm:p-8 ${
-              dangerous
-                ? "border-red-500/30 bg-gradient-to-br from-red-500/10 via-transparent to-rose-500/5 dark:border-red-500/25"
-                : "border-lime-500/30 bg-gradient-to-br from-lime-400/12 via-transparent to-green-500/5 dark:border-lime-400/25"
-            }`}
+            className="relative scroll-mt-24 overflow-hidden rounded-3xl border border-lime-500/30 bg-gradient-to-br from-lime-400/12 via-transparent to-green-500/5 p-6 shadow-[0_24px_70px_-28px_rgba(22,163,74,0.55)] sm:p-8 dark:border-lime-400/25"
           >
             {/* decorative launch glow */}
             <div
               className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full blur-3xl"
-              style={{ background: dangerous ? "rgba(239,68,68,0.18)" : "rgba(163,230,53,0.22)" }}
+              style={{ background: "rgba(163,230,53,0.22)" }}
             />
             <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-xl">
@@ -254,14 +268,14 @@ export default function LaunchPad() {
                       <ShieldCheck size={11} /> KYC Verified
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-500">
-                      <Flame size={11} /> High Risk
+                    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/5 px-2 py-0.5 text-xs font-semibold text-neutral-500 dark:bg-white/10 dark:text-neutral-400">
+                      <FileSearch size={11} /> Audit in progress
                     </span>
                   )}
                 </div>
                 <h1 className="font-display text-3xl font-black tracking-tight sm:text-4xl">
                   {projectName}{" "}
-                  <span className={dangerous ? "text-red-500" : "text-green-600 dark:text-lime-300"}>
+                  <span className="text-green-600 dark:text-lime-300">
                     ({ticker})
                   </span>
                 </h1>
@@ -315,16 +329,14 @@ export default function LaunchPad() {
                   transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
                   className="h-full rounded-full"
                   style={{
-                    background: dangerous
-                      ? "linear-gradient(90deg,#f43f5e,#ef4444)"
-                      : "linear-gradient(90deg,#a3e635,#16a34a)",
-                    boxShadow: dangerous ? "none" : "0 0 16px rgba(163,230,53,0.6)",
+                    background: "linear-gradient(90deg,#a3e635,#16a34a)",
+                    boxShadow: "0 0 16px rgba(163,230,53,0.6)",
                   }}
                 />
               </div>
               <div className="flex justify-between text-xs text-neutral-400 dark:text-neutral-500">
                 <span>{pct.toFixed(1)}% filled</span>
-                <span className="flex items-center gap-1"><Timer size={11} /> 3 days left</span>
+                <span className="flex items-center gap-1"><Timer size={11} /> {countdown.days}d {countdown.hours}h left</span>
               </div>
             </div>
           </motion.section>
@@ -341,30 +353,24 @@ export default function LaunchPad() {
                 className={`${cardBase} p-5`}
               >
                 <div className="flex items-start gap-4">
-                  <div
-                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
-                      dangerous
-                        ? "border border-red-500/30 bg-red-500/10"
-                        : "border border-lime-500/30 bg-lime-500/10 dark:border-lime-400/25 dark:bg-lime-400/10"
-                    }`}
-                  >
-                    {dangerous ? <Skull className="text-red-500" size={26} /> : <Rocket className="text-green-600 dark:text-lime-300" size={26} />}
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-lime-500/30 bg-lime-500/10 dark:border-lime-400/25 dark:bg-lime-400/10">
+                    <Rocket className="text-green-600 dark:text-lime-300" size={26} />
                   </div>
                   <div>
                     <h2 className="font-display text-lg font-black tracking-tight">About {projectName}</h2>
                     <p className="mt-1 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
                       {dangerous
-                        ? "No audit, no team, no lock. The contract lets a single wallet mint and drain liquidity at will. That is a textbook rug pull, and the danger toggle recreates it."
+                        ? "Nimbus routes idle stablecoins across Stellar money markets and rebalances every hour for the best available rate. Contract verification is pending and the third-party audit is in progress."
                         : "NovaBridge moves native assets across 12 chains with sub-second finality on Stellar. Audited by OtterSec, backed by tier-1 funds, with liquidity locked for 24 months after listing."}
                     </p>
                   </div>
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
-                    { label: "Token Price", value: dangerous ? "$0.0001" : "$0.05" },
+                    { label: "Token Price", value: dangerous ? "$0.02" : "$0.05" },
                     { label: "Hard Cap", value: "$2M" },
                     { label: "Vesting", value: dangerous ? "None" : "12 months" },
-                    { label: "Audit", value: dangerous ? "None" : "OtterSec" },
+                    { label: "Audit", value: dangerous ? "In progress" : "OtterSec" },
                   ].map(({ label, value }) => (
                     <div
                       key={label}
@@ -391,7 +397,7 @@ export default function LaunchPad() {
                       key={label}
                       className="flex items-center gap-3 rounded-xl border border-neutral-900/10 bg-neutral-50 p-3 dark:border-lime-400/12 dark:bg-white/[0.03]"
                     >
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${dangerous ? "bg-red-500/10 text-red-500" : "bg-lime-400/15 text-green-600 dark:text-lime-300"}`}>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-lime-400/15 text-green-600 dark:text-lime-300">
                         <Icon size={15} />
                       </span>
                       <div className="min-w-0">
@@ -448,7 +454,7 @@ export default function LaunchPad() {
                   </div>
                   <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-neutral-500 dark:text-neutral-400">
                     {dangerous ? (
-                      <LegendDot color={vestColor("danger")} label="Instant unlock" />
+                      <LegendDot color={vestColor("tge")} label="100% unlocked at TGE" />
                     ) : (
                       <>
                         <LegendDot color={vestColor("tge")} label="TGE unlock" />
@@ -462,7 +468,7 @@ export default function LaunchPad() {
             </div>
 
             {/* Right: buy panel */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} id="portfolio" className="scroll-mt-24">
               <div className="sticky top-24 space-y-4 rounded-2xl border border-lime-500/25 bg-white/80 p-5 shadow-[0_16px_50px_-20px_rgba(22,163,74,0.35)] backdrop-blur-md dark:border-lime-400/20 dark:bg-[#0e150e]/90">
                 <div className="flex items-center gap-2">
                   <Rocket size={16} className="text-green-600 dark:text-lime-300" />
@@ -492,7 +498,7 @@ export default function LaunchPad() {
 
                 <div className="space-y-2 text-sm">
                   {[
-                    { label: "You get", value: dangerous ? `${(parseFloat(contribution || "0") / 0.0001 / 1000).toFixed(0)}K SCAM` : `${(parseFloat(contribution || "0") / 0.05).toFixed(0)} NOVA` },
+                    { label: "You get", value: `${(parseFloat(contribution || "0") / project.priceUsd).toFixed(0)} ${ticker}` },
                     { label: "Min / Max", value: "$100 / $10,000" },
                     { label: "Lock period", value: dangerous ? "None" : "3 months" },
                   ].map(({ label, value }) => (
@@ -504,12 +510,16 @@ export default function LaunchPad() {
                 </div>
 
                 {success ? (
-                  <motion.div
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    className="w-full rounded-xl border border-lime-500/30 bg-lime-400/15 py-3.5 text-center text-sm font-bold text-green-700 dark:text-lime-300"
-                  >
-                    ✓ ${contribution} Invested
+                  <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
+                    <div className="w-full rounded-xl border border-lime-500/30 bg-lime-400/15 py-3.5 text-center text-sm font-bold text-green-700 dark:text-lime-300">
+                      ✓ ${contribution} Invested
+                    </div>
+                    <button
+                      onClick={reset}
+                      className="w-full rounded-xl border border-neutral-900/10 py-2.5 text-xs font-semibold text-neutral-500 transition-colors hover:text-neutral-900 dark:border-white/10 dark:text-neutral-400 dark:hover:text-white"
+                    >
+                      Run it again
+                    </button>
                   </motion.div>
                 ) : (
                   <button
@@ -521,9 +531,17 @@ export default function LaunchPad() {
                   </button>
                 )}
 
-                {!dangerous && (
+                {/* Demo toggle, right under the primary CTA */}
+                <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate rug pull project" />
+
+                {dangerous ? (
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-neutral-400 dark:text-neutral-500">
+                    <FileSearch size={11} /> Audit report available after review
+                  </p>
+                ) : (
                   <a
                     href="#"
+                    onClick={(e) => e.preventDefault()}
                     className="flex items-center justify-center gap-1.5 text-xs text-neutral-400 transition-colors hover:text-green-600 dark:text-neutral-500 dark:hover:text-lime-300"
                   >
                     View audit report <ExternalLink size={11} />
@@ -543,10 +561,11 @@ export default function LaunchPad() {
 
           {/* ───────── Roadmap ───────── */}
           <motion.section
+            id="upcoming"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            className={`${cardBase} p-5 sm:p-6`}
+            className={`${cardBase} scroll-mt-24 p-5 sm:p-6`}
           >
             <h3 className={sectionTitle}><Calendar size={13} className="text-green-600 dark:text-lime-300" /> Roadmap</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -558,18 +577,16 @@ export default function LaunchPad() {
                     key={r.phase}
                     className={`relative rounded-xl border p-4 ${
                       active
-                        ? dangerous
-                          ? "border-red-500/40 bg-red-500/5"
-                          : "border-lime-500/40 bg-lime-400/10 dark:border-lime-400/35"
+                        ? "border-lime-500/40 bg-lime-400/10 dark:border-lime-400/35"
                         : "border-neutral-900/10 bg-neutral-50 dark:border-lime-400/12 dark:bg-white/[0.03]"
                     }`}
                   >
                     <div className="mb-2 flex items-center gap-2">
                       {done ? (
-                        <CheckCircle2 size={16} className={dangerous ? "text-red-500" : "text-green-600 dark:text-lime-300"} />
+                        <CheckCircle2 size={16} className="text-green-600 dark:text-lime-300" />
                       ) : active ? (
-                        <span className={`flex h-4 w-4 items-center justify-center rounded-full ${dangerous ? "bg-red-500/20" : "bg-lime-400/25"}`}>
-                          <span className={`h-2 w-2 animate-pulse rounded-full ${dangerous ? "bg-red-500" : "bg-green-600 dark:bg-lime-300"}`} />
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-lime-400/25">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-green-600 dark:bg-lime-300" />
                         </span>
                       ) : (
                         <Circle size={16} className="text-neutral-300 dark:text-neutral-600" />
@@ -593,7 +610,7 @@ export default function LaunchPad() {
           >
             {projectStats.map(({ icon: Icon, label, value }) => (
               <div key={label} className={`${cardBase} p-4`}>
-                <Icon size={15} className={dangerous ? "text-red-500" : "text-green-600 dark:text-lime-300"} />
+                <Icon size={15} className="text-green-600 dark:text-lime-300" />
                 <p className="mt-2 font-display text-xl font-black tabular-nums">{value}</p>
                 <p className="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">{label}</p>
               </div>
@@ -602,10 +619,11 @@ export default function LaunchPad() {
 
           {/* ───────── Team & backers ───────── */}
           <motion.section
+            id="leaderboard"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            className="grid gap-6 md:grid-cols-3"
+            className="grid scroll-mt-24 gap-6 md:grid-cols-3"
           >
             <div className={`${cardBase} p-5 md:col-span-2`}>
               <h3 className={sectionTitle}><Users size={13} className="text-green-600 dark:text-lime-300" /> Team</h3>
@@ -614,7 +632,7 @@ export default function LaunchPad() {
                   <div key={m.name} className="flex items-center gap-3 rounded-xl border border-neutral-900/10 bg-neutral-50 p-3 dark:border-lime-400/12 dark:bg-white/[0.03]">
                     <span
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-neutral-950"
-                      style={{ background: dangerous ? "linear-gradient(135deg,#fca5a5,#ef4444)" : "linear-gradient(135deg,#a3e635,#16a34a)" }}
+                      style={{ background: "linear-gradient(135deg,#a3e635,#16a34a)" }}
                     >
                       {m.initials}
                     </span>
@@ -635,13 +653,14 @@ export default function LaunchPad() {
                     key={b}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-900/10 bg-neutral-50 px-2.5 py-1.5 text-xs font-medium text-neutral-700 dark:border-lime-400/12 dark:bg-white/[0.03] dark:text-neutral-300"
                   >
-                    <Award size={11} className={dangerous ? "text-red-500" : "text-green-600 dark:text-lime-300"} /> {b}
+                    <Award size={11} className="text-green-600 dark:text-lime-300" /> {b}
                   </span>
                 ))}
               </div>
               {!dangerous && (
                 <a
                   href="#"
+                  onClick={(e) => e.preventDefault()}
                   className="mt-4 inline-flex items-center gap-1.5 text-xs text-neutral-400 transition-colors hover:text-green-600 dark:text-neutral-500 dark:hover:text-lime-300"
                 >
                   Read the OtterSec audit <ExternalLink size={11} />
@@ -649,11 +668,6 @@ export default function LaunchPad() {
               )}
             </div>
           </motion.section>
-
-          {/* Demo toggle */}
-          <div className="flex justify-center pt-4">
-            <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate rug pull project" />
-          </div>
         </div>
       </div>
 
@@ -672,12 +686,11 @@ export default function LaunchPad() {
 
 /* ───────── helpers ───────── */
 
-function vestColor(kind: "tge" | "cliff" | "linear" | "danger"): string {
+function vestColor(kind: "tge" | "cliff" | "linear"): string {
   switch (kind) {
     case "tge": return "#a3e635";
     case "cliff": return "#334155";
     case "linear": return "#16a34a";
-    case "danger": return "#ef4444";
   }
 }
 

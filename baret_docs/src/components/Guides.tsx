@@ -13,13 +13,13 @@ const guides = [
     description: 'Learn how to authenticate API requests with your API key.',
   },
   {
-    href: '/pagination',
+    href: '/detectors',
     name: 'Risk Detectors',
     description:
       'Understand the 7 independent detectors that power Baret\'s analysis.',
   },
   {
-    href: '/webhooks',
+    href: '/policies',
     name: 'Policy Engine',
     description:
       'Configure block rules and DSL policies to match your risk tolerance.',

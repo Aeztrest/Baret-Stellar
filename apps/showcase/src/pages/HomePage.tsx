@@ -6,41 +6,41 @@
  */
 
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Shield, ShieldCheck, ShieldAlert, Eye, Lock,
-  ArrowRight, ArrowUpRight,
-  Wallet, Radar, BookOpen, HardHat, BellRing,
+  ArrowRight, ArrowUpRight, ChevronDown, Github,
+  Wallet, Radar, BookOpen, HardHat, BellRing, KeyRound, Server,
 } from "lucide-react";
 import {
-  Container, PageSection, SectionHeading, Eyebrow,
+  Container, PageSection, SectionHeading,
   Reveal, RevealGroup, RevealItem, SpotlightCard, ScrollVideoHero,
-  Meter, StatTile, Verdict,
+  Meter, StatTile, Verdict, CompareSplit,
 } from "@stellar-thorn/ui";
-import { BackdropGrid, LandingHeader, LandingFooter, HazardRule, BaretMark } from "../components/LandingChrome";
+import { BackdropGrid, LandingHeader, LandingFooter, HazardRule, BaretMark, SOCIAL_GITHUB } from "../components/LandingChrome";
 import { ProtocolWedge } from "../components/ProtocolWedge";
 
 const SHOWCASE_SITES = [
+  { path: "/scrybe",     name: "Scrybe",     tag: "x402 paywall",   threat: "Agent drift", flagship: true },
   { path: "/novaswap",   name: "NovaSwap",   tag: "DeFi swap",      threat: "Fund drain" },
   { path: "/pixeldrop",  name: "PixelDrop",  tag: "NFT mint",       threat: "Wallet drainer" },
   { path: "/orbityield", name: "OrbitYield", tag: "Liquid staking", threat: "Unverified pool" },
   { path: "/claimhub",   name: "ClaimHub",   tag: "Airdrop claim",  threat: "Phishing approval" },
   { path: "/launchpad",  name: "LaunchPad",  tag: "Token launch",   threat: "Rug pull" },
-  { path: "/scrybe",     name: "Scrybe",     tag: "x402 paywall",   threat: "Agent drift" },
 ];
 
 const DETECTOR_TICKER = [
-  "Wallet drainer", "Unauthorized approval", "Hidden CPI", "Mint authority swap",
-  "Compute-price abuse", "Look-alike mint", "Memo omission", "Rug-pull pattern",
-  "Drift detected", "Allowance overflow", "Facilitator impostor", "Unknown program",
-  "LP unlock", "Token freeze", "Phishing payload", "Silent re-sign",
+  "Wallet drainer", "Unlimited approval", "Hidden cross-contract call", "Admin key handoff",
+  "Fee abuse vs simulated baseline", "Look-alike asset", "Memo omission", "Rug-pull pattern",
+  "Agent drift", "Allowance overflow", "Facilitator impostor", "Unknown contract",
+  "LP unlock", "Trustline freeze", "Phishing payload", "Silent re-sign",
 ];
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background text-foreground antialiased">
       <BackdropGrid />
-      <LandingHeader cta={{ label: "Try the demo", to: "/showcase" }} />
+      <LandingHeader cta={{ label: "Open the showcase", to: "/showcase" }} />
       <CinematicScrub />
       <Hero />
       <DetectorMarquee />
@@ -48,6 +48,9 @@ export default function HomePage() {
       <ProtocolWedge />
       <StatsBar />
       <ShowcaseStrip />
+      <ComparisonSection />
+      <SecuritySection />
+      <FaqSection />
       <FinalCta />
       <LandingFooter />
     </div>
@@ -100,6 +103,7 @@ function CinematicScrub() {
       // visible (object-cover crops any excess from the top). The generator ✦
       // watermark is already cropped out of the source (crop=1100 + rescale).
       videoClassName="absolute inset-0 h-full w-full object-cover object-bottom"
+      skipLabel="Skip intro"
       captions={[
         <p key="c1" className={scrubLine}>
           Every wallet signs whatever the dApp shows you.
@@ -117,7 +121,7 @@ function CinematicScrub() {
           Rolling caps. Per-site policy. On-chain guard.
         </p>,
         <p key="c6" className={scrubLine}>
-          Safe, or <span className="text-primary">blocked</span>, before your keys move.
+          Safe / Caution / <span className="text-primary">Blocked</span>. Before your keys move.
         </p>,
         <div key="c7" className="flex flex-col items-center gap-3">
           <BaretMark size={52} />
@@ -173,7 +177,7 @@ function Hero() {
           >
             Baret reads every Stellar transaction before you sign it. It decodes
             the transaction, simulates what it will do, and gives you a verdict
-            in plain language. Safe, caution, or blocked, before your keys move.
+            in plain language before your keys move: Safe / Caution / Blocked.
           </motion.p>
 
           <motion.div
@@ -183,7 +187,7 @@ function Hero() {
             className="mt-9 flex flex-wrap items-center gap-3"
           >
             <CtaPrimary to="/showcase">
-              Open the live showcase
+              Open the showcase
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
             </CtaPrimary>
             <CtaOutline to="/docs">
@@ -282,7 +286,7 @@ function PopupMockup() {
             className="flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-center text-xs font-bold text-white"
             style={{ background: "var(--bad)" }}
           >
-            <ShieldCheck size={12} /> Sign anyway
+            <ShieldAlert size={12} /> Sign anyway
           </span>
         </div>
       </div>
@@ -293,6 +297,24 @@ function PopupMockup() {
 /* ─────────────────────────── marquee ─────────────────────────── */
 
 function DetectorMarquee() {
+  const reduce = useReducedMotion();
+
+  // Reduced motion: the full list, static and wrapped. No infinite loop.
+  if (reduce) {
+    return (
+      <section className="border-y border-border bg-secondary px-5 py-5 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap gap-x-8 gap-y-2">
+          {DETECTOR_TICKER.map((label) => (
+            <span key={label} className="inline-flex items-center gap-2 font-mono text-sm text-muted-foreground">
+              <Radar size={12} className="text-primary" />
+              {label}
+            </span>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   const items = [...DETECTOR_TICKER, ...DETECTOR_TICKER];
   return (
     <section className="relative overflow-hidden border-y border-border bg-secondary py-5">
@@ -430,7 +452,7 @@ function ShowcaseStrip() {
       <Reveal>
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <SectionHeading
-            index="04"
+            index="03"
             eyebrow="Try it yourself"
             title="Six fake-but-real dApps"
             lead="Connect a wallet and click a button. Baret catches the threat live. No slides, no mocks."
@@ -439,7 +461,7 @@ function ShowcaseStrip() {
             to="/showcase"
             className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-secondary"
           >
-            Open showcase hub <ArrowRight size={14} className="text-primary" />
+            Open the showcase <ArrowRight size={14} className="text-primary" />
           </Link>
         </div>
       </Reveal>
@@ -455,7 +477,7 @@ function ShowcaseStrip() {
   );
 }
 
-function SiteCard({ path, name, tag, threat }: { path: string; name: string; tag: string; threat: string }) {
+function SiteCard({ path, name, tag, threat, flagship }: { path: string; name: string; tag: string; threat: string; flagship?: boolean }) {
   return (
     <SpotlightCard className="h-full">
       <Link to={path} className="absolute inset-0 z-20" aria-label={`Open the ${name} demo`} />
@@ -467,6 +489,11 @@ function SiteCard({ path, name, tag, threat }: { path: string; name: string; tag
                 {name[0]}
               </span>
               <p className="font-display font-semibold uppercase tracking-tight text-foreground">{name}</p>
+              {flagship && (
+                <span className="rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+                  Flagship
+                </span>
+              )}
             </div>
             <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{tag}</p>
           </div>
@@ -490,9 +517,9 @@ function SiteCard({ path, name, tag, threat }: { path: string; name: string; tag
 function StatsBar() {
   const stats = [
     { value: "25+", label: "Risk detectors" },
-    { value: "6",   label: "Live demo dApps" },
+    { value: "6",   label: "Threat scenarios" },
     { value: "3",   label: "Defense layers" },
-    { value: "0",   label: "Keys ever exposed" },
+    { value: "1",   label: "Soroban contract on testnet" },
   ];
   return (
     <section className="px-5 pb-24 sm:px-8">
@@ -503,7 +530,7 @@ function StatsBar() {
               <div key={s.label} className="flex flex-col items-center bg-card px-6 py-10 text-center">
                 <StatTile
                   label={s.label}
-                  value={s.value === "0" ? <span className="text-primary">0</span> : s.value}
+                  value={s.value}
                   variant="display"
                   className="items-center text-center"
                 />
@@ -513,6 +540,203 @@ function StatsBar() {
         </Reveal>
       </Container>
     </section>
+  );
+}
+
+/* ─────────────────────────── comparison ─────────────────────────── */
+
+const COMPARE_ROWS = [
+  {
+    label: "Before you sign",
+    plain: "A contract address and a Confirm button. The chain decides the rest.",
+    baret: "A decoded transaction, a simulation, and a verdict: Safe / Caution / Blocked.",
+  },
+  {
+    label: "Unlimited approvals",
+    plain: "Granted once, live until you remember to revoke them.",
+    baret: "Every approval is a row with a cap and a clock. One tap to pause or revoke.",
+  },
+  {
+    label: "Agent payments",
+    plain: "An agent can re-sign micro-payments all day with no ceiling.",
+    baret: "Per-site caps by the hour and the day, checked at sign time and again on-chain.",
+  },
+  {
+    label: "After you sign",
+    plain: "You find out what happened from a block explorer.",
+    baret: "Baret watches your account and alerts you when something moves that it didn't sign.",
+  },
+];
+
+function CompareColumn({ rows }: { rows: { label: string; text: string }[] }) {
+  return (
+    <ul className="space-y-4">
+      {rows.map((r) => (
+        <li key={r.label} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{r.label}</p>
+          <p className="mt-1 text-sm leading-relaxed text-foreground/90">{r.text}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ComparisonSection() {
+  return (
+    <PageSection id="compare">
+      <Reveal>
+        <SectionHeading
+          index="04"
+          eyebrow="Side by side"
+          title="The same signature, two wallets"
+          lead="No wallet is bashed here. This is what changes when a pre-sign check sits between the app and your keys."
+        />
+      </Reveal>
+      <Reveal delay={0.1}>
+        <div className="mt-12">
+          <CompareSplit
+            leftLabel="A standard Stellar wallet"
+            rightLabel="Baret"
+            leftTone="neutral"
+            rightTone="accent"
+            left={<CompareColumn rows={COMPARE_ROWS.map((r) => ({ label: r.label, text: r.plain }))} />}
+            right={<CompareColumn rows={COMPARE_ROWS.map((r) => ({ label: r.label, text: r.baret }))} />}
+          />
+        </div>
+      </Reveal>
+    </PageSection>
+  );
+}
+
+/* ─────────────────────── security and privacy ─────────────────────── */
+
+const SECURITY_POINTS = [
+  {
+    icon: Server,
+    title: "Analysis runs on a server",
+    body: "The wallet sends the unsigned transaction to the analyze server for decoding and simulation. The server sees that unsigned transaction. It never sees your keys.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Nothing signs without you",
+    body: "The verdict comes back before the popup asks you anything. Nothing is signed until you approve. When Baret says Blocked, it refuses to sign.",
+  },
+  {
+    icon: KeyRound,
+    title: "Keys stay on your device",
+    body: "Your keys are encrypted at rest on your device. They are never sent to the analyze server or anywhere else.",
+  },
+  {
+    icon: Eye,
+    title: "Simulation is a preflight",
+    body: "Verdicts reflect simulated state, not a guarantee. Fees, expiry, and network conditions can make real execution diverge from the simulation.",
+  },
+];
+
+function SecuritySection() {
+  return (
+    <PageSection id="security" className="border-t border-border bg-secondary" bordered={false}>
+      <Reveal>
+        <SectionHeading
+          index="05"
+          eyebrow="Security and privacy"
+          title="What runs where"
+          lead="You are trusting Baret with the moment before your keys move, so here is exactly what it does with it."
+        />
+      </Reveal>
+
+      <RevealGroup className="mt-12 grid gap-4 sm:grid-cols-2">
+        {SECURITY_POINTS.map((p) => (
+          <RevealItem key={p.title}>
+            <SpotlightCard className="h-full p-6">
+              <p.icon size={16} className="text-primary" />
+              <h3 className="mt-4 font-display text-lg font-semibold uppercase tracking-tight text-foreground">
+                {p.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
+            </SpotlightCard>
+          </RevealItem>
+        ))}
+      </RevealGroup>
+
+      <Reveal delay={0.1}>
+        <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-xl border border-border bg-card p-6 sm:flex-row sm:items-center">
+          <p className="text-sm text-foreground">
+            <span className="font-semibold">No audit yet.</span>{" "}
+            <span className="text-muted-foreground">The code is open. Read it.</span>
+          </p>
+          <a
+            href={SOCIAL_GITHUB}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground/30"
+          >
+            <Github size={14} /> View the source
+          </a>
+        </div>
+      </Reveal>
+    </PageSection>
+  );
+}
+
+/* ─────────────────────────── faq ─────────────────────────── */
+
+const FAQ_ITEMS = [
+  {
+    q: "What happens if the analyze server is down?",
+    a: "Baret tells you the transaction is unchecked and leaves the decision to you. It never fakes a verdict, and it never signs on your behalf.",
+  },
+  {
+    q: "Does it work alongside Freighter or other wallets?",
+    a: "Yes. Baret registers as a Wallet Standard wallet, so it shows up in the same wallet picker next to the ones you already use. Install it without uninstalling anything.",
+  },
+  {
+    q: "Is it free?",
+    a: "Yes. Baret is free and open source under the MIT license.",
+  },
+  {
+    q: "Mainnet when?",
+    a: "Testnet today. Mainnet comes after the browser-store listings land and after more real-world testing. We would rather ship the firewall late than wrong.",
+  },
+  {
+    q: "What does Blocked actually do?",
+    a: "Baret refuses to sign. You can override it, but the override is a separate, deliberate step, and it is logged so you can see it later.",
+  },
+  {
+    q: "Where are my keys?",
+    a: "Encrypted on your device. They are never sent anywhere, not to the analyze server and not to us.",
+  },
+];
+
+function FaqSection() {
+  return (
+    <PageSection id="faq">
+      <Reveal>
+        <SectionHeading
+          index="06"
+          eyebrow="FAQ"
+          title="Fair questions"
+          lead="The things people ask before they trust a wallet with the sign button."
+        />
+      </Reveal>
+
+      <Reveal delay={0.1}>
+        <div className="mt-12 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+          {FAQ_ITEMS.map((item) => (
+            <details key={item.q} className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary [&::-webkit-details-marker]:hidden">
+                {item.q}
+                <ChevronDown
+                  size={16}
+                  className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+                />
+              </summary>
+              <p className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </Reveal>
+    </PageSection>
   );
 }
 
@@ -548,7 +772,7 @@ function FinalCta() {
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-3">
                 <CtaPrimary to="/showcase">
-                  <Wallet size={14} /> Try the demo
+                  <Wallet size={14} /> Open the showcase
                 </CtaPrimary>
                 <Link
                   to="/install"
@@ -557,6 +781,9 @@ function FinalCta() {
                   Install the wallet <ArrowRight size={14} />
                 </Link>
               </div>
+              <p className="mt-8 text-xs text-muted-foreground">
+                Free and open source, MIT licensed. On Stellar testnet today. Store review pending.
+              </p>
             </div>
           </div>
         </Reveal>

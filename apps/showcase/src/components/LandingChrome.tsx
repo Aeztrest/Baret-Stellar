@@ -20,15 +20,22 @@ import {
 } from "@stellar-thorn/ui";
 import { Menu } from "lucide-react";
 
-export const SOCIAL_GITHUB = "https://github.com/Aeztrest/DeltaProtokol";
+export const SOCIAL_GITHUB = "https://github.com/Aeztrest/Baret-Stellar";
 export const SOCIAL_X = "https://x.com/baretxyz";
 
 const NAV_LINKS = [
-  { label: "Home", to: "/home" },
+  { label: "Home", to: "/" },
   { label: "Showcase", to: "/showcase" },
   { label: "Agents", to: "/agents" },
   { label: "Docs", to: "/docs" },
   { label: "Install", to: "/install" },
+];
+
+/** Footer-only extras: in-page sections on the landing. */
+const FOOTER_LINKS = [
+  ...NAV_LINKS,
+  { label: "Security", to: "/#security" },
+  { label: "FAQ", to: "/#faq" },
 ];
 
 /** The Baret hard-hat mark. Theme-aware ink tile, orange dome and brim. */
@@ -92,7 +99,7 @@ export function BackdropGrid() {
 
 function NavLink({ to, label, onClick }: { to: string; label: string; onClick?: () => void }) {
   const { pathname } = useLocation();
-  const active = to === pathname || (to === "/showcase" && pathname === "/");
+  const active = to === pathname;
   return (
     <Link
       to={to}
@@ -127,9 +134,9 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
   }, []);
 
   const defaultCta =
-    pathname.startsWith("/showcase") || pathname === "/"
-      ? { label: "Get the wallet", to: "/install" }
-      : { label: "Try the demo", to: "/showcase" };
+    pathname.startsWith("/showcase")
+      ? { label: "Install the wallet", to: "/install" }
+      : { label: "Open the showcase", to: "/showcase" };
   const headerCta = cta === null ? null : (cta ?? defaultCta);
 
   return (
@@ -142,7 +149,7 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link to="/home" className="flex items-center gap-2.5">
+        <Link to="/" className="flex items-center gap-2.5">
           <BaretMark />
           <Wordmark className="text-sm" />
         </Link>
@@ -230,7 +237,7 @@ export function LandingFooter() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {NAV_LINKS.map((l) => (
+            {FOOTER_LINKS.map((l) => (
               <Link
                 key={l.label}
                 to={l.to}
@@ -262,9 +269,9 @@ export function LandingFooter() {
         </div>
 
         <div className="mx-auto mt-8 flex max-w-6xl flex-col items-start justify-between gap-2 border-t border-border pt-6 text-[11px] text-muted-foreground md:flex-row md:items-center">
-          <p>© {new Date().getFullYear()} Baret. Built for the Colosseum hackathon.</p>
+          <p>© {new Date().getFullYear()} Baret. Open source, MIT licensed.</p>
           <p className="flex items-center gap-2">
-            <span className="size-1.5 animate-pulse rounded-full bg-primary" /> Testnet · MIT licensed
+            <span className="size-1.5 animate-pulse rounded-full bg-primary" /> Live on Stellar testnet
           </p>
         </div>
       </div>

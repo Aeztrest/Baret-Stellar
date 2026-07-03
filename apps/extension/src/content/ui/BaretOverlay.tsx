@@ -5,9 +5,14 @@
  * It exercises the full content-script pattern: rendered inside a Shadow DOM,
  * and its Radix Popover portals into the shadow wrapper (via the app-level
  * PortalContainerProvider) so it stays styled and correctly positioned.
+ *
+ * "Hide here" persists per-origin in chrome.storage.local so the choice
+ * survives the tab (sessionStorage did not).
  */
-import { useState } from "react";
-import { ShieldCheck, X, ArrowUpRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ShieldCheck, X } from "lucide-react";
+import browser from "webextension-polyfill";
+import { PROTOCOL_TAG } from "@stellar-thorn/ext-protocol";
 import {
   ShPopover,
   ShPopoverTrigger,
@@ -18,18 +23,50 @@ import {
   Mark,
 } from "@stellar-thorn/ui";
 
-const DISMISS_KEY = "baret-overlay-dismissed";
+export const OVERLAY_HIDDEN_KEY = "baret.overlayHidden.v1";
 
 export function BaretOverlay({ onDismiss }: { onDismiss: () => void }) {
   const [open, setOpen] = useState(false);
+  const [network, setNetwork] = useState<string | null>(null);
   const host = safeHost();
 
-  const dismiss = () => {
+  // Read the real network from the background instead of hardcoding one.
+  useEffect(() => {
+    let cancelled = false;
+    let port: ReturnType<typeof browser.runtime.connect> | null = null;
     try {
-      sessionStorage.setItem(DISMISS_KEY, "1");
+      port = browser.runtime.connect({ name: "bx-wallet-standard" });
+      const id = "baret-overlay-network";
+      port.onMessage.addListener((raw: unknown) => {
+        const env = raw as {
+          id?: string;
+          kind?: string;
+          payload?: { network?: string };
+        };
+        if (env?.id !== id || env.kind !== "rsp") return;
+        if (!cancelled && typeof env.payload?.network === "string") {
+          setNetwork(env.payload.network === "PUBLIC" ? "Mainnet" : "Testnet");
+        }
+        try { port?.disconnect(); } catch { /* already gone */ }
+      });
+      port.postMessage({
+        __bx: PROTOCOL_TAG,
+        id,
+        kind: "req",
+        method: "ws.getNetwork",
+        payload: { origin: window.location.origin },
+      });
     } catch {
-      /* sessionStorage may be blocked */
+      /* background unreachable. leave the label blank rather than lie */
     }
+    return () => {
+      cancelled = true;
+      try { port?.disconnect(); } catch { /* noop */ }
+    };
+  }, []);
+
+  const dismiss = () => {
+    void persistDismiss();
     onDismiss();
   };
 
@@ -86,7 +123,7 @@ export function BaretOverlay({ onDismiss }: { onDismiss: () => void }) {
 
           <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5">
             <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              <span className="size-1.5 rounded-full" style={{ background: "var(--live)" }} /> Testnet
+              <span className="size-1.5 rounded-full" style={{ background: "var(--live)" }} /> {network ?? "…"}
             </span>
             <button
               onClick={dismiss}
@@ -101,12 +138,24 @@ export function BaretOverlay({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+/** Remember "Hide here" for this origin across sessions. */
+async function persistDismiss(): Promise<void> {
+  try {
+    const origin = window.location.origin;
+    const all = await browser.storage.local.get(OVERLAY_HIDDEN_KEY);
+    const map = (all[OVERLAY_HIDDEN_KEY] as Record<string, boolean> | undefined) ?? {};
+    map[origin] = true;
+    await browser.storage.local.set({ [OVERLAY_HIDDEN_KEY]: map });
+  } catch {
+    /* storage may be unavailable; the overlay still hides for this page */
+  }
+}
+
 function StatusRow({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 text-xs text-foreground/80">
       <ShieldCheck size={13} className="shrink-0 text-primary" />
       <span className="flex-1">{label}</span>
-      <ArrowUpRight size={12} className="text-muted-foreground" />
     </div>
   );
 }

@@ -259,7 +259,7 @@ function FormEditor({ draft, set }: { draft: GuardPolicy; set: <K extends keyof 
           value={draft.maxLossPercent} onChange={(v) => set("maxLossPercent", v)} min={0} max={100} suffix="%" />
         <NumberField label="Min post-tx USDC balance" hint="Refuse if your USDC balance after the tx falls below this floor."
           value={draft.minPostUsdcBalance} onChange={(v) => set("minPostUsdcBalance", v)} min={0} suffix="USDC" />
-        <BoolField label="Block Soroban allowance grants" hint="The classic drainer vector. An `approve(spender, amount)` to a contract."
+        <BoolField label="Block Soroban allowances" hint="The classic drainer vector. An `approve(spender, amount)` to a contract."
           value={draft.blockSorobanAllowanceGrants} onChange={(v) => set("blockSorobanAllowanceGrants", v)} />
         <BoolField label="Block trustline changes" hint="Refuse classic `changeTrust` ops."
           value={draft.blockTrustlineChanges} onChange={(v) => set("blockTrustlineChanges", v)} />
