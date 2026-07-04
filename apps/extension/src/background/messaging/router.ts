@@ -37,6 +37,18 @@ export function startRouter(): void {
     const map = HANDLER_BY_PORT[port.name];
     if (!map) return; // unknown port. ignore
 
+    // Defense in depth: without `externally_connectable` in the manifest,
+    // only this extension's own contexts (content scripts, popup, options)
+    // can open a port here at all — but verify the connecting context is
+    // genuinely part of this extension rather than trusting port name
+    // alone. This doesn't replace validating the *payload* (the content
+    // script's own origin-spoofing fix does that), it just narrows who can
+    // reach the router in the first place.
+    if (port.sender && port.sender.id !== browser.runtime.id) {
+      port.disconnect();
+      return;
+    }
+
     // Surface ports (popup/options) get state diffs pushed.
     let unsub: (() => void) | undefined;
     if (SURFACE_PORTS.has(port.name)) {

@@ -53,8 +53,6 @@ fn pay_within_caps_settles_and_records_spend() {
 
     assert_eq!(f.token.balance(&merchant), 10_000);
     assert_eq!(f.guard.available_today(&merchant), 20_000);
-    let a = f.guard.get_allowance(&merchant);
-    assert_eq!(a.spent_day, 10_000);
 }
 
 #[test]
@@ -103,7 +101,7 @@ fn rolling_window_resets_after_24h() {
     f.guard.pay(&merchant, &10_000); // daily cap fully spent
     assert_eq!(f.guard.available_today(&merchant), 0);
 
-    // Advance the ledger clock past the rolling window.
+    // Advance the ledger clock past the window.
     f.env.ledger().with_mut(|l| l.timestamp += DAY_SECONDS + 1);
 
     assert_eq!(f.guard.available_today(&merchant), 10_000);
@@ -117,4 +115,218 @@ fn owner_can_withdraw() {
     let before = f.token.balance(&f.owner);
     f.guard.withdraw(&100_000);
     assert_eq!(f.token.balance(&f.owner), before + 100_000);
+}
+
+/* ───────────── reserve accounting ───────────── */
+
+#[test]
+#[should_panic] // InsufficientReserve
+fn withdraw_cannot_drain_below_active_merchant_reserve() {
+    let f = setup(); // vault holds 500_000
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &450_000);
+    // Vault must keep at least 450_000 reserved for this active merchant;
+    // withdrawing everything would leave 0 < 450_000.
+    f.guard.withdraw(&500_000);
+}
+
+#[test]
+fn withdraw_up_to_the_reserve_line_succeeds() {
+    let f = setup(); // vault holds 500_000
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &450_000);
+    // Leaves exactly 450_000 behind — at the reserve line, not below it.
+    f.guard.withdraw(&50_000);
+    assert_eq!(f.token.balance(&f.guard.address), 450_000);
+}
+
+#[test]
+fn revoking_a_merchant_frees_its_reserve_for_withdrawal() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &450_000);
+    f.guard.revoke(&merchant);
+    // No longer active, so its cap no longer reserves vault funds.
+    f.guard.withdraw(&500_000);
+    assert_eq!(f.token.balance(&f.guard.address), 0);
+}
+
+/* ───────────── sliding-window boundary regression ─────────────
+ * Regression test for the fixed-window bug: spending the full cap right
+ * before the old bucket boundary, then again a few seconds after, used to
+ * grant ~2x the daily cap. With a true sliding window this must revert.
+ */
+#[test]
+#[should_panic] // ExceedsDailyCap
+fn cannot_double_spend_daily_cap_across_old_bucket_boundary() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &10_000); // window conceptually starts at t=0
+
+    // Advance to 1s before where the old fixed-window reset would have
+    // fired (day_start + DAY_SECONDS) and spend the full cap.
+    f.env.ledger().with_mut(|l| l.timestamp += DAY_SECONDS - 1); // t = 86399
+    f.guard.pay(&merchant, &10_000);
+
+    // Advance only 2 more real seconds, crossing the old reset boundary.
+    // The old fixed-window code would treat this as a brand-new window and
+    // allow the cap to be spent again — 2x the daily cap in ~2 seconds. A
+    // true sliding window still sees the first payment (only 2s old) inside
+    // the trailing 24h and must revert.
+    f.env.ledger().with_mut(|l| l.timestamp += 2); // t = 86401
+    f.guard.pay(&merchant, &10_000);
+}
+
+#[test]
+fn sliding_window_allows_spend_once_first_payment_fully_ages_out() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &10_000);
+    f.env.ledger().with_mut(|l| l.timestamp += DAY_SECONDS - 1); // t = 86399
+    f.guard.pay(&merchant, &10_000);
+
+    // Only once the first payment is genuinely >24h old does capacity
+    // return — i.e. more than DAY_SECONDS after t=86399, not just after
+    // crossing the old fixed bucket's reset point.
+    f.env.ledger().with_mut(|l| l.timestamp += DAY_SECONDS + 1); // t = 172799
+    assert_eq!(f.guard.available_today(&merchant), 10_000);
+    f.guard.pay(&merchant, &10_000);
+    assert_eq!(f.token.balance(&merchant), 20_000);
+}
+
+/* ───────────── pause / resume ───────────── */
+
+#[test]
+#[should_panic] // NotActive
+fn pay_to_paused_merchant_reverts() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.pause(&merchant);
+    f.guard.pay(&merchant, &1_000);
+}
+
+#[test]
+fn resume_restores_active_status_and_preserves_window() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.pay(&merchant, &10_000);
+
+    f.guard.pause(&merchant);
+    f.guard.resume(&merchant);
+
+    // Still active, and the earlier spend is still counted in the window
+    // (resume must not reset spend history back to full cap).
+    assert_eq!(f.guard.available_today(&merchant), 20_000);
+    f.guard.pay(&merchant, &5_000);
+    assert_eq!(f.token.balance(&merchant), 15_000);
+}
+
+/* ───────────── negative / invalid amounts ───────────── */
+
+#[test]
+#[should_panic] // InvalidAmount
+fn deposit_zero_or_negative_reverts() {
+    let f = setup();
+    f.guard.deposit(&f.owner, &0);
+}
+
+#[test]
+#[should_panic] // InvalidAmount
+fn pay_zero_or_negative_reverts() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.pay(&merchant, &0);
+}
+
+#[test]
+#[should_panic] // InvalidAmount
+fn withdraw_zero_or_negative_reverts() {
+    let f = setup();
+    f.guard.withdraw(&0);
+}
+
+#[test]
+#[should_panic] // InvalidAmount
+fn set_allowance_negative_cap_reverts() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &-1, &10_000);
+}
+
+/* ───────────── auth boundaries ─────────────
+ * `mock_all_auths()` (used by `setup()`) approves *any* address's
+ * `require_auth()` unconditionally — it proves the code path runs, not that
+ * it's gated to the right signer. To actually verify the owner-only surface
+ * we check two things instead:
+ *   1. With **no** auth mocking at all, the one-time `init` call — which is
+ *      the exact function the critical finding was about — must panic
+ *      rather than silently succeed for an unauthenticated caller.
+ *   2. Under the mocked fixture, `env.auths()` after each owner-gated call
+ *      must show that *the owner's* address, specifically, was required to
+ *      authorize it (not e.g. the merchant, or nobody).
+ */
+
+#[test]
+#[should_panic]
+fn init_without_owner_auth_panics() {
+    let env = Env::default(); // deliberately no mock_all_auths()
+    let owner = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let (token, _admin) = make_token(&env, &token_admin);
+    let guard_id = env.register(PaymentGuard, ());
+    let guard = PaymentGuardClient::new(&env, &guard_id);
+    guard.init(&owner, &token.address);
+}
+
+#[test]
+fn set_allowance_requires_owner_authorization() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    let auths = f.env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths[0].0, f.owner);
+}
+
+#[test]
+fn pause_resume_revoke_require_owner_authorization() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    f.guard.set_allowance(&merchant, &10_000, &30_000);
+
+    f.guard.pause(&merchant);
+    assert_eq!(f.env.auths()[0].0, f.owner);
+
+    f.guard.resume(&merchant);
+    assert_eq!(f.env.auths()[0].0, f.owner);
+
+    f.guard.revoke(&merchant);
+    assert_eq!(f.env.auths()[0].0, f.owner);
+}
+
+#[test]
+fn withdraw_requires_owner_authorization() {
+    let f = setup();
+    f.guard.withdraw(&1_000);
+    let auths = f.env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths[0].0, f.owner);
+}
+
+#[test]
+fn init_requires_owner_authorization() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let owner = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let (token, _admin) = make_token(&env, &token_admin);
+    let guard_id = env.register(PaymentGuard, ());
+    let guard = PaymentGuardClient::new(&env, &guard_id);
+    guard.init(&owner, &token.address);
+    let auths = env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths[0].0, owner);
 }

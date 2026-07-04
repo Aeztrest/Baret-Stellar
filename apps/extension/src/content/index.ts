@@ -14,6 +14,7 @@
 import browser from "webextension-polyfill";
 import { isEnvelope, PROTOCOL_TAG, type Envelope } from "@stellar-thorn/ext-protocol";
 import { mountBaretOverlay } from "./ui/mount";
+import { attachTrustedOrigin } from "./trusted-origin";
 
 const PAGE_TAG = "__bx_ws" as const;
 
@@ -90,7 +91,7 @@ function forwardToBackground(req: PageReq): void {
     id: bxId,
     kind: "req",
     method: req.method,
-    payload: req.payload,
+    payload: attachTrustedOrigin(req.payload, window.location.origin),
   };
   try {
     port.postMessage(env);
@@ -133,7 +134,6 @@ function postPageErr(id: string, error: string) {
 }
 
 function newReqId(): string {
-  let s = "";
-  for (let i = 0; i < 8; i++) s += ((Math.random() * 65536) | 0).toString(16).padStart(4, "0");
-  return s;
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

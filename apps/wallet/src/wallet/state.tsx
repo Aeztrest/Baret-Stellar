@@ -12,7 +12,7 @@ import type { Keypair } from "@stellar/stellar-sdk";
 import { clearWallet as clearWalletStore } from "../storage/wallet-store";
 import { clearPolicy } from "../storage/policy-store";
 import { clearHistory } from "../storage/history-store";
-import { createNewWallet, loadExistingWallet, saveSmartWalletAddress } from "./keypair";
+import { createNewWallet, readWalletMeta, saveSmartWalletAddress, unlockWallet } from "./keypair";
 import { friendbotFund, getHorizon } from "./connection";
 import { fetchNativeBalance, provisionSmartWallet } from "./smart-wallet";
 
@@ -30,7 +30,14 @@ export interface ProvisionProgress {
   message: string;
 }
 
-export type WalletPhase = "loading" | "unprovisioned" | "identity" | "ready" | "error";
+export type WalletPhase =
+  | "loading"
+  | "unprovisioned"
+  /** A wallet exists on this device but the passphrase hasn't been entered yet this session. */
+  | "locked"
+  | "identity"
+  | "ready"
+  | "error";
 
 export interface WalletStateValue {
   phase: WalletPhase;
@@ -43,8 +50,12 @@ export interface WalletStateValue {
   /** Smart-wallet XLM balance (same address as authority in the placeholder model). */
   walletBalance: number | null;
 
-  /** Generate a fresh Stellar keypair and persist. Throws if a wallet exists. */
-  createWallet: () => WalletIdentity;
+  /** Generate a fresh Stellar keypair, encrypt it under `passphrase`, and persist. Throws if a wallet exists. */
+  createWallet: (passphrase: string) => Promise<WalletIdentity>;
+  /** Decrypt the stored wallet with `passphrase`. Throws on wrong passphrase. */
+  unlock: (passphrase: string) => Promise<void>;
+  /** Drop the in-memory keypair; the wallet returns to the "locked" phase. */
+  lock: () => void;
   /** Resolve/persist the smart-wallet address. Idempotent once provisioned. */
   provision: (onProgress?: (p: ProvisionProgress) => void) => Promise<void>;
   /** Fund the authority with testnet XLM via Friendbot. */
@@ -84,44 +95,53 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Initial mount: load existing wallet from storage.
+  // Initial mount: check (without decrypting) whether a wallet exists on
+  // this device. The secret itself stays encrypted at rest until the user
+  // enters their passphrase via `unlock`.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const stored = loadExistingWallet();
-      if (!stored) {
-        if (!cancelled) setPhase("unprovisioned");
-        return;
-      }
+    const meta = readWalletMeta();
+    setPhase(meta ? "locked" : "unprovisioned");
+  }, []);
+
+  const createWallet = useCallback(
+    async (passphrase: string): Promise<WalletIdentity> => {
+      const { authority } = await createNewWallet(passphrase);
+      const id: WalletIdentity = {
+        authority,
+        address: authority.publicKey(),
+        smartWalletAddress: null,
+        createdAt: new Date().toISOString(),
+      };
+      setIdentity(id);
+      setPhase("identity");
+      void refreshBalances(id);
+      return id;
+    },
+    [refreshBalances],
+  );
+
+  const unlock = useCallback(
+    async (passphrase: string): Promise<void> => {
+      const stored = await unlockWallet(passphrase);
       const id: WalletIdentity = {
         authority: stored.authority,
         address: stored.authority.publicKey(),
         smartWalletAddress: stored.smartWalletAddress,
         createdAt: stored.createdAt,
       };
-      if (cancelled) return;
       setIdentity(id);
       setPhase(id.smartWalletAddress ? "ready" : "identity");
       await refreshBalances(id);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshBalances]);
+    },
+    [refreshBalances],
+  );
 
-  const createWallet = useCallback((): WalletIdentity => {
-    const { authority } = createNewWallet();
-    const id: WalletIdentity = {
-      authority,
-      address: authority.publicKey(),
-      smartWalletAddress: null,
-      createdAt: new Date().toISOString(),
-    };
-    setIdentity(id);
-    setPhase("identity");
-    void refreshBalances(id);
-    return id;
-  }, [refreshBalances]);
+  const lock = useCallback(() => {
+    setIdentity(null);
+    setAuthorityBalance(null);
+    setWalletBalance(null);
+    setPhase("locked");
+  }, []);
 
   const provision = useCallback(
     async (onProgress?: (p: ProvisionProgress) => void): Promise<void> => {
@@ -185,12 +205,27 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       authorityBalance,
       walletBalance,
       createWallet,
+      unlock,
+      lock,
       provision,
       fund,
       refresh,
       reset,
     }),
-    [phase, error, identity, authorityBalance, walletBalance, createWallet, provision, fund, refresh, reset],
+    [
+      phase,
+      error,
+      identity,
+      authorityBalance,
+      walletBalance,
+      createWallet,
+      unlock,
+      lock,
+      provision,
+      fund,
+      refresh,
+      reset,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

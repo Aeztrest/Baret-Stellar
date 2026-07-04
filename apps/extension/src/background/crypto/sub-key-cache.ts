@@ -17,9 +17,26 @@ import { listSubKeys, type SubKeyRow } from "../db/sub-keys";
 
 const cache = new Map<string, Keypair>();
 let cachedPassphrase: string | null = null;
+let passphraseExpiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * How long the passphrase stays cached for lazy on-demand sub-key
+ * decryption. JS strings are immutable, so this can never be actively
+ * zeroed like the Keypair buffers below — bounding its lifetime is the
+ * only mitigation available. After this window, `getSubKeypair`'s lazy
+ * fallback simply stops working for sub-keys not already in `cache`
+ * (already-cached ones are unaffected); the existing "re-unlock to reload
+ * sub-keys" error path (see `throwSignerMissing`) covers that case.
+ */
+const PASSPHRASE_TTL_MS = 5 * 60 * 1000;
 
 export function rememberPassphrase(passphrase: string): void {
   cachedPassphrase = passphrase;
+  if (passphraseExpiryTimer) clearTimeout(passphraseExpiryTimer);
+  passphraseExpiryTimer = setTimeout(() => {
+    cachedPassphrase = null;
+    passphraseExpiryTimer = null;
+  }, PASSPHRASE_TTL_MS);
 }
 
 export function clearSubKeyCache(): void {
@@ -32,6 +49,10 @@ export function clearSubKeyCache(): void {
   }
   cache.clear();
   cachedPassphrase = null;
+  if (passphraseExpiryTimer) {
+    clearTimeout(passphraseExpiryTimer);
+    passphraseExpiryTimer = null;
+  }
 }
 
 /**

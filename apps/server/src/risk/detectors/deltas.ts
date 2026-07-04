@@ -36,7 +36,13 @@ export function detectAllowanceAndTrustlineFindings(
         newLimit: tl.newLimit,
       },
     });
-    if (safeBigInt(tl.newLimit) >= UNLIMITED_TRUSTLINE_LIMIT) {
+    const newLimit = parseAmount(tl.newLimit);
+    if (newLimit.malformed) {
+      findings.push(malformedAmountFinding("trustline limit", tl.newLimit, {
+        accountId: tl.accountId,
+        asset: tl.asset,
+      }));
+    } else if (newLimit.value >= UNLIMITED_TRUSTLINE_LIMIT) {
       findings.push({
         code: "UNLIMITED_TRUSTLINE",
         severity: "high",
@@ -57,7 +63,13 @@ export function detectAllowanceAndTrustlineFindings(
         amount: a.amount,
       },
     });
-    if (safeBigInt(a.amount) >= UNLIMITED_ALLOWANCE_THRESHOLD) {
+    const amount = parseAmount(a.amount);
+    if (amount.malformed) {
+      findings.push(malformedAmountFinding("allowance amount", a.amount, {
+        tokenAddress: a.tokenAddress,
+        spender: a.spender,
+      }));
+    } else if (amount.value >= UNLIMITED_ALLOWANCE_THRESHOLD) {
       findings.push({
         code: "SOROBAN_ALLOWANCE_UNLIMITED",
         severity: "high",
@@ -92,10 +104,30 @@ export function detectIncompleteDataFinding(input: {
   };
 }
 
-function safeBigInt(s: string): bigint {
+/**
+ * A malformed amount string used to silently resolve to `0n` here, which is
+ * always below the "unlimited" threshold — so a parse failure looked
+ * identical to "definitely not unlimited" instead of "we don't actually
+ * know." Callers now get an explicit `malformed` flag and raise a
+ * low-confidence finding instead of quietly skipping the check.
+ */
+function parseAmount(s: string): { value: bigint; malformed: boolean } {
   try {
-    return BigInt(s);
+    return { value: BigInt(s), malformed: false };
   } catch {
-    return 0n;
+    return { value: 0n, malformed: true };
   }
+}
+
+function malformedAmountFinding(
+  field: string,
+  rawValue: string,
+  details: Record<string, string>,
+): RiskFinding {
+  return {
+    code: "LOW_CONFIDENCE_INCOMPLETE_DATA",
+    severity: "medium",
+    message: `Could not parse ${field} ("${rawValue}"); unlimited-amount detection was skipped for this entry rather than assumed safe.`,
+    details: { ...details, rawValue },
+  };
 }

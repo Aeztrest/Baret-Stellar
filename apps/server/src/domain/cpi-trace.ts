@@ -25,8 +25,16 @@ export type CpiTrace = {
   roots: CpiNode[];
   /** All distinct contract addresses anywhere in the tree. */
   allContractAddresses: string[];
-  /** Deepest sub-invocation level encountered. */
+  /** Deepest sub-invocation level encountered (capped — see `truncated`). */
   maxDepth: number;
-  /** Total number of nodes (root + descendants). */
+  /** Total number of nodes (root + descendants; capped — see `truncated`). */
   totalInvocations: number;
+  /**
+   * `true` when the auth tree hit the depth or node-count safety cap during
+   * parsing and further sub-invocations were not expanded. A `true` value
+   * already implies the tree is enormous, so downstream depth/breadth
+   * detectors should treat it as maximally suspicious regardless of the
+   * (capped) `maxDepth`/`totalInvocations` numbers.
+   */
+  truncated: boolean;
 };

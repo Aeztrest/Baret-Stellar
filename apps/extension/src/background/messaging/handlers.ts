@@ -28,7 +28,8 @@ import type {
 import { BALANCED_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
 
 import { dispatch, getSnapshot } from "../state/store";
-import { encryptWithPassphrase, decryptWithPassphrase } from "../crypto/kdf";
+import { encryptWithPassphrase, decryptWithPassphrase, needsIterationUpgrade } from "../crypto/kdf";
+import { checkAttemptAllowed, recordFailedAttempt, recordSuccessfulAttempt } from "../crypto/attempt-limiter";
 import { isUnlocked, lock, unlockWith, useAuthority } from "../crypto/session";
 import {
   clearKeystore,
@@ -245,16 +246,48 @@ const acknowledgeBackupHandler: Handler<
   return { ok: true };
 };
 
+const UNLOCK_ATTEMPT_KEY = "wallet.unlock";
+const EXPORT_ATTEMPT_KEY = "wallet.exportSecret";
+
+function requireAttemptAllowed(key: string): void {
+  const check = checkAttemptAllowed(key);
+  if (!check.allowed) {
+    const seconds = Math.ceil(check.retryAfterMs / 1000);
+    throw new Error(
+      `Too many incorrect attempts. Try again in ${seconds}s.`,
+    );
+  }
+}
+
 const unlockHandler: Handler<"wallet.unlock"> = async ({ passphrase }) => {
+  requireAttemptAllowed(UNLOCK_ATTEMPT_KEY);
   const row = await readKeystore();
   if (!row) throw new Error("No wallet found on this device.");
-  const secret = await decryptWithPassphrase(row.blob, passphrase);
+  let secret: Uint8Array;
+  try {
+    secret = await decryptWithPassphrase(row.blob, passphrase);
+  } catch (err) {
+    recordFailedAttempt(UNLOCK_ATTEMPT_KEY);
+    throw err;
+  }
   if (secret.length !== 32) {
     secret.fill(0);
+    recordFailedAttempt(UNLOCK_ATTEMPT_KEY);
     throw new Error(
       `Keystore seed must be 32 bytes (got ${secret.length}); reset and recreate.`,
     );
   }
+  recordSuccessfulAttempt(UNLOCK_ATTEMPT_KEY);
+
+  if (needsIterationUpgrade(row.blob)) {
+    // The passphrase was just verified above, so this is the right moment
+    // to re-encrypt under the current (higher) PBKDF2 iteration count —
+    // otherwise a wallet created before a past bump stays on the weaker
+    // setting forever, since decryption alone never needs to touch it.
+    const upgradedBlob = await encryptWithPassphrase(secret, passphrase);
+    await writeKeystore({ ...row, blob: upgradedBlob });
+  }
+
   unlockWith(secret);
   secret.fill(0);
 
@@ -290,9 +323,17 @@ const exportSecretHandler: Handler<"wallet.exportSecret"> = async ({
   passphrase,
   format,
 }) => {
+  requireAttemptAllowed(EXPORT_ATTEMPT_KEY);
   const row = await readKeystore();
   if (!row) throw new Error("No wallet to export.");
-  const seed = await decryptWithPassphrase(row.blob, passphrase);
+  let seed: Uint8Array;
+  try {
+    seed = await decryptWithPassphrase(row.blob, passphrase);
+  } catch (err) {
+    recordFailedAttempt(EXPORT_ATTEMPT_KEY);
+    throw err;
+  }
+  recordSuccessfulAttempt(EXPORT_ATTEMPT_KEY);
   try {
     if (format === "hex") return { secret: bytesToHex(seed) };
     if (format === "base58") return { secret: bytesToBase58(seed) };

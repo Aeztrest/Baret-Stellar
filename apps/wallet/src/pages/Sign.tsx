@@ -15,6 +15,7 @@ import { getGuard } from "../baret/guard";
 import { readPolicy } from "../storage/policy-store";
 import { appendHistory, makeEntryId } from "../storage/history-store";
 import { AnalysisReport } from "../components/AnalysisReport";
+import { isFromTrustedOpener } from "../lib/verified-message";
 
 type Phase = "waiting" | "evaluating" | "review" | "signing" | "done" | "error";
 
@@ -35,6 +36,9 @@ export function Sign() {
 
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
+      // Verify the sender before touching the payload — see
+      // `isFromTrustedOpener` for why.
+      if (!isFromTrustedOpener(ev, window.opener as Window | null)) return;
       if (!isProtoMessage(ev.data)) return;
       const data = ev.data as SignRequestMessage;
       if (data.type !== "sign-request") return;
@@ -102,7 +106,7 @@ export function Sign() {
 
       appendHistory({
         id: makeEntryId(), createdAt: new Date().toISOString(),
-        label: `${request.appName ?? request.origin} · ${request.mode}`,
+        label: `${request.appName ?? openerOrigin ?? "unknown origin"} · ${request.mode}`,
         decision: "allow",
         signature: hash,
         reasons: evaluation.analysis.reasons,
@@ -132,7 +136,7 @@ export function Sign() {
     if (evaluation) {
       appendHistory({
         id: makeEntryId(), createdAt: new Date().toISOString(),
-        label: `Blocked: ${request.appName ?? request.origin}`,
+        label: `Blocked: ${request.appName ?? openerOrigin ?? "unknown origin"}`,
         decision: evaluation.decision === "block" ? "block" : "allow",
         signature: null,
         reasons: evaluation.blockingReasons.length ? evaluation.blockingReasons : [reason],
@@ -157,6 +161,16 @@ export function Sign() {
   if (walletPhase === "unprovisioned") {
     return <PopupShell><Centered><p className="text-sm text-ink-900">No wallet. open the wallet to create one.</p></Centered></PopupShell>;
   }
+  if (walletPhase === "locked") {
+    return (
+      <PopupShell>
+        <Centered>
+          <p className="text-sm text-ink-900">Your Baret wallet is locked.</p>
+          <p className="text-xs text-ink-500">Open the wallet and enter your passphrase, then retry.</p>
+        </Centered>
+      </PopupShell>
+    );
+  }
   if (!request) {
     return <PopupShell><Centered><p className="text-sm text-ink-500">Waiting for dApp request…</p></Centered></PopupShell>;
   }
@@ -164,7 +178,7 @@ export function Sign() {
   return (
     <div className="min-h-screen bg-bg p-6">
       <div className="max-w-md mx-auto space-y-4">
-        <Header request={request} />
+        <Header request={request} verifiedOrigin={openerOrigin} />
 
         {phase === "evaluating" && (
           <div className="glass rounded-2xl p-10 flex flex-col items-center gap-3 text-center">
@@ -215,12 +229,23 @@ export function Sign() {
   );
 }
 
-function Header({ request }: { request: SignRequestMessage }) {
+function Header({
+  request,
+  verifiedOrigin,
+}: {
+  request: SignRequestMessage;
+  /** Browser-verified sender origin — never trust `request.origin` for
+   * display, since that field is set by the dApp's own page script and a
+   * malicious page can claim to be any origin it likes. */
+  verifiedOrigin: string | null;
+}) {
   return (
     <div className="space-y-1.5 mb-2">
       <div className="flex items-center gap-2">
         <Globe size={13} className="text-accent-soft" />
-        <span className="text-xs font-mono text-accent-soft truncate">{request.origin}</span>
+        <span className="text-xs font-mono text-accent-soft truncate">
+          {verifiedOrigin ?? "unverified origin"}
+        </span>
       </div>
       <h1 className="text-xl font-display font-bold text-ink-900">
         {request.appName ?? "App"} requests a signature

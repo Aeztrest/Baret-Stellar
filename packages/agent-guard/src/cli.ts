@@ -38,7 +38,6 @@ interface GlobalFlags {
   server?: string;
   network?: StellarNetwork;
   policy?: string;
-  apiKey?: string;
   address?: string;
   json: boolean;
 }
@@ -71,7 +70,9 @@ function walletOptions(flags: GlobalFlags): AgentWalletOptions {
     serverUrl: flags.server,
     network: flags.network,
     policy: flags.policy,
-    apiKey: flags.apiKey,
+    // apiKey is intentionally not settable via CLI flag — only BARET_API_KEY
+    // (env var), so it never appears in shell history or `ps` output, same
+    // as BARET_AGENT_SECRET.
   };
 }
 
@@ -164,11 +165,16 @@ async function cmdSign(xdrArg: string | undefined, flags: GlobalFlags): Promise<
   const wallet = new AgentWallet(walletOptions(flags));
   if (!wallet.canSign) fail("set BARET_AGENT_SECRET to sign", flags.json);
   try {
-    const { signedXdr, analysis } = await wallet.guardedSign(xdr);
+    const { signedXdr, analysis, bypassedOffline } = await wallet.guardedSign(xdr);
     if (flags.json) {
-      process.stdout.write(JSON.stringify({ ok: true, signedXdr, analysis }, null, 2) + "\n");
+      process.stdout.write(
+        JSON.stringify({ ok: true, signedXdr, analysis, bypassedOffline }, null, 2) + "\n",
+      );
     } else {
-      process.stdout.write(`\n  ✓ ALLOW. signed by ${wallet.address}\n\n${signedXdr}\n\n`);
+      const warning = bypassedOffline
+        ? "\n  ⚠ SIGNED WITHOUT A BARET VERDICT (allowOffline — analyze server was unreachable)\n"
+        : "";
+      process.stdout.write(`\n  ✓ ALLOW. signed by ${wallet.address}\n${warning}\n${signedXdr}\n\n`);
     }
     return EXIT_OK;
   } catch (err) {
@@ -184,11 +190,18 @@ async function cmdSubmit(xdrArg: string | undefined, flags: GlobalFlags): Promis
     const res = await wallet.guardedSubmit(xdr);
     if (flags.json) {
       process.stdout.write(
-        JSON.stringify({ ok: true, hash: res.hash, explorerUrl: res.explorerUrl }, null, 2) + "\n",
+        JSON.stringify(
+          { ok: true, hash: res.hash, explorerUrl: res.explorerUrl, bypassedOffline: res.bypassedOffline },
+          null,
+          2,
+        ) + "\n",
       );
     } else {
+      const warning = res.bypassedOffline
+        ? "\n  ⚠ SUBMITTED WITHOUT A BARET VERDICT (allowOffline — analyze server was unreachable)\n"
+        : "";
       process.stdout.write(
-        `\n  ✓ SUBMITTED by ${wallet.address}\n    hash: ${res.hash}\n    ${res.explorerUrl}\n\n`,
+        `\n  ✓ SUBMITTED by ${wallet.address}\n${warning}    hash: ${res.hash}\n    ${res.explorerUrl}\n\n`,
       );
     }
     return EXIT_OK;
@@ -304,13 +317,14 @@ function printHelp(): void {
     --server <url>    Baret analyze server (env BARET_API_URL)
     --network <net>   testnet | pubnet (env BARET_NETWORK)
     --policy <id>     strict | balanced | permissive | <json> (env BARET_POLICY)
-    --api-key <key>   Bearer key for the server (env BARET_API_KEY)
     --address <G…>    Attribute analysis to this address (advisory, no secret)
     --json            Machine-readable output
     -h, --help        Show this help
 
-  Secrets
+  Secrets (env vars only — never as a flag, to keep them out of shell
+  history / process listings)
     BARET_AGENT_SECRET   ed25519 seed (S…). required only for sign / submit.
+    BARET_API_KEY        Bearer key for the analyze server, if it requires one.
 
   Exit codes: 0 allowed/ok · 1 blocked by policy · 2 error
 `);
@@ -326,7 +340,6 @@ async function main(): Promise<number> {
       server: { type: "string" },
       network: { type: "string" },
       policy: { type: "string" },
-      "api-key": { type: "string" },
       address: { type: "string" },
       json: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -349,7 +362,6 @@ async function main(): Promise<number> {
     server: values.server,
     network: network as StellarNetwork | undefined,
     policy: values.policy,
-    apiKey: values["api-key"],
     address: values.address,
     json,
   };

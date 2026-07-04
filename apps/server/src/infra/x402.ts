@@ -13,7 +13,7 @@ import type {
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import type { AppConfig } from "../config/index.js";
 import { apiError } from "../api/errors.js";
-import { extractApiKeyFromAdapter } from "../api/extract-api-key.js";
+import { extractApiKeyFromAdapter, timingSafeApiKeyMatch } from "../api/extract-api-key.js";
 import { FastifyX402HttpAdapter } from "./x402-fastify-adapter.js";
 
 export type X402PaymentState = {
@@ -78,7 +78,7 @@ export function createDeltagX402(config: AppConfig): BaretX402 {
   if (config.authMode === "both" && config.apiKeys.length > 0) {
     httpResourceServer.onProtectedRequest(async (ctx) => {
       const key = extractApiKeyFromAdapter(ctx.adapter);
-      if (key && config.apiKeys.includes(key)) {
+      if (key && timingSafeApiKeyMatch(key, config.apiKeys)) {
         return { grantAccess: true };
       }
       return undefined;

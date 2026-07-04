@@ -8,10 +8,13 @@ import { ACTIVE_NETWORK } from "../wallet/connection";
 const BASE_URL = (import.meta.env.VITE_BARET_BASE_URL as string | undefined) ?? "/api";
 
 /**
- * Bearer key for the analyze endpoint. The default matches the dev server's
- * DELTAG_API_KEYS=dev-key-change-me. production deployments should override.
+ * Bearer key for the analyze endpoint. No default — a hardcoded fallback
+ * here would ship a known, guessable credential in the public JS bundle
+ * (visible via view-source) for any deployment that forgets to set this.
+ * When unset, no Authorization header is sent at all; the analyze server's
+ * own auth mode decides whether that's acceptable (e.g. x402-only mode).
  */
-const API_KEY = (import.meta.env.VITE_BARET_API_KEY as string | undefined) ?? "dev-key-change-me";
+const API_KEY = import.meta.env.VITE_BARET_API_KEY as string | undefined;
 
 let cached: TransactionGuard | null = null;
 

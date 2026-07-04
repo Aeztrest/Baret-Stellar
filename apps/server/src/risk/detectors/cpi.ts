@@ -32,5 +32,17 @@ export function detectCpiFindings(
       details: { totalInvocations: cpiTrace.totalInvocations },
     });
   }
+  if (cpiTrace.truncated) {
+    // The parser hit its depth/node safety cap — the real tree is at least
+    // that large, which already implies HIGH_OPERATION_COUNT-level shape
+    // regardless of the (capped) numbers above, so this is high not medium.
+    findings.push({
+      code: "LOW_CONFIDENCE_INCOMPLETE_DATA",
+      severity: "high",
+      message:
+        "Soroban auth tree exceeded the parser's depth/node safety cap; analysis reflects a truncated view of the transaction.",
+      details: { maxDepth: cpiTrace.maxDepth, totalInvocations: cpiTrace.totalInvocations },
+    });
+  }
   return findings;
 }

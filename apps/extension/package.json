@@ -11,7 +11,8 @@
     "build": "pnpm build:chrome && pnpm build:firefox && pnpm pack:downloads",
     "pack:downloads": "node scripts/pack-downloads.mjs",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@stellar-thorn/ext-protocol": "workspace:*",
@@ -41,8 +42,10 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
+    "fake-indexeddb": "^6.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
-    "vite-plugin-node-polyfills": "^0.22.0"
+    "vite-plugin-node-polyfills": "^0.22.0",
+    "vitest": "^2.1.9"
   }
 }

@@ -42,10 +42,19 @@ export interface SubKeyProvisionResult {
 
 /**
  * Build the `add_signer` invocation that registers `subKey` as an
- * additional signer on the user's smart wallet. `allowance` carries the
- * per-merchant caps (max-per-tx, hourly, daily) the contract enforces
- * on-chain. leaving v1 caps wide open and relying on the off-chain policy
- * gate as a stop-gap until the on-chain caps land.
+ * additional signer on the user's smart wallet.
+ *
+ * SECURITY NOTE: the allowance struct below is `{ unlimited: true }` — the
+ * smart-wallet contract deployed today has no per-signer spending-cap
+ * enforcement, so this signer has NO on-chain spending limit at all. The
+ * per-tx/hourly/daily caps this wallet enforces (see `tryReserveSpend` in
+ * `../db/allowances.ts`) are purely off-chain, JS-side bookkeeping in this
+ * extension. If a sub-key's encrypted secret is ever exfiltrated and
+ * decrypted outside the extension, the attacker can sign an arbitrary
+ * `transfer` directly against the smart wallet with no on-chain ceiling —
+ * NOT capped to "this merchant only." Do not present this as a real
+ * blast-radius guarantee anywhere in the UI or docs until the deployed
+ * contract actually accepts and enforces a bounded allowance here.
  */
 export async function buildAddSubKeyTransaction(
   sorobanServer: sorobanRpc.Server,

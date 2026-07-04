@@ -254,7 +254,71 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
 const NUM = (v: unknown): v is number =>
   typeof v === "number" && Number.isFinite(v);
 
+/**
+ * Boolean rule flags. Previously unvalidated — a malformed policy (e.g. a
+ * truthy string `"false"` surviving a bad JSON round-trip from
+ * `localStorage`, `BARET_POLICY`, or a CLI `--policy` file) silently passed
+ * `validatePolicy` and could be enforced with the wrong truthiness
+ * depending on how a downstream consumer checked the field.
+ */
+const BOOL_FIELDS = [
+  "blockTrustlineChanges",
+  "blockUnlimitedTrustlines",
+  "blockSorobanAllowanceGrants",
+  "blockRiskyContracts",
+  "blockUnknownContractExposure",
+  "blockAccountMerge",
+  "blockSignerChanges",
+  "blockMasterKeyRemoval",
+  "allowWarnings",
+  "requireSuccessfulSimulation",
+  "x402AutoApprove",
+  "requireMemo",
+  "requireFeePayerSupportedCheck",
+  "blockAmountAnomalies",
+  "autoPauseOnDailyCapHit",
+  "refuseUnlimitedAllowances",
+  "driftAlerts",
+  "verifyOrphanAlerts",
+  "noDeliveryAlerts",
+  "refuseInAlertState",
+] as const satisfies readonly (keyof GuardPolicy)[];
+
+/** Allowlist/denylist array fields — must be arrays of strings. */
+const STRING_ARRAY_FIELDS = [
+  "allowedFacilitators",
+  "allowedAssets",
+  "allowedMerchantOrigins",
+  "blockedMerchantOrigins",
+] as const satisfies readonly (keyof GuardPolicy)[];
+
 export function validatePolicy(p: GuardPolicy): void {
+  for (const field of BOOL_FIELDS) {
+    const v = p[field];
+    if (v !== undefined && typeof v !== "boolean") {
+      throw new Error(`${field} must be a boolean`);
+    }
+  }
+  for (const field of STRING_ARRAY_FIELDS) {
+    const v = p[field];
+    if (v !== undefined) {
+      if (!Array.isArray(v) || !v.every((x) => typeof x === "string")) {
+        throw new Error(`${field} must be an array of strings`);
+      }
+    }
+  }
+  if (
+    p.autoRevokeAfterIdleDays !== undefined &&
+    (!NUM(p.autoRevokeAfterIdleDays) || p.autoRevokeAfterIdleDays < 0)
+  ) {
+    throw new Error("autoRevokeAfterIdleDays must be a non-negative number (0 = never)");
+  }
+  if (
+    p.maxActiveSubKeys !== undefined &&
+    (!NUM(p.maxActiveSubKeys) || p.maxActiveSubKeys < 0)
+  ) {
+    throw new Error("maxActiveSubKeys must be a non-negative number (0 = no limit)");
+  }
   if (p.maxLossPercent !== undefined) {
     if (!NUM(p.maxLossPercent) || p.maxLossPercent < 0 || p.maxLossPercent > 100) {
       throw new Error("maxLossPercent must be a number between 0 and 100");

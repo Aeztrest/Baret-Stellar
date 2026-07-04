@@ -128,10 +128,14 @@ export function resolvePolicy(
   }
 
   // String: either a known template id or a JSON-encoded policy.
+  // Note: "custom" is intentionally NOT special-cased to BALANCED_POLICY —
+  // an operator setting `BARET_POLICY=custom` almost certainly means "I'll
+  // supply my own JSON policy," not "silently use the balanced template."
+  // It falls through to the JSON-parse attempt below and then the
+  // unknown-policy error, both of which are correct: give a clear error
+  // rather than a wrong-but-quiet default.
   const template = POLICY_TEMPLATES.find((t) => t.id === input);
   if (template) return template.policy;
-
-  if (input === "custom") return BALANCED_POLICY;
 
   const trimmed = input.trim();
   if (trimmed.startsWith("{")) {

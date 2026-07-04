@@ -10,6 +10,7 @@ import {
 } from "@stellar-thorn/wallet-adapter";
 import { shortAddr } from "@stellar-thorn/ui";
 import { useWallet } from "../wallet/state";
+import { isFromTrustedOpener } from "../lib/verified-message";
 
 export function Connect() {
   const { identity, provisioned, phase, provision } = useWallet();
@@ -29,6 +30,9 @@ export function Connect() {
   // Listen for the dApp's connect-request payload.
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
+      // Verify the sender before touching the payload at all — see
+      // `isFromTrustedOpener` for why.
+      if (!isFromTrustedOpener(ev, window.opener as Window | null)) return;
       if (!isProtoMessage(ev.data)) return;
       const data = ev.data as ConnectRequestMessage;
       if (data.type !== "connect-request") return;
@@ -103,11 +107,26 @@ export function Connect() {
       </PopupShell>
     );
   }
+  if (phase === "locked") {
+    return (
+      <PopupShell>
+        <Centered>
+          <p className="text-sm text-ink-900">Your Baret wallet is locked.</p>
+          <p className="text-xs text-ink-500">Open the wallet and enter your passphrase, then retry.</p>
+        </Centered>
+      </PopupShell>
+    );
+  }
   if (!request || !identity) {
     return <PopupShell><Centered><p className="text-sm text-ink-500">Waiting for dApp request…</p></Centered></PopupShell>;
   }
 
-  const requestOrigin = request.origin;
+  // Show the browser-verified sender origin (from the trusted postMessage
+  // event), never `request.origin` — that field is set by the dApp's own
+  // page script and a malicious page can claim to be any origin it likes.
+  // `openerOrigin` is always set in the same handler call as `request`, so
+  // the fallback below should be unreachable in practice.
+  const requestOrigin = openerOrigin ?? "an unverified origin";
 
   return (
     <PopupShell>

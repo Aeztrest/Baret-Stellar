@@ -45,7 +45,8 @@ import { atomicToUi } from "../x402/parse";
 import {
   makeAllowanceId,
   readAllowance,
-  recordHit,
+  releaseReservedSpend,
+  tryReserveSpend,
 } from "../db/allowances";
 
 export interface WsConnectReq {
@@ -355,8 +356,10 @@ async function tryAutoApproveX402AuthEntry(
   const intent = parseTransferAuthEntry(authEntryXdr);
   if (!intent) return null; // Not a token transfer. let the user review it.
 
-  // Only auto-sign payments leaving our own account.
-  const authority = useAuthority();
+  // Only auto-sign payments leaving our own account. This whole function is
+  // the unattended auto-approve path, so every authority fetch in it must
+  // not renew the idle timer (see `useAuthority`'s docs).
+  const authority = useAuthority({ isAutomatic: true });
   if (intent.from !== authority.publicKey()) return null;
 
   // Asset + merchant allowlists (empty list = no restriction).
@@ -395,22 +398,21 @@ async function tryAutoApproveX402AuthEntry(
   // Paused/revoked merchants surface in the popup so the user can act.
   if (allowance.status !== "active") return null;
 
-  const HOUR = 60 * 60_000;
-  const DAY = 24 * HOUR;
-  const now = Date.now();
-  const projHour =
-    (now - allowance.spentHourTs > HOUR ? 0 : allowance.spentHour) + amountUi;
-  const projDay =
-    (now - allowance.spentDayTs > DAY ? 0 : allowance.spentDay) + amountUi;
-  if (allowance.capPerHour > 0 && projHour > allowance.capPerHour) return null;
-  if (allowance.capPerDay > 0 && projDay > allowance.capPerDay) return null;
+  // Hourly/daily caps are shared, mutable per-merchant state — reserve the
+  // spend atomically now, BEFORE signing, so this entry point and
+  // `x402Review` (or two concurrent calls here) can't both pass the check
+  // before either commits. See `tryReserveSpend` for the full rationale.
+  const reservation = await tryReserveSpend(allowanceId, amountUi);
+  if (!reservation.ok) return null;
 
   // Within policy + caps → sign in the background. performSign honors the
   // entry's own `signatureExpirationLedger` (the facilitator enforces it).
-  const result = await performSign("authEntry", authEntryXdr);
-  if (result.kind !== "authEntry") return null;
+  const result = await performSign("authEntry", authEntryXdr, { isAutomatic: true });
+  if (result.kind !== "authEntry") {
+    await releaseReservedSpend(allowanceId, amountUi);
+    return null;
+  }
 
-  await recordHit(allowanceId, amountUi);
   await appendHistory({
     type: "x402",
     signature: null,
@@ -459,18 +461,25 @@ async function deriveValidUntilLedger(): Promise<number> {
 
 /**
  * Signs a payload. When `signerPubkey` is set, uses the per-merchant sub-key
- * from cache instead of the main authority. gives compromise of one
- * merchant's sub-key zero blast radius beyond that merchant.
+ * from cache instead of the main authority.
+ *
+ * NOTE: sub-keys do not currently have an on-chain spending cap (see the
+ * SECURITY NOTE on `add_signer` in `../swig/sub-keys.ts`) — per-tx/hourly/
+ * daily limits are enforced only by this extension's own bookkeeping. A
+ * leaked, decrypted sub-key secret can sign transfers against the smart
+ * wallet with no on-chain ceiling, so this is NOT yet "zero blast radius
+ * beyond one merchant"; it's scoped by policy in normal operation, not by
+ * the chain.
  */
 export async function performSign(
   kind: SignKind,
   payloadBase64: string,
-  opts?: { signerPubkey?: string; validUntilLedger?: number },
+  opts?: { signerPubkey?: string; validUntilLedger?: number; isAutomatic?: boolean },
 ): Promise<SignSuccess> {
   const signer: Keypair = opts?.signerPubkey
     ? ((await getSubKeypair(opts.signerPubkey)) ??
       throwSignerMissing(opts.signerPubkey))
-    : useAuthority();
+    : useAuthority({ isAutomatic: opts?.isAutomatic });
 
   if (kind === "message") {
     const message = base64ToBytes(payloadBase64);

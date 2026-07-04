@@ -1,13 +1,25 @@
 /**
  * Persistent storage for the wallet's authority keypair (Stellar build).
- * Versioned so future schema changes can migrate cleanly. The v2 key is a
- * clean v2 break from the prior storage shape. old v1 blobs are ignored.
+ * Versioned so future schema changes can migrate cleanly.
+ *
+ * The authority secret is stored only as an `EncryptedBlob` (PBKDF2 +
+ * AES-GCM, see `../lib/kdf.ts`), never in plaintext — v3 is a breaking
+ * schema change from v2, which wrote the raw `S…` seed straight into
+ * localStorage. v2 blobs are intentionally not migrated: a plaintext
+ * secret on disk was already exposed to anything with read access to this
+ * origin's storage, so there's nothing meaningful to carry forward under
+ * the new, encrypted scheme. Existing v2 users see "no wallet found" and
+ * must recreate a wallet.
  */
-const KEY = "baret.wallet.v2";
+const KEY = "baret.wallet.v3";
+
+import type { EncryptedBlob } from "../lib/kdf";
 
 export interface PersistedWallet {
-  /** Stellar ed25519 secret seed (`S…` StrKey). Holds the spending authority. */
-  authoritySecret: string;
+  /** Stellar seed, encrypted under the user's passphrase. */
+  encryptedSecret: EncryptedBlob;
+  /** Authority `G…` address — public, safe to keep unencrypted for display while locked. */
+  authorityPubkey: string;
   /**
    * Smart-wallet address (`C…` Soroban contract, or the `G…` authority address
    * as a placeholder until the on-chain contract is wired). Null before the
@@ -23,9 +35,10 @@ export function readWallet(): PersistedWallet | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedWallet>;
-    if (!parsed.authoritySecret || !parsed.createdAt) return null;
+    if (!parsed.encryptedSecret || !parsed.authorityPubkey || !parsed.createdAt) return null;
     return {
-      authoritySecret: parsed.authoritySecret,
+      encryptedSecret: parsed.encryptedSecret,
+      authorityPubkey: parsed.authorityPubkey,
       smartWalletAddress: parsed.smartWalletAddress ?? null,
       createdAt: parsed.createdAt,
     };

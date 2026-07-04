@@ -1,4 +1,30 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { HTTPAdapter } from "@x402/core/server";
+
+/** Fixed-length digest so `timingSafeEqual` never short-circuits on length. */
+function fixedLengthDigest(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+/**
+ * Constant-time membership check against the configured API key list.
+ * Plain `Array.includes`/`===` short-circuits on the first differing byte,
+ * which leaks timing information an attacker could use to guess a valid key
+ * one byte at a time across many requests.
+ */
+export function timingSafeApiKeyMatch(
+  candidate: string,
+  validKeys: readonly string[],
+): boolean {
+  const candidateDigest = fixedLengthDigest(candidate);
+  let matched = false;
+  for (const key of validKeys) {
+    if (timingSafeEqual(candidateDigest, fixedLengthDigest(key))) {
+      matched = true;
+    }
+  }
+  return matched;
+}
 
 export function extractApiKeyFromHeader(
   headerVal: string | string[] | undefined,

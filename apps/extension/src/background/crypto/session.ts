@@ -34,12 +34,18 @@ export function unlockWith(bytes: Uint8Array): void {
 
 /**
  * Get a freshly derived Keypair. Each call returns a new Keypair object
- * backed by the shared secret bytes. Renews the idle timer.
+ * backed by the shared secret bytes.
+ *
+ * Renews the idle timer by default — pass `isAutomatic: true` for calls
+ * that happen without any human interaction (e.g. x402 background
+ * auto-approve). Without this distinction, a page that keeps triggering
+ * auto-approved micro-payments would indefinitely reset the timer even
+ * though the human user stepped away, defeating the point of auto-lock.
  */
-export function useAuthority(): Keypair {
+export function useAuthority(opts?: { isAutomatic?: boolean }): Keypair {
   if (!secretBytes)
     throw new Error("Wallet is locked. Unlock before signing.");
-  resetIdle();
+  if (!opts?.isAutomatic) resetIdle();
   return Keypair.fromRawEd25519Seed(Buffer.from(secretBytes));
 }
 

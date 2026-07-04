@@ -11,6 +11,39 @@ export interface AnalyzeClientConfig {
   fetchImpl?: typeof fetch;
   /** Per-request timeout in ms. Defaults to 15s. */
   timeoutMs?: number;
+  /**
+   * Allow a plain `http://` baseUrl to a non-loopback host. Off by default:
+   * without TLS, a network-position attacker can return a forged
+   * `{safe:true}` body and this client has no way to detect it — "fail
+   * closed on unreachable/erroring servers" does nothing against a server
+   * that responds successfully with fabricated content. Loopback
+   * (`localhost` / `127.0.0.1` / `::1`) is always allowed over plain HTTP
+   * for local development. Only set this for a network you already trust.
+   */
+  allowInsecureHttp?: boolean;
+}
+
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
+
+function assertSecureBaseUrl(baseUrl: string, allowInsecureHttp?: boolean): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw new AnalyzeError(`Invalid analyze server baseUrl: ${baseUrl}`);
+  }
+  if (parsed.protocol === "https:") return;
+  if (parsed.protocol !== "http:") {
+    throw new AnalyzeError(
+      `Unsupported protocol "${parsed.protocol}" in analyze server baseUrl; use https:`,
+    );
+  }
+  if (LOOPBACK_HOSTNAMES.has(parsed.hostname) || allowInsecureHttp) return;
+  throw new AnalyzeError(
+    `Refusing to send an analyze request over plain HTTP to "${parsed.hostname}". ` +
+      `Without TLS a network attacker can return a forged safe/unsafe verdict undetected. ` +
+      `Use an https:// baseUrl, or pass allowInsecureHttp:true if this is a network you trust.`,
+  );
 }
 
 export interface AnalyzeRequest {
@@ -39,6 +72,7 @@ export async function analyzeTransaction(
   cfg: AnalyzeClientConfig,
   req: AnalyzeRequest,
 ): Promise<AnalysisResult> {
+  assertSecureBaseUrl(cfg.baseUrl, cfg.allowInsecureHttp);
   const url = `${cfg.baseUrl.replace(/\/+$/, "")}/v1/analyze`;
   const fetchImpl = cfg.fetchImpl ?? globalThis.fetch;
   if (!fetchImpl) {

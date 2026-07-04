@@ -6,7 +6,13 @@
  * material from JS introspection.
  */
 
-const PBKDF2_ITERATIONS = 100_000;
+// OWASP's current minimum for PBKDF2-HMAC-SHA256 is 600,000 iterations.
+// This used to be 100,000 (~6x weaker). Existing blobs carry their own
+// `iterations` count (see `EncryptedBlob`) so they keep decrypting
+// correctly either way — `needsIterationUpgrade` below is how callers
+// detect an old blob and re-encrypt it under the current count on next
+// successful unlock, instead of leaving it on the weaker setting forever.
+const PBKDF2_ITERATIONS = 600_000;
 const HASH = "SHA-256";
 const KEY_LEN_BITS = 256;
 const IV_LEN_BYTES = 12;
@@ -107,6 +113,16 @@ function base64ToBytes(b64: string): Uint8Array {
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
+}
+
+/**
+ * `true` when a stored blob was encrypted under a weaker iteration count
+ * than the current target — callers (see `wallet.unlock`) use this to
+ * decide whether to re-encrypt and persist an upgraded blob now that the
+ * passphrase has just been verified.
+ */
+export function needsIterationUpgrade(blob: Pick<EncryptedBlob, "iterations">): boolean {
+  return blob.iterations < PBKDF2_ITERATIONS;
 }
 
 /**

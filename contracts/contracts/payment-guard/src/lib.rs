@@ -21,8 +21,8 @@
 //!   - views: `get_owner`, `get_token`, `get_allowance`, `available_today`.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, panic_with_error, token, Address, Env,
-    Symbol,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, token, vec, Address,
+    Env, Symbol, Vec,
 };
 
 const DAY_SECONDS: u64 = 86_400;
@@ -40,12 +40,13 @@ pub enum Status {
 pub struct Allowance {
     /// Largest single payment allowed to this merchant (atomic units).
     pub cap_per_tx: i128,
-    /// Cumulative spend allowed per rolling 24h window (atomic units).
+    /// Cumulative spend allowed per any trailing 24h window (atomic units).
     pub cap_per_day: i128,
-    /// Spend recorded in the current rolling window.
-    pub spent_day: i128,
-    /// Ledger timestamp the current rolling window started.
-    pub day_start: u64,
+    /// (ledger_timestamp, amount) of every settled payment still inside the
+    /// trailing 24h window. Pruned on every `pay` so the cap is enforced
+    /// against a true sliding window, not a fixed bucket that can be spent
+    /// twice by timing a payment just before and just after a reset boundary.
+    pub spend_log: Vec<(u64, i128)>,
     pub status: Status,
 }
 
@@ -54,6 +55,11 @@ pub enum DataKey {
     Owner,
     Token,
     Allowance(Address),
+    /// Sum of `cap_per_day` across every currently-`Active` merchant — the
+    /// worst-case amount the vault could owe out in the next 24h. `withdraw`
+    /// refuses to pull the balance below this, so an owner can't quietly
+    /// zero the vault while merchants still hold caps that look funded.
+    TotalReserved,
 }
 
 #[contracterror]
@@ -67,6 +73,7 @@ pub enum Error {
     ExceedsPerTx = 5,
     ExceedsDailyCap = 6,
     InvalidAmount = 7,
+    InsufficientReserve = 8,
 }
 
 #[contract]
@@ -75,8 +82,12 @@ pub struct PaymentGuard;
 #[contractimpl]
 impl PaymentGuard {
     /// One-time setup: record the owning wallet and the token (SAC address,
-    /// e.g. USDC `C…`) this vault spends in.
+    /// e.g. USDC `C…`) this vault spends in. Must be authorized by `owner`
+    /// itself, otherwise anyone who front-runs the deploy transaction could
+    /// call `init` with themselves as owner and permanently lock out the
+    /// real owner (who would then hit `AlreadyInitialized`).
     pub fn init(env: Env, owner: Address, token: Address) {
+        owner.require_auth();
         let store = env.storage().instance();
         if store.has(&DataKey::Owner) {
             panic_with_error!(&env, Error::AlreadyInitialized);
@@ -92,16 +103,22 @@ impl PaymentGuard {
         if cap_per_tx < 0 || cap_per_day < 0 {
             panic_with_error!(&env, Error::InvalidAmount);
         }
+        let key = DataKey::Allowance(merchant.clone());
+        let previous: Option<Allowance> = env.storage().persistent().get(&key);
+        let previous_reserved = match &previous {
+            Some(a) if a.status == Status::Active => a.cap_per_day,
+            _ => 0,
+        };
+
         let allowance = Allowance {
             cap_per_tx,
             cap_per_day,
-            spent_day: 0,
-            day_start: env.ledger().timestamp(),
+            spend_log: vec![&env],
             status: Status::Active,
         };
-        env.storage()
-            .persistent()
-            .set(&DataKey::Allowance(merchant.clone()), &allowance);
+        env.storage().persistent().set(&key, &allowance);
+        Self::adjust_reserve(&env, cap_per_day - previous_reserved);
+
         env.events().publish(
             (Symbol::new(&env, "allowance_set"), merchant),
             (cap_per_tx, cap_per_day),
@@ -155,42 +172,57 @@ impl PaymentGuard {
             panic_with_error!(&env, Error::ExceedsPerTx);
         }
 
-        // Roll the 24h window forward if it has elapsed.
+        // True sliding window: prune every entry older than 24h, then sum
+        // what's left. Unlike a fixed bucket that resets to zero the moment
+        // it elapses, this can never be spent twice by timing a payment
+        // right before and right after a reset boundary.
         let now = env.ledger().timestamp();
-        if now.saturating_sub(allowance.day_start) >= DAY_SECONDS {
-            allowance.spent_day = 0;
-            allowance.day_start = now;
-        }
-        if allowance.spent_day + amount > allowance.cap_per_day {
+        let spent = Self::prune_and_sum(&env, &mut allowance.spend_log, now);
+        let projected = spent
+            .checked_add(amount)
+            .unwrap_or_else(|| panic_with_error!(&env, Error::InvalidAmount));
+        if projected > allowance.cap_per_day {
             panic_with_error!(&env, Error::ExceedsDailyCap);
         }
 
-        // Settle from the vault to the merchant, then record the spend.
+        // Checks-effects-interactions: commit the spend to persistent
+        // storage *before* the external token transfer, so a reentrant call
+        // into `pay` (via a token/merchant callback) reads the up-to-date
+        // spend log rather than a stale one that would let the cap be
+        // checked twice against the same balance.
+        allowance.spend_log.push_back((now, amount));
+        env.storage().persistent().set(&key, &allowance);
+
         let token = Self::token(&env);
         token::TokenClient::new(&env, &token).transfer(
             &env.current_contract_address(),
             &merchant,
             &amount,
         );
-        allowance.spent_day += amount;
-        env.storage().persistent().set(&key, &allowance);
 
         env.events()
             .publish((Symbol::new(&env, "paid"), merchant), amount);
     }
 
-    /// Owner pulls funds back out of the vault.
+    /// Owner pulls funds back out of the vault. Reverts if it would leave
+    /// the vault unable to cover the full daily cap of every currently
+    /// active merchant — reduce or revoke their allowances first.
     pub fn withdraw(env: Env, amount: i128) {
         let owner = Self::require_owner(&env);
         if amount <= 0 {
             panic_with_error!(&env, Error::InvalidAmount);
         }
         let token = Self::token(&env);
-        token::TokenClient::new(&env, &token).transfer(
-            &env.current_contract_address(),
-            &owner,
-            &amount,
-        );
+        let token_client = token::TokenClient::new(&env, &token);
+        let balance = token_client.balance(&env.current_contract_address());
+        let reserved = Self::total_reserved(&env);
+        let remaining = balance
+            .checked_sub(amount)
+            .unwrap_or_else(|| panic_with_error!(&env, Error::InvalidAmount));
+        if remaining < reserved {
+            panic_with_error!(&env, Error::InsufficientReserve);
+        }
+        token_client.transfer(&env.current_contract_address(), &owner, &amount);
     }
 
     /* ───────────── views ───────────── */
@@ -213,20 +245,16 @@ impl PaymentGuard {
             .unwrap_or_else(|| panic_with_error!(&env, Error::NoAllowance))
     }
 
-    /// Remaining spendable amount for a merchant in the current window, after
-    /// applying any pending rolling-window reset.
+    /// Remaining spendable amount for a merchant in the trailing 24h window.
+    /// Read-only: does not persist the pruned log (only `pay` does that).
     pub fn available_today(env: Env, merchant: Address) -> i128 {
-        let allowance: Allowance = env
+        let mut allowance: Allowance = env
             .storage()
             .persistent()
             .get(&DataKey::Allowance(merchant))
             .unwrap_or_else(|| panic_with_error!(&env, Error::NoAllowance));
         let now = env.ledger().timestamp();
-        let spent = if now.saturating_sub(allowance.day_start) >= DAY_SECONDS {
-            0
-        } else {
-            allowance.spent_day
-        };
+        let spent = Self::prune_and_sum(&env, &mut allowance.spend_log, now);
         let remaining = allowance.cap_per_day - spent;
         if remaining < 0 {
             0
@@ -262,8 +290,47 @@ impl PaymentGuard {
             .persistent()
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(env, Error::NoAllowance));
+        let was_active = allowance.status == Status::Active;
+        let will_be_active = status == Status::Active;
         allowance.status = status;
         env.storage().persistent().set(&key, &allowance);
+        if was_active && !will_be_active {
+            Self::adjust_reserve(env, -allowance.cap_per_day);
+        } else if !was_active && will_be_active {
+            Self::adjust_reserve(env, allowance.cap_per_day);
+        }
+    }
+
+    fn total_reserved(env: &Env) -> i128 {
+        env.storage()
+            .instance()
+            .get(&DataKey::TotalReserved)
+            .unwrap_or(0)
+    }
+
+    fn adjust_reserve(env: &Env, delta: i128) {
+        let updated = Self::total_reserved(env)
+            .checked_add(delta)
+            .unwrap_or_else(|| panic_with_error!(env, Error::InvalidAmount));
+        env.storage().instance().set(&DataKey::TotalReserved, &updated);
+    }
+
+    /// Drop every log entry older than the trailing 24h window and return
+    /// the sum of what remains. Uses `checked_add` so a pathologically long
+    /// log can never silently wrap the running total instead of erroring.
+    fn prune_and_sum(env: &Env, log: &mut Vec<(u64, i128)>, now: u64) -> i128 {
+        let mut kept: Vec<(u64, i128)> = vec![env];
+        let mut sum: i128 = 0;
+        for (ts, amount) in log.iter() {
+            if now.saturating_sub(ts) < DAY_SECONDS {
+                kept.push_back((ts, amount));
+                sum = sum
+                    .checked_add(amount)
+                    .unwrap_or_else(|| panic_with_error!(env, Error::InvalidAmount));
+            }
+        }
+        *log = kept;
+        sum
     }
 }
 

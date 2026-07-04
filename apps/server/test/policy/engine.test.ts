@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluatePolicy } from "../../src/policy/engine.js";
+import { evaluatePolicy, lossPercentFromStroops } from "../../src/policy/engine.js";
 import type { NormalizedSimulation } from "../../src/domain/simulation-normalized.js";
 import type { EstimatedChanges } from "../../src/domain/estimated-changes.js";
 import type { RiskFinding } from "../../src/domain/findings.js";
@@ -127,5 +127,27 @@ describe("evaluatePolicy", () => {
       baseInput({ policy: { minPostUsdcBalance: 1 }, estimatedChanges: changes, userWallet: USER }),
     );
     expect(d.safe).toBe(false);
+  });
+});
+
+describe("lossPercentFromStroops", () => {
+  it("matches the straightforward small-balance case", () => {
+    // 100M stroops pre, lost 10M stroops -> 10% loss.
+    expect(lossPercentFromStroops(1_000_000_000n, -100_000_000n)).toBeCloseTo(10, 6);
+  });
+
+  it("returns 0 for a gain (non-negative delta)", () => {
+    expect(lossPercentFromStroops(1_000_000_000n, 100_000_000n)).toBe(0);
+  });
+
+  // Regression test: converting to `Number` before dividing (the old code:
+  // `Number(BigInt(pre))`) silently loses precision once the stroop balance
+  // exceeds `Number.MAX_SAFE_INTEGER` (~9.007e15, i.e. ~900M XLM) — well
+  // within range for an exchange hot wallet or issuer account. Computing
+  // the ratio in bigint first must still land on the exact percentage.
+  it("stays precise for balances beyond Number.MAX_SAFE_INTEGER", () => {
+    const pre = 10_000_000_000_000_000_000n; // 1000x past MAX_SAFE_INTEGER
+    const delta = -pre / 4n; // exactly 25% loss
+    expect(lossPercentFromStroops(pre, delta)).toBeCloseTo(25, 6);
   });
 });

@@ -57,8 +57,11 @@ export async function analyzeTransaction(
       config.stellar.networkPassphrase,
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new AnalyzeValidationError(`Invalid transaction XDR: ${msg}`);
+    // Keep the client-facing message generic — the underlying SDK parse
+    // error can include internal library detail that doesn't need to leave
+    // the process. The original error is preserved as `cause` for anyone
+    // logging server-side.
+    throw new AnalyzeValidationError("Invalid transaction XDR", { cause: e });
   }
   const tx = unwrapInnerTransaction(envelope);
 
@@ -174,8 +177,8 @@ export async function analyzeTransaction(
 }
 
 export class AnalyzeValidationError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
     this.name = "AnalyzeValidationError";
   }
 }

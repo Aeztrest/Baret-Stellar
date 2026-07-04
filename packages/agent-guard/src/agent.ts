@@ -67,6 +67,16 @@ export interface GuardedSignOptions extends EvaluateOptions {
 export interface GuardedSignResult {
   signedXdr: string;
   analysis: AnalysisResult;
+  /**
+   * `true` when this was signed via the `allowOffline` escape hatch because
+   * the analyze server was unreachable — i.e. with NO real Baret verdict,
+   * despite `analysis.safe` being present (it's always `false` in this
+   * case, from `offlineAnalysis()`). Check this field directly rather than
+   * inferring from `analysis` — a consumer auditing `analysis.safe` alone
+   * would see a signed+broadcast transaction flagged "unsafe" with no
+   * indication that "unsafe" here actually means "never checked."
+   */
+  bypassedOffline: boolean;
 }
 
 export interface GuardedSubmitResult {
@@ -74,6 +84,8 @@ export interface GuardedSubmitResult {
   signedXdr: string;
   analysis: AnalysisResult;
   explorerUrl: string;
+  /** See `GuardedSignResult.bypassedOffline`. */
+  bypassedOffline: boolean;
 }
 
 export class AgentWallet {
@@ -159,6 +171,7 @@ export class AgentWallet {
         return {
           signedXdr: this.signXdr(transactionXdr),
           analysis: offlineAnalysis(this.config.network),
+          bypassedOffline: true,
         };
       }
       throw err;
@@ -175,6 +188,7 @@ export class AgentWallet {
     return {
       signedXdr: this.signXdr(transactionXdr),
       analysis: evaluation.analysis,
+      bypassedOffline: false,
     };
   }
 
@@ -186,7 +200,7 @@ export class AgentWallet {
     transactionXdr: string,
     opts: GuardedSignOptions = {},
   ): Promise<GuardedSubmitResult> {
-    const { signedXdr, analysis } = await this.guardedSign(transactionXdr, opts);
+    const { signedXdr, analysis, bypassedOffline } = await this.guardedSign(transactionXdr, opts);
     const horizon = new Horizon.Server(this.config.horizonUrl);
     const tx = TransactionBuilder.fromXDR(signedXdr, this.passphrase);
     const res = await horizon.submitTransaction(tx);
@@ -194,6 +208,7 @@ export class AgentWallet {
       hash: res.hash,
       signedXdr,
       analysis,
+      bypassedOffline,
       explorerUrl: this.explorerTxUrl(res.hash),
     };
   }

@@ -57,9 +57,12 @@ export function registerReplayRoute(
       });
       return reply.send(result);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      // Log the real error server-side only — it can carry RPC URLs or SDK
+      // internals that shouldn't be echoed back to the caller.
       req.log.error({ err: e }, "Replay error");
-      return reply.status(500).send({ error: "REPLAY_ERROR", message: msg });
+      return reply
+        .status(500)
+        .send({ error: "REPLAY_ERROR", message: "Unexpected server error during replay" });
     }
   });
 }

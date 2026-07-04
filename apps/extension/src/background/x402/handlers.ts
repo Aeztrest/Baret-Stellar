@@ -34,7 +34,8 @@ import {
 import {
   makeAllowanceId,
   readAllowance,
-  recordHit,
+  releaseReservedSpend,
+  tryReserveSpend,
   writeAllowance,
   type AllowanceRow,
 } from "../db/allowances";
@@ -156,7 +157,13 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   // 5. Build the payment tx (unsigned, auth-entry based). 7-decimal precision.
   const rpcUrl = getSorobanRpcUrl();
   const passphrase = getNetworkPassphrase();
-  const authority: Keypair = useAuthority();
+  // If this request is going to be auto-approved below (the common case),
+  // treat this authority fetch as automatic too — it belongs to the same
+  // unattended flow and must not renew the idle timer either. When manual
+  // review is required, a popup follows shortly after, so resetting here
+  // is harmless.
+  const willAutoApprove = policy.x402AutoApprove !== false;
+  const authority: Keypair = useAuthority({ isAutomatic: willAutoApprove });
   let built;
   try {
     built = await buildX402Payment(
@@ -181,24 +188,19 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     };
   }
 
-  const HOUR = 60 * 60_000;
-  const DAY = 24 * HOUR;
-  const now = Date.now();
-  const projHour =
-    (now - allowance.spentHourTs > HOUR ? 0 : allowance.spentHour) + amountUi;
-  const projDay =
-    (now - allowance.spentDayTs > DAY ? 0 : allowance.spentDay) + amountUi;
-
-  if (allowance.capPerHour > 0 && projHour > allowance.capPerHour) {
+  // Hourly/daily caps are shared, mutable per-merchant state — reserve the
+  // spend atomically now, BEFORE signing, so two concurrent requests for
+  // the same merchant can't both pass the check before either commits
+  // (see `tryReserveSpend` for why a plain read-then-sign-then-record
+  // sequence lets N concurrent payments add up to N× the intended cap).
+  // If signing fails below, the reservation is released.
+  const reservation = await tryReserveSpend(allowanceId, amountUi);
+  if (!reservation.ok) {
+    const cap =
+      reservation.reason === "hourly" ? allowance.capPerHour : allowance.capPerDay;
     return {
       action: "decline",
-      reason: `${origin}: would exceed ${allowance.capPerHour} hourly cap (${projHour.toFixed(6)}).`,
-    };
-  }
-  if (allowance.capPerDay > 0 && projDay > allowance.capPerDay) {
-    return {
-      action: "decline",
-      reason: `${origin}: would exceed ${allowance.capPerDay} daily cap (${projDay.toFixed(6)}).`,
+      reason: `${origin}: would exceed ${cap} ${reservation.reason} cap.`,
     };
   }
 
@@ -209,7 +211,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   let signedTxXdr: string;
   if (policy.x402AutoApprove !== false) {
     try {
-      const authority = useAuthority();
+      const authority = useAuthority({ isAutomatic: true });
       signedTxXdr = await signX402Payment(
         built.transactionXdr,
         authority,
@@ -217,6 +219,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
         passphrase,
       );
     } catch (err) {
+      await releaseReservedSpend(allowanceId, amountUi);
       return {
         action: "decline",
         reason: `Auto-approval failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -243,6 +246,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
       label,
     );
     if (result.kind !== "x402Payment" || !result.signedTxXdr) {
+      await releaseReservedSpend(allowanceId, amountUi);
       return {
         action: "decline",
         reason: "Sign request did not return a signed payment.",
@@ -251,7 +255,9 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     signedTxXdr = result.signedTxXdr;
   }
 
-  // 8. Wrap into PaymentPayload (v2) for the PAYMENT-SIGNATURE header.
+  // 8. Wrap into PaymentPayload (v2) for the PAYMENT-SIGNATURE header. The
+  // allowance ledger was already committed atomically by `tryReserveSpend`
+  // above (before signing, not after) — see that function's docs for why.
   const paymentPayload = {
     x402Version: 2,
     resource: { url: requestUrl, mimeType: "application/json" },
@@ -259,9 +265,6 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     payload: { transaction: signedTxXdr },
   };
   const headerValue = btoa(JSON.stringify(paymentPayload));
-
-  // 9. Increment allowance ledger (optimistic. drift catches non-settlement).
-  await recordHit(allowanceId, amountUi);
 
   return { action: "approve", headerValue };
 }

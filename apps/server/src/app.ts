@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import rateLimit from "@fastify/rate-limit";
 import type { AppConfig } from "./config/index.js";
-import { extractApiKeyFromHeader } from "./api/extract-api-key.js";
+import { extractApiKeyFromHeader, timingSafeApiKeyMatch } from "./api/extract-api-key.js";
 import { fastifyLoggerOptions } from "./infra/logger.js";
 import { StellarRpcAdapter } from "./infra/stellar-rpc.js";
 import { registerAnalyzeRoute } from "./api/routes/analyze.js";
@@ -14,7 +14,14 @@ import { registerDemoPaywallRoute } from "./api/routes/demo-paywall.js";
 import { apiError } from "./api/errors.js";
 import { createDeltagX402 } from "./infra/x402.js";
 
-function shouldSkipApiKeyForAnalyze(
+/**
+ * The x402 payment gate is wired into exactly one route: `POST /v1/analyze`
+ * (see `registerAnalyzeRoute`). Every other route under `/v1/*` and `/mcp/*`
+ * has no payment mechanism of its own, so it must never be treated as
+ * "covered" by x402 mode — only this one path/method pair skips the API key
+ * check when x402 is doing the gating instead.
+ */
+function isGatedByX402Instead(
   req: { method: string; url: string },
   config: AppConfig,
 ): boolean {
@@ -55,22 +62,41 @@ export async function buildApp(config: AppConfig) {
   const createRpc = () => sharedAdapter;
 
   app.addHook("onRequest", async (req, reply) => {
-    if (!req.url.startsWith("/v1/")) return;
-    if (shouldSkipApiKeyForAnalyze(req, config)) {
+    const path = req.url.split("?")[0] ?? "";
+    // Covers every analysis/audit/tool route, including /mcp/* — the old
+    // check only matched "/v1/" and let /mcp/call reach `baret_analyze`
+    // (and therefore the full paid analysis pipeline) with zero auth.
+    if (!path.startsWith("/v1/") && !path.startsWith("/mcp/")) return;
+
+    if (isGatedByX402Instead(req, config)) {
       return;
     }
+
     if (config.apiKeys.length === 0) {
-      if (config.nodeEnv === "production") {
-        req.log.warn("DELTAG_API_KEYS empty in production");
-      }
-      return;
+      // No API key configured, and x402 is only wired into POST
+      // /v1/analyze. Every other route here — batch, stream, replay,
+      // audit, mcp — would otherwise be completely unauthenticated in a
+      // "pure x402" deployment (DELTAG_AUTH_MODE=x402 implies apiKeys is
+      // empty by design). Fail closed instead of silently serving them.
+      req.log.warn(
+        { path },
+        "blocked: no DELTAG_API_KEYS configured and this route has no x402 gate",
+      );
+      return reply
+        .status(401)
+        .send(
+          apiError(
+            "UNAUTHORIZED",
+            "This endpoint requires an API key (DELTAG_API_KEYS) — x402 only covers POST /v1/analyze.",
+          ),
+        );
     }
     const fromHeader =
       extractApiKeyFromHeader(req.headers.authorization) ??
       (typeof req.headers["x-api-key"] === "string"
         ? req.headers["x-api-key"]
         : null);
-    if (!fromHeader || !config.apiKeys.includes(fromHeader)) {
+    if (!fromHeader || !timingSafeApiKeyMatch(fromHeader, config.apiKeys)) {
       return reply
         .status(401)
         .send(apiError("UNAUTHORIZED", "Invalid or missing API key"));

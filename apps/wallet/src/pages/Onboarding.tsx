@@ -84,7 +84,7 @@ export function Onboarding() {
             {step === "create" && (
               <CreateStep
                 busy={busy}
-                onCreate={() => safeRun(async () => { createWallet(); next("backup"); })}
+                onCreate={(passphrase) => safeRun(async () => { await createWallet(passphrase); next("backup"); })}
               />
             )}
             {step === "backup" && identity && (
@@ -190,7 +190,19 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   );
 }
 
-function CreateStep({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
+function CreateStep({
+  busy,
+  onCreate,
+}: {
+  busy: boolean;
+  onCreate: (passphrase: string) => void;
+}) {
+  const [passphrase, setPassphrase] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const tooShort = passphrase.length > 0 && passphrase.length < 8;
+  const mismatch = confirm.length > 0 && passphrase !== confirm;
+  const canSubmit = passphrase.length >= 8 && passphrase === confirm;
+
   return (
     <div className="card p-8 space-y-6 text-center">
       <div className="space-y-3">
@@ -203,10 +215,47 @@ function CreateStep({ busy, onCreate }: { busy: boolean; onCreate: () => void })
       </div>
       <div className="glass rounded-2xl p-5 max-w-md mx-auto text-left text-xs space-y-2 text-ink-600">
         <p>• A 256-bit private key, generated via the browser's crypto random source</p>
-        <p>• Stored only in <code className="text-accent-soft">localStorage</code> on this domain</p>
+        <p>
+          • Encrypted with your passphrase and stored only in{" "}
+          <code className="text-accent-soft">localStorage</code> on this domain — never in plaintext
+        </p>
         <p>• Used to authorize spending from your smart wallet</p>
       </div>
-      <button onClick={onCreate} disabled={busy} className="btn-primary px-6 py-3 mx-auto">
+      <div className="max-w-md mx-auto space-y-3 text-left">
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-ink-700">Passphrase</label>
+          <input
+            type="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            placeholder="At least 8 characters"
+            className="input w-full"
+            autoComplete="new-password"
+          />
+          {tooShort && <p className="text-xs text-[#DC2626]">Must be at least 8 characters.</p>}
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-ink-700">Confirm passphrase</label>
+          <input
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Re-enter your passphrase"
+            className="input w-full"
+            autoComplete="new-password"
+          />
+          {mismatch && <p className="text-xs text-[#DC2626]">Passphrases don't match.</p>}
+        </div>
+        <p className="text-xs text-ink-400">
+          This passphrase encrypts your key on this device. There is no recovery if you forget it — back up
+          the secret key itself in the next step.
+        </p>
+      </div>
+      <button
+        onClick={() => onCreate(passphrase)}
+        disabled={busy || !canSubmit}
+        className="btn-primary px-6 py-3 mx-auto disabled:opacity-50"
+      >
         {busy ? "Generating…" : "Generate keypair"}
         {!busy && <ArrowRight size={14} />}
       </button>

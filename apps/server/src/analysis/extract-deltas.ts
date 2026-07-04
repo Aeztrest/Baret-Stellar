@@ -1,4 +1,5 @@
 import {
+  Address,
   Asset,
   Operation,
   Transaction,
@@ -357,7 +358,6 @@ function scvAsAddress(v: xdr.ScVal | undefined): string | null {
   if (!v) return null;
   try {
     if (v.switch().value === xdr.ScValType.scvAddress().value) {
-      const { Address } = require("@stellar/stellar-sdk");
       return Address.fromScAddress(v.address()).toString();
     }
   } catch {

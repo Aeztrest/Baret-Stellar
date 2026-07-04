@@ -270,9 +270,8 @@ export interface ExtX402Methods {
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export function newRequestId(): string {
-  let s = "";
-  for (let i = 0; i < 8; i++) s += ((Math.random() * 65536) | 0).toString(16).padStart(4, "0");
-  return s;
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function isEnvelope(data: unknown): data is Envelope<string, unknown> {

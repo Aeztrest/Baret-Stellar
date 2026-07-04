@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, AlertTriangle, Trash2, ExternalLink, Cpu, type LucideIcon } from "lucide-react";
+import { Settings as SettingsIcon, AlertTriangle, Trash2, ExternalLink, Cpu, Lock, type LucideIcon } from "lucide-react";
 import { useWallet } from "../wallet/state";
 import { ACTIVE_NETWORK, RPC_URL, explorerUrl } from "../wallet/connection";
 
 export function Settings() {
-  const { identity, reset } = useWallet();
+  const { identity, reset, lock } = useWallet();
   const nav = useNavigate();
   const [confirming, setConfirming] = useState(false);
 
@@ -15,6 +15,11 @@ export function Settings() {
     if (!confirming) { setConfirming(true); return; }
     reset();
     nav("/onboarding", { replace: true });
+  };
+
+  const onLock = () => {
+    lock();
+    nav("/unlock", { replace: true });
   };
 
   return (
@@ -43,6 +48,16 @@ export function Settings() {
             </>
           );
         })()}
+      </Section>
+
+      <Section title="Security">
+        <p className="text-xs text-ink-600 leading-relaxed">
+          Lock re-encrypts your key at rest and requires your passphrase again before this wallet can sign
+          anything.
+        </p>
+        <button onClick={onLock} className="btn-ghost mt-2">
+          <Lock size={13} /> Lock wallet
+        </button>
       </Section>
 
       <Section title="Danger zone" icon={AlertTriangle} variant="danger">

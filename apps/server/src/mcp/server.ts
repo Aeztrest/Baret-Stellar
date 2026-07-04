@@ -84,9 +84,14 @@ export async function handleMcpToolCall(
         };
     }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+    // Do not forward raw internal error text (RPC URLs, library internals)
+    // to MCP callers — log it server-side and return a generic message,
+    // matching how `/v1/analyze` already handles its unknown-error case.
+    console.error("[mcp] tool call failed", { toolName, error });
     return {
-      content: [{ type: "text", text: `Error: ${msg}` }],
+      content: [
+        { type: "text", text: "Error: unexpected server error while executing this tool." },
+      ],
       isError: true,
     };
   }

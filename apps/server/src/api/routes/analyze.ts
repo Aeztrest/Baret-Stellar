@@ -11,6 +11,36 @@ import { apiError } from "../errors.js";
 import { StellarRpcError } from "../../infra/stellar-rpc.js";
 import type { BaretX402 } from "../../infra/x402.js";
 
+type RequestLogger = Pick<FastifyRequest["log"], "warn" | "error">;
+
+/**
+ * Distinguishes "payment verified but never settled" from "payment settled,
+ * then something after that failed" — collapsing these into one log message
+ * previously made a cleared payment look identical to a never-executed one,
+ * which is exactly backwards for anyone trying to reconcile client-visible
+ * errors against what the facilitator actually recorded.
+ */
+export function logX402SettlementOutcome(
+  log: RequestLogger,
+  reqId: string,
+  x402PaymentPresent: unknown,
+  settled: boolean,
+  err: unknown,
+): void {
+  if (!x402PaymentPresent) return;
+  if (settled) {
+    log.error(
+      { err, reqId },
+      "x402: payment settled successfully but the client-facing response failed afterward — client may see an error despite a completed payment",
+    );
+  } else {
+    log.warn(
+      { err },
+      "x402: payment verified but request failed before settlement executed; settlement was not executed",
+    );
+  }
+}
+
 export function registerAnalyzeRoute(
   app: FastifyInstance,
   deps: AnalyzeDeps,
@@ -31,6 +61,7 @@ export function registerAnalyzeRoute(
         );
       }
 
+      let settled = false;
       try {
         let timings: AnalyzeTimings | undefined;
         const decision = await analyzeTransaction(parsed.data, {
@@ -71,6 +102,10 @@ export function registerAnalyzeRoute(
             }
             return reply.send(settle.body);
           }
+          // Payment has now actually cleared. Anything that throws from
+          // here on must NOT be reported as "settlement was not executed" —
+          // it was. See the catch block below.
+          settled = true;
         }
 
         req.log.info(
@@ -88,11 +123,8 @@ export function registerAnalyzeRoute(
       } catch (e) {
         const x402Pay = (req as FastifyRequest & { x402Payment?: unknown })
           .x402Payment;
-        if (x402 && x402Pay) {
-          req.log.warn(
-            { err: e },
-            "x402: payment verified but request failed before a successful analyze response; settlement was not executed",
-          );
+        if (x402) {
+          logX402SettlementOutcome(req.log, req.id, x402Pay, settled, e);
         }
         if (e instanceof AnalyzeValidationError) {
           return reply.status(400).send(apiError("BAD_REQUEST", e.message));

@@ -105,9 +105,10 @@ export function isProtoMessage(
 }
 
 export function newRequestId(): string {
-  // 16 random hex chars; no crypto-strength needed, just uniqueness within a session.
-  let s = "";
-  for (let i = 0; i < 8; i++)
-    s += ((Math.random() * 65536) | 0).toString(16).padStart(4, "0");
-  return s;
+  // 32 random hex chars, crypto-strength. This ID sits right next to the
+  // wallet's postMessage trust boundary; using Math.random() here was an
+  // unforced weakness that would matter the moment any future refactor
+  // starts trusting these as unguessable references.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

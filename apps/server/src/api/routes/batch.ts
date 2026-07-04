@@ -49,8 +49,14 @@ export function registerBatchRoute(
         if (e instanceof StellarRpcError) {
           return { index, status: "error" as const, error: { code: "RPC_ERROR", message: e.message } };
         }
-        const msg = e instanceof Error ? e.message : String(e);
-        return { index, status: "error" as const, error: { code: "INTERNAL_ERROR", message: msg } };
+        // Unrecognized errors may carry RPC URLs or library internals — log
+        // the real thing server-side, return only a generic message.
+        req.log.error({ err: e, index }, "Unexpected error during batch analyze item");
+        return {
+          index,
+          status: "error" as const,
+          error: { code: "INTERNAL_ERROR", message: "Unexpected server error" },
+        };
       }
     });
 
@@ -126,8 +132,16 @@ export function registerBatchRoute(
         const decision = await analyzeTransaction(txBody, deps);
         sendEvent("result", { index: i, status: "success", decision });
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        sendEvent("result", { index: i, status: "error", error: msg });
+        if (e instanceof AnalyzeValidationError) {
+          sendEvent("result", { index: i, status: "error", error: e.message });
+          continue;
+        }
+        if (e instanceof StellarRpcError) {
+          sendEvent("result", { index: i, status: "error", error: e.message });
+          continue;
+        }
+        req.log.error({ err: e, index: i }, "Unexpected error during stream analyze item");
+        sendEvent("result", { index: i, status: "error", error: "Unexpected server error" });
       }
     }
 

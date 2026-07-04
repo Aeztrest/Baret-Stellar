@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { WalletProvider, useWallet } from "./wallet/state";
 import { AppShell } from "./components/AppShell";
 import { Onboarding } from "./pages/Onboarding";
+import { Unlock } from "./pages/Unlock";
 import { Home } from "./pages/Home";
 import { Send } from "./pages/Send";
 import { Receive } from "./pages/Receive";
@@ -21,13 +22,19 @@ function RequireWallet({ children }: { children: React.ReactNode }) {
   if (phase === "loading") {
     return <div className="min-h-screen flex items-center justify-center text-ink-400 text-sm">Loading wallet…</div>;
   }
-  // Popup routes handle their own "no wallet" state. don't redirect them.
+  // Popup routes handle their own "no wallet" / "locked" state. don't redirect them.
   if (isPopupRoute) return <>{children}</>;
 
   if (phase === "unprovisioned" && loc.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
   if (phase !== "unprovisioned" && loc.pathname === "/onboarding") {
+    return <Navigate to="/" replace />;
+  }
+  if (phase === "locked" && loc.pathname !== "/unlock") {
+    return <Navigate to="/unlock" replace />;
+  }
+  if (phase !== "locked" && loc.pathname === "/unlock") {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
@@ -44,6 +51,7 @@ export default function App() {
         <RequireWallet>
           <Routes>
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/unlock" element={<Unlock />} />
             <Route path="/connect" element={<Connect />} />
             <Route path="/sign" element={<Sign />} />
             <Route path="/" element={<ShellRoute><Home /></ShellRoute>} />

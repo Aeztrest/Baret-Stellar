@@ -23,15 +23,18 @@ rejected by the contract.
 
 | | |
 |---|---|
-| **Contract ID** | [`CBBC3OXC62ZWMPIHZVUVFVT27XC32LDYBO53ZMLTEJ272OG7CKHCGJZD`](https://stellar.expert/explorer/testnet/contract/CBBC3OXC62ZWMPIHZVUVFVT27XC32LDYBO53ZMLTEJ272OG7CKHCGJZD) |
+| **Contract ID** | [`CCYDHJZAR4RGYQ3UZBJ6UBDNE2IV6GJK4BWLKY5W5OVNSB5WNRZNSYK2`](https://stellar.expert/explorer/testnet/contract/CCYDHJZAR4RGYQ3UZBJ6UBDNE2IV6GJK4BWLKY5W5OVNSB5WNRZNSYK2) |
 | **Network** | Stellar testnet (`Test SDF Network ; September 2015`) |
-| **Wasm hash** | `870275e224fb3bafeace04f81590348d131aeb208c11867146f0ab58ee5389b7` |
+| **Wasm hash** | `159bb19cdd45119e8bfb696bc29042786608bc256f1c55a39e5a93d8725344b7` |
 | **Token (USDC SAC)** | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` |
 | **Source** | [`contracts/contracts/payment-guard`](./contracts/contracts/payment-guard) |
 | **Full deploy record** | [`contracts/DEPLOYMENT.md`](./contracts/DEPLOYMENT.md) |
 
-Built with the Soroban SDK (Rust), 7 passing unit tests, deployed and
-initialized live on testnet. The contract is the on-chain mirror of the
+Built with the Soroban SDK (Rust), 23 passing unit tests, deployed and
+initialized live on testnet. Redeployed after a security review fixed an
+unauthenticated `init()` and a fixed-window (rather than truly rolling) daily
+cap — see [`DEPLOYMENT.md`](./contracts/DEPLOYMENT.md#security-fixes-in-v2)
+for what changed and why. The contract is the on-chain mirror of the
 off-chain x402 firewall described below — see [the smart-contract
 section](#the-on-chain-smart-contract--contracts) for the interface and a
 copy-paste demo.

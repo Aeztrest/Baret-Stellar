@@ -34,6 +34,15 @@ export type AggregateInsight = {
 };
 
 const MAX_ENTRIES = 10_000;
+/**
+ * Contract addresses come straight from client-submitted XDR — they don't
+ * need to exist on-chain to be recorded here. Without a cap, an
+ * unauthenticated (or high-volume) caller referencing a fresh bogus address
+ * on every request grows this map forever. Bounded the same way `entries`
+ * is, with LRU eviction (touched addresses move to the back; the least
+ * recently seen address is evicted first).
+ */
+const MAX_TRACKED_CONTRACTS = 10_000;
 
 export class AuditStore {
   private entries: AuditEntry[] = [];
@@ -70,17 +79,7 @@ export class AuditStore {
 
   private updatePatternStats(entry: AuditEntry): void {
     for (const addr of entry.contractAddresses) {
-      let stats = this.contractStats.get(addr);
-      if (!stats) {
-        stats = {
-          contractAddress: addr,
-          totalSeen: 0,
-          blockedCount: 0,
-          riskCodes: new Map(),
-          lastSeen: entry.timestamp,
-        };
-        this.contractStats.set(addr, stats);
-      }
+      const stats = this.touchContractStats(addr, entry.timestamp);
 
       stats.totalSeen++;
       stats.lastSeen = entry.timestamp;
@@ -90,6 +89,39 @@ export class AuditStore {
         stats.riskCodes.set(code, (stats.riskCodes.get(code) ?? 0) + 1);
       }
     }
+  }
+
+  /**
+   * Returns the stats row for `addr`, creating it if needed, and marks it as
+   * most-recently-used. Evicts the least-recently-used row first if adding a
+   * new address would exceed `MAX_TRACKED_CONTRACTS`.
+   */
+  private touchContractStats(addr: string, timestamp: string): PatternStats {
+    const existing = this.contractStats.get(addr);
+    if (existing) {
+      // Re-insert to move this key to the end (most-recently-used) — Maps
+      // preserve insertion order, so eviction can just take the front.
+      this.contractStats.delete(addr);
+      this.contractStats.set(addr, existing);
+      return existing;
+    }
+
+    if (this.contractStats.size >= MAX_TRACKED_CONTRACTS) {
+      const oldestKey = this.contractStats.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.contractStats.delete(oldestKey);
+      }
+    }
+
+    const created: PatternStats = {
+      contractAddress: addr,
+      totalSeen: 0,
+      blockedCount: 0,
+      riskCodes: new Map(),
+      lastSeen: timestamp,
+    };
+    this.contractStats.set(addr, created);
+    return created;
   }
 
   getRecent(limit = 50): AuditEntry[] {

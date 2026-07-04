@@ -7,6 +7,23 @@ import {
 import type { CpiNode, CpiTrace } from "../domain/cpi-trace.js";
 
 /**
+ * Safety caps on the Soroban auth tree we'll actually expand while parsing
+ * untrusted, client-supplied XDR. Both are well above the detectors' own
+ * suspicion thresholds (depth ≥5, invocations ≥20 — see `risk/detectors/cpi.ts`)
+ * so legitimate detection is unaffected; they only stop a crafted XDR with
+ * thousands of nested sub-invocations from causing unbounded recursion/CPU
+ * per request.
+ */
+const MAX_CPI_DEPTH = 64;
+const MAX_CPI_NODES = 5_000;
+
+type ParseContext = {
+  allAddresses: Set<string>;
+  nodeCount: number;
+  truncated: boolean;
+};
+
+/**
  * Builds the Soroban auth tree. a directed graph of contract → contract
  * calls that the transaction is requesting authorization for. The root
  * invocations correspond to the entries on the tx's `InvokeHostFunction`
@@ -16,7 +33,11 @@ import type { CpiNode, CpiTrace } from "../domain/cpi-trace.js";
  * on depth, breadth, and identity exposure.
  */
 export function parseSorobanAuthTree(tx: Transaction): CpiTrace {
-  const allContractAddresses = new Set<string>();
+  const ctx: ParseContext = {
+    allAddresses: new Set<string>(),
+    nodeCount: 0,
+    truncated: false,
+  };
   const roots: CpiNode[] = [];
 
   for (const op of tx.operations) {
@@ -27,7 +48,7 @@ export function parseSorobanAuthTree(tx: Transaction): CpiTrace {
         auth.rootInvocation(),
         authorizerFromCredentials(auth.credentials()),
         0,
-        allContractAddresses,
+        ctx,
       );
       if (rootNode) roots.push(rootNode);
     }
@@ -44,9 +65,10 @@ export function parseSorobanAuthTree(tx: Transaction): CpiTrace {
 
   return {
     roots,
-    allContractAddresses: [...allContractAddresses],
+    allContractAddresses: [...ctx.allAddresses],
     maxDepth,
     totalInvocations,
+    truncated: ctx.truncated,
   };
 }
 
@@ -54,8 +76,14 @@ function invocationToNode(
   invocation: xdr.SorobanAuthorizedInvocation,
   authorizer: string | null,
   depth: number,
-  allAddresses: Set<string>,
+  ctx: ParseContext,
 ): CpiNode | null {
+  if (depth > MAX_CPI_DEPTH || ctx.nodeCount >= MAX_CPI_NODES) {
+    ctx.truncated = true;
+    return null;
+  }
+  ctx.nodeCount++;
+
   const fn = invocation.function();
   if (
     fn.switch().value !==
@@ -71,14 +99,14 @@ function invocationToNode(
       argsXdr: [],
       children: invocation
         .subInvocations()
-        .map((sub) => invocationToNode(sub, authorizer, depth + 1, allAddresses))
+        .map((sub) => invocationToNode(sub, authorizer, depth + 1, ctx))
         .filter((n): n is CpiNode => n !== null),
     };
   }
 
   const args = fn.contractFn();
   const contractAddress = scAddressToString(args.contractAddress()) ?? "";
-  if (contractAddress) allAddresses.add(contractAddress);
+  if (contractAddress) ctx.allAddresses.add(contractAddress);
 
   const functionName = args.functionName().toString();
   const argsXdr = args.args().map((arg) => arg.toXDR("base64"));
@@ -91,7 +119,7 @@ function invocationToNode(
     argsXdr,
     children: invocation
       .subInvocations()
-      .map((sub) => invocationToNode(sub, authorizer, depth + 1, allAddresses))
+      .map((sub) => invocationToNode(sub, authorizer, depth + 1, ctx))
       .filter((n): n is CpiNode => n !== null),
   };
 }

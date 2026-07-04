@@ -102,8 +102,9 @@ export function snapshot(): {
 }
 
 export function newRequestId(): string {
-  let s = "";
-  for (let i = 0; i < 8; i++)
-    s += ((Math.random() * 65536) | 0).toString(16).padStart(4, "0");
-  return s;
+  // Correlates a queued sign request with the popup's later tx.sign call —
+  // not a secret, but crypto-strength generation costs nothing here and
+  // removes any future temptation to treat this as an unguessable token.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

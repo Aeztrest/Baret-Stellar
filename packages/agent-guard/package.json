@@ -21,6 +21,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
     "baret": "node ./dist/cli.js"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
   }
 }

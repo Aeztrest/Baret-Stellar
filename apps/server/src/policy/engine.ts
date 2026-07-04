@@ -31,6 +31,23 @@ function minAmountRaw(minUi: number): bigint {
   return BigInt(Math.round(minUi * Number(scale)));
 }
 
+/**
+ * Percent loss of a native balance, computed entirely in `bigint` until the
+ * very last step. Converting `pre`/`delta` to `Number` first (as this used
+ * to do) silently loses precision once stroop balances exceed
+ * `Number.MAX_SAFE_INTEGER` (~900M XLM) — well within range for exchange
+ * hot wallets or issuer accounts — which could mis-compute `maxLossPercent`
+ * for exactly the large wallets a loss-percent policy matters most for.
+ * The ratio itself is always a small, boundedly-sized percentage, so only
+ * the final division-to-Number is safe to do in floating point.
+ */
+export function lossPercentFromStroops(pre: bigint, delta: bigint): number {
+  if (delta >= 0n || pre <= 0n) return 0;
+  const PPM = 1_000_000n; // parts-per-million of the loss ratio
+  const lossRatioPpm = (-delta * PPM) / pre;
+  return Number(lossRatioPpm) / 10_000; // ppm -> percent
+}
+
 export function evaluatePolicy(input: PolicyEvaluationInput): Decision {
   const {
     network,
@@ -134,10 +151,7 @@ export function evaluatePolicy(input: PolicyEvaluationInput): Decision {
           message: "Insufficient data to compute loss percent (fail-closed)",
         });
       } else {
-        const preF = Number(BigInt(pre));
-        const deltaF = Number(BigInt(delta));
-        const lossRatio = Math.max(0, -deltaF / preF);
-        const lossPct = lossRatio * 100;
+        const lossPct = lossPercentFromStroops(BigInt(pre), BigInt(delta));
         if (lossPct > policy.maxLossPercent + 1e-9) {
           reasons.push(
             `Estimated XLM loss ${lossPct.toFixed(4)}% exceeds max allowed ${policy.maxLossPercent}%`,
