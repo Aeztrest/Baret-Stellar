@@ -100,8 +100,11 @@ function CinematicScrub() {
       // Long runway so momentum scroll can't blow past before the meter fills.
       heightVh={600}
       // Anchor to the BOTTOM so the meter/loading bar baked into the clip stays
-      // visible (object-cover crops any excess from the top). The generator ✦
-      // watermark is already cropped out of the source (crop=1100 + rescale).
+      // visible (object-cover crops any excess from the top). Source is a
+      // proper 1920x1080 16:9 encode (cropped from the raw generator export to
+      // drop its watermark, all-keyframe per ASSET_PROMPTS.md §5.2), so this
+      // fills edge to edge at any width without the softness a sub-1080p or
+      // off-aspect source would cause.
       videoClassName="absolute inset-0 h-full w-full object-cover object-bottom"
       skipLabel="Skip intro"
       captions={[
