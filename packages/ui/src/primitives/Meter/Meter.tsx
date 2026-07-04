@@ -6,7 +6,7 @@ export interface MeterProps {
   label?: string;
   value: number;
   max: number;
-  /** Custom value label, e.g. `(v, m) => \`${v} / ${m} USDC\`` — defaults to "v / m". */
+  /** Custom value label, e.g. `(v, m) => \`${v} / ${m} USDC\``. defaults to "v / m". */
   formatValue?: (value: number, max: number) => string;
   /** Fraction of max (0-1) at which the meter shifts to warn tone. Default 0.6. */
   warnAt?: number;
@@ -17,7 +17,7 @@ export interface MeterProps {
 }
 
 /**
- * Baret's signature visual device — the threshold-colored cap/allowance bar.
+ * Baret's signature visual device. the threshold-colored cap/allowance bar.
  * "A living spreadsheet of what's still allowed" (docs/vision.md) made visual:
  * the one element that visibly accumulates state, everywhere else in the UI
  * is stateless request/response. Used identically in the wallet's real ledger

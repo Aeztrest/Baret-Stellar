@@ -1,5 +1,5 @@
 /**
- * Activity page — a plain-language feed of everything the wallet has done:
+ * Activity page. A plain-language feed of everything the wallet has done:
  * dApp connections, signatures, x402 payments, sends/receives, and alerts,
  * each with Baret's verdict and reason. Polls `history.list` so the feed
  * updates itself while open. Lives at /activity in the Options HashRouter.
@@ -7,12 +7,12 @@
 
 import { useCallback, useState } from "react";
 import {
-  Clock, Globe, ExternalLink, Loader2, ArrowUpRight, ArrowDownLeft,
-  Coins, ShieldAlert, Plug, CheckCircle2, XCircle,
+  Clock, Globe, ExternalLink, ArrowUpRight, ArrowDownLeft,
+  Coins, ShieldAlert, Plug, CheckCircle2, XCircle, AlertTriangle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { HistoryEntry } from "@stellar-thorn/ext-protocol";
-import { usePolling } from "@stellar-thorn/ui";
+import { Button, EmptyState, usePolling, SpotlightCard, RevealGroup, RevealItem } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
 /** Human label + icon + one-line meaning for each entry type. */
@@ -47,40 +47,61 @@ export function ActivityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Activity</h1>
-        <p className="text-text-muted text-sm mt-1">
-          Every connection, signature, and x402 payment the wallet handled — with the
+        <h1 className="text-3xl font-display font-bold uppercase tracking-tight text-foreground">
+          Activity
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Every connection, signature, and x402 payment the wallet handled, with the
           verdict and the reason behind it. Updates live.
         </p>
       </div>
 
       {err && (
-        <div className="card" style={{ background: "var(--bad-dim)" }}>
-          <p className="text-bad text-sm">{err}</p>
+        <div
+          className="rounded-md p-4 flex items-start gap-3"
+          style={{ background: "var(--bad-dim)", color: "var(--bad)" }}
+        >
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Couldn't load activity</p>
+            <p className="text-xs opacity-80 mt-0.5 break-words">{err}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => void refresh()}>Retry</Button>
         </div>
       )}
 
-      {entries === null && (
-        <div className="flex items-center gap-2 text-text-faint text-sm">
-          <Loader2 size={14} className="animate-spin" /> Loading…
+      {entries === null && !err && (
+        <div className="space-y-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="card flex items-start gap-4">
+              <div className="w-10 h-10 rounded-input bg-secondary animate-pulse shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-48 rounded bg-secondary animate-pulse" />
+                <div className="h-2.5 w-32 rounded bg-secondary animate-pulse" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {entries !== null && entries.length === 0 && (
-        <div className="card text-center py-12">
-          <Clock size={28} className="mx-auto mb-3 text-text-faint" />
-          <h2 className="font-bold mb-1.5">No activity yet</h2>
-          <p className="text-text-faint text-sm max-w-md mx-auto leading-relaxed">
-            Connect to a dApp or sign your first transaction. Every verdict is logged here —
-            including the ones the firewall declines.
-          </p>
+      {entries !== null && entries.length === 0 && !err && (
+        <div className="card">
+          <EmptyState
+            icon={<Clock size={22} />}
+            title="No activity yet"
+            description="Connect to a dApp or sign your first transaction. Every verdict is logged here, including the ones Baret declines."
+          />
         </div>
       )}
 
       {entries !== null && entries.length > 0 && (
-        <div className="space-y-2">
-          {entries.map((e) => <ActivityRow key={e.id} entry={e} network={network} />)}
-        </div>
+        <RevealGroup className="space-y-2">
+          {entries.map((e) => (
+            <RevealItem key={e.id}>
+              <ActivityRow entry={e} network={network} />
+            </RevealItem>
+          ))}
+        </RevealGroup>
       )}
     </div>
   );
@@ -92,15 +113,13 @@ function ActivityRow({ entry, network }: { entry: HistoryEntry; network: string 
   const allowed = entry.decision === "allow";
 
   return (
-    <article className="card flex items-start gap-4">
+    <SpotlightCard>
+      <div className="flex items-start gap-4 p-4">
       <div
-        className="w-10 h-10 rounded-input flex items-center justify-center shrink-0"
-        style={{
-          background: allowed ? "rgba(20,20,20,0.045)" : "var(--bad-dim)",
-          border: "1px solid var(--line)",
-        }}
+        className={`w-10 h-10 rounded-input flex items-center justify-center shrink-0 border border-border ${allowed ? "bg-secondary" : ""}`}
+        style={allowed ? undefined : { background: "var(--bad-dim)" }}
       >
-        <Icon size={16} className={allowed ? "text-text-muted" : "text-bad"} />
+        <Icon size={16} className={allowed ? "text-text-muted transition-colors group-hover/spot:text-foreground" : "text-bad"} />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -131,13 +150,14 @@ function ActivityRow({ entry, network }: { entry: HistoryEntry; network: string 
             href={stellarExplorerTx(entry.signature, network)}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] text-accent-soft hover:text-text mt-1.5"
+            className="relative z-20 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground mt-1.5"
           >
             View on Stellar Expert <ExternalLink size={9} />
           </a>
         )}
       </div>
-    </article>
+      </div>
+    </SpotlightCard>
   );
 }
 

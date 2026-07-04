@@ -1,0 +1,120 @@
+export const metadata = {
+  title: 'Batch Analysis',
+  description:
+    'Analyze up to 25 Stellar transactions in a single request. Each transaction is evaluated independently.',
+}
+
+export const sections = [
+  { title: 'Analyze a batch', id: 'analyze-a-batch' },
+]
+
+# Batch Analysis
+
+Submit up to 25 transactions in a single API call. Each transaction is analyzed independently in parallel — the response contains an ordered array of analysis results matching the input order. {{ className: 'lead' }}
+
+---
+
+## Analyze a batch {{ tag: 'POST', label: '/v1/analyze/batch', id: 'analyze-a-batch' }}
+
+<Row>
+  <Col>
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="transactions" type="array">
+        Array of transaction objects. Maximum 25 items per request.
+      </Property>
+      <Property name="transactions[].transaction" type="string">
+        Base64-encoded serialized Stellar `TransactionEnvelope XDR`.
+      </Property>
+      <Property name="transactions[].network" type="string">
+        Stellar network: `pubnet` or `testnet`.
+      </Property>
+    </Properties>
+
+    ### Optional attributes
+
+    <Properties>
+      <Property name="policy" type="object">
+        Policy rules applied to all transactions in the batch. Can be overridden per transaction.
+      </Property>
+      <Property name="policyProfile" type="string">
+        Pre-configured policy profile for all transactions: `strict`, `defi-permissive`, or `monitor-only`.
+      </Property>
+    </Properties>
+
+    The response `results` array preserves the same order as the input `transactions` array. Each element is a full [analysis object](/contacts#the-analysis-object).
+
+    A batch request counts as one API call regardless of the number of transactions included.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="POST" label="/v1/analyze/batch">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://api.baret.io/v1/analyze/batch \
+      -H "X-API-Key: {your-api-key}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "transactions": [
+          {
+            "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
+            "network": "pubnet"
+          },
+          {
+            "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
+            "network": "pubnet"
+          }
+        ],
+        "policyProfile": "strict"
+      }'
+    ```
+
+    ```js
+    const result = await fetch('https://api.baret.io/v1/analyze/batch', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': process.env.BARET_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transactions: pendingTxs.map(tx => ({
+          transaction: tx.serializedBase64,
+          network: 'pubnet',
+        })),
+        policyProfile: 'strict',
+      }),
+    }).then(r => r.json())
+
+    const blocked = result.results.filter(r => !r.safe)
+    ```
+
+    </CodeGroup>
+
+    ```json {{ title: 'Response' }}
+    {
+      "results": [
+        {
+          "safe": true,
+          "riskLevel": "none",
+          "verdict": "Transaction is safe.",
+          "interpretation": "DEX swap: 1.5 XLM → 180 USDC",
+          "durationMs": 210
+        },
+        {
+          "safe": false,
+          "riskLevel": "high",
+          "verdict": "Transaction blocked: unlimited token approval.",
+          "interpretation": "Token approval granting unlimited USDC authority.",
+          "durationMs": 198
+        }
+      ],
+      "totalDurationMs": 218,
+      "analyzedAt": "2025-05-04T14:25:00.000Z"
+    }
+    ```
+
+  </Col>
+</Row>

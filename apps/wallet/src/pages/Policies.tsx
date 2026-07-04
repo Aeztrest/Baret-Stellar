@@ -120,7 +120,7 @@ export function Policies() {
           />
           <PolicyToggle
             title="Block Soroban allowance grants"
-            help="Reject if the tx introduces a Soroban approve (allowance) — a common drainer pattern."
+            help="Reject if the tx introduces a Soroban approve (allowance). a common drainer pattern."
             value={!!policy.blockSorobanAllowanceGrants}
             onChange={(v) => update("blockSorobanAllowanceGrants", v)}
           />
@@ -132,7 +132,7 @@ export function Policies() {
           />
           <PolicyToggle
             title="Block account merge"
-            help="Reject accountMerge ops — the native Stellar account-drain primitive."
+            help="Reject accountMerge ops. the native Stellar account-drain primitive."
             value={!!policy.blockAccountMerge}
             onChange={(v) => update("blockAccountMerge", v)}
           />
@@ -222,7 +222,7 @@ function PolicyNumber({ title, help, unit, value, onChange, min, max, step }: {
         </div>
         <div className="flex items-center gap-1.5">
           <input type="number" value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-            min={min} max={max} step={step} placeholder="—"
+            min={min} max={max} step={step} placeholder=". "
             className="input w-24 text-right" />
           {unit && <span className="text-xs text-ink-400">{unit}</span>}
         </div>

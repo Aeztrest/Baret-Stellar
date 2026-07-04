@@ -12,6 +12,7 @@ interface SendProps {
   authorityAddress: string;
   network: string;
   balanceXlm: number | null;
+  hasUsdcTrustline: boolean;
   onClose: () => void;
   onSent: () => void | Promise<void>;
 }
@@ -38,7 +39,7 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
       }}
     >
       <div
-        className="relative rounded-modal overflow-hidden"
+        className="relative rounded-modal overflow-hidden shadow-2xl"
         style={{
           width: "100%",
           maxWidth: "420px",
@@ -60,6 +61,7 @@ export function OptionsSendModal(props: SendProps) {
         authorityAddress={props.authorityAddress}
         network={props.network}
         balanceXlm={props.balanceXlm}
+        hasUsdcTrustline={props.hasUsdcTrustline}
         onClose={props.onClose}
         onSent={() => { void props.onSent(); }}
       />

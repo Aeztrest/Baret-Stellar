@@ -174,7 +174,7 @@ export const BUILTIN_PROFILES: PolicyProfile[] = [
     id: "strict",
     name: "Strict",
     description:
-      "Maximum security — blocks any unknown contract, allowance grant, or simulation failure",
+      "Maximum security. blocks any unknown contract, allowance grant, or simulation failure",
     rules: [
       {
         id: "strict-sim-fail",
@@ -262,7 +262,7 @@ export const BUILTIN_PROFILES: PolicyProfile[] = [
     id: "monitor-only",
     name: "Monitor Only",
     description:
-      "Never blocks — returns findings and warnings for monitoring dashboards",
+      "Never blocks. returns findings and warnings for monitoring dashboards",
     rules: [],
     createdAt: "2025-01-01T00:00:00Z",
     updatedAt: "2025-01-01T00:00:00Z",

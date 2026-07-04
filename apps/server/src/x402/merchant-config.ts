@@ -10,8 +10,7 @@ import { Keypair, StrKey } from "@stellar/stellar-sdk";
 
 /**
  * Soroban Asset Contract (SAC) addresses for Circle's USDC, the asset x402
- * facilitators settle in. Classic G… issuers are not relevant here —
- * the protocol uses the contract address for state-changing flows.
+ * facilitators settle in. Classic G… issuers are not relevant here.  * the protocol uses the contract address for state-changing flows.
  */
 const USDC_CONTRACT_TESTNET =
   "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";

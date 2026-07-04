@@ -1,5 +1,5 @@
 /**
- * Content script — runs in the page's ISOLATED world at document_start.
+ * Content script. runs in the page's ISOLATED world at document_start.
  *
  * Two jobs:
  * 1. Inject the inpage script as a <script> element so it executes in MAIN
@@ -13,6 +13,7 @@
 
 import browser from "webextension-polyfill";
 import { isEnvelope, PROTOCOL_TAG, type Envelope } from "@stellar-thorn/ext-protocol";
+import { mountBaretOverlay } from "./ui/mount";
 
 const PAGE_TAG = "__bx_ws" as const;
 
@@ -27,12 +28,36 @@ function isPageReq(d: unknown): d is PageReq {
   return r[PAGE_TAG] === 1 && r.kind === "req" && typeof r.id === "string" && typeof r.method === "string";
 }
 
+/* ────────────── Mount the Baret page overlay (Shadow DOM) ────────────── */
+
+const OVERLAY_HIDDEN_KEY = "baret.overlayHidden.v1";
+
+(function initOverlay() {
+  const run = async () => {
+    try {
+      // "Hide here" persists per-origin in extension storage.
+      const all = await browser.storage.local.get(OVERLAY_HIDDEN_KEY);
+      const map =
+        (all[OVERLAY_HIDDEN_KEY] as Record<string, boolean> | undefined) ?? {};
+      if (map[window.location.origin] === true) return;
+    } catch {
+      /* storage may be unavailable. mount anyway */
+    }
+    mountBaretOverlay();
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => void run(), { once: true });
+  } else {
+    void run();
+  }
+})();
+
 /* ────────────── Inject inpage script ────────────── */
 
 (function injectInpage() {
   try {
     // Load the bundled inpage entry (stable filename, emitted by vite rollupOptions).
-    // The raw TS source can't be loaded directly — its bare module specifiers
+    // The raw TS source can't be loaded directly. its bare module specifiers
     // (e.g. "@wallet-standard/wallet") don't resolve in the browser.
     const url = browser.runtime.getURL("inpage.js");
     const script = document.createElement("script");

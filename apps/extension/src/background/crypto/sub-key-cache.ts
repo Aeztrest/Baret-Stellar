@@ -27,7 +27,7 @@ export function clearSubKeyCache(): void {
     try {
       secureZero(kp.rawSecretKey());
     } catch {
-      /* ignore — SDK may have already freed the buffer */
+      /* ignore. SDK may have already freed the buffer */
     }
   }
   cache.clear();
@@ -52,7 +52,7 @@ export async function preloadActiveSubKeys(passphrase: string): Promise<void> {
   }
 }
 
-/** Lazy lookup — returns from cache, or decrypts on demand if passphrase is remembered. */
+/** Lazy lookup. returns from cache, or decrypts on demand if passphrase is remembered. */
 export async function getSubKeypair(pubkey: string): Promise<Keypair | null> {
   const hit = cache.get(pubkey);
   if (hit) return hit;

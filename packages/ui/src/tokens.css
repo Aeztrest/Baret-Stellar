@@ -1,54 +1,168 @@
 /*
- * BARET — Design Tokens
- * The visual contract from docs/brand.md, materialized as CSS custom properties.
- * Imported by every app that ships UI: apps/wallet, apps/extension, apps/showcase-*.
+ * BARET. Design Tokens (single source of truth)
+ * ────────────────────────────────────────────────────────────────────────
+ * The visual contract for every surface: apps/extension (popup + options +
+ * injected content UI) and apps/showcase. Editing this one file re-skins the
+ * entire product. that property is load-bearing, never hardcode a color in a
+ * component.
  *
- * Source of truth. Edit docs/brand.md first, then mirror here.
+ * LOCKED LAYER. the palette. Baret's identity is safety-orange (#FF6B00) as
+ * the single accent, ink-black (#141414) type, and near-white / bone surfaces.
+ * The hues below are that identity expressed in oklch; do not "improve" them.
+ * Signature motif: the Meter (threshold-colored cap bar) + the orange tick.
  *
- * Baret identity: white-first surfaces, safety-orange accent (#FF6B00),
- * ink-black (#141414) type. "The hard hat for your Stellar wallet."
+ * STRUCTURE
+ *   1. shadcn/ui token names (background/foreground/card/primary/muted/border/
+ *      ring/…) in oklch, light `:root` + dark `.dark`. These are canonical.  *      new components reference `bg-primary`, `text-muted-foreground`, etc.
+ *   2. Baret semantic tokens (ok/warn/bad/live). risk states need their own
+ *      differentiation and are NOT the single accent.
+ *   3. Legacy aliases (--bg, --text, --accent, --line …) mapped onto the new
+ *      tokens so the existing 180+ call sites keep working AND become
+ *      dark-aware for free.
+ *   4. Scales: type, spacing, radius, motion, font stacks.
+ *
+ * The one brand accent is `--primary` (== legacy `--accent`). shadcn neutral
+ * hover surfaces use `--secondary` / `--muted`, never the accent. so the
+ * orange stays rare and powerful.
  */
 
+/* ═══════════════════ 1 · shadcn tokens. LIGHT ═══════════════════ */
 :root {
-  /* ─── Surfaces ───────────────────────────────────── */
-  --bg:           #FAF8F4;   /* bone — window canvas */
-  --bg-elevated:  #FFFFFF;   /* paper — raised panels */
-  --bg-card:      #FFFFFF;
-  --bg-modal:     #FFFFFF;
+  color-scheme: light;
 
-  --line:         rgba(20, 20, 20, 0.09);
-  --line-strong:  rgba(20, 20, 20, 0.16);
+  --radius: 0.625rem;
 
-  /* ─── Text ───────────────────────────────────────── */
-  --text:        #141414;
-  --text-muted:  rgba(20, 20, 20, 0.58);
-  --text-faint:  rgba(20, 20, 20, 0.40);
-  --text-ghost:  rgba(20, 20, 20, 0.24);
+  /* Surfaces. bone canvas, paper cards */
+  --background:          oklch(0.977 0.004 84);   /* bone  #FAF8F4 */
+  --foreground:          oklch(0.205 0 0);        /* ink   #141414 */
+  --card:                oklch(1 0 0);            /* paper #FFFFFF */
+  --card-foreground:     oklch(0.205 0 0);
+  --popover:             oklch(1 0 0);
+  --popover-foreground:  oklch(0.205 0 0);
 
-  /* ─── Brand accent — Safety orange ──────────────────
-   * Baret ships a white/orange/black palette: ink type on
-   * white surfaces with the safety-orange accent doing the
-   * pointing. Semantic colors (ok/warn/bad/live) are kept —
-   * risk states need visual differentiation. */
-  --accent:       #FF6B00;
-  --accent-soft:  #EA5E00;
-  --accent-dim:   rgba(255, 107, 0, 0.10);
-  --accent-glow:  rgba(255, 107, 0, 0.22);
+  /* The ONE accent. safety orange */
+  --primary:             oklch(0.702 0.196 42);   /* #FF6B00 */
+  /* Ink on orange (hazard-signage pairing). ~7.4:1, passes AA; white fails. */
+  --primary-foreground:  oklch(0.205 0 0);
 
-  /* ─── Semantic accents (tuned for light surfaces) ── */
-  --ok:        #059669;
-  --ok-dim:    rgba(5, 150, 105, 0.10);
-  --warn:      #B45309;
-  --warn-dim:  rgba(180, 83, 9, 0.10);
-  --bad:       #DC2626;
-  --bad-dim:   rgba(220, 38, 38, 0.08);
-  --live:      #0E7490;
-  --live-dim:  rgba(14, 116, 144, 0.10);
+  /* Neutral hover / fill surfaces */
+  --secondary:            oklch(0.967 0.004 84);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted:                oklch(0.967 0.004 84);
+  --muted-foreground:     oklch(0.53 0 0);        /* ink @ ~58% */
 
-  /* ─── Meter (signature ledger/cap-bar motif) ──────── */
-  --meter-track: rgba(20, 20, 20, 0.06);
+  /* shadcn `accent` == the brand (Baret has one accent, not two) */
+  --accent:               oklch(0.702 0.196 42);
+  --accent-foreground:    oklch(0.205 0 0);
 
-  /* ─── Type scale ─────────────────────────────────── */
+  --destructive:          oklch(0.577 0.245 27.3); /* #DC2626 */
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border:               oklch(0.205 0 0 / 0.09);
+  --input:                oklch(0.205 0 0 / 0.14);
+  --ring:                 oklch(0.702 0.196 42);
+
+  --brand:                var(--primary);         /* glows / gradients */
+
+  /* Derived radius scale */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* ─── 2 · Baret semantic accents (risk states) ─── */
+  --ok:        oklch(0.596 0.126 163);   /* #059669 */
+  --ok-dim:    oklch(0.596 0.126 163 / 0.10);
+  --warn:      oklch(0.55 0.13 55);      /* #B45309 */
+  --warn-dim:  oklch(0.55 0.13 55 / 0.10);
+  --bad:       oklch(0.577 0.245 27.3);  /* #DC2626 */
+  --bad-dim:   oklch(0.577 0.245 27.3 / 0.08);
+  --live:      oklch(0.52 0.09 217);     /* #0E7490 */
+  --live-dim:  oklch(0.52 0.09 217 / 0.10);
+
+  /* ─── 3 · Legacy aliases → new tokens (dark-aware for free) ─── */
+  --bg:           var(--background);
+  --bg-elevated:  var(--card);
+  --bg-card:      var(--card);
+  --bg-modal:     var(--popover);
+
+  --line:         var(--border);
+  --line-strong:  var(--input);
+
+  --text:         var(--foreground);
+  --text-muted:   var(--muted-foreground);
+  --text-faint:   oklch(0.205 0 0 / 0.40);
+  --text-ghost:   oklch(0.205 0 0 / 0.24);
+
+  --accent-soft:  oklch(0.66 0.185 41);          /* #EA5E00 */
+  --accent-dim:   oklch(0.702 0.196 42 / 0.10);
+  --accent-glow:  oklch(0.702 0.196 42 / 0.22);
+
+  --meter-track:  oklch(0.205 0 0 / 0.06);
+
+  /* Neutral cursor-spotlight for interactive cards (theme-aware, no accent) */
+  --spotlight:    oklch(0.205 0 0 / 0.05);
+  --grid-line:    oklch(0.205 0 0 / 0.03);
+}
+
+/* ═══════════════════ shadcn tokens. DARK ═══════════════════ */
+.dark {
+  color-scheme: dark;
+
+  --background:          oklch(0.17 0.004 60);    /* warm near-black */
+  --foreground:          oklch(0.97 0 0);
+  --card:                oklch(0.208 0.004 60);
+  --card-foreground:     oklch(0.97 0 0);
+  --popover:             oklch(0.208 0.004 60);
+  --popover-foreground:  oklch(0.97 0 0);
+
+  --primary:             oklch(0.72 0.193 44);    /* a touch brighter to glow */
+  --primary-foreground:  oklch(0.205 0 0);        /* ink on orange, AA-safe */
+
+  --secondary:            oklch(0.27 0.004 60);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted:                oklch(0.27 0.004 60);
+  --muted-foreground:     oklch(0.71 0 0);
+
+  --accent:               oklch(0.72 0.193 44);
+  --accent-foreground:    oklch(0.205 0 0);
+
+  --destructive:          oklch(0.68 0.20 25);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border:               oklch(1 0 0 / 0.10);
+  --input:                oklch(1 0 0 / 0.15);
+  --ring:                 oklch(0.72 0.193 44);
+
+  --brand:                var(--primary);
+
+  /* Semantic. brighter on black */
+  --ok:        oklch(0.72 0.16 163);
+  --ok-dim:    oklch(0.72 0.16 163 / 0.16);
+  --warn:      oklch(0.80 0.14 70);
+  --warn-dim:  oklch(0.80 0.14 70 / 0.16);
+  --bad:       oklch(0.68 0.20 25);
+  --bad-dim:   oklch(0.68 0.20 25 / 0.16);
+  --live:      oklch(0.72 0.11 217);
+  --live-dim:  oklch(0.72 0.11 217 / 0.16);
+
+  /* Legacy faint/ghost recomputed for dark */
+  --text-faint:   oklch(0.97 0 0 / 0.45);
+  --text-ghost:   oklch(0.97 0 0 / 0.26);
+
+  --accent-soft:  oklch(0.68 0.185 43);
+  --accent-dim:   oklch(0.72 0.193 44 / 0.14);
+  --accent-glow:  oklch(0.72 0.193 44 / 0.26);
+
+  --meter-track:  oklch(1 0 0 / 0.08);
+
+  --spotlight:    oklch(1 0 0 / 0.09);
+  --grid-line:    oklch(1 0 0 / 0.04);
+}
+
+/* ═══════════════════ 4 · Scales ═══════════════════ */
+:root {
+  /* Type scale */
   --display-2xl-size: 56px; --display-2xl-line: 1.04;
   --display-xl-size:  44px; --display-xl-line:  1.10;
   --display-l-size:   32px; --display-l-line:   1.12;
@@ -60,34 +174,27 @@
   --mono-l-size:      14px; --mono-l-line:      1.40;
   --mono-m-size:      12px; --mono-m-line:      1.40;
 
-  /* ─── Spacing rhythm ─────────────────────────────── */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-6: 24px;
-  --s-8: 32px;
-  --s-12: 48px;
-  --s-16: 64px;
-  --s-24: 96px;
+  /* Spacing rhythm */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-6: 24px; --s-8: 32px; --s-12: 48px; --s-16: 64px; --s-24: 96px;
 
-  /* ─── Radius ─────────────────────────────────────── */
+  /* Radius (legacy names) */
   --r-pill:   999px;
   --r-input:  10px;
   --r-card:   16px;
   --r-modal:  20px;
   --r-window: 24px;
 
-  /* ─── Motion ─────────────────────────────────────── */
+  /* Motion */
   --motion-fast:    180ms;
   --motion-medium:  240ms;
   --motion-slow:    280ms;
   --motion-curve:   cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* ─── Type stacks ────────────────────────────────── */
-  --font-sans: "Inter", "ui-sans-serif", "system-ui", "sans-serif";
+  /* Type stacks */
+  --font-sans:    "Inter", "ui-sans-serif", "system-ui", "sans-serif";
   --font-display: "Space Grotesk", "Inter", "ui-sans-serif", "system-ui", "sans-serif";
-  --font-mono: "JetBrains Mono", "ui-monospace", "monospace";
+  --font-mono:    "JetBrains Mono", "ui-monospace", "monospace";
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -67,7 +67,7 @@ export async function friendbotFund(address: string): Promise<{ hash: string | n
     } catch {
       /* ignore */
     }
-    // Already-funded accounts return 400 — treat as success so the flow continues.
+    // Already-funded accounts return 400. treat as success so the flow continues.
     if (res.status === 400 && /already funded|op_already_exists/i.test(detail)) {
       return { hash: null };
     }

@@ -30,7 +30,7 @@ export interface GetNetworkResult {
 }
 
 export interface SignTransactionOpts {
-  /** Public address that should sign — defaults to the connected wallet. */
+  /** Public address that should sign. defaults to the connected wallet. */
   address?: string;
   /** Network passphrase the dApp expects this tx to use. */
   networkPassphrase?: string;

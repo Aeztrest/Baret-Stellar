@@ -42,7 +42,7 @@ const resources: Array<Resource> = [
     },
   },
   {
-    href: '/conversations',
+    href: '/batch',
     name: 'Batch Analysis',
     description:
       'Analyze up to 25 transactions in a single request. Each transaction is evaluated independently.',

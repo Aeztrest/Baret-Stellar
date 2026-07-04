@@ -35,7 +35,7 @@ const SURFACE_PORTS = new Set(["bx-popup", "bx-options"]);
 export function startRouter(): void {
   browser.runtime.onConnect.addListener((port) => {
     const map = HANDLER_BY_PORT[port.name];
-    if (!map) return; // unknown port — ignore
+    if (!map) return; // unknown port. ignore
 
     // Surface ports (popup/options) get state diffs pushed.
     let unsub: (() => void) | undefined;

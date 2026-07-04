@@ -24,7 +24,7 @@ export function detectSimulationFindings(
       code: "LOW_CONFIDENCE_INCOMPLETE_DATA",
       severity: "medium",
       message:
-        "Classic-only transaction — analyzed without Soroban preflight; balance projections derive from op shape.",
+        "Classic-only transaction. analyzed without Soroban preflight; balance projections derive from op shape.",
     });
   }
   return findings;

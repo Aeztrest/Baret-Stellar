@@ -47,8 +47,7 @@ export function Settings() {
 
       <Section title="Danger zone" icon={AlertTriangle} variant="danger">
         <p className="text-xs text-ink-600 leading-relaxed">
-          Reset wipes the keypair, policy, and history from this browser. The on-chain account stays —
-          but without the authority key you cannot operate it. <strong className="text-[#DC2626]">Make sure you've backed up your secret key first.</strong>
+          Reset wipes the keypair, policy, and history from this browser. The on-chain account stays.           but without the authority key you cannot operate it. <strong className="text-[#DC2626]">Make sure you've backed up your secret key first.</strong>
         </p>
         <button onClick={onReset} className="btn-danger mt-2">
           <Trash2 size={13} /> {confirming ? "Click again to confirm reset" : "Reset wallet"}

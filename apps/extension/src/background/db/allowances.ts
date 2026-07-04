@@ -1,5 +1,5 @@
 /**
- * Allowances store — per-(merchantOrigin, asset) authorization rows with
+ * Allowances store. per-(merchantOrigin, asset) authorization rows with
  * rolling caps. The stateful core BARET provides on top of x402.
  *
  * Spec: docs/extension-architecture.md §7 + docs/policy-dsl.md.
@@ -9,9 +9,9 @@ import type { AllowanceSnapshot } from "@stellar-thorn/ext-protocol";
 import { asPromise, tx } from "./index";
 
 export interface AllowanceRow extends AllowanceSnapshot {
-  /** epoch ms — start of the current rolling-hour window. */
+  /** epoch ms. start of the current rolling-hour window. */
   spentHourTs: number;
-  /** epoch ms — start of the current rolling-day window. */
+  /** epoch ms. start of the current rolling-day window. */
   spentDayTs: number;
   spentTx: number;
   createdAt: number;

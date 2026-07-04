@@ -71,7 +71,7 @@ export type SorobanAuthEntryInfo = {
   contractAddress: string;
   /** Function name being invoked (e.g. `"transfer"`, `"approve"`). */
   functionName: string;
-  /** Full auth entry XDR (base64) — preserved for downstream detectors. */
+  /** Full auth entry XDR (base64). preserved for downstream detectors. */
   entryXdr: string;
   /** `"signed"` (already attached) or `"pending"` (still needs a signer). */
   status: "signed" | "pending";

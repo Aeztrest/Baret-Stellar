@@ -54,7 +54,7 @@ export function Topbar() {
         <div className="text-right">
           <p className="text-[10px] uppercase tracking-wider text-ink-400 font-semibold">Balance</p>
           <p className="text-sm font-bold text-ink-900">
-            {balanceLabel === null ? "—" : balanceLabel.toFixed(4)}
+            {balanceLabel === null ? ". " : balanceLabel.toFixed(4)}
             <span className="text-ink-400 font-medium ml-1">XLM</span>
           </p>
         </div>

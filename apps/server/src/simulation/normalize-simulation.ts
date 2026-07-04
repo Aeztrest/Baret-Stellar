@@ -9,7 +9,7 @@ import type {
 } from "../domain/simulation-normalized.js";
 
 /**
- * Translates a Horizon `AccountResponse` into our wire-shape — drops the SDK
+ * Translates a Horizon `AccountResponse` into our wire-shape. drops the SDK
  * dependency at the boundary so downstream detectors can iterate plain JSON.
  *
  * Returns a "not-yet-funded" stub for `null` (Horizon 404), so detectors don't
@@ -76,7 +76,7 @@ export function accountStateFromHorizon(
 /**
  * Builds the canonical `NormalizedSimulation` from preflight + classic
  * account state. `simulation` may be `null` for purely classic txs (no
- * Soroban op present) — in that case `preflighted = false` and the
+ * Soroban op present). in that case `preflighted = false` and the
  * Soroban-specific fields are emptied.
  */
 export function buildNormalizedSimulation(args: {
@@ -186,7 +186,7 @@ function extractDiagnosticEvents(
         dataXdr,
       });
     } catch {
-      // Skip events the SDK can't decode for us — they shouldn't crash analyze.
+      // Skip events the SDK can't decode for us. they shouldn't crash analyze.
       continue;
     }
   }

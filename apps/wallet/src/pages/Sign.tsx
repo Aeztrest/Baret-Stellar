@@ -155,7 +155,7 @@ export function Sign() {
 
   if (walletPhase === "loading") return <PopupShell><p className="text-sm text-ink-500">Loading wallet…</p></PopupShell>;
   if (walletPhase === "unprovisioned") {
-    return <PopupShell><Centered><p className="text-sm text-ink-900">No wallet — open the wallet to create one.</p></Centered></PopupShell>;
+    return <PopupShell><Centered><p className="text-sm text-ink-900">No wallet. open the wallet to create one.</p></Centered></PopupShell>;
   }
   if (!request) {
     return <PopupShell><Centered><p className="text-sm text-ink-500">Waiting for dApp request…</p></Centered></PopupShell>;

@@ -4,11 +4,11 @@
  * Agents are headless, so config is layered (highest priority first):
  *   1. Explicit options passed in code / CLI flags
  *   2. Environment variables (BARET_*)
- *   3. The on-disk config file (~/.baret/config.json — written by `baret init`)
+ *   3. The on-disk config file (~/.baret/config.json. written by `baret init`)
  *   4. Built-in defaults
  *
  * The agent secret (S…) is ONLY ever read from an explicit option or the
- * BARET_AGENT_SECRET env var — never the config file — so a leaked config file
+ * BARET_AGENT_SECRET env var. never the config file. so a leaked config file
  * can't sign anything.
  */
 
@@ -33,7 +33,7 @@ export const HORIZON_ENDPOINTS: Record<StellarNetwork, string> = {
 export const DEFAULT_SERVER_URL = "http://localhost:8080";
 export const DEFAULT_NETWORK: StellarNetwork = "testnet";
 
-/** Raw, unresolved config — every field optional, any layer may supply it. */
+/** Raw, unresolved config. every field optional, any layer may supply it. */
 export interface RawConfig {
   /** Base URL of the Baret analyze server. */
   serverUrl?: string;

@@ -116,7 +116,7 @@ export class StellarRpcAdapter {
     });
   }
 
-  /** Network info sanity check — backing for the `/ready` endpoint. */
+  /** Network info sanity check. backing for the `/ready` endpoint. */
   async pingRpc(): Promise<void> {
     return withTimeoutRetryOnce(async () => {
       try {
@@ -137,7 +137,7 @@ export class StellarRpcAdapter {
 
   /**
    * Builds a freshly-sequenced `TransactionBuilder` for the configured
-   * network — used by `x402-setup` and demo paywall flows that need to
+   * network. used by `x402-setup` and demo paywall flows that need to
    * craft fund / trustline / payment ops on the server side.
    */
   async newTransactionBuilder(

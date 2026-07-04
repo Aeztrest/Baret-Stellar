@@ -21,7 +21,7 @@ function RequireWallet({ children }: { children: React.ReactNode }) {
   if (phase === "loading") {
     return <div className="min-h-screen flex items-center justify-center text-ink-400 text-sm">Loading wallet…</div>;
   }
-  // Popup routes handle their own "no wallet" state — don't redirect them.
+  // Popup routes handle their own "no wallet" state. don't redirect them.
   if (isPopupRoute) return <>{children}</>;
 
   if (phase === "unprovisioned" && loc.pathname !== "/onboarding") {

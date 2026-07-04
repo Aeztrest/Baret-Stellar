@@ -27,7 +27,7 @@ export function PopupApp() {
 
   // When phase=signing, the head of the queue may be a transaction OR a
   // connect-approval. Poll the queue head so the popup routes to the right
-  // screen — SignRequest for txs/messages, ConnectApproval for connect.
+  // screen. SignRequest for txs and messages, ConnectApproval for connect.
   useEffect(() => {
     if (state?.phase !== "signing") setPendingKind(null);
   }, [state?.phase]);
@@ -62,6 +62,15 @@ export function PopupApp() {
   if (!state || state.phase === "uninitialized") return <UninitializedScreen />;
   if (state.phase === "locked") return <LockedScreen />;
   if (state.phase === "signing") {
+    // Hold a neutral spinner until we know WHICH surface to show. rendering
+    // SignRequest before the queue head resolves flashes the wrong screen.
+    if (pendingKind === null) {
+      return (
+        <div className="h-full flex items-center justify-center text-text-faint">
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      );
+    }
     if (pendingKind === "connect") return <ConnectApproval />;
     return <SignRequest />;
   }
@@ -70,7 +79,6 @@ export function PopupApp() {
     <div className="h-full flex flex-col">
       <TopStrip
         state={state}
-        onOpenAccount={() => { /* T22: account picker sheet */ }}
         onOpenSettings={() => setTab("settings")}
       />
 

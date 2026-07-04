@@ -1,0 +1,151 @@
+export const metadata = {
+  title: 'Policy Engine',
+  description:
+    'Configure block rules and DSL-based policies to control which transactions Baret blocks.',
+}
+
+export const sections = [
+  { title: 'Built-in rules', id: 'builtin-rules' },
+  { title: 'DSL rules', id: 'dsl-rules' },
+  { title: 'Ready-made profiles', id: 'profiles' },
+]
+
+# Policy Engine
+
+The policy engine is what turns risk detector findings into decisions. After all 7 detectors have run, the policy engine evaluates your configured rules against the findings and returns a final `safe: true/false` verdict. {{ className: 'lead' }}
+
+Policy rules can be set per-request (inline in the API call) or configured globally in the Baret dashboard.
+
+---
+
+## Built-in rules {{ id: 'builtin-rules' }}
+
+Boolean flags that cover the most common scenarios. Set any to `true` to activate.
+
+<Properties>
+  <Property name="blockRiskyPrograms" type="boolean">
+    Block any transaction that calls a program on the known-malicious list.
+  </Property>
+  <Property name="blockApprovalChanges" type="boolean">
+    Block any transaction that creates or modifies a token approval (delegate authority).
+  </Property>
+  <Property name="blockDelegateChanges" type="boolean">
+    Block any transaction that sets a token delegate.
+  </Property>
+  <Property name="blockUnknownProgramExposure" type="boolean">
+    Block any transaction that calls a program not on the known-safe allowlist.
+  </Property>
+  <Property name="requireSuccessfulSimulation" type="boolean">
+    Block any transaction whose simulation fails.
+  </Property>
+  <Property name="maxLossPercent" type="number">
+    Block if the simulated XLM loss exceeds this percentage of the account's balance (0–100).
+  </Property>
+  <Property name="minPostUsdcBalance" type="number">
+    Block if the simulated USDC balance after the transaction falls below this threshold (in USDC).
+  </Property>
+</Properties>
+
+Pass inline policy rules in the `policy` field of any analyze request:
+
+```json {{ title: 'Inline policy rules' }}
+{
+  "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
+  "network": "pubnet",
+  "policy": {
+    "blockRiskyPrograms": true,
+    "blockApprovalChanges": true,
+    "requireSuccessfulSimulation": true,
+    "maxLossPercent": 20
+  }
+}
+```
+
+---
+
+## DSL rules {{ id: 'dsl-rules' }}
+
+For advanced logic, the policy engine supports a rule DSL. Rules are evaluated in priority order — the first matching rule that triggers a block stops evaluation.
+
+```json {{ title: 'DSL rule example' }}
+{
+  "rules": [
+    {
+      "condition": {
+        "field": "simulation.status",
+        "op": "eq",
+        "value": "failed"
+      },
+      "action": "block",
+      "reason": "Simulation failed",
+      "priority": 100
+    },
+    {
+      "condition": {
+        "field": "detectors.delta.findings",
+        "op": "contains",
+        "value": "UNLIMITED_APPROVAL"
+      },
+      "action": "block",
+      "reason": "Unlimited token approval detected",
+      "priority": 90
+    },
+    {
+      "condition": {
+        "field": "balanceChanges.xlmDelta",
+        "op": "lt",
+        "value": -5.0
+      },
+      "action": "warn",
+      "reason": "Large XLM outflow",
+      "priority": 50
+    }
+  ]
+}
+```
+
+### Supported operators
+
+<Properties>
+  <Property name="eq / neq" type="operator">
+    Exact equality / inequality check.
+  </Property>
+  <Property name="gt / lt / gte / lte" type="operator">
+    Numeric comparisons.
+  </Property>
+  <Property name="in" type="operator">
+    Field value is in a provided list.
+  </Property>
+  <Property name="contains" type="operator">
+    Array field contains the specified value.
+  </Property>
+  <Property name="exists" type="operator">
+    Field is present and non-null.
+  </Property>
+</Properties>
+
+---
+
+## Ready-made profiles {{ id: 'profiles' }}
+
+Three pre-configured policy profiles are available for quick integration. Pass the profile name in the `policyProfile` field.
+
+<Properties>
+  <Property name="strict" type="profile">
+    Blocks on any failed simulation or any high-severity finding. Recommended for wallets and consumer applications.
+  </Property>
+  <Property name="defi-permissive" type="profile">
+    Only blocks on known bad actors. Warns — but does not block — on large XLM loss (&gt;50%). Designed for DeFi power users who understand the risks.
+  </Property>
+  <Property name="monitor-only" type="profile">
+    Never blocks. All findings are reported but no transaction is stopped. Use for monitoring and audit logging without disrupting the user flow.
+  </Property>
+</Properties>
+
+```json {{ title: 'Using a profile' }}
+{
+  "transaction": "...",
+  "network": "pubnet",
+  "policyProfile": "strict"
+}
+```

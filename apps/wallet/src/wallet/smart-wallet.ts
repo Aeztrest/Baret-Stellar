@@ -29,7 +29,7 @@ export class ProvisionError extends Error {
 /**
  * Resolve the smart-wallet address for a funded authority. Requires the
  * authority account to exist on-chain (fund it via Friendbot first). Idempotent
- * — pass the previously-resolved address back in to short-circuit.
+ *. pass the previously-resolved address back in to short-circuit.
  */
 export async function provisionSmartWallet(
   horizon: Horizon.Server,
@@ -43,7 +43,7 @@ export async function provisionSmartWallet(
   const account = await horizon.loadAccount(authorityAddress).catch(() => null);
   if (!account) {
     throw new ProvisionError(
-      `Authority ${authorityAddress} is not funded on-chain — fund it first.`,
+      `Authority ${authorityAddress} is not funded on-chain. fund it first.`,
     );
   }
   const nativeBalance =

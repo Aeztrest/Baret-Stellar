@@ -1,5 +1,5 @@
 /**
- * Baret guard policy DSL — Stellar build, v2.
+ * Baret guard policy DSL. Stellar build, v2.
  *
  * The server-side schema (apps/server/src/domain/policy.ts) carries the
  * pre-sign subset; client-only rules (allowance windows, behavioral alerts,
@@ -52,7 +52,7 @@ export interface GuardPolicy {
 
   /**
    * Auto-approve x402 payments in the background when they pass every policy
-   * check and sit within the per-tx / hourly / daily caps — no popup. This is
+   * check and sit within the per-tx / hourly / daily caps. no popup. This is
    * the agentic-payments flow: the caps ARE the firewall, so micropayments
    * settle without interrupting the user. When false, every x402 payment
    * surfaces a popup for explicit confirmation. Payments that exceed a cap or
@@ -113,7 +113,7 @@ export interface GuardPolicy {
   /** Maximum number of active sub-keys at once. 0 = no limit. */
   maxActiveSubKeys?: number;
 
-  /** Refuse Soroban `approve` for the i128-max sentinel — always cap. */
+  /** Refuse Soroban `approve` for the i128-max sentinel. always cap. */
   refuseUnlimitedAllowances?: boolean;
 
   /* ───── 1.4 Behavioral / monitoring rules (client-only) ───── */
@@ -146,7 +146,7 @@ export const STRICT_POLICY: GuardPolicy = {
   blockMasterKeyRemoval: true,
   allowWarnings: false,
   requireSuccessfulSimulation: true,
-  // x402 — Strict surfaces every payment for explicit confirmation.
+  // x402. Strict surfaces every payment for explicit confirmation.
   x402AutoApprove: false,
   maxX402PerTx: 0.10,
   x402HourlyCap: 1.00,
@@ -182,7 +182,7 @@ export const BALANCED_POLICY: GuardPolicy = {
   blockMasterKeyRemoval: true,
   allowWarnings: true,
   requireSuccessfulSimulation: true,
-  // x402 — Balanced auto-approves micropayments under caps (no popup).
+  // x402. Balanced auto-approves micropayments under caps (no popup).
   x402AutoApprove: true,
   maxX402PerTx: 1.00,
   x402HourlyCap: 5.00,

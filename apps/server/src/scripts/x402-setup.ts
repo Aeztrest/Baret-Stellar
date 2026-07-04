@@ -2,7 +2,7 @@
  * One-time setup CLI for the x402 demo paywall.
  *
  * Generates (if missing) a merchant Stellar keypair, funds it via friendbot
- * on testnet, and writes the values back to `.env`. Idempotent — running
+ * on testnet, and writes the values back to `.env`. Idempotent. running
  * twice is safe.
  *
  * Usage: pnpm --filter @stellar-thorn/server x402-setup
@@ -31,8 +31,7 @@ const HORIZON_PUBNET = "https://horizon.stellar.org";
 const FRIENDBOT_URL = "https://friendbot.stellar.org";
 const ENV_PATH = join(process.cwd(), ".env");
 
-// Circle's USDC issuers. The merchant must trust the issuer to receive USDC —
-// a Stellar SAC `transfer` aborts with Contract #13 ("trustline entry is
+// Circle's USDC issuers. The merchant must trust the issuer to receive USDC. // a Stellar SAC `transfer` aborts with Contract #13 ("trustline entry is
 // missing") unless the recipient holds a trustline for the asset.
 const USDC_ISSUER_TESTNET =
   "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
@@ -54,7 +53,7 @@ async function main(): Promise<void> {
     network === "stellar:pubnet" ? HORIZON_PUBNET : HORIZON_TESTNET,
   );
 
-  // Step 1 — load or generate merchant keypair.
+  // Step 1. load or generate merchant keypair.
   let merchantSecret = process.env.X402_MERCHANT_SECRET?.trim();
   let merchant: Keypair;
   let generated = false;
@@ -81,7 +80,7 @@ async function main(): Promise<void> {
     console.log(`  → saved to .env (rerun-safe)`);
   }
 
-  // Step 2 — make sure the account exists on-chain.
+  // Step 2. make sure the account exists on-chain.
   let exists = await accountExists(horizon, merchant.publicKey());
   if (!exists) {
     if (network !== "stellar:testnet") {
@@ -110,7 +109,7 @@ async function main(): Promise<void> {
     console.log("✓ Merchant account exists on-chain");
   }
 
-  // Step 2b — establish the merchant's USDC trustline so it can RECEIVE USDC.
+  // Step 2b. establish the merchant's USDC trustline so it can RECEIVE USDC.
   // Without it the SAC `transfer` aborts with Contract #13 on the merchant
   // side. Idempotent: skipped if the trustline already exists.
   const usdcIssuer =
@@ -149,7 +148,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // Step 3 — persist remaining keys (idempotent merge).
+  // Step 3. persist remaining keys (idempotent merge).
   const envLines: string[] = existsSync(ENV_PATH)
     ? readFileSync(ENV_PATH, "utf8").split("\n")
     : [];

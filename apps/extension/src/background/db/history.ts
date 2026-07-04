@@ -1,5 +1,5 @@
 /**
- * History store — every tx the wallet processed (signed, declined, broadcast).
+ * History store. every tx the wallet processed (signed, declined, broadcast).
  * Bounded; the tail is trimmed to MAX_ENTRIES.
  *
  * Spec: docs/extension-architecture.md §7.
@@ -24,7 +24,7 @@ export async function appendHistory(row: Omit<HistoryRow, "id"> & { id?: string 
   await tx("history", "readwrite", async (t) => {
     await asPromise(t.objectStore("history").put(full));
   });
-  // Trim opportunistically — cheap because the index is sorted by createdAt.
+  // Trim opportunistically. cheap because the index is sorted by createdAt.
   await trim();
   return full;
 }

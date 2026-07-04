@@ -13,7 +13,7 @@ import { SimulationReplayEngine } from "../../simulation/replay.js";
 const replayRequestSchema = z.object({
   network: networkSchema,
   transactionXdr: z.string().min(1),
-  /** Informational only — Stellar does not expose historical preflight. */
+  /** Informational only. Stellar does not expose historical preflight. */
   ledger: z.number().int().positive().optional(),
 });
 

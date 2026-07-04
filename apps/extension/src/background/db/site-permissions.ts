@@ -1,5 +1,5 @@
 /**
- * Per-origin connection trust, a "Trusted Sites" concept — once the user
+ * Per-origin connection trust, a "Trusted Sites" concept. once the user
  * explicitly Allows an origin, subsequent `standard:connect` calls resolve
  * immediately without a popup.
  * Deny works the same way in reverse.

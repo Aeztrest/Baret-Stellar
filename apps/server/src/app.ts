@@ -45,7 +45,7 @@ export async function buildApp(config: AppConfig) {
     });
   }
 
-  // Single-network adapter — Stellar deploys are network-bound (testnet OR
+  // Single-network adapter. Stellar deploys are network-bound (testnet OR
   // pubnet) so we hold one instance per process and hand it out to routes
   // that need to talk to Horizon / Soroban RPC.
   const sharedAdapter = new StellarRpcAdapter(

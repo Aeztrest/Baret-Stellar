@@ -1,10 +1,10 @@
 /**
- * Locked screen — passphrase unlock for an existing wallet.
+ * Locked screen. Passphrase unlock for an existing wallet.
  * Spec: docs/wallet-spec.md §11 (error-state copy "Wallet locked").
  */
 
 import { useState } from "react";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { Button, Input, Mark } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 
@@ -31,11 +31,11 @@ export function LockedScreen() {
 
   return (
     <div className="h-full flex flex-col items-center justify-center px-6 gap-6">
-      <div className="text-accent-soft">
+      <div className="text-primary">
         <Mark size={36} />
       </div>
       <div className="text-center space-y-1">
-        <h1 className="text-lg font-extrabold tracking-tight">Baret</h1>
+        <h1 className="font-display text-lg font-semibold uppercase tracking-tight text-foreground">Baret</h1>
         <p className="text-text-faint text-xs">Enter your passphrase to unlock</p>
       </div>
 
@@ -61,15 +61,17 @@ export function LockedScreen() {
           Unlock
         </Button>
         {error && (
-          <p className="text-bad text-xs px-1 py-2 rounded-input"
-             style={{ background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)" }}>
-            {error}
-          </p>
+          <div className="text-xs px-3 py-2 rounded-input flex items-start gap-2"
+               style={{ background: "var(--bad-dim)", color: "var(--bad)" }}>
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
         )}
       </form>
 
       <p className="text-text-faint text-[10px] text-center px-4">
-        Lost your passphrase? You'll need to reset and restore from your secret key.
+        Lost your passphrase? Reset the wallet from Settings, then pick "I
+        already have a key" in setup to restore from your secret key backup.
       </p>
     </div>
   );

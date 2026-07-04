@@ -39,7 +39,7 @@ export function isSorobanTransaction(tx: Transaction): boolean {
 
 /**
  * Selects the first N classic accounts to fetch pre-state for. Caps the
- * Horizon round-trip count — large multi-op txs can otherwise blow the
+ * Horizon round-trip count. large multi-op txs can otherwise blow the
  * request budget. The cap is shared with `MAX_SIMULATION_OPERATIONS`.
  */
 export function pickAccountsForSimulation(
@@ -61,7 +61,7 @@ export class StellarSimulator {
     const { network, tx, accountIdsForPreState } = params;
     const adapter = this.adapterFactory(network);
 
-    // 1. Pre-state in parallel — Horizon for classic accounts, preflight for Soroban.
+    // 1. Pre-state in parallel. Horizon for classic accounts, preflight for Soroban.
     //    Strip auth entries before preflight: a pre-sign tx carries UNSIGNED
     //    address-credential auth (e.g. x402 payments signed only after the user
     //    approves). Enforcing them fails with `Error(Auth, InvalidAction)`.

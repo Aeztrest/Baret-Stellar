@@ -2,8 +2,7 @@
  * Baret analyze HTTP client (background-side, Stellar build).
  *
  * Talks to the apps/server `/v1/analyze` endpoint to get a structured
- * verdict on a candidate transaction. Decides everything client-side after —
- * including policy enforcement — so the analyze server is one input among
+ * verdict on a candidate transaction. Decides everything client-side after.  * including policy enforcement. so the analyze server is one input among
  * many, not the trust boundary.
  */
 

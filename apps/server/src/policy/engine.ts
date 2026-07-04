@@ -55,7 +55,7 @@ export function evaluatePolicy(input: PolicyEvaluationInput): Decision {
       reasons.push("Soroban preflight failed; blocking under policy");
     } else {
       infoReasons.push(
-        "Soroban preflight failed, but policy does not require successful simulation — allowed",
+        "Soroban preflight failed, but policy does not require successful simulation. allowed",
       );
     }
   }
@@ -160,7 +160,7 @@ export function evaluatePolicy(input: PolicyEvaluationInput): Decision {
   if (policy.minPostUsdcBalance != null) {
     const asset =
       policy.minPostAsset?.trim() ||
-      // Both the classic and Soroban-SAC forms are accepted — the asset
+      // Both the classic and Soroban-SAC forms are accepted. the asset
       // diff list keys on the classic form; Soroban-event-derived entries
       // appear under `C:<contractId>`.
       usdcAsset;

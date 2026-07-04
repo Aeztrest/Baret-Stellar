@@ -1,21 +1,21 @@
 /**
- * x402 Console — the live dashboard for the agentic-payment protocol no other
+ * x402 Console. The live dashboard for the agentic-payment protocol no other
  * wallet protects. Two real-time feeds, polled every few seconds:
  *
- *   1. A payment ticker — every x402 micropayment the firewall auto-approved,
+ *   1. A payment ticker. Every x402 micropayment the firewall auto-approved,
  *      newest first (`history.list { type: "x402" }`).
- *   2. The per-merchant ledger — rolling caps, spend, and status per merchant
+ *   2. The per-merchant ledger. Rolling caps, spend, and status per merchant
  *      (`ledger.list`).
  *
  * Lives at /x402 in the Options HashRouter.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
-  Shield, Coins, Store, Activity as ActivityIcon, Loader2, Globe, Clock,
+  Shield, Coins, Store, Activity as ActivityIcon, Globe, Clock, AlertTriangle,
 } from "lucide-react";
 import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
-import { Badge, Card, Meter, StatTile, usePolling } from "@stellar-thorn/ui";
+import { Badge, Button, EmptyState, Meter, usePolling, SpotlightCard, RevealGroup, RevealItem } from "@stellar-thorn/ui";
 import { useRpc } from "../../shared/state-context";
 
 export function X402Page() {
@@ -52,31 +52,47 @@ export function X402Page() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <Shield size={24} className="text-accent-soft" /> x402 Console
+        <h1 className="text-3xl font-display font-bold uppercase tracking-tight text-foreground flex items-center gap-2">
+          <Shield size={24} className="text-muted-foreground" /> x402 Console
         </h1>
-        <p className="text-text-muted text-sm mt-1">
-          Live view of every x402 micropayment the firewall settled under your caps —
+        <p className="text-muted-foreground text-sm mt-1">
+          Live view of every payment on x402, the machine-payments protocol, that the firewall settled under your caps,
           and the rolling ledger that keeps each merchant in check.
         </p>
       </div>
 
       {err && (
-        <div className="card" style={{ background: "var(--bad-dim)" }}>
-          <p className="text-bad text-sm">{err}</p>
+        <div
+          className="rounded-md p-4 flex items-start gap-3"
+          style={{ background: "var(--bad-dim)", color: "var(--bad)" }}
+        >
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Couldn't load the x402 console</p>
+            <p className="text-xs opacity-80 mt-0.5 break-words">{err}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => void refresh()}>Retry</Button>
         </div>
       )}
 
       {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card padding="sm"><StatTile icon={<Store size={13} />} label="Merchants" value={stats.merchants} /></Card>
-        <Card padding="sm"><StatTile icon={<ActivityIcon size={13} />} label="Payments" value={stats.totalHits} /></Card>
-        <Card padding="sm"><StatTile icon={<Coins size={13} />} label="Spent today" value={stats.spentToday.toFixed(4)} suffix="USDC" variant="mono" /></Card>
-      </div>
+      <RevealGroup className="grid grid-cols-3 gap-3">
+        <RevealItem><StatCard icon={<Store size={13} />} label="Merchants" value={stats.merchants} /></RevealItem>
+        <RevealItem><StatCard icon={<ActivityIcon size={13} />} label="Payments" value={stats.totalHits} /></RevealItem>
+        <RevealItem><StatCard icon={<Coins size={13} />} label="Spent today" value={stats.spentToday.toFixed(4)} suffix="USDC" mono /></RevealItem>
+      </RevealGroup>
 
-      {loading && (
-        <div className="flex items-center gap-2 text-text-faint text-sm">
-          <Loader2 size={14} className="animate-spin" /> Loading…
+      {loading && !err && (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="card flex items-start gap-4">
+              <div className="w-10 h-10 rounded-input bg-secondary animate-pulse shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-44 rounded bg-secondary animate-pulse" />
+                <div className="h-2.5 w-28 rounded bg-secondary animate-pulse" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -87,18 +103,19 @@ export function X402Page() {
             <span className="dot dot-ok" /> Live payments
           </h2>
           {payments!.length === 0 ? (
-            <div className="card text-center py-10">
-              <Coins size={26} className="mx-auto mb-3 text-text-faint" />
-              <h3 className="font-bold mb-1.5">No x402 payments yet</h3>
-              <p className="text-text-faint text-sm max-w-md mx-auto leading-relaxed">
-                Visit an x402 paywall like Scrybe and pay a question. Every micropayment the
-                firewall auto-approves under your caps streams in here in real time.
-              </p>
+            <div className="card">
+              <EmptyState
+                icon={<Coins size={22} />}
+                title="No x402 payments yet"
+                description="Visit an x402 paywall like Scrybe and pay a question. Every micropayment the firewall auto-approves under your caps streams in here in real time."
+              />
             </div>
           ) : (
-            <div className="space-y-2">
-              {payments!.map((p) => <PaymentRow key={p.id} entry={p} />)}
-            </div>
+            <RevealGroup className="space-y-2">
+              {payments!.map((p) => (
+                <RevealItem key={p.id}><PaymentRow entry={p} /></RevealItem>
+              ))}
+            </RevealGroup>
           )}
         </section>
       )}
@@ -109,21 +126,43 @@ export function X402Page() {
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
             Per-merchant ledger
           </h2>
-          <div className="space-y-2">
+          <RevealGroup className="space-y-2">
             {ledger!
               .slice()
               .sort((a, b) => (b.lastHitAt ?? 0) - (a.lastHitAt ?? 0))
-              .map((a) => <LedgerRow key={a.id} row={a} />)}
-          </div>
+              .map((a) => <RevealItem key={a.id}><LedgerRow row={a} /></RevealItem>)}
+          </RevealGroup>
         </section>
       )}
     </div>
   );
 }
 
+function StatCard({ icon, label, value, suffix, mono }: {
+  icon: ReactNode; label: string; value: ReactNode; suffix?: string; mono?: boolean;
+}) {
+  return (
+    <SpotlightCard className="h-full">
+      <div className="flex flex-col gap-2 p-3">
+        <span className="w-8 h-8 rounded-input flex items-center justify-center border border-border bg-secondary text-muted-foreground transition-colors group-hover/spot:text-foreground">
+          {icon}
+        </span>
+        <div className="flex items-baseline gap-1">
+          <span className={`font-extrabold tracking-tight text-text leading-none ${mono ? "font-mono tabular-nums text-2xl" : "font-display text-3xl"}`}>
+            {value}
+          </span>
+          {suffix && <span className="text-xs font-semibold text-text-faint">{suffix}</span>}
+        </div>
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-faint">{label}</span>
+      </div>
+    </SpotlightCard>
+  );
+}
+
 function PaymentRow({ entry }: { entry: HistoryEntry }) {
   return (
-    <article className="card flex items-start gap-4">
+    <SpotlightCard>
+      <div className="flex items-start gap-4 p-4">
       <div
         className="w-10 h-10 rounded-input flex items-center justify-center shrink-0"
         style={{ background: "var(--ok-dim, rgba(34,197,94,0.12))", border: "1px solid var(--line)" }}
@@ -143,17 +182,19 @@ function PaymentRow({ entry }: { entry: HistoryEntry }) {
           <span>{relativeTime(entry.createdAt)}</span>
         </div>
       </div>
-    </article>
+      </div>
+    </SpotlightCard>
   );
 }
 
 function LedgerRow({ row }: { row: AllowanceSnapshot }) {
   const tone = row.status === "active" ? "ok" : row.status === "paused" ? "warn" : "bad";
   return (
-    <Card padding="sm">
+    <SpotlightCard>
+      <div className="p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Store size={14} className="text-text-muted shrink-0" />
+          <Store size={14} className="text-text-muted shrink-0 transition-colors group-hover/spot:text-foreground" />
           <span className="font-semibold text-sm truncate">{pretty(row.merchantOrigin)}</span>
         </div>
         <Badge tone={tone} className="shrink-0">{row.status}</Badge>
@@ -165,7 +206,8 @@ function LedgerRow({ row }: { row: AllowanceSnapshot }) {
       <div className="mt-2">
         <Meter label="Today" value={row.spentDay} max={row.capPerDay} formatValue={(v, m) => `${v.toFixed(4)} / ${m.toFixed(2)} USDC`} size="compact" />
       </div>
-    </Card>
+      </div>
+    </SpotlightCard>
   );
 }
 

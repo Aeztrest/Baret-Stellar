@@ -9,6 +9,32 @@ export { Mark } from "./brand/Mark";
 
 export { cn } from "./lib/cn";
 
+/* ── Theme + portal infrastructure ── */
+export {
+  ThemeProvider,
+  useTheme,
+  applyStoredTheme,
+} from "./lib/theme";
+export type { ThemeMode, ResolvedTheme } from "./lib/theme";
+export { PortalContainerProvider, usePortalContainer } from "./lib/portal";
+export { ThemeToggle } from "./theme/ThemeToggle";
+
+/* ── Motion primitives ── */
+export { Reveal, RevealGroup, RevealItem } from "./motion/Reveal";
+export type { RevealProps, RevealGroupProps } from "./motion/Reveal";
+export { SpotlightCard } from "./motion/SpotlightCard";
+export type { SpotlightCardProps } from "./motion/SpotlightCard";
+export { ScrollVideoHero } from "./motion/ScrollVideoHero";
+export type { ScrollVideoHeroProps } from "./motion/ScrollVideoHero";
+
+/* ── Marketing layout primitives ── */
+export { Container } from "./layout/Container";
+export { Eyebrow } from "./layout/Eyebrow";
+export { PageSection, SectionHeading } from "./layout/PageSection";
+
+/* ── shadcn/ui layer (Sh* prefix) ── */
+export * from "./shadcn";
+
 export { toneStyle } from "./utils/tone";
 export type { Tone, ToneStyle } from "./utils/tone";
 export { shortAddr } from "./utils/address";

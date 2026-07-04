@@ -1,0 +1,118 @@
+export const metadata = {
+  title: 'Risk Detectors',
+  description:
+    'Baret runs 7 independent risk detectors on every transaction. Each produces its own findings.',
+}
+
+export const sections = [
+  { title: 'Simulation Detector', id: 'simulation' },
+  { title: 'Program Detector', id: 'program' },
+  { title: 'CPI Detector', id: 'cpi' },
+  { title: 'Reputation Detector', id: 'reputation' },
+  { title: 'Compute Detector', id: 'compute' },
+  { title: 'Delta Detector', id: 'delta' },
+  { title: 'Token-2022 Detector', id: 'token2022' },
+]
+
+# Risk Detectors
+
+Baret runs 7 independent detectors on every transaction. Each operates on the same simulation data but looks for a different class of risk. All findings are aggregated before the policy engine makes its final decision. {{ className: 'lead' }}
+
+---
+
+## Simulation Detector {{ id: 'simulation' }}
+
+The foundation of every analysis. Asks the Stellar RPC: _"What would happen if this transaction were broadcast right now?"_ — without broadcasting it. If the simulation fails, a `SIMULATION_FAILED` finding is raised. All other detectors still run, but confidence is reduced.
+
+<Properties>
+  <Property name="SIMULATION_FAILED" type="critical">
+    The transaction would fail on-chain. The RPC error message is included in the finding.
+  </Property>
+</Properties>
+
+---
+
+## Program Detector {{ id: 'program' }}
+
+Inspects every program called in the transaction, including those invoked transitively via CPI.
+
+<Properties>
+  <Property name="RISKY_PROGRAM" type="high">
+    A program on the known-malicious list was invoked — associated with wallet drainers, known exploits, or confirmed phishing infrastructure.
+  </Property>
+  <Property name="UNKNOWN_PROGRAM" type="medium">
+    A program not on the known-safe allowlist was called. Not necessarily malicious, but not verified either.
+  </Property>
+</Properties>
+
+---
+
+## CPI Detector {{ id: 'cpi' }}
+
+Cross-Program Invocation (CPI) allows programs to call other programs. A swap aggregator might invoke 5 programs in a single transaction. This detector maps the full CPI call tree and looks for risk buried inside it.
+
+<Properties>
+  <Property name="DEEP_CPI_CHAIN" type="medium">
+    CPI depth exceeds 4 levels. Deep chains can obscure what a transaction actually does.
+  </Property>
+  <Property name="RISKY_PROGRAM_IN_CPI" type="high">
+    A risky program appears inside the CPI tree, even if not called directly by the top-level instruction.
+  </Property>
+</Properties>
+
+---
+
+## Reputation Detector {{ id: 'reputation' }}
+
+Checks every address in the transaction — signers, program IDs, token accounts — against the Baret reputation database of known drainers, phishing addresses, and exploit-related accounts.
+
+<Properties>
+  <Property name="KNOWN_BAD_ACTOR" type="critical">
+    An address involved in this transaction is in the reputation database. Category and label are included (e.g., `wallet-drainer`, `phishing`).
+  </Property>
+</Properties>
+
+---
+
+## Compute Detector {{ id: 'compute' }}
+
+Unusually high compute unit consumption can indicate complex exploit payloads or transactions that destabilize the network.
+
+<Properties>
+  <Property name="HIGH_COMPUTE_USAGE" type="medium">
+    The transaction used more than 1,200,000 compute units — the top ~1% of all Stellar transactions by compute cost.
+  </Property>
+</Properties>
+
+---
+
+## Delta Detector {{ id: 'delta' }}
+
+Analyzes the balance changes produced by simulation: XLM flows, token transfers, and — critically — approval and delegate changes.
+
+<Properties>
+  <Property name="UNLIMITED_APPROVAL" type="high">
+    A token approval grants `u64::MAX` (unlimited) spending authority to another account. This is the defining signature of most wallet drainer attacks.
+  </Property>
+  <Property name="DELEGATE_CHANGE" type="high">
+    A token delegate was set, granting a third party permission to transfer tokens without further approval.
+  </Property>
+  <Property name="INSUFFICIENT_DATA" type="low">
+    Simulation data was incomplete — balance changes could not be fully computed. Confidence is reduced.
+  </Property>
+</Properties>
+
+---
+
+## Token-2022 Detector {{ id: 'token2022' }}
+
+The Token Extensions program (Token-2022) supports optional extensions that can have serious security implications. This detector flags dangerous extensions on any Token-2022 mint involved in the transaction.
+
+<Properties>
+  <Property name="TRANSFER_HOOK" type="high">
+    The token mint has a `TransferHook` extension. Every transfer of this token triggers an arbitrary program call — if malicious, it can steal tokens or drain balances.
+  </Property>
+  <Property name="PERMANENT_DELEGATE" type="high">
+    The token mint has a `PermanentDelegate` extension. The designated account can transfer or burn any holder's tokens at any time, without approval.
+  </Property>
+</Properties>

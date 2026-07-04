@@ -18,7 +18,7 @@ import { fetchNativeBalance, provisionSmartWallet } from "./smart-wallet";
 
 export interface WalletIdentity {
   authority: Keypair;
-  /** Authority `G…` ed25519 address — pays fees and signs. */
+  /** Authority `G…` ed25519 address. pays fees and signs. */
   address: string;
   /** Smart-wallet address (`C…` contract or placeholder `G…`). Null until provisioned. */
   smartWalletAddress: string | null;
@@ -125,7 +125,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const provision = useCallback(
     async (onProgress?: (p: ProvisionProgress) => void): Promise<void> => {
-      if (!identity) throw new Error("No wallet identity — create one first");
+      if (!identity) throw new Error("No wallet identity. create one first");
       if (identity.smartWalletAddress) return;
       if (provisioningRef.current) return provisioningRef.current;
 

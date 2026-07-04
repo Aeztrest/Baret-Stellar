@@ -3,9 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Baret — Sign safe. Build on. | Stellar smart wallet</title>
-    <meta name="description" content="Baret is the hard hat for your Stellar wallet — every transaction is simulated, explained, and blocked when dangerous, before your keys ever sign." />
-    <meta name="theme-color" content="#FF6B00" />
+
+    <!-- Primary -->
+    <title>Baret. Read the transaction before you sign it. | Stellar wallet</title>
+    <meta name="description" content="Baret is a Stellar wallet that reads a transaction before you sign it. It decodes the transaction, simulates what it does, and blocks the dangerous ones. It caps what each site and each x402 agent can spend, and enforces those caps on-chain. Live on testnet." />
+    <meta name="author" content="Baret" />
+    <meta name="keywords" content="Stellar wallet, transaction firewall, x402, agentic payments, Soroban, pre-sign simulation, wallet security, smart wallet, USDC, PaymentGuard" />
+    <link rel="canonical" href="https://baret.dev/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Browser chrome color: white in light, ink in dark -->
+    <meta name="theme-color" content="#FAF8F4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Baret" />
+    <meta property="og:title" content="Baret. Read it before you sign." />
+    <meta property="og:description" content="Every wallet signs whatever the app shows you. Baret reads it first, then gives you a verdict: Safe / Caution / Blocked. It caps what each x402 agent can spend and enforces that cap on-chain." />
+    <meta property="og:url" content="https://baret.dev/" />
+    <meta property="og:image" content="https://baret.dev/og-cover.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Baret. A Stellar wallet with a transaction firewall." />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@baretxyz" />
+    <meta name="twitter:title" content="Baret. Read it before you sign." />
+    <meta name="twitter:description" content="Every wallet signs whatever the app shows you. Baret reads it first, then gives you a verdict before your keys ever move: Safe / Caution / Blocked." />
+    <meta name="twitter:image" content="https://baret.dev/og-cover.jpg" />
+
+    <!-- Icons + manifest -->
+    <link rel="apple-touch-icon" sizes="128x128" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <script>
+      /* Apply the persisted Baret theme before first paint, no flash. */
+      (function () {
+        try {
+          var m = localStorage.getItem("baret-theme") || "system";
+          var dark =
+            m === "dark" ||
+            (m === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var el = document.documentElement;
+          el.classList.toggle("dark", dark);
+          el.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
     <link
       rel="icon"
       type="image/svg+xml"
@@ -17,6 +63,21 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Baret",
+        "applicationCategory": "SecurityApplication",
+        "operatingSystem": "Chrome, Firefox, Brave, Edge",
+        "description": "A Stellar wallet with a transaction firewall. It reads and simulates every transaction before you sign, keeps a running spend cap for each site, and enforces caps on x402 agent payments on-chain.",
+        "url": "https://baret.dev/",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "creator": { "@type": "Organization", "name": "Baret", "url": "https://baret.dev/" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

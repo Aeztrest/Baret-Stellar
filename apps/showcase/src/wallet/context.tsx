@@ -7,9 +7,9 @@
  *
  * Design rules:
  *  - `connect(provider)` ALWAYS requires an explicit provider. We never auto-
- *    pick from the list — that's how malicious wallets hijack the flow.
+ *    pick from the list. That's how malicious wallets hijack the flow.
  *  - When a site action ("Swap", "Mint", etc.) needs a wallet, the site
- *    calls `openWalletModal()` — the user explicitly picks Baret from
+ *    calls `openWalletModal()` and the user explicitly picks Baret from
  *    the picker.
  *  - The wallet modal renders ONCE inside the provider so every route
  *    shares the same picker state.
@@ -24,6 +24,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "@stellar-thorn/ui";
 import {
   discoverStellarProviders,
   WalletStandardBridge,
@@ -58,8 +59,8 @@ export interface WalletState {
     ) => Promise<{ signedAuthEntry: string; signerAddress: string }>;
   };
   /**
-   * Connects a SECOND, independent wallet — deliberately not the connected
-   * `adapter` above — for the "Send without protection" comparison. Baret
+   * Connects a SECOND, independent wallet, deliberately not the connected
+   * `adapter` above, for the "Send without protection" comparison. Baret
    * enforces its policy at sign time inside its own popup; when Baret is the
    * connected wallet there is no code path that skips that check for its
    * own account, by design. The only honest "without Baret" demo is signing
@@ -114,9 +115,16 @@ export function WalletProvider({
         const b = await WalletStandardBridge.connect(provider);
         setBridge(b);
         setModalOpen(false);
+        toast.success("Wallet connected", {
+          description: `${provider.name} · ${short(b.account_pubkey())}`,
+        });
         return b;
       } catch (err) {
         if (!(err instanceof WalletStandardBridgeError)) console.error(err);
+        toast.error("Couldn't connect wallet", {
+          description:
+            err instanceof Error ? err.message : "The connection was declined or failed.",
+        });
         return null;
       } finally {
         setConnecting(false);
@@ -128,6 +136,7 @@ export function WalletProvider({
   const disconnect = useCallback(async () => {
     if (bridge) await bridge.disconnect().catch(() => {});
     setBridge(null);
+    toast("Wallet disconnected");
   }, [bridge]);
 
   const openWalletModal = useCallback(() => {
@@ -184,7 +193,7 @@ export function WalletProvider({
       candidates.find((p) => p.name === "Freighter") ?? candidates[0];
     if (!provider) {
       throw new WalletStandardBridgeError(
-        "No second wallet available for the unprotected comparison — install Freighter to see this path.",
+        "No second wallet available for the unprotected comparison. Install Freighter to see this path.",
         "NO_RAW_WALLET",
       );
     }

@@ -3,7 +3,7 @@ import { readWallet, writeWallet, type PersistedWallet } from "../storage/wallet
 
 /**
  * Generate a fresh Stellar authority keypair and persist it to localStorage.
- * Throws if a wallet already exists — caller must explicitly reset first to
+ * Throws if a wallet already exists. caller must explicitly reset first to
  * avoid accidental key destruction.
  */
 export function createNewWallet(): { authority: Keypair } {

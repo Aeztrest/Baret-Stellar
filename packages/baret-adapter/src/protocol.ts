@@ -27,7 +27,7 @@ export interface ConnectApprovedMessage {
   walletAddress: string;
   /** Authority ed25519 key (`G…`) that signs auth entries on behalf of the user. */
   authorityAddress: string;
-  /** Smart-wallet contract address — same family as `walletAddress`. */
+  /** Smart-wallet contract address. same family as `walletAddress`. */
   smartWalletAddress: string;
 }
 
@@ -46,7 +46,7 @@ export interface SignApprovedMessage {
   requestId: RequestId;
   /** Base64-encoded signed `TransactionEnvelope` XDR. */
   signedTransactionXdr: string;
-  /** Present only when mode=signAndSend — Horizon tx hash. */
+  /** Present only when mode=signAndSend. Horizon tx hash. */
   signature?: string;
 }
 

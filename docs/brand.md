@@ -114,7 +114,7 @@ Every state colour has a ~10% alpha background variant (`--ok-dim`, `--warn-dim`
 
 - **No multi-colour gradients.** Single-colour glow halos only (e.g. `--accent-glow` blur behind a hero card).
 - **No saturated reds for non-critical UI.** `--bad` is reserved for actually-blocked or actually-drifting state. Never for "delete" buttons on unsigned actions.
-- **No dark-canvas surfaces.** The wallet is light-only by design; don't introduce a competing dark theme without a PR that defines a full dark token set first.
+- **Light-first, one dark theme.** The wallet leads with the white-first identity, and a maintained dark token set ships as the `.dark` block in `packages/ui/src/tokens.css`. New components must style both modes from those tokens; never invent a second dark palette outside them.
 - **No success-green CTAs.** Primary action is always safety-orange; green is reserved for confirmation chrome.
 
 ---
@@ -123,12 +123,13 @@ Every state colour has a ~10% alpha background variant (`--ok-dim`, `--warn-dim`
 
 ### 4.1 Type families
 
-- **Display + UI body:** *Inter Variable* (sans-serif, geometric-humanist).
-- **Numerical / mono:** *JetBrains Mono Variable* (monospace, programmer-grade).
-- **Microcopy uppercase tracker:** Inter Variable, weight 600, letter-spacing +6%, font-feature-settings `"cv11"`.
+- **Display:** *Space Grotesk* (sans-serif, geometric). Headings, hero type, and card titles on shipped surfaces.
+- **UI body:** *Inter* (sans-serif, geometric-humanist).
+- **Numerical / mono:** *JetBrains Mono* (monospace, programmer-grade).
+- **Microcopy uppercase tracker:** Inter, weight 600, letter-spacing +6%, font-feature-settings `"cv11"`.
 
-Both fonts are loaded via Google Fonts CSS in dev; self-hosted as woff2 in
-production builds. Subset to Latin Extended.
+All three families are loaded via Google Fonts CSS in dev; self-hosted as woff2
+in production builds. Subset to Latin Extended.
 
 ### 4.2 Type scale
 
@@ -255,7 +256,7 @@ A dozen recurring icons cover 90% of the wallet:
 | "Error: insufficient balance" | "Not enough USDC. You need 0.4 more." |
 | "Transaction signed" | "Sent. Block 287,442,019." |
 | "Wallet not connected" | "Connect your wallet to continue." |
-| "Are you sure?" | "Sign this transfer of 1.2 SOL?" |
+| "Are you sure?" | "Sign this transfer of 1.2 XLM?" |
 | "Approve unlimited" | "Allow this dApp to spend up to 10 USDC. Cap can be lowered any time." |
 | "WARNING ⚠️" | (a single amber dot + plain sentence) |
 
@@ -272,9 +273,13 @@ A dozen recurring icons cover 90% of the wallet:
 
 ### Words we don't use
 
-`Demo`, `test`, `experiment`, `hackathon`, `we are an AI`, `🚀`, `LFG`, `wagmi`,
+`test`, `experiment`, `hackathon`, `we are an AI`, `🚀`, `LFG`, `wagmi`,
 `degens`, `revolutionary`, `disruptive`, `seamless`, `unlock`, `empower`. None
 of these belong in a security wallet's copy.
+
+`Demo` is scoped, not banned outright. The showcase surfaces are demos and say
+so plainly, which is the honest word for them. It stays banned inside the
+wallet extension's own UI copy.
 
 ---
 
@@ -374,7 +379,7 @@ full-bleed *Sign Request* surface — no nav, no balance, no chrome — with:
 ```
 ┌──────────────────────────┐
 │ origin + appName chip    │
-│ Action verb in display-l │  e.g. "Send 0.5 SOL"
+│ Action verb in display-l │  e.g. "Send 0.5 XLM"
 ├──────────────────────────┤
 │ Hero finding (one-liner) │  Safe / Warning / Blocked
 │                          │
@@ -422,4 +427,4 @@ Candid.* — outranks any specific rule below.
 
 ---
 
-*Last updated: 2026-07-02 · Source of truth for all visual + verbal design decisions in this repo.*
+*Last updated: 2026-07-03 · Reconciled with the shipped product: dark token set (§3.4), Space Grotesk display type (§4.1), scoped "demo" wording (§8), XLM examples (§8, §10.4) · Source of truth for all visual + verbal design decisions in this repo.*

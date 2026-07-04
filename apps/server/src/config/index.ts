@@ -60,7 +60,7 @@ export type StellarNetworkConfig = {
   usdcIssuer: string;
   /** Classic USDC asset code (almost always `"USDC"`). */
   usdcCode: string;
-  /** Soroban USDC SAC contract address (`C…`) — what x402 transfers reference. */
+  /** Soroban USDC SAC contract address (`C…`). what x402 transfers reference. */
   usdcContractAddress: string;
 };
 
@@ -90,7 +90,7 @@ const USDC_ISSUER_PUBNET =
 const USDC_ISSUER_TESTNET =
   "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
 
-// Stellar Asset Contract (SAC) addresses — what @x402/stellar transfers reference.
+// Stellar Asset Contract (SAC) addresses. what @x402/stellar transfers reference.
 const USDC_CONTRACT_PUBNET =
   "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75";
 const USDC_CONTRACT_TESTNET =

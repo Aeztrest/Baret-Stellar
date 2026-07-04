@@ -1,7 +1,7 @@
 /**
  * Top-level error boundary for the showcase.
  *
- * Replaces silent blank screens — when a child route or component throws
+ * Replaces silent blank screens. When a child route or component throws
  * during render, we surface the error text + stack + a "Reset" button
  * instead of crashing into a blank document. Critical for dev: without
  * this, a single typo anywhere in the tree shows nothing in the DOM.
@@ -41,44 +41,35 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error, info } = this.state;
 
     return (
-      <div
-        className="min-h-screen flex items-center justify-center p-6 text-ink-900"
-        style={{ background: "#FAF8F4" }}
-      >
-        <div
-          className="max-w-2xl w-full rounded-2xl p-6 bg-white shadow-lift"
-          style={{ border: "1px solid rgba(255,107,0,0.4)" }}
-        >
-          <div className="flex items-center gap-3 mb-4">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+        <div className="w-full max-w-2xl rounded-2xl border border-primary/40 bg-card p-6 shadow-lift">
+          <div className="mb-4 flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "rgba(255,107,0,0.12)", border: "1px solid rgba(255,107,0,0.4)" }}
+              className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/40"
+              style={{ background: "var(--accent-dim)" }}
             >
-              <AlertTriangle size={18} className="text-brand-600" />
+              <AlertTriangle size={18} className="text-primary" />
             </div>
             <div>
-              <h1 className="font-bold text-lg">Something broke</h1>
-              <p className="text-ink-400 text-xs mt-0.5">
+              <h1 className="font-display text-lg font-semibold uppercase tracking-tight">Something broke</h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {this.props.fallbackLabel ?? "A component crashed during render."}
               </p>
             </div>
           </div>
 
-          <pre
-            className="text-xs font-mono p-3 rounded-lg overflow-auto max-h-64 mb-4"
-            style={{ background: "rgba(20,20,20,0.04)", border: "1px solid rgba(20,20,20,0.08)" }}
-          >
-            <span className="text-brand-700">{error.name}: {error.message}</span>
+          <pre className="mb-4 max-h-64 overflow-auto rounded-lg border border-border bg-secondary p-3 font-mono text-xs">
+            <span className="text-primary">{error.name}: {error.message}</span>
             {info?.componentStack && (
               <>
                 {"\n\n"}
-                <span className="text-ink-500">{info.componentStack.trim()}</span>
+                <span className="text-muted-foreground">{info.componentStack.trim()}</span>
               </>
             )}
             {error.stack && (
               <>
                 {"\n\n"}
-                <span className="text-ink-400">{error.stack}</span>
+                <span className="text-muted-foreground/70">{error.stack}</span>
               </>
             )}
           </pre>
@@ -86,13 +77,13 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="flex gap-2">
             <button
               onClick={this.reset}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-ink-900 text-white hover:bg-ink-700"
+              className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[var(--accent-soft)]"
             >
               <RotateCcw size={13} /> Reset
             </button>
             <button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-ink-900/15 text-ink-700 hover:bg-bone"
+              className="flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               Reload page
             </button>

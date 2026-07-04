@@ -162,7 +162,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         <h1 className="text-3xl font-display font-bold text-ink-900">A wallet that protects you<br />before you sign.</h1>
         <p className="text-ink-500 max-w-md mx-auto leading-relaxed">
           Baret simulates every transaction on Stellar before it touches your keys.
-          Risky? Blocked at the wallet level — not at the dApp's mercy.
+          Risky? Blocked at the wallet level. not at the dApp's mercy.
         </p>
       </div>
 
@@ -170,7 +170,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         {[
           { icon: ShieldCheck, title: "Pre-flight Sim", body: "Every tx runs in a sandbox first" },
           { icon: KeyRound, title: "Your Policies", body: "You set the rules, not the dApp" },
-          { icon: Sparkles, title: "Smart Wallet", body: "Built on Soroban — open & extensible" },
+          { icon: Sparkles, title: "Smart Wallet", body: "Built on Soroban. open & extensible" },
         ].map(({ icon: Icon, title, body }) => (
           <div key={title} className="glass rounded-xl p-4 text-left">
             <Icon size={16} className="text-accent-soft mb-2.5" />
@@ -228,7 +228,7 @@ function BackupStep({ identity, onNext }: { identity: WalletIdentity; onNext: ()
       <div className="text-center space-y-3">
         <h2 className="text-2xl font-display font-bold text-ink-900">Back up your secret key</h2>
         <p className="text-ink-500 max-w-md mx-auto">
-          This is the only proof you own this wallet. If you lose it, it's gone forever — there's no recovery.
+          This is the only proof you own this wallet. If you lose it, it's gone forever. there's no recovery.
         </p>
       </div>
 
@@ -303,7 +303,7 @@ function FundStep(props: {
         </div>
         <div className="flex justify-between text-xs">
           <span className="text-ink-400">Current balance</span>
-          <span className="font-mono text-ink-900">{authorityBalance === null ? "—" : `${authorityBalance.toFixed(4)} XLM`}</span>
+          <span className="font-mono text-ink-900">{authorityBalance === null ? ". " : `${authorityBalance.toFixed(4)} XLM`}</span>
         </div>
       </div>
 

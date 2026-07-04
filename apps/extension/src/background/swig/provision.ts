@@ -9,7 +9,7 @@
  *
  * Spec: docs/wallet-spec.md §9.6.
  *
- * Idempotent — if a smart-wallet address already lives in the keystore
+ * Idempotent. if a smart-wallet address already lives in the keystore
  * row, returns it without sending a new transaction.
  */
 
@@ -47,7 +47,7 @@ export async function provisionSmartWallet(
   const account = await horizon.loadAccount(authorityAddress).catch(() => null);
   if (!account) {
     throw new Error(
-      `Authority ${authorityAddress} not funded on-chain — run an airdrop first.`,
+      `Authority ${authorityAddress} not funded on-chain. run an airdrop first.`,
     );
   }
   const nativeBalance =

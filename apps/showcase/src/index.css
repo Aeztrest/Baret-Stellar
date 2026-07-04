@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 /*
- * Baret design system — white-first, safety-orange + ink-black.
+ * Baret design system. white-first, safety-orange + ink-black.
  * Heading face: Space Grotesk (font-display). Body: Inter. Code: JetBrains Mono.
  * Colors sourced from @stellar-thorn/ui/tokens.css (imported above).
  */
@@ -22,12 +22,38 @@
   }
   body {
     @apply font-sans antialiased;
-    background: var(--paper);
-    color: var(--ink);
+    background: var(--background);
+    color: var(--foreground);
     min-height: 100vh;
   }
   ::selection {
-    background: rgba(255, 107, 0, 0.25);
+    background: var(--accent-glow);
+  }
+  /* Visible keyboard focus everywhere. 2px accent ring, offset from the edge. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* Stretched card links (absolute inset-0) can't draw a useful ring of their
+   * own; light up the parent card frame instead. */
+  .group\/spot:has(a.absolute.inset-0:focus-visible),
+  .card-hover:has(a.absolute.inset-0:focus-visible) {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .group\/spot a.absolute.inset-0:focus-visible,
+  .card-hover a.absolute.inset-0:focus-visible {
+    outline: none;
+  }
+  /* Hide the ugly native number-input spinners across the showcase. */
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 }
 
@@ -112,7 +138,8 @@
   .btn-brand {
     @apply inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold transition-all;
     background: #ff6b00;
-    color: #fff;
+    /* Ink on orange, hazard-signage pairing. White on #FF6B00 fails AA. */
+    color: #141414;
     box-shadow: 0 4px 14px -2px rgba(255, 107, 0, 0.35);
   }
   .btn-brand:hover {

@@ -4,16 +4,46 @@
  * Spec: docs/wallet-spec.md §6.
  */
 
-import { useState } from "react";
-import { ChevronRight, Lock, ExternalLink, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { ChevronRight, Lock, ExternalLink, KeyRound, Trash2 } from "lucide-react";
 import browser from "webextension-polyfill";
+import { POLICY_TEMPLATES } from "@stellar-thorn/swig-guard";
 import { Button, Card, Dialog, versionLabel } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../shared/state-context";
+
+const NETWORK_LABEL: Record<string, string> = {
+  testnet: "Testnet",
+  pubnet: "Mainnet",
+};
 
 export function Settings() {
   const rpc = useRpc();
   const state = useWalletState();
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [policyName, setPolicyName] = useState<string | null>(null);
+
+  // Read the real policy and match it to a template name; "Custom" when the
+  // user tweaked it. never claim a template we can't verify.
+  useEffect(() => {
+    let cancelled = false;
+    rpc
+      .call("policy.read", undefined as never)
+      .then((policy) => {
+        if (cancelled) return;
+        const stored = JSON.stringify(policy);
+        const match = POLICY_TEMPLATES.find(
+          (t) => JSON.stringify(t.policy) === stored,
+        );
+        setPolicyName(match ? `${match.name} template` : "Custom");
+      })
+      .catch(() => {
+        if (!cancelled) setPolicyName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rpc]);
 
   const openOptions = (route?: string) => {
     const url = browser.runtime.getURL(`src/options/index.html${route ? `#${route}` : ""}`);
@@ -30,22 +60,41 @@ export function Settings() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+    <motion.div
+      className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3"
+      initial="hidden"
+      animate="show"
+      variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+    >
+      <motion.div variants={SETTINGS_ITEM}>
       <Card padding="none" className="divide-y divide-line overflow-hidden">
-        <Row label="Network" value={state?.network ?? "—"} onClick={() => openOptions("network")} />
-        <Row label="Policy"  value="Balanced template" onClick={() => openOptions("policies")} />
-        <Row label="Security" value="Wallet locks after 15 min idle" onClick={() => openOptions("security")} />
+        <Row
+          label="Network"
+          value={state ? (NETWORK_LABEL[state.network] ?? state.network) : "–"}
+          onClick={() => openOptions("/settings")}
+        />
+        <Row label="Policy" value={policyName ?? undefined} onClick={() => openOptions("/policies")} />
+        <Row label="Auto-lock" onClick={() => openOptions("/settings")} />
       </Card>
+      </motion.div>
 
+      <motion.div variants={SETTINGS_ITEM}>
       <Card padding="none" className="divide-y divide-line overflow-hidden">
-        <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+        <button onClick={onLock} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2">
             <Lock size={13} className="text-text-faint" />
             <span className="text-sm">Lock wallet now</span>
           </div>
           <ChevronRight size={13} className="text-text-faint" />
         </button>
-        <button onClick={() => openOptions()} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+        <button onClick={() => openOptions("/settings")} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
+          <div className="flex items-center gap-2">
+            <KeyRound size={13} className="text-text-faint" />
+            <span className="text-sm">Export secret key</span>
+          </div>
+          <ChevronRight size={13} className="text-text-faint" />
+        </button>
+        <button onClick={() => openOptions()} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2">
             <ExternalLink size={13} className="text-text-faint" />
             <span className="text-sm">Open full settings</span>
@@ -53,12 +102,15 @@ export function Settings() {
           <ChevronRight size={13} className="text-text-faint" />
         </button>
       </Card>
+      </motion.div>
 
+      <motion.div variants={SETTINGS_ITEM}>
       <Card
         padding="none"
-        className="divide-y divide-line overflow-hidden !bg-[rgba(248,113,113,0.04)] !border-[rgba(248,113,113,0.18)]"
+        className="divide-y divide-line overflow-hidden"
+        style={{ background: "var(--bad-dim)", borderColor: "var(--bad)" }}
       >
-        <button onClick={() => setResetDialogOpen(true)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+        <button onClick={() => setResetDialogOpen(true)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
           <div className="flex items-center gap-2 text-bad">
             <Trash2 size={13} />
             <span className="text-sm">Reset wallet…</span>
@@ -66,6 +118,7 @@ export function Settings() {
           <ChevronRight size={13} className="text-bad/60" />
         </button>
       </Card>
+      </motion.div>
 
       <p className="text-[10px] text-text-faint text-center mt-auto pt-3">{versionLabel()}</p>
 
@@ -73,25 +126,36 @@ export function Settings() {
         open={resetDialogOpen}
         onOpenChange={setResetDialogOpen}
         title="Reset wallet?"
-        description="This wipes the wallet from this browser. Make sure you've exported your secret first — this can't be undone."
+        description="This wipes the wallet from this browser. Export your secret key first, in Settings, so you can restore it. This can't be undone."
         tone="danger"
         footer={
           <>
-            <Button variant="secondary" fullWidth onClick={() => setResetDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => { setResetDialogOpen(false); openOptions("/settings"); }}
+            >
+              Export secret first
+            </Button>
             <Button variant="danger" fullWidth onClick={onReset}>Reset</Button>
           </>
         }
       />
-    </div>
+    </motion.div>
   );
 }
 
-function Row({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
+const SETTINGS_ITEM = {
+  hidden: { opacity: 0, y: 6 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const } },
+};
+
+function Row({ label, value, onClick }: { label: string; value?: string; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.04] text-left">
+    <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary text-left">
       <div className="flex flex-col gap-0.5">
         <span className="text-xs text-text-faint">{label}</span>
-        <span className="text-sm">{value}</span>
+        {value ? <span className="text-sm">{value}</span> : <span className="text-sm text-text-muted">Open settings</span>}
       </div>
       <ChevronRight size={13} className="text-text-faint shrink-0" />
     </button>

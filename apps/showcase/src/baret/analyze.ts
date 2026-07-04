@@ -1,6 +1,6 @@
 /**
  * Showcase-side analyze client (Stellar build). Lets a demo site call
- * Baret's `/v1/analyze` endpoint directly — same pipeline the
+ * Baret's `/v1/analyze` endpoint directly. same pipeline the
  * extension's sign popup runs, just rendered on the site itself so visitors
  * can see what the firewall WOULD say before clicking "Sign".
  *
@@ -140,13 +140,13 @@ function offlineResult(reason: string): AnalysisResult {
   return {
     decision: "advisory",
     safe: false,
-    reasons: [`Couldn't reach BARET: ${reason}`],
+    reasons: [`Couldn't reach the analyze server: ${reason}`],
     riskFindings: [
       {
         code: "ANALYZE_UNREACHABLE",
         severity: "medium",
         message:
-          "Analyze server unreachable; sign only if you trust this dApp.",
+          "Analyze server unreachable. Baret won't sign unchecked transactions.",
       },
     ],
     estimatedChanges: EMPTY_CHANGES,

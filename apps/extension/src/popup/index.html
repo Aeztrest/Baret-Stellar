@@ -10,7 +10,7 @@
     <style>
       html, body { margin: 0; padding: 0; }
       /* Toolbar action popup: fixed size so Chrome sizes the popup to it.
-         !important is required — the bundled Tailwind base rule
+         !important is required. The bundled Tailwind base rule
          (html,body,#root{height:100%}) is flattened to a plain unlayered
          rule that loads (via the CSS <link>) AFTER this inline block, so by
          source order it would otherwise win and force height:100%. In a real
@@ -19,8 +19,8 @@
       html, body { width: 400px !important; height: 600px !important; }
       /* Standalone sign/connect window (opened via windows.create with
          ?window=1): fill the whole OS window so the UI isn't a small box
-         floating inside a larger frame. The class is toggled in main.tsx —
-         the page CSP forbids inline scripts. */
+         floating inside a larger frame. The class is toggled in main.tsx,
+         because the page CSP forbids inline scripts. */
       html.in-window, html.in-window body { width: 100% !important; height: 100% !important; }
     </style>
   </head>

@@ -17,7 +17,7 @@ export interface GuardEvaluation {
   blockingReasons: string[];
   /** Full server analysis result for rendering in the wallet UI. */
   analysis: AnalysisResult;
-  /** Base64 `TransactionEnvelope` XDR — preserved verbatim for sign+send. */
+  /** Base64 `TransactionEnvelope` XDR. preserved verbatim for sign+send. */
   transactionXdr: string;
 }
 
@@ -29,7 +29,7 @@ export interface GuardConfig {
 export interface EvaluateRequest {
   /**
    * Base64 `TransactionEnvelope` XDR ready for signing. The guard does not
-   * build it — Stellar smart-wallet wrappers (Passkey Kit, custom Soroban
+   * build it. Stellar smart-wallet wrappers (Passkey Kit, custom Soroban
    * sub-key contracts) vary too much across deployments, so wrapping is
    * the caller's responsibility. The guard's job is to send the prepared
    * XDR through Baret's analyzer and apply the user's policy.
@@ -61,7 +61,7 @@ export class TransactionGuard {
    * The wallet UI uses this to decide whether to ask the user to confirm
    * signing.
    *
-   * Never signs. Never submits. Never throws on policy violation — returns
+   * Never signs. Never submits. Never throws on policy violation. returns
    * `decision: "block"` so the caller can render a denial UI.
    */
   async evaluate(req: EvaluateRequest): Promise<GuardEvaluation> {

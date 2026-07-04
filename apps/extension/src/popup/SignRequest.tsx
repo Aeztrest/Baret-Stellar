@@ -1,17 +1,18 @@
 /**
- * Sign request surface — full Baret pre-sign analysis flow.
+ * Sign request surface. Full Baret pre-sign analysis flow.
  *
  * Pulls the pending sign request from background, fetches the structured
  * analysis (transaction kind only), renders the AnalysisReport, and resolves
  * the request with the user's verdict. The footer bar itself carries the
- * verdict tone — header-verdict and footer-CTA bookend in matching color so
- * the safe/warn/block signal reads at a glance, not just on the button.
+ * verdict tone. Header-verdict and footer-CTA bookend in matching color so
+ * the Safe / Caution / Blocked signal reads at a glance, not just on the
+ * button. A Blocked verdict demands a 1.5s press-and-hold to override.
  *
  * Spec: docs/wallet-spec.md §8 + docs/x402-defense.md.
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { Globe, Loader2, X, ShieldCheck, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Globe, Loader2, X, ShieldCheck, ShieldX, AlertTriangle, RefreshCw } from "lucide-react";
 import type { AnalyzeResponse } from "@stellar-thorn/ext-protocol";
 import { Button, usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
@@ -37,6 +38,8 @@ export function SignRequest() {
   const [request, setRequest] = useState<PendingRequest | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisAttempt, setAnalysisAttempt] = useState(0);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,18 +53,18 @@ export function SignRequest() {
 
   usePolling(pollRequest, 1000, { enabled: request === null });
 
-  // Run Baret analysis as soon as we have a request.
+  // Run Baret analysis as soon as we have a request (re-runs on retry).
   useEffect(() => {
     if (!request) return;
     let cancelled = false;
     setAnalyzing(true);
-    setError(null);
+    setAnalysisError(null);
     rpc.call("tx.analyzeRequest", { requestId: request.requestId })
       .then((r) => { if (!cancelled) setAnalysis(r as AnalyzeResponse); })
-      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : String(err)); })
+      .catch((err) => { if (!cancelled) setAnalysisError(err instanceof Error ? err.message : String(err)); })
       .finally(() => { if (!cancelled) setAnalyzing(false); });
     return () => { cancelled = true; };
-  }, [request, rpc]);
+  }, [request, rpc, analysisAttempt]);
 
   if (!request) {
     return (
@@ -95,8 +98,27 @@ export function SignRequest() {
         {analyzing && !analysis && (
           <div className="card !p-5 flex flex-col items-center gap-2.5 text-center">
             <Loader2 size={18} className="animate-spin text-accent-soft" />
-            <p className="text-text-muted text-xs">Simulating with Baret…</p>
-            <p className="text-text-faint text-[10px]">Decompiling instructions, running policy checks.</p>
+            <p className="text-text-muted text-xs">Reading the transaction…</p>
+            <p className="text-text-faint text-[10px]">Decoding each operation, running your policy checks.</p>
+          </div>
+        )}
+
+        {!analyzing && !analysis && analysisError && (
+          <div className="card !p-4 flex flex-col items-center gap-2.5 text-center">
+            <AlertTriangle size={18} className="text-warn" />
+            <p className="text-text-muted text-xs leading-relaxed">
+              Baret couldn't reach the analyzer. Sign stays locked until a
+              check runs.
+            </p>
+            <p className="font-mono text-[10px] text-text-faint break-all">{analysisError}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setAnalysisAttempt((n) => n + 1)}
+              leftIcon={<RefreshCw size={12} />}
+            >
+              Retry analysis
+            </Button>
           </div>
         )}
 
@@ -136,12 +158,20 @@ export function SignRequest() {
 
 function Header({ origin, verb }: { origin: string; verb: string }) {
   return (
-    <header className="px-4 pt-4 pb-3 border-b border-line shrink-0">
-      <div className="flex items-center gap-1.5 text-accent-soft text-[11px] mb-1.5">
-        <Globe size={11} />
-        <span className="font-mono truncate">{origin}</span>
+    <header className="border-b border-border shrink-0">
+      <div aria-hidden className="flex h-[3px] w-full">
+        <span className="w-8 bg-primary" />
+        <span className="flex-1 bg-border" />
       </div>
-      <h1 className="text-lg font-extrabold tracking-tight leading-tight">{verb}</h1>
+      <div className="px-4 pb-3 pt-3.5">
+        <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+          <Globe size={11} />
+          <span className="truncate">{origin}</span>
+        </div>
+        <h1 className="font-display text-lg font-semibold uppercase tracking-tight leading-tight text-foreground">
+          {verb}
+        </h1>
+      </div>
     </header>
   );
 }
@@ -158,7 +188,7 @@ function Footer({
   advisory: boolean;
 }) {
   const signLabel = kind === "transactionAndSend" ? "Sign & send" : "Sign";
-  const signLabelOverride = blocked ? "Sign anyway" : advisory ? `${signLabel} anyway` : signLabel;
+  const signLabelOverride = advisory ? `${signLabel} anyway` : signLabel;
 
   const footerStyle = blocked
     ? { background: "var(--bad-dim)", borderTop: "1px solid var(--bad)" }
@@ -170,7 +200,12 @@ function Footer({
     <footer className="p-3 flex flex-col gap-2 shrink-0" style={footerStyle}>
       {analysis?.offline && (
         <div className="text-[10px] text-warn px-2 leading-relaxed">
-          Baret couldn't reach the analyzer. You're signing without protection.
+          Baret couldn't reach the analyzer. Sign now and this transaction goes unchecked.
+        </div>
+      )}
+      {blocked && (
+        <div className="text-[10px] px-2 leading-relaxed" style={{ color: "var(--bad)" }}>
+          Hold to sign anyway. Baret logs the override.
         </div>
       )}
 
@@ -178,18 +213,100 @@ function Footer({
         <Button variant="secondary" fullWidth onClick={onDecline} disabled={working} leftIcon={<X size={13} />}>
           Decline
         </Button>
-        <Button
-          variant={blocked ? "danger" : "primary"}
-          fullWidth
-          onClick={onSign}
-          disabled={working || !analysis}
-          loading={working}
-          leftIcon={!working ? <ShieldCheck size={13} /> : undefined}
-        >
-          {working ? (kind === "transactionAndSend" ? "Sending…" : "Signing…") : signLabelOverride}
-        </Button>
+        {blocked ? (
+          <HoldToSignButton working={working} onConfirm={onSign} />
+        ) : (
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={onSign}
+            disabled={working || !analysis}
+            loading={working}
+            leftIcon={!working ? <ShieldCheck size={13} /> : undefined}
+          >
+            {working ? (kind === "transactionAndSend" ? "Sending…" : "Signing…") : signLabelOverride}
+          </Button>
+        )}
       </div>
     </footer>
+  );
+}
+
+const HOLD_MS = 1500;
+
+/**
+ * Press-and-hold override for Blocked verdicts. The fill bar tracks the hold;
+ * releasing early cancels. Only a completed 1.5s hold fires onConfirm.
+ */
+function HoldToSignButton({ working, onConfirm }: { working: boolean; onConfirm: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const raf = useRef<number | null>(null);
+  const start = useRef<number | null>(null);
+  const fired = useRef(false);
+
+  const cancel = useCallback(() => {
+    if (raf.current !== null) cancelAnimationFrame(raf.current);
+    raf.current = null;
+    start.current = null;
+    if (!fired.current) setProgress(0);
+  }, []);
+
+  useEffect(() => cancel, [cancel]);
+
+  const tick = useCallback((now: number) => {
+    if (start.current === null) return;
+    const pct = Math.min(1, (now - start.current) / HOLD_MS);
+    setProgress(pct);
+    if (pct >= 1) {
+      if (!fired.current) {
+        fired.current = true;
+        onConfirm();
+      }
+      return;
+    }
+    raf.current = requestAnimationFrame(tick);
+  }, [onConfirm]);
+
+  const begin = () => {
+    if (working || fired.current) return;
+    start.current = performance.now();
+    raf.current = requestAnimationFrame(tick);
+  };
+
+  return (
+    <button
+      onPointerDown={begin}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      disabled={working}
+      aria-label="Hold for 1.5 seconds to sign a blocked transaction anyway. Baret logs the override."
+      className="relative w-full h-10 px-4 rounded-[var(--r-input)] font-semibold text-sm overflow-hidden select-none disabled:opacity-45"
+      style={{
+        background: "var(--bad-dim)",
+        border: "1px solid var(--bad)",
+        color: "var(--bad)",
+        touchAction: "none",
+      }}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0"
+        style={{
+          width: `${progress * 100}%`,
+          background: "var(--bad)",
+          opacity: 0.25,
+          transition: progress === 0 ? "width 160ms ease-out" : "none",
+        }}
+      />
+      <span className="relative inline-flex items-center justify-center gap-1.5 w-full">
+        {working ? (
+          <><Loader2 size={13} className="animate-spin" /> Signing…</>
+        ) : (
+          <><ShieldX size={13} /> Hold to sign anyway</>
+        )}
+      </span>
+    </button>
   );
 }
 

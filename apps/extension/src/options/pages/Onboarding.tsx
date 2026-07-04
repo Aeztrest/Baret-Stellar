@@ -2,16 +2,18 @@
  * First-run onboarding wizard. 8 steps.
  * Spec: docs/wallet-spec.md §9.
  *
- * Production-grade UX — every screen has one purpose, one CTA, plain copy.
- * Generates the wallet, secures it under a passphrase, funds the authority,
- * provisions the smart wallet on-chain, and saves the chosen policy.
+ * Production-grade UX. Every screen has one purpose, one CTA, plain copy.
+ * Generates the wallet (or restores one from a secret key), secures it under
+ * a passphrase, funds the authority, provisions the smart wallet on-chain,
+ * and saves the chosen policy. Backup is verified with a quick quiz before
+ * the acknowledgment counts.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowRight, Eye, EyeOff, KeyRound, ShieldCheck, Sparkles, Copy, Check,
+  ArrowRight, ArrowLeft, Eye, EyeOff, KeyRound, ShieldCheck, Sparkles, Copy, Check,
   AlertTriangle, Loader2, Droplet, Globe,
 } from "lucide-react";
 import { POLICY_TEMPLATES, type PolicyTemplateId } from "@stellar-thorn/swig-guard";
@@ -21,6 +23,7 @@ import { Mark, usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletContext } from "../../shared/state-context";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+type Mode = "create" | "import";
 
 export function Onboarding() {
   const nav = useNavigate();
@@ -28,6 +31,7 @@ export function Onboarding() {
   const rpc = useRpc();
 
   const [step, setStep] = useState<Step>(1);
+  const [mode, setMode] = useState<Mode>("create");
   const [passphrase, setPassphrase] = useState("");
   const [passphraseConfirm, setPassphraseConfirm] = useState("");
   const [authorityAddress, setAuthorityAddress] = useState<string | null>(null);
@@ -64,7 +68,7 @@ export function Onboarding() {
       const res = await rpc.call("wallet.create", { passphrase, network: "testnet" });
       setAuthorityAddress(res.authorityAddress);
       setWalletAddress(res.walletAddress);
-      // Pull the secret for the backup screen — only available right after creation.
+      // Pull the secret for the backup screen. Only available right after creation.
       const sec = await rpc.call("wallet.exportSecret", { passphrase, format: "base58" });
       setSecret(sec.secret);
       setStep(4);
@@ -72,6 +76,27 @@ export function Onboarding() {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
+  };
+
+  const onImportWallet = async (importSecret: string) => {
+    setError(null);
+    const res = await rpc.call("wallet.import", {
+      secret: importSecret,
+      passphrase,
+      network: "testnet",
+    });
+    setAuthorityAddress(res.authorityAddress);
+    setWalletAddress(res.walletAddress);
+    // The user restored from an existing backup, so skip the backup step.
+    setStep(5);
+    await refresh();
+  };
+
+  const onBackupDone = async () => {
+    try {
+      await rpc.call("wallet.acknowledgeBackup", undefined as never);
+    } catch { /* the popup banner stays until acknowledged; not fatal here */ }
+    setStep(5);
   };
 
   const onAirdrop = async () => {
@@ -118,14 +143,14 @@ export function Onboarding() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
-      {/* Top bar — progress segments */}
+      {/* Top bar, progress segments. one per step */}
       <div className="border-b border-line">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
           <div className="text-accent-soft"><Mark size={20} /></div>
           <span className="font-extrabold text-sm tracking-tight">Baret</span>
           <div className="flex-1" />
           <div className="flex gap-1.5">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div
                 key={i}
                 className="h-1 w-8 rounded-pill transition-colors"
@@ -140,25 +165,35 @@ export function Onboarding() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <AnimatePresence mode="wait">
           <motion.div
-            key={step}
+            key={`${mode}-${step}`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.22 }}
             className="w-full max-w-xl"
           >
-            {step === 1 && <StepWelcome onNext={next} />}
+            {step === 1 && (
+              <StepWelcome
+                onNext={() => { setMode("create"); setStep(2); }}
+                onImport={() => { setMode("import"); setStep(2); }}
+              />
+            )}
             {step === 2 && (
               <StepPassphrase
+                mode={mode}
                 passphrase={passphrase}
                 passphraseConfirm={passphraseConfirm}
                 onChange={(p, c) => { setPassphrase(p); setPassphraseConfirm(c); }}
                 onNext={() => setStep(3)}
+                onBack={() => setStep(1)}
               />
             )}
-            {step === 3 && <StepGenerate onCreate={onCreateWallet} />}
+            {step === 3 && mode === "create" && <StepGenerate onCreate={onCreateWallet} />}
+            {step === 3 && mode === "import" && (
+              <StepImport onImport={onImportWallet} onBack={() => setStep(2)} />
+            )}
             {step === 4 && secret && authorityAddress && (
-              <StepBackup secret={secret} authorityAddress={authorityAddress} onNext={() => setStep(5)} />
+              <StepBackup secret={secret} authorityAddress={authorityAddress} onNext={onBackupDone} />
             )}
             {step === 5 && authorityAddress && (
               <StepFund
@@ -167,6 +202,7 @@ export function Onboarding() {
                 airdropping={airdropping}
                 onAirdrop={onAirdrop}
                 onNext={() => setStep(6)}
+                onBack={mode === "create" && secret ? () => setStep(4) : undefined}
               />
             )}
             {step === 6 && (
@@ -192,8 +228,8 @@ export function Onboarding() {
 
       {/* Error toast */}
       {error && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-md px-4 py-3 rounded-input flex items-start gap-2 text-xs"
-             style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", color: "var(--bad)" }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-md px-4 py-3 rounded-input flex items-start gap-2 text-xs shadow-lg"
+             style={{ background: "var(--bad-dim)", border: "1px solid var(--bad)", color: "var(--bad)" }}>
           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
           <span className="flex-1">{error}</span>
           <button onClick={() => setError(null)} className="opacity-70 hover:opacity-100">×</button>
@@ -205,27 +241,38 @@ export function Onboarding() {
 
 /* ─── Step components ──────────────────────────────────────────────────── */
 
-function StepWelcome({ onNext }: { onNext: () => void }) {
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      onClick={onBack}
+      className="inline-flex items-center gap-1.5 text-xs text-text-faint hover:text-text transition-colors"
+    >
+      <ArrowLeft size={12} /> Back
+    </button>
+  );
+}
+
+function StepWelcome({ onNext, onImport }: { onNext: () => void; onImport: () => void }) {
   return (
     <div className="text-center space-y-7">
       <div className="space-y-3">
         <div className="w-14 h-14 rounded-card mx-auto flex items-center justify-center text-accent-soft"
-             style={{ background: "rgba(61,109,255,0.12)", border: "1px solid rgba(61,109,255,0.25)" }}>
+             style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-glow)" }}>
           <ShieldCheck size={26} />
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
-          A wallet that watches what happens<br />after you sign.
+          A wallet that reads the transaction<br />before you sign it.
         </h1>
         <p className="text-text-muted max-w-md mx-auto leading-relaxed">
-          Every transaction simulated first, every grant tracked over time, every misuse caught the moment it leaves.
+          Baret reads it first. It tells you what the transaction does, then blocks the dangerous ones before your keys move.
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2.5 max-w-xl mx-auto">
         {[
-          { Icon: ShieldCheck, title: "Pre-flight", body: "Sim before sign, every time." },
-          { Icon: KeyRound,   title: "Your rules", body: "You set the policy. Always." },
-          { Icon: Sparkles,   title: "Live watch", body: "We see drift before you do." },
+          { Icon: ShieldCheck, title: "Reads it", body: "Every transaction, before you sign." },
+          { Icon: KeyRound,   title: "Caps it", body: "A running cap on what each site spends." },
+          { Icon: Sparkles,   title: "Holds it", body: "Payments on x402, the machine-payments protocol, stay capped on-chain." },
         ].map(({ Icon, title, body }) => (
           <div key={title} className="card !p-4 text-left">
             <Icon size={14} className="text-accent-soft mb-2" />
@@ -235,31 +282,52 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
         ))}
       </div>
 
-      <button onClick={onNext} className="btn-primary px-6 py-3">
-        Get started <ArrowRight size={13} />
-      </button>
+      <div className="space-y-3">
+        <button onClick={onNext} className="btn-primary px-6 py-3">
+          Get started <ArrowRight size={13} />
+        </button>
+        <p>
+          <button onClick={onImport} className="text-xs text-accent-soft hover:text-text transition-colors">
+            I already have a key
+          </button>
+        </p>
+      </div>
       <p className="text-[10px] text-text-faint">Testnet only · Self-custody · Open source</p>
     </div>
   );
 }
 
 function StepPassphrase({
-  passphrase, passphraseConfirm, onChange, onNext,
+  mode, passphrase, passphraseConfirm, onChange, onNext, onBack,
 }: {
+  mode: Mode;
   passphrase: string; passphraseConfirm: string;
-  onChange: (p: string, c: string) => void; onNext: () => void;
+  onChange: (p: string, c: string) => void; onNext: () => void; onBack: () => void;
 }) {
   const [show, setShow] = useState(false);
   const strength = useMemo(() => passphraseStrength(passphrase), [passphrase]);
-  const matches = passphrase.length >= 12 && passphrase === passphraseConfirm;
+  const longEnough = passphrase.length >= 12;
+  const matches = passphrase === passphraseConfirm;
+  const canContinue = longEnough && matches && passphraseConfirm.length > 0;
+
+  const disabledReason = !longEnough
+    ? `Needs ${12 - passphrase.length} more ${12 - passphrase.length === 1 ? "character" : "characters"}.`
+    : passphraseConfirm.length === 0
+      ? "Confirm your passphrase to continue."
+      : !matches
+        ? null // the mismatch error below carries this case
+        : null;
 
   return (
     <div className="space-y-6">
+      <BackButton onBack={onBack} />
       <div className="text-center space-y-2">
         <KeyRound size={26} className="mx-auto text-accent-soft" />
         <h2 className="text-2xl font-extrabold tracking-tight">Set your passphrase</h2>
         <p className="text-text-muted max-w-md mx-auto text-sm">
-          Encrypts your secret on this device. We never see it. Forget it and there's no recovery.
+          {mode === "import"
+            ? "Encrypts the secret key you're about to restore, on this device. We never see it. Forget it and there's no recovery."
+            : "Encrypts your secret on this device. We never see it. Forget it and there's no recovery."}
         </p>
       </div>
 
@@ -269,7 +337,7 @@ function StepPassphrase({
             type={show ? "text" : "password"}
             value={passphrase}
             onChange={(e) => onChange(e.target.value, passphraseConfirm)}
-            placeholder="Passphrase (12+ characters)"
+            placeholder="Passphrase"
             className="input pr-10 font-sans"
             autoFocus
           />
@@ -278,6 +346,7 @@ function StepPassphrase({
             {show ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         </div>
+        <p className="text-[11px] text-text-faint px-1">At least 12 characters. Longer is stronger.</p>
         <input
           type={show ? "text" : "password"}
           value={passphraseConfirm}
@@ -298,12 +367,16 @@ function StepPassphrase({
         <p className="text-[11px] text-text-faint">{strength.label}</p>
       </div>
 
-      <button onClick={onNext} disabled={!matches} className="btn-primary w-full disabled:opacity-50">
-        Continue <ArrowRight size={13} />
-      </button>
-      {passphrase && passphraseConfirm && passphrase !== passphraseConfirm && (
+      {passphrase && passphraseConfirm && !matches && (
         <p className="text-bad text-xs text-center">Passphrases don't match.</p>
       )}
+      {!canContinue && disabledReason && (
+        <p className="text-[11px] text-text-faint text-center">{disabledReason}</p>
+      )}
+
+      <button onClick={onNext} disabled={!canContinue} className="btn-primary w-full disabled:opacity-50">
+        Continue <ArrowRight size={13} />
+      </button>
     </div>
   );
 }
@@ -342,18 +415,89 @@ function StepGenerate({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="text-center space-y-6">
       <div className="w-14 h-14 mx-auto rounded-card flex items-center justify-center"
-           style={{ background: "rgba(61,109,255,0.12)", border: "1px solid rgba(61,109,255,0.25)" }}>
+           style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-glow)" }}>
         <Loader2 size={22} className="animate-spin text-accent-soft" />
       </div>
       <div className="space-y-2">
         <h2 className="text-2xl font-extrabold tracking-tight">Generating your keypair</h2>
         <p className="text-text-muted text-sm max-w-md mx-auto">
-          A fresh ed25519 keypair, made locally in your browser. Encrypting it under your passphrase before saving.
+          A fresh keypair, made locally in your browser. Encrypting it under your passphrase before saving.
         </p>
       </div>
     </div>
   );
 }
+
+function StepImport({
+  onImport, onBack,
+}: { onImport: (secret: string) => Promise<void>; onBack: () => void }) {
+  const [secret, setSecret] = useState("");
+  const [show, setShow] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!secret.trim() || working) return;
+    setWorking(true);
+    setError(null);
+    try {
+      await onImport(secret.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setWorking(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <BackButton onBack={onBack} />
+      <div className="text-center space-y-2">
+        <KeyRound size={26} className="mx-auto text-accent-soft" />
+        <h2 className="text-2xl font-extrabold tracking-tight">Restore your wallet</h2>
+        <p className="text-text-muted max-w-md mx-auto text-sm">
+          Paste the secret key from your backup. Baret accepts the key from its
+          own backup screen, an S… Stellar secret, or a 64-character hex seed.
+        </p>
+      </div>
+
+      <div className="rounded-card p-4 flex items-start gap-3"
+           style={{ background: "var(--warn-dim)", border: "1px solid var(--warn)" }}>
+        <AlertTriangle size={14} className="text-warn shrink-0 mt-0.5" />
+        <p className="text-xs text-text-muted leading-relaxed">
+          Only paste your key here, in your own Baret. Never into a website or a chat.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <div className="relative">
+          <textarea
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder="Secret key"
+            rows={3}
+            spellCheck={false}
+            autoFocus
+            className="input !font-mono resize-none pr-10"
+            style={show ? undefined : ({ WebkitTextSecurity: "disc" } as React.CSSProperties)}
+          />
+          <button type="button" onClick={() => setShow((s) => !s)}
+                  className="absolute right-2 top-2.5 p-1 text-text-faint hover:text-text-muted">
+            {show ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        {error && <p className="text-bad text-xs">{error}</p>}
+      </div>
+
+      <button onClick={submit} disabled={!secret.trim() || working} className="btn-primary w-full disabled:opacity-50">
+        {working ? <><Loader2 size={13} className="animate-spin" /> Restoring…</> : <>Restore wallet <ArrowRight size={13} /></>}
+      </button>
+    </div>
+  );
+}
+
+const CLIPBOARD_CLEAR_MS = 60_000;
+const QUIZ_START = 4; // zero-based start of the fragment the quiz asks for
+const QUIZ_LEN = 5;
 
 function StepBackup({
   secret, authorityAddress, onNext,
@@ -361,11 +505,31 @@ function StepBackup({
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [quizPick, setQuizPick] = useState<string | null>(null);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+  }, []);
 
   const onCopy = async () => {
-    try { await navigator.clipboard.writeText(secret); setCopied(true); setTimeout(() => setCopied(false), 1200); }
-    catch { /* clipboard might be denied */ }
+    try {
+      await navigator.clipboard.writeText(secret);
+      setCopied(true);
+      // Don't leave the secret sitting on the clipboard. overwrite it.
+      if (clearTimer.current) clearTimeout(clearTimer.current);
+      clearTimer.current = setTimeout(() => {
+        navigator.clipboard.writeText("Baret cleared this clipboard.").catch(() => {});
+        setCopied(false);
+      }, CLIPBOARD_CLEAR_MS);
+    } catch { /* clipboard might be denied */ }
   };
+
+  // Quick verification: pick the real fragment among three. proves the user
+  // actually looked at (or saved) the key before acknowledging.
+  const correctFragment = secret.slice(QUIZ_START, QUIZ_START + QUIZ_LEN);
+  const quizOptions = useMemo(() => makeQuizOptions(secret), [secret]);
+  const quizPassed = quizPick === correctFragment;
 
   return (
     <div className="space-y-6">
@@ -377,7 +541,7 @@ function StepBackup({
       </div>
 
       <div className="rounded-card p-4 flex items-start gap-3"
-           style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.2)" }}>
+           style={{ background: "var(--warn-dim)", border: "1px solid var(--warn)" }}>
         <AlertTriangle size={14} className="text-warn shrink-0 mt-0.5" />
         <p className="text-xs text-text-muted leading-relaxed">
           Anyone with this key can spend your wallet. Don't paste it into websites. Don't share it.
@@ -386,18 +550,22 @@ function StepBackup({
 
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
-          <p className="label !mb-0">Secret key (base58)</p>
+          <p className="label !mb-0">Secret key</p>
           <button onClick={() => setRevealed((s) => !s)} className="text-xs text-accent-soft hover:text-text">
             {revealed ? "Hide" : "Reveal"}
           </button>
         </div>
-        <div className="font-mono text-xs break-all min-h-[3.5rem] px-3 py-3 rounded-input"
-             style={{ background: "rgba(20,20,20,0.035)", border: "1px solid var(--line)" }}>
+        <div className="font-mono text-xs break-all min-h-[3.5rem] px-3 py-3 rounded-input bg-secondary border border-border">
           {revealed ? secret : "•".repeat(80)}
         </div>
         <button onClick={onCopy} disabled={!revealed} className="btn-ghost w-full disabled:opacity-50">
           {copied ? <><Check size={13} className="text-ok" /> Copied</> : <><Copy size={13} /> Copy to clipboard</>}
         </button>
+        {copied && (
+          <p className="text-[11px] text-text-faint text-center">
+            Copied. Baret clears your clipboard in 60 seconds.
+          </p>
+        )}
       </div>
 
       <div className="card !p-4 space-y-2">
@@ -405,28 +573,87 @@ function StepBackup({
         <p className="font-mono text-xs break-all">{authorityAddress}</p>
       </div>
 
-      <label className="flex items-start gap-2.5 px-1 text-xs text-text-muted cursor-pointer">
-        <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)}
+      {/* Verification quiz. the acknowledgment doesn't count until this passes. */}
+      <div className="card !p-4 space-y-2.5">
+        <p className="text-xs font-bold">
+          Quick check: which fragment is characters {QUIZ_START + 1} to {QUIZ_START + QUIZ_LEN} of your key?
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {quizOptions.map((opt) => {
+            const picked = quizPick === opt;
+            const correct = opt === correctFragment;
+            return (
+              <button
+                key={opt}
+                onClick={() => setQuizPick(opt)}
+                className="font-mono text-xs py-2 rounded-input transition-colors"
+                style={{
+                  background: picked ? (correct ? "var(--ok-dim)" : "var(--bad-dim)") : "var(--secondary)",
+                  border: `1px solid ${picked ? (correct ? "var(--ok)" : "var(--bad)") : "var(--line)"}`,
+                  color: picked ? (correct ? "var(--ok)" : "var(--bad)") : "var(--text)",
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        {quizPick !== null && !quizPassed && (
+          <p className="text-bad text-[11px]">Not that one. Check your saved key and try again.</p>
+        )}
+        {quizPassed && (
+          <p className="text-ok text-[11px] flex items-center gap-1"><Check size={11} /> That's it.</p>
+        )}
+      </div>
+
+      <label className={`flex items-start gap-2.5 px-1 text-xs text-text-muted ${quizPassed ? "cursor-pointer" : "opacity-50"}`}>
+        <input type="checkbox" checked={acknowledged} disabled={!quizPassed}
+               onChange={(e) => setAcknowledged(e.target.checked)}
                className="mt-0.5 accent-[var(--accent)]" />
         <span>I've saved my secret key in a safe place. I understand losing it means losing access.</span>
       </label>
 
-      <button onClick={onNext} disabled={!acknowledged} className="btn-primary w-full disabled:opacity-50">
+      <button onClick={onNext} disabled={!acknowledged || !quizPassed} className="btn-primary w-full disabled:opacity-50">
         Continue <ArrowRight size={13} />
       </button>
     </div>
   );
 }
 
+/** Three fragments, one real. decoys drawn from elsewhere in the same key. */
+function makeQuizOptions(secret: string): string[] {
+  const correct = secret.slice(QUIZ_START, QUIZ_START + QUIZ_LEN);
+  const decoys = new Set<string>();
+  // Deterministic offsets keep the options stable across re-renders.
+  for (const offset of [13, 22, 31, 40, 17, 26]) {
+    if (decoys.size >= 2) break;
+    const candidate = secret.slice(offset, offset + QUIZ_LEN);
+    if (candidate.length === QUIZ_LEN && candidate !== correct && !decoys.has(candidate)) {
+      decoys.add(candidate);
+    }
+  }
+  // Pathologically repetitive keys: synthesize a decoy.
+  while (decoys.size < 2) {
+    const flipped = correct.split("").reverse().join("") + decoys.size;
+    decoys.add(flipped.slice(0, QUIZ_LEN));
+  }
+  const options = [correct, ...decoys];
+  // Stable shuffle keyed off the secret so order doesn't jump between renders.
+  const seed = secret.charCodeAt(QUIZ_START) % options.length;
+  return options.slice(seed).concat(options.slice(0, seed));
+}
+
 function StepFund({
-  authorityAddress, balance, airdropping, onAirdrop, onNext,
+  authorityAddress, balance, airdropping, onAirdrop, onNext, onBack,
 }: {
   authorityAddress: string; balance: number | null;
   airdropping: boolean; onAirdrop: () => void; onNext: () => void;
+  onBack?: () => void;
 }) {
   const enough = balance !== null && balance >= 0.05;
   return (
     <div className="space-y-6">
+      {onBack && <BackButton onBack={onBack} />}
       <div className="text-center space-y-2">
         <Droplet size={26} className="mx-auto text-accent-soft" />
         <h2 className="text-2xl font-extrabold tracking-tight">Fund your authority key</h2>
@@ -442,7 +669,7 @@ function StepFund({
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-text-faint">Balance</span>
-          <span className="font-mono">{balance === null ? "—" : `${balance.toFixed(4)} XLM`}</span>
+          <span className="font-mono">{balance === null ? "–" : `${balance.toFixed(4)} XLM`}</span>
         </div>
       </div>
 
@@ -456,7 +683,7 @@ function StepFund({
       </div>
 
       <p className="text-[11px] text-text-faint text-center">
-        Faucet rate-limited? Friendbot funds testnet accounts — open <a href="https://laboratory.stellar.org/#account-creator?network=test" target="_blank" rel="noreferrer"
+        Faucet rate-limited? Friendbot funds testnet accounts. Open <a href="https://laboratory.stellar.org/#account-creator?network=test" target="_blank" rel="noreferrer"
            className="text-accent-soft hover:text-text">the Stellar Laboratory</a>.
       </p>
     </div>
@@ -472,7 +699,7 @@ function StepProvision({
   return (
     <div className="text-center space-y-6">
       <div className="w-14 h-14 mx-auto rounded-card flex items-center justify-center"
-           style={{ background: "rgba(61,109,255,0.12)", border: "1px solid rgba(61,109,255,0.25)" }}>
+           style={{ background: "var(--accent-dim)", border: "1px solid var(--accent-glow)" }}>
         {provisioning
           ? <Loader2 size={22} className="animate-spin text-accent-soft" />
           : <Check size={22} className="text-ok" />}
@@ -510,8 +737,8 @@ function StepPolicy({
               onClick={() => onChoose(t.id)}
               className="w-full text-left p-4 rounded-card transition-colors"
               style={{
-                background: active ? "rgba(255,107,0,0.07)" : "rgba(20,20,20,0.03)",
-                border: active ? "1px solid rgba(61,109,255,0.5)" : "1px solid var(--line)",
+                background: active ? "var(--accent-dim)" : "var(--secondary)",
+                border: active ? "1px solid var(--accent)" : "1px solid var(--line)",
               }}
             >
               <div className="flex items-center justify-between mb-1">
@@ -535,7 +762,7 @@ function StepDone({ walletAddress, onEnter }: { walletAddress: string; onEnter: 
   return (
     <div className="text-center space-y-6">
       <div className="w-16 h-16 mx-auto rounded-card flex items-center justify-center"
-           style={{ background: "rgba(52,211,153,0.10)", border: "1px solid rgba(52,211,153,0.30)" }}>
+           style={{ background: "var(--ok-dim)", border: "1px solid var(--ok)" }}>
         <Check size={28} className="text-ok" />
       </div>
       <div className="space-y-2">

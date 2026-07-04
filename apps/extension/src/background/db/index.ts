@@ -10,7 +10,7 @@
 const DB_NAME = "baret";
 // v2 adds the `sub_keys` object store (T28 merchant Swig sub-keys).
 // v3 adds the `site_permissions` object store (per-origin connect trust grants).
-// All upgrades MUST live in `runMigrations` below — no other module may call
+// All upgrades MUST live in `runMigrations` below. no other module may call
 // indexedDB.open() with a higher version, or it deadlocks the connection
 // cached in `dbPromise` and the popup gets "close other tabs" / timeout.
 const DB_VERSION = 3;

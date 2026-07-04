@@ -1,7 +1,7 @@
 /**
  * BARET brand glyph.
  *
- * Authoritative SVG; never replaced by a raster. Stylized hard hat — orange
+ * Authoritative SVG; never replaced by a raster. Stylized hard hat. orange
  * dome with a white center rib, resting on an orange brim. "The hard hat for
  * your Stellar wallet." Lockup spec lives in docs/brand.md §2.
  *
