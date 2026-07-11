@@ -85,6 +85,8 @@ async function freshEnv() {
     type: "wallet.unlocked",
     walletAddress: authority.publicKey(),
     authorityAddress: authority.publicKey(),
+    accounts: [{ index: 0, label: "Account 1", authorityAddress: authority.publicKey(), smartWalletAddress: null }],
+    activeAccountIndex: 0,
   });
 
   return { browserMod, session, store, signQueue, allowances, handlers, authority };

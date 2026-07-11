@@ -25,6 +25,7 @@ export function Home() {
   const [balance, setBalance] = useState<number | null>(null);
   const [usdc, setUsdc] = useState<number | null>(null);
   const [hasUsdcTrustline, setHasUsdcTrustline] = useState(true);
+  const [accountExists, setAccountExists] = useState(true);
   const [balanceError, setBalanceError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [airdropping, setAirdropping] = useState(false);
@@ -47,6 +48,7 @@ export function Home() {
       setBalance(Number(r.stroops) / STROOPS_PER_XLM);
       setUsdc(r.usdc === null ? null : Number(r.usdc));
       setHasUsdcTrustline(r.hasUsdcTrustline);
+      setAccountExists(r.exists);
       setBalanceError(false);
     } catch {
       setBalanceError(true);
@@ -55,9 +57,9 @@ export function Home() {
     }
   }, [state?.authorityAddress, rpc]);
 
-  useEffect(() => {
-    void refreshBalance();
-  }, [refreshBalance]);
+  // Auto-refresh like other wallets — a balance funded while the popup is
+  // already open shouldn't require a manual refresh tap.
+  usePolling(refreshBalance, 8000);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,7 +204,19 @@ export function Home() {
             </div>
           )}
 
-          {!hasUsdcTrustline && !balanceError && (
+          {!accountExists && !balanceError && (
+            <div
+              className="mt-2.5 px-3 py-2 rounded-input text-[11px] leading-relaxed"
+              style={{ background: "var(--warn-dim)", color: "var(--warn)" }}
+            >
+              Not active on {state?.network === "pubnet" ? "Public Network" : "Testnet"} yet
+              — send at least 1 XLM to this address to activate it. That's
+              why nothing shows above; it isn't a zero balance on an
+              existing account.
+            </div>
+          )}
+
+          {!hasUsdcTrustline && !balanceError && accountExists && (
             <div className="mt-2.5 space-y-2">
               <p className="text-[11px]" style={{ color: "var(--warn)" }}>
                 No USDC trustline yet. Add one so Baret can pay on x402, the

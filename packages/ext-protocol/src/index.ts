@@ -41,13 +41,25 @@ export type WalletPhase =
   | "signing"
   | "alert";
 
+/** One HD-derived (or, for index 0, root) account, as surfaced to the UI. */
+export interface AccountSnapshot {
+  index: number;
+  label: string;
+  authorityAddress: string;
+  smartWalletAddress: string | null;
+}
+
 export interface WalletStateSnapshot {
   phase: WalletPhase;
   network: StellarNetwork;
-  walletAddress: string | null;       // smart wallet (Swig system address)
-  authorityAddress: string | null;
+  walletAddress: string | null;       // smart wallet (Swig system address) of the ACTIVE account
+  authorityAddress: string | null;    // authority address of the ACTIVE account
   alertsUnread: number;
   watchedAddresses: string[];
+  /** All accounts derived from the wallet's root seed. */
+  accounts: AccountSnapshot[];
+  /** Which `accounts[].index` is currently active — matches `walletAddress`/`authorityAddress`. */
+  activeAccountIndex: number;
 }
 
 export interface AllowanceSnapshot {
@@ -191,8 +203,9 @@ export interface ExtRpc {
   "wallet.lock":       { req: void;                                       rsp: { ok: true } };
   "wallet.create":     { req: { passphrase: string; network: StellarNetwork };   rsp: { walletAddress: string; authorityAddress: string } };
   /** Restore an existing wallet from an exported secret key (base58 seed,
-   *  hex seed, or an S… Stellar secret). Mirrors `wallet.create`: encrypts
-   *  the seed under the passphrase and stores it in the keystore. */
+   *  hex seed, an S… Stellar secret, or a BIP-39 mnemonic phrase). Mirrors
+   *  `wallet.create`: encrypts the root seed under the passphrase and stores
+   *  it in the keystore. */
   "wallet.import":     { req: { secret: string; passphrase: string; network: StellarNetwork }; rsp: { walletAddress: string; authorityAddress: string } };
   "wallet.reset":      { req: { confirmation: "I-UNDERSTAND" };           rsp: { ok: true } };
   "wallet.exportSecret": { req: { passphrase: string; format: "mnemonic" | "base58" | "hex" }; rsp: { secret: string } };
@@ -201,7 +214,20 @@ export interface ExtRpc {
   "wallet.acknowledgeBackup": { req: void;                                rsp: { ok: true } };
   "wallet.airdrop":    { req: void;                                       rsp: { transactionHash: string; amountXlm: number } };
   "wallet.provisionSmartWallet": { req: void;                             rsp: { smartWalletAddress: string; walletAddress: string; alreadyOnChain: boolean } };
-  "wallet.balance":    { req: { address?: string };                       rsp: { stroops: string; usdc: string | null; hasUsdcTrustline: boolean } };
+  /** `exists: false` only when Horizon 404s (the account has never been funded/
+   *  activated on the current network) — distinct from a genuine zero balance
+   *  on an existing account, so the UI can explain why nothing shows instead
+   *  of rendering an unexplained 0.0000. */
+  "wallet.balance":    { req: { address?: string };                       rsp: { stroops: string; usdc: string | null; hasUsdcTrustline: boolean; exists: boolean } };
+  /** All accounts derived from the wallet's root seed. */
+  "wallet.listAccounts": { req: void;                                     rsp: { accounts: AccountSnapshot[]; activeIndex: number } };
+  /** Derives and adds the next account (index = max existing index + 1), and
+   *  switches to it. */
+  "wallet.addAccount":  { req: { label?: string };                        rsp: AccountSnapshot };
+  /** Switches the active account. No passphrase required — the root secret
+   *  is already unlocked in session memory. */
+  "wallet.switchAccount": { req: { index: number };                       rsp: { ok: true } };
+  "wallet.renameAccount": { req: { index: number; label: string };        rsp: { ok: true } };
   /** User-initiated native XLM transfer from the authority key.
    *  Builds + signs + broadcasts a Payment op locally; the popup never
    *  sees the private key. */

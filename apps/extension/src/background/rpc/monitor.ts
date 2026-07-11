@@ -71,6 +71,12 @@ class Monitor {
     this.horizon = null;
   }
 
+  /** Switch which address the monitor watches — e.g. after an account switch. */
+  async restart(authorityAddress: string, walletAddress: string): Promise<void> {
+    await this.stop();
+    await this.start(authorityAddress, walletAddress);
+  }
+
   private scheduleNext(): void {
     if (!this.running) return;
     this.pollTimer = setTimeout(() => {
@@ -242,9 +248,19 @@ export function startMonitorLifecycle(): void {
   subscribe((next, prev) => {
     const reachedReady = next.phase === "ready" && prev.phase !== "ready";
     const leftReady = prev.phase === "ready" && next.phase !== "ready";
+    // Switching the active account keeps phase "ready" throughout — the
+    // reachedReady/leftReady edges above never fire, so watch for the
+    // address itself changing while already ready (account.switched).
+    const switchedAddressWhileReady =
+      next.phase === "ready" &&
+      prev.phase === "ready" &&
+      next.authorityAddress !== prev.authorityAddress;
 
     if (reachedReady && next.authorityAddress && next.walletAddress) {
       void monitor.start(next.authorityAddress, next.walletAddress);
+    }
+    if (switchedAddressWhileReady && next.authorityAddress && next.walletAddress) {
+      void monitor.restart(next.authorityAddress, next.walletAddress);
     }
     if (leftReady) {
       void monitor.stop();

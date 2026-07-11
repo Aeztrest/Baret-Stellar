@@ -68,8 +68,10 @@ export function Onboarding() {
       const res = await rpc.call("wallet.create", { passphrase, network: "testnet" });
       setAuthorityAddress(res.authorityAddress);
       setWalletAddress(res.walletAddress);
-      // Pull the secret for the backup screen. Only available right after creation.
-      const sec = await rpc.call("wallet.exportSecret", { passphrase, format: "base58" });
+      // Pull the recovery phrase for the backup screen. Only available right
+      // after creation. Every additional account (see the account switcher)
+      // derives from this same 24-word phrase — back it up once, recover all.
+      const sec = await rpc.call("wallet.exportSecret", { passphrase, format: "mnemonic" });
       setSecret(sec.secret);
       setStep(4);
       await refresh();
@@ -455,8 +457,8 @@ function StepImport({
         <KeyRound size={26} className="mx-auto text-accent-soft" />
         <h2 className="text-2xl font-extrabold tracking-tight">Restore your wallet</h2>
         <p className="text-text-muted max-w-md mx-auto text-sm">
-          Paste the secret key from your backup. Baret accepts the key from its
-          own backup screen, an S… Stellar secret, or a 64-character hex seed.
+          Paste your 24-word recovery phrase, or a key from an older Baret
+          backup screen, an S… Stellar secret, or a 64-character hex seed.
         </p>
       </div>
 
@@ -473,7 +475,7 @@ function StepImport({
           <textarea
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
-            placeholder="Secret key"
+            placeholder="Recovery phrase or secret key"
             rows={3}
             spellCheck={false}
             autoFocus
@@ -496,8 +498,7 @@ function StepImport({
 }
 
 const CLIPBOARD_CLEAR_MS = 60_000;
-const QUIZ_START = 4; // zero-based start of the fragment the quiz asks for
-const QUIZ_LEN = 5;
+const QUIZ_WORD_INDEX = 7; // zero-based — which word of the 24 the quiz asks for
 
 function StepBackup({
   secret, authorityAddress, onNext,
@@ -516,7 +517,7 @@ function StepBackup({
     try {
       await navigator.clipboard.writeText(secret);
       setCopied(true);
-      // Don't leave the secret sitting on the clipboard. overwrite it.
+      // Don't leave the phrase sitting on the clipboard. overwrite it.
       if (clearTimer.current) clearTimeout(clearTimer.current);
       clearTimer.current = setTimeout(() => {
         navigator.clipboard.writeText("Baret cleared this clipboard.").catch(() => {});
@@ -525,18 +526,22 @@ function StepBackup({
     } catch { /* clipboard might be denied */ }
   };
 
-  // Quick verification: pick the real fragment among three. proves the user
-  // actually looked at (or saved) the key before acknowledging.
-  const correctFragment = secret.slice(QUIZ_START, QUIZ_START + QUIZ_LEN);
-  const quizOptions = useMemo(() => makeQuizOptions(secret), [secret]);
-  const quizPassed = quizPick === correctFragment;
+  const words = useMemo(() => secret.trim().split(/\s+/), [secret]);
+
+  // Quick verification: pick the real word among three. proves the user
+  // actually looked at (or saved) the phrase before acknowledging.
+  const correctWord = words[QUIZ_WORD_INDEX] ?? words[0]!;
+  const quizOptions = useMemo(() => makeQuizOptions(words), [words]);
+  const quizPassed = quizPick === correctWord;
 
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-extrabold tracking-tight">Back up your secret key</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight">Back up your recovery phrase</h2>
         <p className="text-text-muted text-sm max-w-md mx-auto">
-          This is the only proof you own this wallet. Save it offline somewhere only you can reach.
+          These 24 words are the only proof you own this wallet — and every
+          account you add later derives from them. Save them offline
+          somewhere only you can reach.
         </p>
       </div>
 
@@ -544,20 +549,32 @@ function StepBackup({
            style={{ background: "var(--warn-dim)", border: "1px solid var(--warn)" }}>
         <AlertTriangle size={14} className="text-warn shrink-0 mt-0.5" />
         <p className="text-xs text-text-muted leading-relaxed">
-          Anyone with this key can spend your wallet. Don't paste it into websites. Don't share it.
+          Anyone with this phrase can spend your wallet and every account
+          derived from it. Don't paste it into websites. Don't share it.
         </p>
       </div>
 
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
-          <p className="label !mb-0">Secret key</p>
+          <p className="label !mb-0">Recovery phrase</p>
           <button onClick={() => setRevealed((s) => !s)} className="text-xs text-accent-soft hover:text-text">
             {revealed ? "Hide" : "Reveal"}
           </button>
         </div>
-        <div className="font-mono text-xs break-all min-h-[3.5rem] px-3 py-3 rounded-input bg-secondary border border-border">
-          {revealed ? secret : "•".repeat(80)}
-        </div>
+        {revealed ? (
+          <div className="grid grid-cols-3 gap-1.5 px-3 py-3 rounded-input bg-secondary border border-border">
+            {words.map((w, i) => (
+              <div key={i} className="flex items-baseline gap-1.5 font-mono text-xs">
+                <span className="text-text-faint w-4 text-right shrink-0">{i + 1}.</span>
+                <span className="text-text truncate">{w}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="min-h-[3.5rem] px-3 py-3 rounded-input bg-secondary border border-border flex items-center justify-center text-text-faint text-xs">
+            24 words hidden — tap Reveal
+          </div>
+        )}
         <button onClick={onCopy} disabled={!revealed} className="btn-ghost w-full disabled:opacity-50">
           {copied ? <><Check size={13} className="text-ok" /> Copied</> : <><Copy size={13} /> Copy to clipboard</>}
         </button>
@@ -569,19 +586,19 @@ function StepBackup({
       </div>
 
       <div className="card !p-4 space-y-2">
-        <p className="label !mb-0">Authority address</p>
+        <p className="label !mb-0">Account 1 address</p>
         <p className="font-mono text-xs break-all">{authorityAddress}</p>
       </div>
 
       {/* Verification quiz. the acknowledgment doesn't count until this passes. */}
       <div className="card !p-4 space-y-2.5">
         <p className="text-xs font-bold">
-          Quick check: which fragment is characters {QUIZ_START + 1} to {QUIZ_START + QUIZ_LEN} of your key?
+          Quick check: what's word #{QUIZ_WORD_INDEX + 1} of your phrase?
         </p>
         <div className="grid grid-cols-3 gap-2">
           {quizOptions.map((opt) => {
             const picked = quizPick === opt;
-            const correct = opt === correctFragment;
+            const correct = opt === correctWord;
             return (
               <button
                 key={opt}
@@ -599,7 +616,7 @@ function StepBackup({
           })}
         </div>
         {quizPick !== null && !quizPassed && (
-          <p className="text-bad text-[11px]">Not that one. Check your saved key and try again.</p>
+          <p className="text-bad text-[11px]">Not that one. Check your saved phrase and try again.</p>
         )}
         {quizPassed && (
           <p className="text-ok text-[11px] flex items-center gap-1"><Check size={11} /> That's it.</p>
@@ -610,7 +627,7 @@ function StepBackup({
         <input type="checkbox" checked={acknowledged} disabled={!quizPassed}
                onChange={(e) => setAcknowledged(e.target.checked)}
                className="mt-0.5 accent-[var(--accent)]" />
-        <span>I've saved my secret key in a safe place. I understand losing it means losing access.</span>
+        <span>I've saved my recovery phrase in a safe place. I understand losing it means losing access.</span>
       </label>
 
       <button onClick={onNext} disabled={!acknowledged || !quizPassed} className="btn-primary w-full disabled:opacity-50">
@@ -620,26 +637,22 @@ function StepBackup({
   );
 }
 
-/** Three fragments, one real. decoys drawn from elsewhere in the same key. */
-function makeQuizOptions(secret: string): string[] {
-  const correct = secret.slice(QUIZ_START, QUIZ_START + QUIZ_LEN);
+/** Three words, one real. decoys are other real words from the same phrase
+ *  (they're all valid BIP-39 words already, so this can't leak a fake word
+ *  that looks obviously wrong). */
+function makeQuizOptions(words: string[]): string[] {
+  const correct = words[QUIZ_WORD_INDEX] ?? words[0]!;
   const decoys = new Set<string>();
-  // Deterministic offsets keep the options stable across re-renders.
-  for (const offset of [13, 22, 31, 40, 17, 26]) {
+  for (const offset of [2, 11, 19, 5, 15, 22]) {
     if (decoys.size >= 2) break;
-    const candidate = secret.slice(offset, offset + QUIZ_LEN);
-    if (candidate.length === QUIZ_LEN && candidate !== correct && !decoys.has(candidate)) {
+    const candidate = words[offset % words.length];
+    if (candidate && candidate !== correct && !decoys.has(candidate)) {
       decoys.add(candidate);
     }
   }
-  // Pathologically repetitive keys: synthesize a decoy.
-  while (decoys.size < 2) {
-    const flipped = correct.split("").reverse().join("") + decoys.size;
-    decoys.add(flipped.slice(0, QUIZ_LEN));
-  }
   const options = [correct, ...decoys];
-  // Stable shuffle keyed off the secret so order doesn't jump between renders.
-  const seed = secret.charCodeAt(QUIZ_START) % options.length;
+  // Stable shuffle keyed off the phrase so order doesn't jump between renders.
+  const seed = correct.charCodeAt(0) % options.length;
   return options.slice(seed).concat(options.slice(0, seed));
 }
 

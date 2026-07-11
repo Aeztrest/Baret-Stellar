@@ -1,40 +1,60 @@
 /**
- * In-memory session: holds the decrypted authority secret while the wallet
- * is unlocked. Service worker memory only; never persisted.
+ * In-memory session: holds the decrypted root secret while the wallet is
+ * unlocked. Service worker memory only; never persisted.
  *
  * Every signing call goes through `useAuthority()` which renews the idle
  * timer. After `idleTimeoutMs` of inactivity, the session zeros the secret
  * and dispatches `wallet.locked`.
  *
- * Stellar build: secret bytes are the 32-byte ed25519 seed used by
- * `Keypair.fromRawEd25519Seed`. The cipher / KDF code operates on the
- * Stellar ed25519 secret seed.
+ * Stellar build: secret bytes are the 32-byte ed25519 root seed. Multiple
+ * accounts derive from this one root seed (see `crypto/hd.ts`) — switching
+ * the active account (`setActiveIndex`) never requires the passphrase again,
+ * matching how other wallets switch accounts instantly.
  */
 
 import { Keypair } from "@stellar/stellar-sdk";
 import { secureZero } from "./kdf";
 import { dispatch, getState } from "../state/store";
+import { deriveAccountKeypair } from "./hd";
 
 let secretBytes: Uint8Array | null = null;
+let activeIndex = 0;
+const derivedCache = new Map<number, Keypair>();
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function isUnlocked(): boolean {
   return secretBytes !== null;
 }
 
-export function unlockWith(bytes: Uint8Array): void {
+export function unlockWith(bytes: Uint8Array, initialActiveIndex = 0): void {
   if (bytes.length !== 32) {
     throw new Error(
       "Authority secret must be 32 bytes (Stellar ed25519 raw seed).",
     );
   }
   secretBytes = new Uint8Array(bytes); // own copy; caller may zero theirs
+  activeIndex = initialActiveIndex;
+  derivedCache.clear();
   resetIdle();
 }
 
 /**
- * Get a freshly derived Keypair. Each call returns a new Keypair object
- * backed by the shared secret bytes.
+ * Switch which derived account subsequent `useAuthority()` calls sign with.
+ * In-memory only — the caller is responsible for persisting the new
+ * `activeIndex` to the keystore (see `switchAccountHandler`).
+ */
+export function setActiveIndex(index: number): void {
+  if (!secretBytes) throw new Error("Wallet is locked.");
+  activeIndex = index;
+}
+
+export function getActiveIndex(): number {
+  return activeIndex;
+}
+
+/**
+ * Get a freshly derived Keypair for the active account. Cached per index so
+ * repeated signs against the same account don't re-run HD derivation.
  *
  * Renews the idle timer by default — pass `isAutomatic: true` for calls
  * that happen without any human interaction (e.g. x402 background
@@ -46,7 +66,11 @@ export function useAuthority(opts?: { isAutomatic?: boolean }): Keypair {
   if (!secretBytes)
     throw new Error("Wallet is locked. Unlock before signing.");
   if (!opts?.isAutomatic) resetIdle();
-  return Keypair.fromRawEd25519Seed(Buffer.from(secretBytes));
+  const cached = derivedCache.get(activeIndex);
+  if (cached) return cached;
+  const kp = deriveAccountKeypair(secretBytes, activeIndex);
+  derivedCache.set(activeIndex, kp);
+  return kp;
 }
 
 export function lock(): void {
@@ -54,6 +78,8 @@ export function lock(): void {
     secureZero(secretBytes);
     secretBytes = null;
   }
+  activeIndex = 0;
+  derivedCache.clear();
   if (idleTimer) {
     clearTimeout(idleTimer);
     idleTimer = null;

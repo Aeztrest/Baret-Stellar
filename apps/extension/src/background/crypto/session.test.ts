@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isUnlocked, lock, unlockWith, useAuthority } from "./session";
+import { getActiveIndex, isUnlocked, lock, setActiveIndex, unlockWith, useAuthority } from "./session";
+import { deriveAccountKeypair } from "./hd";
 
 // Regression tests for the auto-lock bypass: x402 auto-approved payments
 // used to call `useAuthority()` with no distinction from human-initiated
@@ -45,5 +46,44 @@ describe("session idle timer vs. automatic signing", () => {
       vi.advanceTimersByTime(60 * 1000);
     }
     expect(isUnlocked()).toBe(true);
+  });
+});
+
+describe("session — multi-account switching", () => {
+  const rootSeed = new Uint8Array(32).fill(3);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    unlockWith(rootSeed);
+  });
+
+  afterEach(() => {
+    lock();
+    vi.useRealTimers();
+  });
+
+  it("defaults to account index 0 on unlock", () => {
+    expect(getActiveIndex()).toBe(0);
+    expect(useAuthority().publicKey()).toBe(deriveAccountKeypair(rootSeed, 0).publicKey());
+  });
+
+  it("setActiveIndex switches which account useAuthority() signs with, no re-unlock needed", () => {
+    setActiveIndex(2);
+    expect(getActiveIndex()).toBe(2);
+    expect(useAuthority().publicKey()).toBe(deriveAccountKeypair(rootSeed, 2).publicKey());
+  });
+
+  it("unlockWith(bytes, activeIndex) restores the previously active account on unlock", () => {
+    lock();
+    unlockWith(rootSeed, 3);
+    expect(getActiveIndex()).toBe(3);
+    expect(useAuthority().publicKey()).toBe(deriveAccountKeypair(rootSeed, 3).publicKey());
+  });
+
+  it("locking resets the active index back to 0", () => {
+    setActiveIndex(4);
+    lock();
+    unlockWith(rootSeed);
+    expect(getActiveIndex()).toBe(0);
   });
 });

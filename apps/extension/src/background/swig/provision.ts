@@ -15,8 +15,8 @@
 
 import { Horizon } from "@stellar/stellar-sdk";
 
-import { readKeystore, writeKeystore } from "../db/keystore";
-import { useAuthority } from "../crypto/session";
+import { activeAccountEntry, readKeystore, updateAccountEntry } from "../db/keystore";
+import { getActiveIndex, useAuthority } from "../crypto/session";
 
 export interface ProvisionResult {
   smartWalletAddress: string;
@@ -26,16 +26,18 @@ export interface ProvisionResult {
 
 const MIN_RENT_BUDGET_STROOPS = 50_000_000n; // 5 XLM
 
+/** Provisions a smart wallet for the currently ACTIVE account (see `crypto/session.ts`). */
 export async function provisionSmartWallet(
   horizon: Horizon.Server,
 ): Promise<ProvisionResult> {
   const row = await readKeystore();
   if (!row) throw new Error("No wallet found.");
+  const acct = activeAccountEntry(row);
 
-  if (row.smartWalletAddress) {
+  if (acct.smartWalletAddress) {
     return {
-      smartWalletAddress: row.smartWalletAddress,
-      walletAddress: row.smartWalletAddress,
+      smartWalletAddress: acct.smartWalletAddress,
+      walletAddress: acct.smartWalletAddress,
       alreadyOnChain: true,
     };
   }
@@ -44,14 +46,14 @@ export async function provisionSmartWallet(
   const authority = useAuthority();
   const authorityAddress = authority.publicKey();
 
-  const account = await horizon.loadAccount(authorityAddress).catch(() => null);
-  if (!account) {
+  const horizonAccount = await horizon.loadAccount(authorityAddress).catch(() => null);
+  if (!horizonAccount) {
     throw new Error(
       `Authority ${authorityAddress} not funded on-chain. run an airdrop first.`,
     );
   }
   const nativeBalance =
-    account.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
+    horizonAccount.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
   if (decimalXlmToStroops(nativeBalance) < MIN_RENT_BUDGET_STROOPS) {
     throw new Error(
       `Authority needs ≥ ${MIN_RENT_BUDGET_STROOPS / 10_000_000n} XLM to deploy the smart wallet. Run an airdrop first.`,
@@ -64,10 +66,7 @@ export async function provisionSmartWallet(
   // consume `smartWalletAddress` resolve consistently.
   const smartWalletAddress = authorityAddress;
 
-  await writeKeystore({
-    ...row,
-    smartWalletAddress,
-  });
+  await updateAccountEntry(row, getActiveIndex(), { smartWalletAddress });
 
   return {
     smartWalletAddress,

@@ -6,7 +6,7 @@
  * reads from here via the message router.
  */
 
-import type { StellarNetwork, WalletStateSnapshot } from "@stellar-thorn/ext-protocol";
+import type { AccountSnapshot, StellarNetwork, WalletStateSnapshot } from "@stellar-thorn/ext-protocol";
 
 export type WalletPhase =
   | "uninitialized"  // no keystore present
@@ -26,6 +26,10 @@ export interface WalletState {
   idleTimeoutMs: number;
   /** Last activity timestamp; used to compute auto-lock. */
   lastActivityAt: number;
+  /** All accounts derived from the wallet's root seed. */
+  accounts: AccountSnapshot[];
+  /** Which `accounts[].index` is active — mirrors `walletAddress`/`authorityAddress`. */
+  activeAccountIndex: number;
 }
 
 export const INITIAL_STATE: WalletState = {
@@ -37,13 +41,15 @@ export const INITIAL_STATE: WalletState = {
   watchedAddresses: [],
   idleTimeoutMs: 15 * 60 * 1000,
   lastActivityAt: Date.now(),
+  accounts: [],
+  activeAccountIndex: 0,
 };
 
 /* ────────────── Actions (the only way to mutate state) ────────────── */
 
 export type Action =
-  | { type: "wallet.created"; walletAddress: string; authorityAddress: string }
-  | { type: "wallet.unlocked"; walletAddress: string; authorityAddress: string }
+  | { type: "wallet.created"; walletAddress: string; authorityAddress: string; accounts: AccountSnapshot[]; activeAccountIndex: number }
+  | { type: "wallet.unlocked"; walletAddress: string; authorityAddress: string; accounts: AccountSnapshot[]; activeAccountIndex: number }
   | { type: "wallet.locked" }
   | { type: "wallet.reset" }
   | { type: "network.set"; network: StellarNetwork }
@@ -53,7 +59,8 @@ export type Action =
   | { type: "alerts.increment" }
   | { type: "watch.add"; pubkey: string }
   | { type: "watch.remove"; pubkey: string }
-  | { type: "activity.touch" };
+  | { type: "activity.touch" }
+  | { type: "account.switched"; walletAddress: string; authorityAddress: string; accounts: AccountSnapshot[]; activeAccountIndex: number };
 
 export function reduce(state: WalletState, action: Action): WalletState {
   switch (action.type) {
@@ -64,6 +71,18 @@ export function reduce(state: WalletState, action: Action): WalletState {
         phase: "ready",
         walletAddress: action.walletAddress,
         authorityAddress: action.authorityAddress,
+        accounts: action.accounts,
+        activeAccountIndex: action.activeAccountIndex,
+        lastActivityAt: Date.now(),
+      };
+
+    case "account.switched":
+      return {
+        ...state,
+        walletAddress: action.walletAddress,
+        authorityAddress: action.authorityAddress,
+        accounts: action.accounts,
+        activeAccountIndex: action.activeAccountIndex,
         lastActivityAt: Date.now(),
       };
 
@@ -113,5 +132,7 @@ export function snapshot(s: WalletState): WalletStateSnapshot {
     authorityAddress: s.authorityAddress,
     alertsUnread: s.alertsUnread,
     watchedAddresses: s.watchedAddresses,
+    accounts: s.accounts,
+    activeAccountIndex: s.activeAccountIndex,
   };
 }

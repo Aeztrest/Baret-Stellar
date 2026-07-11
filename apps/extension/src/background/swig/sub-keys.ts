@@ -29,7 +29,7 @@ import {
   type Keypair,
   type Networks,
 } from "@stellar/stellar-sdk";
-import { readKeystore } from "../db/keystore";
+import { activeAccountEntry, readKeystore } from "../db/keystore";
 
 export interface SubKeyProvisionResult {
   /** Preflighted tx XDR (base64) ready for signing + submission. */
@@ -64,7 +64,7 @@ export async function buildAddSubKeyTransaction(
 ): Promise<SubKeyProvisionResult> {
   const row = await readKeystore();
   if (!row) throw new Error("No wallet keystore");
-  const smartWalletAddress = row.smartWalletAddress;
+  const smartWalletAddress = activeAccountEntry(row).smartWalletAddress;
   if (!smartWalletAddress || !StrKey.isValidContract(smartWalletAddress)) {
     throw new Error("Smart-wallet contract address missing or invalid");
   }
@@ -113,7 +113,7 @@ export async function buildRemoveSubKeyTransaction(
 ): Promise<string> {
   const row = await readKeystore();
   if (!row) throw new Error("No wallet keystore");
-  const smartWalletAddress = row.smartWalletAddress;
+  const smartWalletAddress = activeAccountEntry(row).smartWalletAddress;
   if (!smartWalletAddress || !StrKey.isValidContract(smartWalletAddress)) {
     throw new Error("Smart-wallet contract address missing or invalid");
   }

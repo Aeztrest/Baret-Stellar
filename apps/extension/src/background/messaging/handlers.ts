@@ -20,6 +20,7 @@ import {
 } from "@stellar/stellar-sdk";
 import { Buffer } from "buffer";
 import browser from "webextension-polyfill";
+import { entropyToMnemonic, mnemonicToEntropy, validateMnemonic } from "bip39";
 import type {
   ExtRpcMethod,
   ExtRpcRequest,
@@ -30,12 +31,16 @@ import { BALANCED_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
 import { dispatch, getSnapshot } from "../state/store";
 import { encryptWithPassphrase, decryptWithPassphrase, needsIterationUpgrade } from "../crypto/kdf";
 import { checkAttemptAllowed, recordFailedAttempt, recordSuccessfulAttempt } from "../crypto/attempt-limiter";
-import { isUnlocked, lock, unlockWith, useAuthority } from "../crypto/session";
+import { getActiveIndex, isUnlocked, lock, setActiveIndex, unlockWith, useAuthority } from "../crypto/session";
 import {
+  activeAccountEntry,
   clearKeystore,
   hasKeystore,
   readKeystore,
+  toAccountSnapshot,
+  updateAccountEntry,
   writeKeystore,
+  type AccountEntry,
 } from "../db/keystore";
 import {
   getHorizon,
@@ -120,6 +125,14 @@ const createHandler: Handler<"wallet.create"> = async ({
 
   const authority = Keypair.random();
   const seedBytes = authority.rawSecretKey();
+  const now = Date.now();
+  const account0: AccountEntry = {
+    index: 0,
+    label: "Account 1",
+    authorityPubkey: authority.publicKey(),
+    smartWalletAddress: null,
+    createdAt: now,
+  };
 
   const blob = await encryptWithPassphrase(seedBytes, passphrase);
   await writeKeystore({
@@ -127,10 +140,12 @@ const createHandler: Handler<"wallet.create"> = async ({
     blob,
     authorityPubkey: authority.publicKey(),
     smartWalletAddress: null,
-    createdAt: Date.now(),
+    createdAt: now,
+    accounts: [account0],
+    activeIndex: 0,
   });
 
-  unlockWith(seedBytes);
+  unlockWith(seedBytes, 0);
 
   // Fresh wallet: the user has not confirmed a backup yet.
   await browser.storage.local.set({ [BACKUP_ACK_STORAGE_KEY]: false });
@@ -142,6 +157,8 @@ const createHandler: Handler<"wallet.create"> = async ({
     type: "wallet.created",
     walletAddress: authority.publicKey(),
     authorityAddress: authority.publicKey(),
+    accounts: [toAccountSnapshot(account0)],
+    activeAccountIndex: 0,
   });
 
   return {
@@ -166,6 +183,14 @@ const importHandler: Handler<"wallet.import"> = async ({
 
   const seedBytes = parseSecretInput(secret);
   const authority = Keypair.fromRawEd25519Seed(Buffer.from(seedBytes));
+  const now = Date.now();
+  const account0: AccountEntry = {
+    index: 0,
+    label: "Account 1",
+    authorityPubkey: authority.publicKey(),
+    smartWalletAddress: null,
+    createdAt: now,
+  };
 
   const blob = await encryptWithPassphrase(seedBytes, passphrase);
   await writeKeystore({
@@ -173,10 +198,12 @@ const importHandler: Handler<"wallet.import"> = async ({
     blob,
     authorityPubkey: authority.publicKey(),
     smartWalletAddress: null,
-    createdAt: Date.now(),
+    createdAt: now,
+    accounts: [account0],
+    activeIndex: 0,
   });
 
-  unlockWith(seedBytes);
+  unlockWith(seedBytes, 0);
   seedBytes.fill(0);
 
   // The user restored from a backup they already hold. no nag needed.
@@ -187,6 +214,8 @@ const importHandler: Handler<"wallet.import"> = async ({
     type: "wallet.created",
     walletAddress: authority.publicKey(),
     authorityAddress: authority.publicKey(),
+    accounts: [toAccountSnapshot(account0)],
+    activeAccountIndex: 0,
   });
 
   return {
@@ -196,13 +225,35 @@ const importHandler: Handler<"wallet.import"> = async ({
 };
 
 /**
- * Accepts the same formats `wallet.exportSecret` produces: the base58 seed
- * shown during onboarding, a 64-char hex seed, or a standard S… Stellar
- * secret key. Returns the raw 32-byte ed25519 seed.
+ * Accepts the same formats `wallet.exportSecret` produces: a BIP-39 mnemonic
+ * phrase, the base58 seed shown during onboarding, a 64-char hex seed, or a
+ * standard S… Stellar secret key. Returns the raw 32-byte ed25519 root seed
+ * — from which account 0 and every derived account (1+) come.
  */
 function parseSecretInput(raw: string): Uint8Array {
   const input = raw.trim();
   if (!input) throw new Error("Paste your secret key first.");
+
+  // BIP-39 mnemonic phrase (what the backup screen shows today). The wallet
+  // treats the root seed AS BIP-39 entropy (see crypto/hd.ts), so this is
+  // the exact inverse of `wallet.exportSecret`'s "mnemonic" format.
+  if (input.includes(" ")) {
+    if (!validateMnemonic(input)) {
+      throw new Error(
+        "That recovery phrase doesn't check out. Verify the word order and spelling.",
+      );
+    }
+    const entropyHex = mnemonicToEntropy(input);
+    if (entropyHex.length !== 64) {
+      throw new Error(
+        `That recovery phrase encodes ${entropyHex.length / 2} bytes; Baret's phrases are always 24 words (32 bytes). A phrase from a different wallet may use a shorter word count and isn't supported here.`,
+      );
+    }
+    const out = new Uint8Array(32);
+    for (let i = 0; i < 32; i++)
+      out[i] = parseInt(entropyHex.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
 
   // S… strkey secret (the standard Stellar format).
   if (/^S[A-Z2-7]{55}$/.test(input)) {
@@ -225,7 +276,7 @@ function parseSecretInput(raw: string): Uint8Array {
   const bytes = base58ToBytes(input);
   if (bytes === null) {
     throw new Error(
-      "Unrecognized secret format. Paste the key from your Baret backup screen, a 64-character hex seed, or an S… secret key.",
+      "Unrecognized secret format. Paste your 24-word recovery phrase, the key from your Baret backup screen, a 64-character hex seed, or an S… secret key.",
     );
   }
   if (bytes.length !== 32) {
@@ -290,16 +341,19 @@ const unlockHandler: Handler<"wallet.unlock"> = async ({ passphrase }) => {
     await writeKeystore({ ...row, blob: upgradedBlob });
   }
 
-  unlockWith(secret);
+  unlockWith(secret, row.activeIndex);
   secret.fill(0);
 
   await preloadActiveSubKeys(passphrase);
 
-  const wallet = row.smartWalletAddress ?? row.authorityPubkey;
+  const active = activeAccountEntry(row);
+  const wallet = active.smartWalletAddress ?? active.authorityPubkey;
   dispatch({
     type: "wallet.unlocked",
     walletAddress: wallet,
-    authorityAddress: row.authorityPubkey,
+    authorityAddress: active.authorityPubkey,
+    accounts: row.accounts.map(toAccountSnapshot),
+    activeAccountIndex: row.activeIndex,
   });
   return { ok: true };
 };
@@ -340,10 +394,8 @@ const exportSecretHandler: Handler<"wallet.exportSecret"> = async ({
     if (format === "hex") return { secret: bytesToHex(seed) };
     if (format === "base58") return { secret: bytesToBase58(seed) };
     if (format === "mnemonic") {
-      // 32-byte seed → 24-word BIP39 mnemonic.
-      const { entropyToMnemonic } = await import("bip39");
-      const entropyHex = bytesToHex(seed);
-      return { secret: entropyToMnemonic(entropyHex) };
+      // 32-byte seed → 24-word BIP39 mnemonic (the root every account derives from).
+      return { secret: entropyToMnemonic(bytesToHex(seed)) };
     }
     throw new Error(`Unknown export format: ${format}`);
   } finally {
@@ -385,6 +437,100 @@ const provisionSmartWalletHandler: Handler<
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
   const horizon = getHorizon();
   return provisionSmartWallet(horizon);
+};
+
+/* ────────────── Multi-account ────────────── */
+
+const listAccountsHandler: Handler<"wallet.listAccounts"> = async () => {
+  const row = await readKeystore();
+  if (!row) throw new Error("No wallet found.");
+  return { accounts: row.accounts.map(toAccountSnapshot), activeIndex: row.activeIndex };
+};
+
+/**
+ * Derives the next account (index = current max + 1) from the already-
+ * unlocked root seed and switches to it. No passphrase re-entry needed —
+ * the root secret is already in session memory.
+ */
+const addAccountHandler: Handler<"wallet.addAccount"> = async ({ label }) => {
+  if (!isUnlocked()) throw new Error("Unlock the wallet first.");
+  const row = await readKeystore();
+  if (!row) throw new Error("No wallet found.");
+
+  const nextIndex = Math.max(...row.accounts.map((a) => a.index)) + 1;
+  // useAuthority() only ever returns the ACTIVE account's key; deriving a
+  // fresh index needs the root seed directly. Temporarily point the session
+  // at the new index to derive it, since useAuthority() is the only sanctioned
+  // way to read the unlocked secret out of session.ts.
+  const previousIndex = getActiveIndex();
+  setActiveIndex(nextIndex);
+  const derived = useAuthority({ isAutomatic: true });
+  setActiveIndex(previousIndex);
+
+  const entry: AccountEntry = {
+    index: nextIndex,
+    label: label?.trim() || `Account ${nextIndex + 1}`,
+    authorityPubkey: derived.publicKey(),
+    smartWalletAddress: null,
+    createdAt: Date.now(),
+  };
+  const updated: typeof row = { ...row, accounts: [...row.accounts, entry], activeIndex: nextIndex };
+  await writeKeystore(updated);
+  setActiveIndex(nextIndex);
+
+  dispatch({
+    type: "account.switched",
+    walletAddress: entry.authorityPubkey,
+    authorityAddress: entry.authorityPubkey,
+    accounts: updated.accounts.map(toAccountSnapshot),
+    activeAccountIndex: nextIndex,
+  });
+
+  return toAccountSnapshot(entry);
+};
+
+const switchAccountHandler: Handler<"wallet.switchAccount"> = async ({ index }) => {
+  if (!isUnlocked()) throw new Error("Unlock the wallet first.");
+  const row = await readKeystore();
+  if (!row) throw new Error("No wallet found.");
+  const entry = row.accounts.find((a) => a.index === index);
+  if (!entry) throw new Error(`No account at index ${index}.`);
+
+  setActiveIndex(index);
+  await writeKeystore({ ...row, activeIndex: index });
+
+  const wallet = entry.smartWalletAddress ?? entry.authorityPubkey;
+  dispatch({
+    type: "account.switched",
+    walletAddress: wallet,
+    authorityAddress: entry.authorityPubkey,
+    accounts: row.accounts.map(toAccountSnapshot),
+    activeAccountIndex: index,
+  });
+  return { ok: true };
+};
+
+const renameAccountHandler: Handler<"wallet.renameAccount"> = async ({ index, label }) => {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Label can't be empty.");
+  const row = await readKeystore();
+  if (!row) throw new Error("No wallet found.");
+  if (!row.accounts.some((a) => a.index === index)) {
+    throw new Error(`No account at index ${index}.`);
+  }
+  const updated = await updateAccountEntry(row, index, { label: trimmed });
+
+  if (index === row.activeIndex) {
+    const active = activeAccountEntry(updated);
+    dispatch({
+      type: "account.switched",
+      walletAddress: active.smartWalletAddress ?? active.authorityPubkey,
+      authorityAddress: active.authorityPubkey,
+      accounts: updated.accounts.map(toAccountSnapshot),
+      activeAccountIndex: updated.activeIndex,
+    });
+  }
+  return { ok: true };
 };
 
 const policyReadHandler: Handler<"policy.read"> = async () => {
@@ -429,10 +575,11 @@ const balanceHandler: Handler<"wallet.balance"> = async ({ address }) => {
       stroops,
       usdc: usdcBal && "balance" in usdcBal ? usdcBal.balance : null,
       hasUsdcTrustline: !!usdcBal,
+      exists: true,
     };
   } catch (err) {
     if (isHorizonNotFound(err))
-      return { stroops: "0", usdc: null, hasUsdcTrustline: false };
+      return { stroops: "0", usdc: null, hasUsdcTrustline: false, exists: false };
     throw err;
   }
 };
@@ -898,6 +1045,10 @@ export const handlers: { [M in ExtRpcMethod]: Handler<M> } = {
   "wallet.balance": balanceHandler,
   "wallet.transferXlm": transferXlmHandler,
   "wallet.addUsdcTrustline": addUsdcTrustlineHandler,
+  "wallet.listAccounts": listAccountsHandler,
+  "wallet.addAccount": addAccountHandler,
+  "wallet.switchAccount": switchAccountHandler,
+  "wallet.renameAccount": renameAccountHandler,
 
   "network.set": networkSet,
 
