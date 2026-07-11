@@ -61,6 +61,51 @@ export async function setStatus(id: string, status: AllowanceSnapshot["status"])
   await writeAllowance(row);
 }
 
+/** True only for a live, manually-authorized mandate — never for "pending". */
+export function isMandateLive(row: AllowanceRow): boolean {
+  return (
+    row.status === "active" &&
+    (row.expiresAt === null || Date.now() <= row.expiresAt)
+  );
+}
+
+export type PromoteAllowanceResult = { ok: true } | { ok: false; reason: "nonce-mismatch" | "not-found" };
+
+/**
+ * Promotes an allowance to a live mandate after a manual user approval:
+ * status → "active", records when it was authorized, and grants a fresh
+ * expiry `mandateSeconds` out from now.
+ *
+ * Guarded by `expectedNonce` — the nonce the popup observed when it built the
+ * mandate preview the user actually saw. If the row's nonce has since moved
+ * (revoked/edited/promoted concurrently), this is a no-op: the payment the
+ * user just signed already went through, but the mandate is NOT extended, so
+ * the next payment simply falls back to another manual approval. Fail-closed,
+ * not a security hole — just an extra prompt in a race that should be rare.
+ */
+export async function promoteAllowance(
+  id: string,
+  expectedNonce: number,
+  mandateSeconds: number,
+): Promise<PromoteAllowanceResult> {
+  return tx("allowances", "readwrite", async (t) => {
+    const store = t.objectStore("allowances");
+    const row = (await asPromise(store.get(id))) as AllowanceRow | undefined;
+    if (!row) return { ok: false as const, reason: "not-found" as const };
+    if (row.nonce !== expectedNonce) {
+      return { ok: false as const, reason: "nonce-mismatch" as const };
+    }
+    const now = Date.now();
+    row.status = "active";
+    row.authorizedAt = now;
+    row.expiresAt = now + mandateSeconds * 1000;
+    row.nonce += 1;
+    row.updatedAt = now;
+    await asPromise(store.put(row));
+    return { ok: true as const };
+  });
+}
+
 export type ReserveSpendResult =
   | { ok: true; row: AllowanceRow }
   | { ok: false; reason: "hourly" | "daily"; row: AllowanceRow };

@@ -71,3 +71,18 @@ describe("validatePolicy — autoRevokeAfterIdleDays / maxActiveSubKeys", () => 
     expect(() => validatePolicy({ maxActiveSubKeys: 12 })).not.toThrow();
   });
 });
+
+describe("validatePolicy — mandateMaxAgeDays", () => {
+  it("rejects zero or a negative value (a mandate must eventually lapse)", () => {
+    expect(() => validatePolicy({ mandateMaxAgeDays: 0 })).toThrow(
+      /mandateMaxAgeDays must be a positive number/,
+    );
+    expect(() => validatePolicy({ mandateMaxAgeDays: -30 })).toThrow(
+      /mandateMaxAgeDays must be a positive number/,
+    );
+  });
+
+  it("accepts a positive number", () => {
+    expect(() => validatePolicy({ mandateMaxAgeDays: 30 })).not.toThrow();
+  });
+});

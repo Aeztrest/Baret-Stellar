@@ -318,7 +318,7 @@ function ToggleRow({
 function AllowanceRow({ a }: { a: AllowanceSnapshot }) {
   const statusPill =
     a.status === "active"  ? "pill-ok"   :
-    a.status === "paused"  ? "pill-warn" :
+    a.status === "paused" || a.status === "pending" ? "pill-warn" :
                              "pill-bad";
   return (
     <div className="p-3 rounded-input bg-secondary border border-border transition-colors hover:border-foreground/20">

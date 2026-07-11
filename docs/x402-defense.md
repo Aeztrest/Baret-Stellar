@@ -80,7 +80,7 @@ where PaymentPayload =
 5. Apply policy gate (`docs/policy-dsl.md`).
 6. If gate passes, sign. Otherwise, surface `BLOCKED` to the dApp via the `sign-rejected` channel of our wallet bridge, with a structured reason.
 
-The wallet **never** forwards the signed payment back to the page automatically — even an automated agent context surfaces a single user-visible toast unless the user enabled "headless mode" for that merchant. This is the antithesis of "blind permission."
+The wallet auto-signs only against a **live mandate** — a merchant the user manually authorized before (via the popup, which shows the merchant, per-tx/hourly/daily caps, and expiry) and whose mandate hasn't since lapsed. A brand-new merchant, or one whose mandate expired, always surfaces the popup with those terms for explicit approval, regardless of the `x402AutoApprove` policy flag — the cap alone is never treated as authorization. Every auto-approved payment additionally fires an OS-level notification naming the merchant and amount, so silent settlement is still visible after the fact. There is no separate "headless mode" toggle; auto-approval is scoped entirely by mandate state. This is the antithesis of "blind permission."
 
 ---
 

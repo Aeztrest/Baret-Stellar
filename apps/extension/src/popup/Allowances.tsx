@@ -203,6 +203,7 @@ function Card({ a, busy, onPause, onUnpause, onRevoke }: {
   const tone =
     a.status === "revoked" ? "bad"
     : a.status === "paused" ? "warn"
+    : a.status === "pending" ? "warn"
     : hourPct > 80 ? "warn"
     : "ok";
 
@@ -223,10 +224,22 @@ function Card({ a, busy, onPause, onUnpause, onRevoke }: {
         <Badge tone={tone} className="shrink-0">{a.status}</Badge>
       </div>
 
+      {a.status === "pending" && (
+        <p className="text-[10px] text-text-faint">
+          Awaiting first-payment approval — no auto-payments until you approve one.
+        </p>
+      )}
+
       <div className="space-y-1.5">
         <Meter label="Hourly" value={a.spentHour} max={a.capPerHour} size="compact" />
         <Meter label="Daily" value={a.spentDay} max={a.capPerDay} size="compact" />
       </div>
+
+      {a.status === "active" && a.expiresAt !== null && (
+        <p className="text-[10px] text-text-faint">
+          Renew by {new Date(a.expiresAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+        </p>
+      )}
 
       {a.status !== "revoked" && (
         <div className="flex gap-1.5 pt-1">

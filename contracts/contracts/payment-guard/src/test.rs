@@ -17,6 +17,10 @@ fn make_token<'a>(env: &Env, admin: &Address) -> (token::Client<'a>, token::Stel
     )
 }
 
+/// Default mandate lifetime used across tests that aren't specifically about
+/// expiry — mirrors the extension's BALANCED_POLICY `mandateMaxAgeDays: 30`.
+const MANDATE_SECS: u64 = 30 * DAY_SECONDS;
+
 struct Fixture<'a> {
     env: Env,
     guard: PaymentGuardClient<'a>,
@@ -47,7 +51,7 @@ fn setup<'a>() -> Fixture<'a> {
 fn pay_within_caps_settles_and_records_spend() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
 
     f.guard.pay(&merchant, &10_000);
 
@@ -60,7 +64,7 @@ fn pay_within_caps_settles_and_records_spend() {
 fn pay_above_per_tx_cap_reverts() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
     f.guard.pay(&merchant, &10_001);
 }
 
@@ -69,7 +73,7 @@ fn pay_above_per_tx_cap_reverts() {
 fn cumulative_spend_past_daily_cap_reverts() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &25_000);
+    f.guard.set_allowance(&merchant, &10_000, &25_000, &MANDATE_SECS);
     f.guard.pay(&merchant, &10_000);
     f.guard.pay(&merchant, &10_000); // 20_000 total — ok
     f.guard.pay(&merchant, &10_000); // 30_000 > 25_000 — reverts
@@ -88,7 +92,7 @@ fn pay_to_unregistered_merchant_reverts() {
 fn pay_to_revoked_merchant_reverts() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
     f.guard.revoke(&merchant);
     f.guard.pay(&merchant, &1_000);
 }
@@ -97,7 +101,7 @@ fn pay_to_revoked_merchant_reverts() {
 fn rolling_window_resets_after_24h() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &10_000);
+    f.guard.set_allowance(&merchant, &10_000, &10_000, &MANDATE_SECS);
     f.guard.pay(&merchant, &10_000); // daily cap fully spent
     assert_eq!(f.guard.available_today(&merchant), 0);
 
@@ -124,7 +128,7 @@ fn owner_can_withdraw() {
 fn withdraw_cannot_drain_below_active_merchant_reserve() {
     let f = setup(); // vault holds 500_000
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &450_000);
+    f.guard.set_allowance(&merchant, &10_000, &450_000, &MANDATE_SECS);
     // Vault must keep at least 450_000 reserved for this active merchant;
     // withdrawing everything would leave 0 < 450_000.
     f.guard.withdraw(&500_000);
@@ -134,7 +138,7 @@ fn withdraw_cannot_drain_below_active_merchant_reserve() {
 fn withdraw_up_to_the_reserve_line_succeeds() {
     let f = setup(); // vault holds 500_000
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &450_000);
+    f.guard.set_allowance(&merchant, &10_000, &450_000, &MANDATE_SECS);
     // Leaves exactly 450_000 behind — at the reserve line, not below it.
     f.guard.withdraw(&50_000);
     assert_eq!(f.token.balance(&f.guard.address), 450_000);
@@ -144,7 +148,7 @@ fn withdraw_up_to_the_reserve_line_succeeds() {
 fn revoking_a_merchant_frees_its_reserve_for_withdrawal() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &450_000);
+    f.guard.set_allowance(&merchant, &10_000, &450_000, &MANDATE_SECS);
     f.guard.revoke(&merchant);
     // No longer active, so its cap no longer reserves vault funds.
     f.guard.withdraw(&500_000);
@@ -161,7 +165,7 @@ fn revoking_a_merchant_frees_its_reserve_for_withdrawal() {
 fn cannot_double_spend_daily_cap_across_old_bucket_boundary() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &10_000); // window conceptually starts at t=0
+    f.guard.set_allowance(&merchant, &10_000, &10_000, &MANDATE_SECS); // window conceptually starts at t=0
 
     // Advance to 1s before where the old fixed-window reset would have
     // fired (day_start + DAY_SECONDS) and spend the full cap.
@@ -181,7 +185,7 @@ fn cannot_double_spend_daily_cap_across_old_bucket_boundary() {
 fn sliding_window_allows_spend_once_first_payment_fully_ages_out() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &10_000);
+    f.guard.set_allowance(&merchant, &10_000, &10_000, &MANDATE_SECS);
     f.env.ledger().with_mut(|l| l.timestamp += DAY_SECONDS - 1); // t = 86399
     f.guard.pay(&merchant, &10_000);
 
@@ -201,7 +205,7 @@ fn sliding_window_allows_spend_once_first_payment_fully_ages_out() {
 fn pay_to_paused_merchant_reverts() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
     f.guard.pause(&merchant);
     f.guard.pay(&merchant, &1_000);
 }
@@ -210,7 +214,7 @@ fn pay_to_paused_merchant_reverts() {
 fn resume_restores_active_status_and_preserves_window() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
     f.guard.pay(&merchant, &10_000);
 
     f.guard.pause(&merchant);
@@ -237,7 +241,7 @@ fn deposit_zero_or_negative_reverts() {
 fn pay_zero_or_negative_reverts() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
     f.guard.pay(&merchant, &0);
 }
 
@@ -253,7 +257,52 @@ fn withdraw_zero_or_negative_reverts() {
 fn set_allowance_negative_cap_reverts() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &-1, &10_000);
+    f.guard.set_allowance(&merchant, &-1, &10_000, &MANDATE_SECS);
+}
+
+/* ───────────── mandate expiry ─────────────
+ * `set_allowance` grants a bounded mandate, not a perpetual one — the caps
+ * alone were never meant to stand in for the owner's original authorization.
+ * `pay` must refuse once `expires_at` has passed, and a fresh `set_allowance`
+ * call (an explicit renewal) must restore it.
+ */
+
+#[test]
+fn pay_just_before_mandate_expiry_succeeds() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    let mandate_secs: u64 = 1_000;
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &mandate_secs);
+
+    f.env.ledger().with_mut(|l| l.timestamp += mandate_secs); // exactly at expiry, not past it
+    f.guard.pay(&merchant, &1_000);
+    assert_eq!(f.token.balance(&merchant), 1_000);
+}
+
+#[test]
+#[should_panic] // MandateExpired
+fn pay_after_mandate_expiry_reverts() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    let mandate_secs: u64 = 1_000;
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &mandate_secs);
+
+    f.env.ledger().with_mut(|l| l.timestamp += mandate_secs + 1); // 1s past expiry
+    f.guard.pay(&merchant, &1_000);
+}
+
+#[test]
+fn renewing_set_allowance_after_expiry_restores_pay() {
+    let f = setup();
+    let merchant = Address::generate(&f.env);
+    let mandate_secs: u64 = 1_000;
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &mandate_secs);
+    f.env.ledger().with_mut(|l| l.timestamp += mandate_secs + 1);
+
+    // A fresh, explicit grant renews the mandate from the current ledger time.
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &mandate_secs);
+    f.guard.pay(&merchant, &1_000);
+    assert_eq!(f.token.balance(&merchant), 1_000);
 }
 
 /* ───────────── auth boundaries ─────────────
@@ -285,7 +334,7 @@ fn init_without_owner_auth_panics() {
 fn set_allowance_requires_owner_authorization() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
     let auths = f.env.auths();
     assert_eq!(auths.len(), 1);
     assert_eq!(auths[0].0, f.owner);
@@ -295,7 +344,7 @@ fn set_allowance_requires_owner_authorization() {
 fn pause_resume_revoke_require_owner_authorization() {
     let f = setup();
     let merchant = Address::generate(&f.env);
-    f.guard.set_allowance(&merchant, &10_000, &30_000);
+    f.guard.set_allowance(&merchant, &10_000, &30_000, &MANDATE_SECS);
 
     f.guard.pause(&merchant);
     assert_eq!(f.env.auths()[0].0, f.owner);

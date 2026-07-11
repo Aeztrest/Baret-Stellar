@@ -44,6 +44,7 @@ import {
 } from "../rpc/connection";
 import { provisionSmartWallet } from "../swig/provision";
 import { performSign } from "../wallet-standard/handlers";
+import { DEFAULT_MANDATE_MAX_AGE_DAYS } from "../x402/handlers";
 import { closePopupWindow } from "../popup-window";
 import {
   peek as peekById,
@@ -56,6 +57,7 @@ import {
 import { analyzeTransaction } from "../baret/analyze-client";
 import {
   listAllowances,
+  promoteAllowance,
   setStatus as setAllowanceStatus,
 } from "../db/allowances";
 import {
@@ -757,6 +759,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
   requestId,
   accept,
   remember,
+  overridden,
 }) => {
   const req = takeSign(requestId);
   if (!req)
@@ -797,6 +800,29 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     });
     req.resolve(result);
     endSignFlowIfDrained();
+
+    // Manual approval of an x402 payment establishes or renews trust: promote
+    // the allowance to a live mandate so future payments to this merchant can
+    // auto-sign — bounded by mandateMaxAgeDays before requiring re-approval.
+    // Guarded by the nonce the popup actually observed; a stale nonce (the
+    // mandate changed mid-approval) fails closed and simply leaves the next
+    // payment to prompt again, it never widens access on its own.
+    if (req.x402Mandate) {
+      const policy = await loadPolicy();
+      const mandateSeconds =
+        (policy?.mandateMaxAgeDays ?? DEFAULT_MANDATE_MAX_AGE_DAYS) * 24 * 60 * 60;
+      const promoted = await promoteAllowance(
+        req.x402Mandate.allowanceId,
+        req.x402Mandate.nonce,
+        mandateSeconds,
+      );
+      if (!promoted.ok) {
+        console.warn(
+          `[BARET] mandate promotion skipped for ${req.x402Mandate.allowanceId}: ${promoted.reason}`,
+        );
+      }
+    }
+
     const signature =
       result.kind === "transactionAndSend" ? result.signature : null;
     await appendHistory({
@@ -805,7 +831,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
       origin: req.origin,
       summary: `Signed ${kindLabel(req.kind)} for ${req.origin}`,
       decision: "allow",
-      reasons: [],
+      reasons: overridden ? ["User held to override a Blocked verdict"] : [],
       broadcast: result.kind === "transactionAndSend",
       createdAt: Date.now(),
     });

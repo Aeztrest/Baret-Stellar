@@ -19,6 +19,8 @@ function makeRow(overrides: Partial<AllowanceRow> = {}): AllowanceRow {
     hits: 0,
     lastHitAt: null,
     expiresAt: null,
+    authorizedAt: null,
+    nonce: 0,
     status: "active",
     subKeyPubkey: "GFAKESUBKEY",
     createdAt: now,
@@ -119,5 +121,61 @@ describe("tryReserveSpend — concurrent x402 payments", () => {
     await mod.releaseReservedSpend(row.id, 6);
     const afterRelease = await mod.tryReserveSpend(row.id, 6);
     expect(afterRelease.ok).toBe(true);
+  });
+});
+
+describe("promoteAllowance / isMandateLive — trust-on-first-use mandate promotion", () => {
+  let mod: Awaited<ReturnType<typeof freshAllowancesModule>>;
+
+  beforeEach(async () => {
+    mod = await freshAllowancesModule();
+  });
+
+  it("a pending allowance is never a live mandate", () => {
+    const row = makeRow({ status: "pending", nonce: 0 });
+    expect(mod.isMandateLive(row)).toBe(false);
+  });
+
+  it("an active allowance past its expiresAt is not a live mandate", () => {
+    const row = makeRow({ status: "active", expiresAt: Date.now() - 1000 });
+    expect(mod.isMandateLive(row)).toBe(false);
+  });
+
+  it("an active allowance with no expiry, or a future one, is live", () => {
+    expect(mod.isMandateLive(makeRow({ status: "active", expiresAt: null }))).toBe(true);
+    expect(
+      mod.isMandateLive(makeRow({ status: "active", expiresAt: Date.now() + 1000 })),
+    ).toBe(true);
+  });
+
+  it("promotes a pending allowance to active with a fresh expiry and bumped nonce", async () => {
+    const row = makeRow({ status: "pending", nonce: 0, authorizedAt: null });
+    await mod.writeAllowance(row);
+
+    const result = await mod.promoteAllowance(row.id, 0, 30 * 24 * 60 * 60);
+    expect(result.ok).toBe(true);
+
+    const after = await mod.readAllowance(row.id);
+    expect(after?.status).toBe("active");
+    expect(after?.authorizedAt).not.toBeNull();
+    expect(after?.expiresAt).toBeGreaterThan(Date.now());
+    expect(after?.nonce).toBe(1);
+    expect(after && mod.isMandateLive(after)).toBe(true);
+  });
+
+  it("refuses to promote when the observed nonce is stale (mandate changed underneath the popup)", async () => {
+    const row = makeRow({ status: "pending", nonce: 5 });
+    await mod.writeAllowance(row);
+
+    const result = await mod.promoteAllowance(row.id, 4 /* stale */, 30 * 24 * 60 * 60);
+    expect(result).toMatchObject({ ok: false, reason: "nonce-mismatch" });
+
+    const after = await mod.readAllowance(row.id);
+    expect(after?.status).toBe("pending"); // unchanged — fails closed, not extended.
+  });
+
+  it("reports not-found for an unknown allowance id", async () => {
+    const result = await mod.promoteAllowance("missing::USDC", 0, 1000);
+    expect(result).toMatchObject({ ok: false, reason: "not-found" });
   });
 });

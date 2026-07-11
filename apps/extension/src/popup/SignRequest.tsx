@@ -12,24 +12,26 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Globe, Loader2, X, ShieldCheck, ShieldX, AlertTriangle, RefreshCw } from "lucide-react";
-import type { AnalyzeResponse } from "@stellar-thorn/ext-protocol";
+import { Globe, Loader2, X, ShieldCheck, ShieldX, AlertTriangle, RefreshCw, Repeat } from "lucide-react";
+import type { AnalyzeResponse, X402MandatePreview } from "@stellar-thorn/ext-protocol";
 import { Button, usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 import { AnalysisReport } from "./AnalysisReport";
 
 interface PendingRequest {
   requestId: string;
-  kind: "message" | "transaction" | "transactionAndSend" | "x402Payment";
+  kind: "message" | "transaction" | "transactionAndSend" | "authEntry" | "x402Payment";
   origin: string;
   payloadBase64: string;
   label?: string;
+  x402Mandate?: X402MandatePreview;
 }
 
 const KIND_VERB: Record<PendingRequest["kind"], string> = {
   message:            "Sign message",
   transaction:        "Sign transaction",
   transactionAndSend: "Sign and send",
+  authEntry:          "Sign authorization",
   x402Payment:        "Approve x402 payment",
 };
 
@@ -74,11 +76,11 @@ export function SignRequest() {
     );
   }
 
-  const onDecide = async (accept: boolean) => {
+  const onDecide = async (accept: boolean, overridden = false) => {
     setWorking(true);
     setError(null);
     try {
-      await rpc.call("tx.sign", { requestId: request.requestId, accept });
+      await rpc.call("tx.sign", { requestId: request.requestId, accept, overridden });
       // Background will dispatch sign.end; PopupApp re-renders.
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -89,12 +91,17 @@ export function SignRequest() {
 
   const blocked = analysis?.decision === "block";
   const advisory = analysis?.decision === "advisory";
+  const verb = request.x402Mandate
+    ? (request.x402Mandate.isFirstApproval ? "Authorize payments" : "Renew payment authorization")
+    : KIND_VERB[request.kind];
 
   return (
     <div className="h-full flex flex-col bg-bg">
-      <Header origin={request.origin} verb={KIND_VERB[request.kind]} />
+      <Header origin={request.origin} verb={verb} />
 
       <div className="flex-1 overflow-y-auto px-4 py-3.5 flex flex-col gap-3">
+        {request.x402Mandate && <MandatePreviewCard mandate={request.x402Mandate} />}
+
         {analyzing && !analysis && (
           <div className="card !p-5 flex flex-col items-center gap-2.5 text-center">
             <Loader2 size={18} className="animate-spin text-accent-soft" />
@@ -148,10 +155,35 @@ export function SignRequest() {
         working={working}
         kind={request.kind}
         onDecline={() => onDecide(false)}
-        onSign={() => onDecide(true)}
+        onSign={() => onDecide(true, false)}
+        onOverrideSign={() => onDecide(true, true)}
         blocked={blocked}
         advisory={advisory}
       />
+    </div>
+  );
+}
+
+function MandatePreviewCard({ mandate }: { mandate: X402MandatePreview }) {
+  const expiry = new Date(mandate.expiresAt).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  return (
+    <div className="card !p-3 space-y-1.5" style={{ borderColor: "var(--accent-soft)" }}>
+      <div className="flex items-center gap-1.5">
+        <Repeat size={12} className="text-accent-soft shrink-0" />
+        <p className="label !mb-0">
+          {mandate.isFirstApproval ? "First-time authorization" : "Renewing authorization"}
+        </p>
+      </div>
+      <p className="text-text-muted text-[11px] leading-relaxed">
+        Approving this authorizes <span className="font-mono">{mandate.merchantOrigin}</span> to
+        auto-settle future payments up to <strong>{mandate.capPerTx}</strong> per payment,{" "}
+        <strong>{mandate.capPerHour}</strong>/hour, <strong>{mandate.capPerDay}</strong>/day —
+        until <strong>{expiry}</strong>. Revoke anytime from Allowances.
+      </p>
     </div>
   );
 }
@@ -177,13 +209,14 @@ function Header({ origin, verb }: { origin: string; verb: string }) {
 }
 
 function Footer({
-  analysis, working, kind, onDecline, onSign, blocked, advisory,
+  analysis, working, kind, onDecline, onSign, onOverrideSign, blocked, advisory,
 }: {
   analysis: AnalyzeResponse | null;
   working: boolean;
   kind: PendingRequest["kind"];
   onDecline: () => void;
   onSign: () => void;
+  onOverrideSign: () => void;
   blocked: boolean;
   advisory: boolean;
 }) {
@@ -214,7 +247,7 @@ function Footer({
           Decline
         </Button>
         {blocked ? (
-          <HoldToSignButton working={working} onConfirm={onSign} />
+          <HoldToSignButton working={working} onConfirm={onOverrideSign} />
         ) : (
           <Button
             variant="primary"

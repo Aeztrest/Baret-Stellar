@@ -81,6 +81,14 @@ export interface GuardPolicy {
   /** Denylist of merchant origins. Always refused even when allowlist is empty. */
   blockedMerchantOrigins?: string[];
 
+  /**
+   * Days a manually-approved x402 mandate stays live before it lapses back to
+   * requiring re-approval. A mandate is granted only by an explicit manual
+   * approval (first payment to a merchant, or renewal after expiry) — the
+   * per-tx/hourly/daily caps alone are never sufficient authorization.
+   */
+  mandateMaxAgeDays?: number;
+
   /** Refuse x402 payments whose tx omits a memo (some merchants require it for credit attribution). */
   requireMemo?: boolean;
 
@@ -151,6 +159,7 @@ export const STRICT_POLICY: GuardPolicy = {
   maxX402PerTx: 0.10,
   x402HourlyCap: 1.00,
   x402DailyCap: 5.00,
+  mandateMaxAgeDays: 14,
   requireMemo: false,
   maxTimeBoundsWindowSeconds: 60,
   maxResourceFeeStroops: 10_000_000, // 1 XLM
@@ -187,6 +196,7 @@ export const BALANCED_POLICY: GuardPolicy = {
   maxX402PerTx: 1.00,
   x402HourlyCap: 5.00,
   x402DailyCap: 25.00,
+  mandateMaxAgeDays: 30,
   requireMemo: false,
   maxTimeBoundsWindowSeconds: 120,
   maxResourceFeeStroops: 50_000_000, // 5 XLM
@@ -214,6 +224,7 @@ export const PERMISSIVE_POLICY: GuardPolicy = {
   maxX402PerTx: 10.00,
   x402HourlyCap: 50.00,
   x402DailyCap: 250.00,
+  mandateMaxAgeDays: 90,
   blockAmountAnomalies: false,
   refuseUnlimitedAllowances: false,
   driftAlerts: true,
@@ -340,6 +351,12 @@ export function validatePolicy(p: GuardPolicy): void {
   }
   if (p.x402DailyCap !== undefined && (!NUM(p.x402DailyCap) || p.x402DailyCap < 0)) {
     throw new Error("x402DailyCap must be a non-negative number");
+  }
+  if (
+    p.mandateMaxAgeDays !== undefined &&
+    (!NUM(p.mandateMaxAgeDays) || p.mandateMaxAgeDays <= 0)
+  ) {
+    throw new Error("mandateMaxAgeDays must be a positive number");
   }
   if (
     p.maxTimeBoundsWindowSeconds !== undefined &&

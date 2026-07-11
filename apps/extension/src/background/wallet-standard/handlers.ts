@@ -20,6 +20,7 @@ import {
 import { signX402Payment } from "../x402/build";
 import { Buffer } from "buffer";
 import { sign as nacl_sign } from "tweetnacl";
+import type { X402MandatePreview } from "@stellar-thorn/ext-protocol";
 
 import { dispatch, getState } from "../state/store";
 import { isUnlocked, useAuthority } from "../crypto/session";
@@ -37,12 +38,15 @@ import { appendHistory, listHistory } from "../db/history";
 import { readSitePermission, writeSitePermission } from "../db/site-permissions";
 import { getSubKeypair } from "../crypto/sub-key-cache";
 import {
+  buildMandatePreview,
   createDefaultAllowance,
   loadPolicy,
+  notifyAutoApproved,
   x402Review,
 } from "../x402/handlers";
 import { atomicToUi } from "../x402/parse";
 import {
+  isMandateLive,
   makeAllowanceId,
   readAllowance,
   releaseReservedSpend,
@@ -195,7 +199,7 @@ function queueAndWait(
   kind: SignKind,
   origin: string,
   payloadBase64: string,
-  extra?: { validUntilLedger?: number },
+  extra?: { validUntilLedger?: number; x402Mandate?: X402MandatePreview },
 ): Promise<SignSuccess> {
   if (!isUnlocked()) {
     return Promise.reject(new Error("Baret wallet is locked."));
@@ -208,6 +212,7 @@ function queueAndWait(
       origin,
       payloadBase64,
       validUntilLedger: extra?.validUntilLedger,
+      x402Mandate: extra?.x402Mandate,
       resolve,
       reject,
     });
@@ -254,20 +259,25 @@ export const wsSignAuthEntry: WsHandler = async (raw) => {
   // x402 agentic-payments path: dApps that implement the exact scheme client-
   // side (e.g. the Scrybe showcase) ask the wallet to sign the Soroban AUTH
   // ENTRY directly. they never trip the fetch-interceptor that routes through
-  // `x402.review`, so the user's `x402AutoApprove` policy would otherwise be
-  // ignored and every micropayment would pop a confirmation. Mirror the review
-  // pipeline here: if the entry is a SAC `transfer` from our own account and it
-  // sits inside the user's x402 policy + caps, sign in the background. no
-  // popup. Strict mode, an unrecognized entry, or anything outside the caps
-  // falls through to the manual confirmation below (the safe default).
+  // `x402.review`, so the user's mandate state would otherwise be ignored.
+  // Mirror the review pipeline here: only a LIVE MANDATE (a merchant the
+  // user manually authorized before, still within its expiry) signs in the
+  // background — no popup. A brand-new merchant, an expired mandate, an
+  // unrecognized entry, or Strict policy all fall through to manual
+  // confirmation below, carrying the mandate terms when applicable so the
+  // popup can show exactly what's being authorized.
+  let mandateForManualApproval: X402MandatePreview | undefined;
   if (isUnlocked()) {
     try {
-      const auto = await tryAutoApproveX402AuthEntry(origin, authEntryXdr);
-      if (auto && auto.kind === "authEntry") {
+      const decision = await tryAutoApproveX402AuthEntry(origin, authEntryXdr);
+      if (decision.decision === "signed") {
         return {
-          signedAuthEntry: auto.signedAuthEntry,
-          signerAddress: auto.signerAddress,
+          signedAuthEntry: decision.result.signedAuthEntry,
+          signerAddress: decision.result.signerAddress,
         };
+      }
+      if (decision.decision === "manual") {
+        mandateForManualApproval = decision.mandatePreview;
       }
     } catch (err) {
       console.warn(
@@ -281,6 +291,7 @@ export const wsSignAuthEntry: WsHandler = async (raw) => {
   const validUntilLedger = await deriveValidUntilLedger();
   const result = await queueAndWait("authEntry", origin, authEntryXdr, {
     validUntilLedger,
+    x402Mandate: mandateForManualApproval,
   });
   if (result.kind !== "authEntry")
     throw new Error("Unexpected sign result kind");
@@ -336,31 +347,39 @@ function parseTransferAuthEntry(authEntryXdr: string): TransferIntent | null {
   }
 }
 
+type AutoApproveDecision =
+  | { decision: "signed"; result: Extract<SignSuccess, { kind: "authEntry" }> }
+  | { decision: "manual"; mandatePreview: X402MandatePreview }
+  | { decision: "defer" }; // not a recognized x402 transfer; unchanged generic fallback.
+
 /**
- * Decide whether an auth-entry sign request is an x402 micropayment that the
- * user's policy auto-approves, and if so sign it without a popup. Returns the
- * signed entry on auto-approval, or null to defer to manual confirmation.
+ * Decide whether an auth-entry sign request is an x402 micropayment, and if
+ * so whether it auto-signs (a LIVE MANDATE — a merchant already manually
+ * authorized and still within its expiry) or needs manual approval (first
+ * payment to this merchant, an expired mandate, or Strict policy). Returns
+ * `"defer"` when the entry isn't a recognized token transfer at all, leaving
+ * today's generic manual-confirmation fallback untouched.
  *
  * Kept in lockstep with {@link x402Review}'s caps so both entry points (the
  * fetch-interceptor and a client-side exact-scheme dApp) enforce the same
  * firewall.
  */
-async function tryAutoApproveX402AuthEntry(
+// Exported only for direct unit testing (see handlers.test.ts) — not part of
+// the public wallet-standard surface.
+export async function tryAutoApproveX402AuthEntry(
   origin: string,
   authEntryXdr: string,
-): Promise<SignSuccess | null> {
+): Promise<AutoApproveDecision> {
   const policy = await loadPolicy();
-  // Strict / opt-out: confirm every payment.
-  if (policy.x402AutoApprove === false) return null;
 
   const intent = parseTransferAuthEntry(authEntryXdr);
-  if (!intent) return null; // Not a token transfer. let the user review it.
+  if (!intent) return { decision: "defer" }; // Not a token transfer. let the user review it.
 
-  // Only auto-sign payments leaving our own account. This whole function is
+  // Only consider payments leaving our own account. This whole function is
   // the unattended auto-approve path, so every authority fetch in it must
   // not renew the idle timer (see `useAuthority`'s docs).
   const authority = useAuthority({ isAutomatic: true });
-  if (intent.from !== authority.publicKey()) return null;
+  if (intent.from !== authority.publicKey()) return { decision: "defer" };
 
   // Asset + merchant allowlists (empty list = no restriction).
   if (
@@ -368,20 +387,20 @@ async function tryAutoApproveX402AuthEntry(
     policy.allowedAssets.length > 0 &&
     !policy.allowedAssets.includes(intent.contract)
   ) {
-    return null;
+    return { decision: "defer" };
   }
-  if (policy.blockedMerchantOrigins?.includes(origin)) return null;
+  if (policy.blockedMerchantOrigins?.includes(origin)) return { decision: "defer" };
   if (
     policy.allowedMerchantOrigins &&
     policy.allowedMerchantOrigins.length > 0 &&
     !policy.allowedMerchantOrigins.includes(origin)
   ) {
-    return null;
+    return { decision: "defer" };
   }
 
   const amountUi = atomicToUi(intent.amountAtomic);
   if (policy.maxX402PerTx !== undefined && amountUi > policy.maxX402PerTx) {
-    return null;
+    return { decision: "defer" };
   }
 
   // Per-merchant allowance + rolling caps.
@@ -395,36 +414,49 @@ async function tryAutoApproveX402AuthEntry(
       policy,
     );
   }
-  // Paused/revoked merchants surface in the popup so the user can act.
-  if (allowance.status !== "active") return null;
+  // Paused/revoked merchants surface in the popup (without mandate terms) so
+  // the user can act from there instead of silently retrying.
+  if (allowance.status === "paused" || allowance.status === "revoked") {
+    return { decision: "defer" };
+  }
+
+  const requiresManualApproval =
+    policy.x402AutoApprove === false || !isMandateLive(allowance);
+  if (requiresManualApproval) {
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
+  }
 
   // Hourly/daily caps are shared, mutable per-merchant state — reserve the
   // spend atomically now, BEFORE signing, so this entry point and
   // `x402Review` (or two concurrent calls here) can't both pass the check
   // before either commits. See `tryReserveSpend` for the full rationale.
   const reservation = await tryReserveSpend(allowanceId, amountUi);
-  if (!reservation.ok) return null;
+  if (!reservation.ok) {
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
+  }
 
-  // Within policy + caps → sign in the background. performSign honors the
-  // entry's own `signatureExpirationLedger` (the facilitator enforces it).
+  // Live mandate + within caps → sign in the background. performSign honors
+  // the entry's own `signatureExpirationLedger` (the facilitator enforces it).
   const result = await performSign("authEntry", authEntryXdr, { isAutomatic: true });
   if (result.kind !== "authEntry") {
     await releaseReservedSpend(allowanceId, amountUi);
-    return null;
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
   }
 
+  const summary = `Auto-paid x402 · ${amountUi.toFixed(6)} → ${intent.to.slice(0, 6)}…${intent.to.slice(-4)}`;
   await appendHistory({
     type: "x402",
     signature: null,
     origin,
-    summary: `Auto-paid x402 · ${amountUi.toFixed(6)} → ${intent.to.slice(0, 6)}…${intent.to.slice(-4)}`,
+    summary,
     decision: "allow",
-    reasons: ["Within policy caps. auto-approved"],
+    reasons: ["Live mandate within policy caps. auto-approved"],
     broadcast: false,
     createdAt: Date.now(),
   });
+  await notifyAutoApproved(origin, summary);
 
-  return result;
+  return { decision: "signed", result };
 }
 
 /**

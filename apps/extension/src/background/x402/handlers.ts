@@ -9,7 +9,12 @@
  *   4. Look up / auto-create allowance for (origin, asset).
  *   5. Apply caps (per-tx, hourly, daily).
  *   6. Build payment Stellar tx (Soroban SAC `transfer` + memo).
- *   7. Enqueue sign request → user reviews via popup.
+ *   7. Decide auto-sign vs. manual: a payment only ever auto-signs against a
+ *      LIVE MANDATE — a merchant the user has manually authorized before and
+ *      whose mandate hasn't expired. A brand-new merchant, or one whose
+ *      mandate lapsed, always surfaces the popup with the mandate terms
+ *      (amount, caps, expiry) regardless of the `x402AutoApprove` policy
+ *      flag. The cap alone is never treated as authorization.
  *   8. On approve: wrap signed XDR into PaymentPayload, return as
  *      `PAYMENT-SIGNATURE` header value.
  *   9. On settle (response 200): increment ledger.recordHit.
@@ -19,6 +24,7 @@ import browser from "webextension-polyfill";
 import { Keypair } from "@stellar/stellar-sdk";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
 import { BALANCED_POLICY } from "@stellar-thorn/swig-guard";
+import type { X402MandatePreview } from "@stellar-thorn/ext-protocol";
 
 import { useAuthority, isUnlocked } from "../crypto/session";
 import {
@@ -32,6 +38,7 @@ import {
   type SignSuccess,
 } from "../wallet-standard/sign-queue";
 import {
+  isMandateLive,
   makeAllowanceId,
   readAllowance,
   releaseReservedSpend,
@@ -46,6 +53,40 @@ import {
 } from "./parse";
 import { buildX402Payment, signX402Payment } from "./build";
 import { appendHistory } from "../db/history";
+
+export const DEFAULT_MANDATE_MAX_AGE_DAYS = 30;
+
+/** Builds the mandate preview shown in the manual-approval popup. */
+export function buildMandatePreview(
+  allowance: AllowanceRow,
+  policy: GuardPolicy,
+): X402MandatePreview {
+  const days = policy.mandateMaxAgeDays ?? DEFAULT_MANDATE_MAX_AGE_DAYS;
+  return {
+    allowanceId: allowance.id,
+    merchantOrigin: allowance.merchantOrigin,
+    asset: allowance.asset,
+    capPerTx: allowance.capPerTx,
+    capPerHour: allowance.capPerHour,
+    capPerDay: allowance.capPerDay,
+    expiresAt: Date.now() + days * 24 * 60 * 60 * 1000,
+    nonce: allowance.nonce,
+    isFirstApproval: allowance.status === "pending",
+  };
+}
+
+export async function notifyAutoApproved(origin: string, summary: string): Promise<void> {
+  try {
+    browser.notifications.create(`bx-x402-${Date.now()}`, {
+      type: "basic",
+      iconUrl: browser.runtime.getURL("icons/128.png"),
+      title: "Auto-approved x402 payment",
+      message: `${origin}: ${summary}`,
+    });
+  } catch (err) {
+    console.warn("[BARET] x402 auto-approve notification failed:", err);
+  }
+}
 
 const POLICY_STORAGE_KEY = "baret.policy.v1";
 
@@ -154,7 +195,15 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     };
   }
 
-  // 5. Build the payment tx (unsigned, auth-entry based). 7-decimal precision.
+  // 5. Decide auto-sign vs. manual. A payment only ever auto-signs against a
+  // LIVE MANDATE (a merchant the user manually authorized before, still
+  // within its expiry). `x402AutoApprove` only controls whether an
+  // *already-trusted, already-live* mandate settles silently — it never
+  // substitutes for that initial trust.
+  const requiresManualApproval =
+    policy.x402AutoApprove === false || !isMandateLive(allowance);
+
+  // 6. Build the payment tx (unsigned, auth-entry based). 7-decimal precision.
   const rpcUrl = getSorobanRpcUrl();
   const passphrase = getNetworkPassphrase();
   // If this request is going to be auto-approved below (the common case),
@@ -162,7 +211,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   // unattended flow and must not renew the idle timer either. When manual
   // review is required, a popup follows shortly after, so resetting here
   // is harmless.
-  const willAutoApprove = policy.x402AutoApprove !== false;
+  const willAutoApprove = !requiresManualApproval;
   const authority: Keypair = useAuthority({ isAutomatic: willAutoApprove });
   let built;
   try {
@@ -179,7 +228,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     };
   }
 
-  // 6. Apply caps.
+  // 7. Apply caps.
   const amountUi = atomicToUi(requirements.amount);
   if (policy.maxX402PerTx !== undefined && amountUi > policy.maxX402PerTx) {
     return {
@@ -204,12 +253,13 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     };
   }
 
-  // 7. Sign. Everything above already enforced the user's policy + caps + the
-  // per-merchant allowance, so by default we AUTO-APPROVE in the background.   // the agentic-payments flow: micropayments settle without a popup, the caps
-  // are the firewall. Set `x402AutoApprove: false` (Strict) to confirm each.
+  // 8. Sign. Only a LIVE MANDATE auto-signs in the background — see the
+  // `requiresManualApproval` decision above. Everything else (first payment
+  // to a merchant, an expired mandate, or Strict policy) surfaces the popup
+  // with the mandate terms for explicit approval.
   const payTo = requirements.payTo;
   let signedTxXdr: string;
-  if (policy.x402AutoApprove !== false) {
+  if (!requiresManualApproval) {
     try {
       const authority = useAuthority({ isAutomatic: true });
       signedTxXdr = await signX402Payment(
@@ -225,25 +275,30 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
         reason: `Auto-approval failed: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
+    const summary = `Auto-paid x402 · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`;
     await appendHistory({
       type: "x402",
       signature: null,
       origin,
-      summary: `Auto-paid x402 · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`,
+      summary,
       decision: "allow",
-      reasons: ["Within policy caps. auto-approved"],
+      reasons: ["Live mandate within policy caps. auto-approved"],
       broadcast: false,
       createdAt: Date.now(),
     });
+    await notifyAutoApproved(origin, summary);
   } else {
-    // Strict / opt-out: surface the payment + verdict in the popup; the wallet
-    // signs the auth entry on approval.
+    // No live mandate (or Strict policy): surface the payment + mandate
+    // terms in the popup. On approval, `tx.sign` promotes the allowance to
+    // a live mandate — see `promoteAllowance`.
     const label = `x402 payment · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`;
+    const mandatePreview = buildMandatePreview(allowance, policy);
     const result = await enqueueAndWait(
       origin,
       built.transactionXdr,
       built.maxLedger,
       label,
+      mandatePreview,
     );
     if (result.kind !== "x402Payment" || !result.signedTxXdr) {
       await releaseReservedSpend(allowanceId, amountUi);
@@ -255,7 +310,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     signedTxXdr = result.signedTxXdr;
   }
 
-  // 8. Wrap into PaymentPayload (v2) for the PAYMENT-SIGNATURE header. The
+  // 9. Wrap into PaymentPayload (v2) for the PAYMENT-SIGNATURE header. The
   // allowance ledger was already committed atomically by `tryReserveSpend`
   // above (before signing, not after) — see that function's docs for why.
   const paymentPayload = {
@@ -276,6 +331,7 @@ function enqueueAndWait(
   txXdr: string,
   validUntilLedger: number,
   label: string,
+  x402Mandate?: X402MandatePreview,
 ): Promise<SignSuccess> {
   return new Promise<SignSuccess>((resolve, reject) => {
     const requestId = newRequestId();
@@ -286,6 +342,7 @@ function enqueueAndWait(
       payloadBase64: txXdr,
       validUntilLedger,
       label,
+      x402Mandate,
       resolve,
       reject,
     });
@@ -298,6 +355,12 @@ export async function loadPolicy(): Promise<GuardPolicy> {
   return (all[POLICY_STORAGE_KEY] as GuardPolicy | undefined) ?? BALANCED_POLICY;
 }
 
+/**
+ * Auto-creates an allowance the first time a (merchant, asset) pair is seen.
+ * Always starts `status: "pending"` — never auto-approved. Trust is only
+ * granted by a manual approval (see `promoteAllowance`), which is what turns
+ * this into a live, auto-signable mandate.
+ */
 export async function createDefaultAllowance(
   origin: string,
   asset: string,
@@ -320,7 +383,9 @@ export async function createDefaultAllowance(
     hits: 0,
     lastHitAt: null,
     expiresAt: null,
-    status: "active",
+    authorizedAt: null,
+    nonce: 0,
+    status: "pending",
     subKeyPubkey,
     createdAt: now,
     updatedAt: now,

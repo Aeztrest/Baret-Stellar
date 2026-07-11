@@ -188,7 +188,10 @@ function PaymentRow({ entry }: { entry: HistoryEntry }) {
 }
 
 function LedgerRow({ row }: { row: AllowanceSnapshot }) {
-  const tone = row.status === "active" ? "ok" : row.status === "paused" ? "warn" : "bad";
+  const tone =
+    row.status === "active" ? "ok"
+    : row.status === "paused" || row.status === "pending" ? "warn"
+    : "bad";
   return (
     <SpotlightCard>
       <div className="p-3">

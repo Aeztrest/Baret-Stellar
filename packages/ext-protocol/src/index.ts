@@ -62,8 +62,34 @@ export interface AllowanceSnapshot {
   hits: number;
   lastHitAt: number | null;
   expiresAt: number | null;
-  status: "active" | "paused" | "revoked";
+  /** epoch ms of the last manual mandate approval. null until the user has approved it once. */
+  authorizedAt: number | null;
+  /** Bumped every time the mandate's terms change (creation, promotion, edit). Guards against a
+   *  stale popup promoting a mandate that changed underneath it. */
+  nonce: number;
+  /**
+   * "pending": seen but never manually authorized (or a mandate that expired and needs
+   * re-authorization) — never auto-approved regardless of policy.
+   * "active": a live, manually-authorized mandate within its expiry.
+   * "paused" / "revoked": user-initiated holds.
+   */
+  status: "pending" | "active" | "paused" | "revoked";
   subKeyPubkey: string;
+}
+
+/** Preview of the mandate a manual x402 approval will grant, shown in the sign popup. */
+export interface X402MandatePreview {
+  allowanceId: string;
+  merchantOrigin: string;
+  asset: string;
+  capPerTx: number;
+  capPerHour: number;
+  capPerDay: number;
+  /** epoch ms the mandate will expire at if this approval is granted. */
+  expiresAt: number;
+  /** The allowance row's nonce as observed when this preview was built. */
+  nonce: number;
+  isFirstApproval: boolean;
 }
 
 export interface HistoryEntry {
@@ -185,9 +211,9 @@ export interface ExtRpc {
   "wallet.addUsdcTrustline": { req: void;                                 rsp: { transactionHash: string } };
 
   /* Sign + tx ────────────────────────────── */
-  "tx.sign":           { req: { requestId: string; accept: boolean; remember?: boolean };     rsp: { signed?: string; signature?: string; rejection?: string; ok?: true } };
+  "tx.sign":           { req: { requestId: string; accept: boolean; remember?: boolean; overridden?: boolean };     rsp: { signed?: string; signature?: string; rejection?: string; ok?: true } };
   "tx.send":           { req: { txBase64: string };                       rsp: { signature: string } };
-  "tx.peekRequest":    { req: void;                                       rsp: { requestId: string; kind: "message" | "transaction" | "transactionAndSend" | "authEntry" | "x402Payment" | "connect"; origin: string; payloadBase64: string; label?: string } | null };
+  "tx.peekRequest":    { req: void;                                       rsp: { requestId: string; kind: "message" | "transaction" | "transactionAndSend" | "authEntry" | "x402Payment" | "connect"; origin: string; payloadBase64: string; label?: string; x402Mandate?: X402MandatePreview } | null };
   "tx.analyzeRequest": { req: { requestId: string };                      rsp: AnalyzeResponse };
 
   /* Allowance ledger ─────────────────────── */

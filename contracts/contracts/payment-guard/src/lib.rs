@@ -5,19 +5,21 @@
 //!
 //! This is the on-chain counterpart of BARET's off-chain x402 firewall
 //! (see `packages/swig-guard`): the wallet owner deposits a token (e.g. USDC)
-//! and grants each merchant a per-transaction cap plus a rolling 24-hour cap.
-//! An agent can then call [`PaymentGuard::pay`] to settle payments **without the
-//! owner signing each one** — the caps ARE the firewall. Payments above a cap,
-//! to an unregistered merchant, or to a paused/revoked merchant are rejected
-//! on-chain.
+//! and grants each merchant a per-transaction cap, a rolling 24-hour cap, and
+//! a bounded mandate lifetime. An agent can then call [`PaymentGuard::pay`] to
+//! settle payments **without the owner signing each one** — but only while a
+//! live mandate exists. The caps bound how much; `expires_at` bounds how long;
+//! neither one is a substitute for the owner's original `set_allowance` grant.
+//! Payments above a cap, past the mandate's expiry, to an unregistered
+//! merchant, or to a paused/revoked merchant are rejected on-chain.
 //!
 //! Functions:
-//!   - `init(owner, token)`              — one-time setup.
-//!   - `deposit(from, amount)`           — fund the vault (caller signs).
-//!   - `set_allowance(m, per_tx, daily)` — owner grants/updates a merchant cap.
-//!   - `pause / resume / revoke(m)`      — owner toggles a merchant.
-//!   - `pay(merchant, amount)`           — agentic spend, enforced by caps.
-//!   - `withdraw(amount)`                — owner pulls funds back out.
+//!   - `init(owner, token)`                          — one-time setup.
+//!   - `deposit(from, amount)`                        — fund the vault (caller signs).
+//!   - `set_allowance(m, per_tx, daily, mandate_secs)` — owner grants/renews a merchant mandate.
+//!   - `pause / resume / revoke(m)`                   — owner toggles a merchant.
+//!   - `pay(merchant, amount)`                        — agentic spend, enforced by caps + expiry.
+//!   - `withdraw(amount)`                             — owner pulls funds back out.
 //!   - views: `get_owner`, `get_token`, `get_allowance`, `available_today`.
 
 use soroban_sdk::{
@@ -48,6 +50,11 @@ pub struct Allowance {
     /// twice by timing a payment just before and just after a reset boundary.
     pub spend_log: Vec<(u64, i128)>,
     pub status: Status,
+    /// Ledger timestamp this mandate lapses at. The cap alone is never
+    /// authorization on its own — `set_allowance` always grants a bounded
+    /// lifetime, and `pay` refuses once it's passed. The owner must call
+    /// `set_allowance` again (a fresh, explicit grant) to renew it.
+    pub expires_at: u64,
 }
 
 #[contracttype]
@@ -74,6 +81,7 @@ pub enum Error {
     ExceedsDailyCap = 6,
     InvalidAmount = 7,
     InsufficientReserve = 8,
+    MandateExpired = 9,
 }
 
 #[contract]
@@ -97,8 +105,17 @@ impl PaymentGuard {
     }
 
     /// Grant or update a merchant's caps. Owner-authorized. Resets the merchant
-    /// to `Active` and starts a fresh rolling window.
-    pub fn set_allowance(env: Env, merchant: Address, cap_per_tx: i128, cap_per_day: i128) {
+    /// to `Active`, starts a fresh rolling window, and grants a mandate valid
+    /// for `mandate_seconds` from now — the caps bound *how much* per payment
+    /// and per day, `mandate_seconds` bounds *how long* this authorization
+    /// stands before the owner must explicitly renew it.
+    pub fn set_allowance(
+        env: Env,
+        merchant: Address,
+        cap_per_tx: i128,
+        cap_per_day: i128,
+        mandate_seconds: u64,
+    ) {
         Self::require_owner(&env);
         if cap_per_tx < 0 || cap_per_day < 0 {
             panic_with_error!(&env, Error::InvalidAmount);
@@ -115,6 +132,7 @@ impl PaymentGuard {
             cap_per_day,
             spend_log: vec![&env],
             status: Status::Active,
+            expires_at: env.ledger().timestamp().saturating_add(mandate_seconds),
         };
         env.storage().persistent().set(&key, &allowance);
         Self::adjust_reserve(&env, cap_per_day - previous_reserved);
@@ -151,9 +169,11 @@ impl PaymentGuard {
         );
     }
 
-    /// Agentic spend. **No owner signature required** — the per-tx and rolling
-    /// daily caps the owner set are the firewall. Reverts if the merchant is
-    /// unregistered, paused/revoked, or the payment would breach a cap.
+    /// Agentic spend. **No owner signature required** — enforced instead by
+    /// the per-tx cap, the rolling daily cap, and the mandate's expiry, all
+    /// set by the owner's `set_allowance` call. Reverts if the merchant is
+    /// unregistered, paused/revoked, the mandate has expired, or the payment
+    /// would breach a cap.
     pub fn pay(env: Env, merchant: Address, amount: i128) {
         if amount <= 0 {
             panic_with_error!(&env, Error::InvalidAmount);
@@ -168,6 +188,10 @@ impl PaymentGuard {
         if allowance.status != Status::Active {
             panic_with_error!(&env, Error::NotActive);
         }
+        let now = env.ledger().timestamp();
+        if now > allowance.expires_at {
+            panic_with_error!(&env, Error::MandateExpired);
+        }
         if amount > allowance.cap_per_tx {
             panic_with_error!(&env, Error::ExceedsPerTx);
         }
@@ -176,7 +200,6 @@ impl PaymentGuard {
         // what's left. Unlike a fixed bucket that resets to zero the moment
         // it elapses, this can never be spent twice by timing a payment
         // right before and right after a reset boundary.
-        let now = env.ledger().timestamp();
         let spent = Self::prune_and_sum(&env, &mut allowance.spend_log, now);
         let projected = spent
             .checked_add(amount)

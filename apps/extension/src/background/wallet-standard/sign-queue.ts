@@ -4,6 +4,8 @@
  * content script) and `tx.sign` (popup UI's verdict from the user).
  */
 
+import type { X402MandatePreview } from "@stellar-thorn/ext-protocol";
+
 export type SignKind =
   | "message"
   | "transaction"
@@ -37,6 +39,13 @@ export interface SignRequest {
    * should remain valid through. Stellar refuses entries past this point.
    */
   validUntilLedger?: number;
+  /**
+   * Present when this request is an x402 payment that will establish or
+   * renew an auto-approval mandate on approval. The popup shows the mandate
+   * terms; `tx.sign` uses `allowanceId` + `nonce` to promote the allowance
+   * atomically after a successful sign (see `promoteAllowance`).
+   */
+  x402Mandate?: X402MandatePreview;
   resolve: (out: SignSuccess) => void;
   reject: (err: Error) => void;
 }
@@ -87,6 +96,7 @@ export function snapshot(): {
   payloadBase64: string;
   label?: string;
   signerPubkey?: string;
+  x402Mandate?: X402MandatePreview;
 } | null {
   const first = queue.values().next();
   if (first.done) return null;
@@ -98,6 +108,7 @@ export function snapshot(): {
     payloadBase64: r.payloadBase64,
     label: r.label,
     signerPubkey: r.signerPubkey,
+    x402Mandate: r.x402Mandate,
   };
 }
 

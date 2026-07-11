@@ -2,11 +2,40 @@
 
 On-chain spending-limit vault for x402 / agentic micropayments — the on-chain
 counterpart of BARET's off-chain x402 firewall (`packages/swig-guard`).
-The owner deposits a token and grants each merchant a per-tx cap + rolling 24h
-cap; an agent calls `pay` to settle **without the owner signing each payment** —
-the caps are the firewall.
+The owner deposits a token and grants each merchant a per-tx cap, a rolling
+24h cap, and a bounded mandate lifetime; an agent calls `pay` to settle
+**without the owner signing each payment**, but only while that mandate is
+still live — the caps bound how much, the expiry bounds how long, and the
+owner's `set_allowance` grant is what actually authorizes it.
 
-## Testnet (Stellar Test SDF Network ; September 2015) — current
+## Pending redeploy — v3 (mandate expiry)
+
+`set_allowance` gained a required 4th argument, `mandate_seconds`, and `pay`
+now reverts with `MandateExpired` once that mandate's ledger-time expiry has
+passed (see [Security fixes in v3](#security-fixes-in-v3)). This changes the
+contract's public interface, so the testnet deployment below (v2) is now
+stale relative to `src/lib.rs` — redeploy following [Reproduce](#reproduce)
+before invoking `set_allowance` against a fresh contract ID, and update the
+addresses in this file once that's done.
+
+### Security fixes in v3
+
+1. **`Allowance` gained `expires_at: u64`.** Previously a `set_allowance`
+   grant had no expiry at all — once active, an allowance authorized
+   payments indefinitely, so the per-tx/daily caps were the *only* thing
+   standing in for the owner's original authorization, forever.
+2. **`set_allowance(merchant, cap_per_tx, cap_per_day, mandate_seconds)`**
+   now takes an explicit mandate lifetime and computes
+   `expires_at = ledger_timestamp + mandate_seconds`.
+3. **`pay()` reverts with `MandateExpired`** once `ledger_timestamp >
+   expires_at`, even if the merchant is still `Active` and within its caps.
+   Renewal requires the owner to call `set_allowance` again — a fresh,
+   explicit grant, not an automatic rollover.
+4. Three new tests cover the boundary (`pay` succeeds exactly at expiry,
+   reverts one second past it) and renewal (a fresh `set_allowance` after
+   expiry restores `pay`). 26 unit tests now pass (up from 23).
+
+## Testnet (Stellar Test SDF Network ; September 2015) — v2, stale
 
 Redeployed after a security review found the v1 contract's `init()` had no
 authorization check (anyone could front-run the owner) and its "rolling 24h
@@ -90,7 +119,7 @@ stellar contract invoke --id <CONTRACT_ID> --source baret-owner --network testne
 |----------|------|---------|
 | `init(owner, token)` | **owner** (one-time) | Record owner + token SAC |
 | `deposit(from, amount)` | `from` | Fund the vault |
-| `set_allowance(merchant, cap_per_tx, cap_per_day)` | owner | Grant/update a merchant cap |
+| `set_allowance(merchant, cap_per_tx, cap_per_day, mandate_seconds)` | owner | Grant/renew a merchant's mandate: caps + expiry |
 | `pause / resume / revoke(merchant)` | owner | Toggle a merchant |
 | `pay(merchant, amount)` | — | Agentic spend, enforced by caps |
 | `withdraw(amount)` | owner | Pull funds back out; reverts if it would drop the vault below active merchants' reserved caps |
@@ -103,9 +132,10 @@ ID=CCYDHJZAR4RGYQ3UZBJ6UBDNE2IV6GJK4BWLKY5W5OVNSB5WNRZNSYK2
 OWNER=baret-owner
 M=<merchant G… address>
 
-# Owner grants merchant: max 0.1 USDC/tx, 1 USDC/day (7-decimal atomic units)
+# Owner grants merchant: max 0.1 USDC/tx, 1 USDC/day (7-decimal atomic units),
+# mandate valid for 30 days (2592000 seconds) before it must be renewed.
 stellar contract invoke --id $ID --source $OWNER --network testnet \
-  -- set_allowance --merchant $M --cap_per_tx 1000000 --cap_per_day 10000000
+  -- set_allowance --merchant $M --cap_per_tx 1000000 --cap_per_day 10000000 --mandate_seconds 2592000
 
 # Fund the vault first (deposit requires the depositor's own auth)
 stellar contract invoke --id $ID --source $OWNER --network testnet \
