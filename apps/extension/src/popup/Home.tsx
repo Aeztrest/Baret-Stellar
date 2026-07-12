@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Send, Download, Sparkles, Shield, RefreshCw, AlertTriangle } from "lucide-react";
 import browser from "webextension-polyfill";
-import { Button, EmptyState, Meter, usePolling } from "@stellar-thorn/ui";
+import { Button, usePolling } from "@stellar-thorn/ui";
 import type { AllowanceSnapshot } from "@stellar-thorn/ext-protocol";
 import { useRpc, useWalletState } from "../shared/state-context";
 import { ReceiveScreen } from "./ReceiveScreen";
@@ -176,12 +176,14 @@ export function Home() {
 
           <div className="flex flex-col">
             <BalanceRow
+              icon={<XlmIcon />}
               asset="XLM"
-              hint="network fees"
+              hint="Stellar Lumens · network fees"
               value={balance === null ? "–" : balance.toFixed(4)}
             />
             <div style={{ borderTop: "1px solid var(--line)" }} />
             <BalanceRow
+              icon={<UsdcIcon />}
               asset="USDC"
               hint="x402 payments"
               value={usdc === null ? (hasUsdcTrustline ? "0.0000" : "–") : usdc.toFixed(4)}
@@ -301,41 +303,38 @@ export function Home() {
         </div>
       </motion.section>
 
-      <motion.section
-        className="card flex-1 flex flex-col gap-3"
+      <motion.button
+        className="card !p-3 flex items-center gap-2.5 text-left hover:bg-secondary transition-colors"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-center justify-between">
-          <p className="label !mb-0">Active allowances</p>
-          {activeAllowances.length > 0 && (
-            <span className="text-[10px] font-mono text-text-faint">
-              {activeAllowances.length} · {approachingCap > 0 ? `${approachingCap} near cap` : "all clear"}
-            </span>
-          )}
+        <div
+          className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+          style={{ background: activeAllowances.length > 0 ? "var(--accent-dim)" : "var(--secondary)" }}
+        >
+          <Shield size={13} className={activeAllowances.length > 0 ? "text-primary" : "text-text-faint"} />
         </div>
-
-        {activeAllowances.length === 0 ? (
-          <EmptyState
-            icon={<Shield size={16} />}
-            title="No active allowances yet"
-            description="Approve a site or a service on x402, the machine-payments protocol, and its cap shows up here, counting up live as it spends."
-          />
-        ) : (
-          busiestAllowance && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-mono text-text-muted truncate">{busiestAllowance.merchantOrigin}</p>
-              <Meter
-                label="Daily cap"
-                value={busiestAllowance.spentDay}
-                max={busiestAllowance.capPerDay}
-                size="compact"
-              />
-            </div>
-          )
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-text leading-tight">Active allowances</p>
+          <p className="text-[10px] text-text-faint leading-tight truncate mt-0.5">
+            {activeAllowances.length === 0
+              ? "No x402 merchants approved yet"
+              : busiestAllowance?.merchantOrigin}
+          </p>
+        </div>
+        {activeAllowances.length > 0 && (
+          <span
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0"
+            style={{
+              background: approachingCap > 0 ? "var(--warn-dim)" : "var(--ok-dim)",
+              color: approachingCap > 0 ? "var(--warn)" : "var(--ok)",
+            }}
+          >
+            {activeAllowances.length} · {approachingCap > 0 ? `${approachingCap} near cap` : "all clear"}
+          </span>
         )}
-      </motion.section>
+      </motion.button>
 
       {overlay === "receive" && state?.authorityAddress && (
         <ReceiveScreen
@@ -363,28 +362,66 @@ function pctOf(g: AllowanceSnapshot): number {
 }
 
 function BalanceRow({
+  icon,
   asset,
   hint,
   value,
   warn,
 }: {
+  icon: React.ReactNode;
   asset: string;
   hint: string;
   value: string;
   warn?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between py-2.5">
-      <div className="flex flex-col">
-        <span className="text-sm font-bold leading-none">{asset}</span>
-        <span className="text-text-faint text-[10px] mt-1">{hint}</span>
+    <div className="flex items-center justify-between py-2.5 gap-3">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-8 h-8 rounded-full shrink-0 overflow-hidden">{icon}</div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-sm font-bold leading-none">{asset}</span>
+          <span className="text-text-faint text-[10px] mt-1 truncate">{hint}</span>
+        </div>
       </div>
       <span
-        className="text-3xl font-extrabold font-mono tracking-tight leading-none tabular-nums"
+        className="text-2xl font-extrabold font-mono tracking-tight leading-none tabular-nums shrink-0"
         style={warn ? { color: "var(--text-faint)" } : undefined}
       >
         {value}
       </span>
     </div>
+  );
+}
+
+/** Simplified Stellar Lumens mark: a light burst on the brand's near-black. */
+function XlmIcon() {
+  return (
+    <svg viewBox="0 0 32 32" className="w-full h-full" role="img" aria-label="XLM">
+      <circle cx="16" cy="16" r="16" fill="#0B0B0F" />
+      <path
+        d="M16 6l2.6 6.9L26 15l-7.4 2.6L16 24l-2.6-6.4L6 15l7.4-2.1L16 6z"
+        fill="#F5F5F5"
+      />
+    </svg>
+  );
+}
+
+/** Simplified USDC mark: Circle's brand blue with the $ glyph. */
+function UsdcIcon() {
+  return (
+    <svg viewBox="0 0 32 32" className="w-full h-full" role="img" aria-label="USDC">
+      <circle cx="16" cy="16" r="16" fill="#2775CA" />
+      <text
+        x="16"
+        y="21.5"
+        textAnchor="middle"
+        fontFamily="system-ui, sans-serif"
+        fontSize="16"
+        fontWeight="700"
+        fill="#FFFFFF"
+      >
+        $
+      </text>
+    </svg>
   );
 }

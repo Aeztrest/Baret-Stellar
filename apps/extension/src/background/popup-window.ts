@@ -12,7 +12,7 @@
 import browser from "webextension-polyfill";
 
 const POPUP_URL_PATH = "src/popup/index.html";
-const POPUP_WIDTH = 400;
+const POPUP_WIDTH = 360;
 const POPUP_HEIGHT = 640;
 
 let currentPopupWindowId: number | null = null;
@@ -32,7 +32,7 @@ export async function openPopupWindow(): Promise<void> {
 
   try {
     // `?window=1` tells the popup to fill the whole window (see popup/main.tsx)
-    // rather than render at the fixed 400x600 toolbar-popup size.
+    // rather than render at the fixed 360x600 toolbar-popup size.
     const url = browser.runtime.getURL(POPUP_URL_PATH) + "?window=1";
     const created = await browser.windows.create({
       url,
