@@ -4,9 +4,15 @@
  * extension's sign popup runs, just rendered on the site itself so visitors
  * can see what the firewall WOULD say before clicking "Sign".
  *
- * Network: requests go through the showcase Vite proxy at /api/v1/analyze
- * (rewrites to localhost:8080).
+ * Network: requests go through the showcase's `/api/v1/analyze` rewrite —
+ * `localhost:8080` in dev (vite.config.ts proxy), the hosted testnet-only
+ * Baret server in production (vercel.json rewrite to
+ * baret-stellar.onrender.com). The deployed server requires an API key
+ * (`DELTAG_API_KEYS`); DEMO_API_KEY below is the intentionally public demo
+ * key already committed in render.yaml, not a secret.
  */
+
+const DEMO_API_KEY = "dev-key-change-me";
 
 export interface RiskFinding {
   code: string;
@@ -87,6 +93,7 @@ export async function analyzeTransactionForPreview(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${DEMO_API_KEY}`,
       },
       body: JSON.stringify({
         network: opts.network ?? "testnet",

@@ -4,8 +4,10 @@
  * Explains, in plain terms, how an autonomous agent routes every transaction
  * through Baret BEFORE signing. It's the same firewall the wallet uses,
  * delivered as the @stellar-thorn/agent-guard SDK and `baret` CLI. Includes a
- * live playground (real /v1/analyze call) that talks to a locally running
- * Baret server; it is framed as a developer tool on the page itself.
+ * live playground (real /v1/analyze call) that talks to Baret's hosted,
+ * rate-limited, testnet-only demo server by default — no local setup
+ * required. The SDK/CLI snippets below it show how to point your own agent
+ * at your own local server instead.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -272,10 +274,10 @@ function Playground({
 
       <div className="mb-4 rounded-xl border border-border bg-secondary px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
         <strong className="text-foreground">For developers.</strong> This playground
-        talks to a Baret server running on your machine at{" "}
-        <code className="font-mono text-foreground/80">localhost:8080</code>. Start it
-        with <code className="font-mono text-foreground/80">pnpm dev:server</code> from
-        the repo root.
+        talks to Baret's rate-limited, testnet-only hosted demo server — no setup
+        needed. Want to point it at your own server instead? Start one with{" "}
+        <code className="font-mono text-foreground/80">pnpm dev:server</code> and swap
+        the SDK's <code className="font-mono text-foreground/80">serverUrl</code> below.
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5 grid lg:grid-cols-2 gap-5">
