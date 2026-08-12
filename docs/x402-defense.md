@@ -265,6 +265,48 @@ merchant up to X," Option A is strictly less work for the same guarantee.
 
 ---
 
+## 11. Verdict attestation (optional, opt-in)
+
+Filed in response to a repo review: `/v1/analyze`'s integrity previously
+rested entirely on TLS + trusting the server — a compromised server (or a
+bad proxy) could return a forged `{safe:true}` with nothing client-side able
+to tell the difference, beyond the SDK's non-loopback `http://` rejection
+(`assertSecureBaseUrl` in `packages/swig-guard/src/analyze.ts`, which stops
+a *plaintext* MITM but not a compromised server itself).
+
+**How it works.** When the server operator sets `BARET_SIGNING_SECRET` (a
+Stellar seed, see `apps/server/src/attestation/signing-key.ts`), every
+`/v1/analyze` response gets an `attestation` field: an Ed25519 signature
+over `(txHash, safe, findingsDigest, signedAt, nonce)` — see
+`apps/server/src/attestation/sign-verdict.ts` for the exact canonical
+payload. `txHash` is deliberately **not** part of the response; a verifier
+derives it themselves from the same `transactionXdr` they sent, so a
+malicious server can't sign a real verdict for a different transaction than
+the one actually analyzed. Unset `BARET_SIGNING_SECRET` and the field is
+simply omitted — fully backward compatible.
+
+**Who verifies today.** `packages/agent-guard` (`AgentWalletOptions.pinnedServerPublicKey`
+/ `BARET_PINNED_SERVER_PUBLIC_KEY`) — pin the server's public key and
+`AgentWallet.evaluate()` throws `AttestationError` (fail-closed) on a
+missing, wrong-signer, or invalid-signature attestation. Verification
+intentionally lives in agent-guard, not swig-guard: swig-guard is bundled
+into the browser extension and is kept SDK-free on purpose (`packages/swig-guard/src/types.ts`'s
+header comment), while verification needs `@stellar/stellar-sdk` to parse
+XDR and check the signature.
+
+**Known gap.** The extension itself
+(`apps/extension/src/background/baret/analyze-client.ts`) and the showcase
+demo (`apps/showcase/src/baret/analyze.ts`) still consume `/v1/analyze`
+unverified — same as before this change. Not hidden, just not done: wiring
+either of those up means importing `@stellar/stellar-sdk`-based verification
+into a browser bundle, which is exactly the constraint that pushed
+verification into agent-guard in the first place. A real fix there needs
+either a Web Crypto–only (no SDK) reimplementation of the signature check,
+or a build-config change to how the extension bundles workspace packages —
+tracked here, not attempted in this pass.
+
+---
+
 ## Sources
 
 - Coinbase x402 canonical spec — `https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md`

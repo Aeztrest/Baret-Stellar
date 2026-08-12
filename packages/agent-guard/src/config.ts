@@ -47,6 +47,16 @@ export interface RawConfig {
   agentSecret?: string;
   /** Override the Horizon endpoint (defaults to the network's public one). */
   horizonUrl?: string;
+  /**
+   * Pin the server's Ed25519 signing public key (`G…`) to verify every
+   * verdict's `attestation` field — see attestation.ts and
+   * apps/server/src/attestation/sign-verdict.ts. Opt-in: unset by default,
+   * so a server without BARET_SIGNING_SECRET configured (or an older
+   * server that predates this field) keeps working unchanged. Once set, a
+   * verdict with a missing or invalid attestation makes `evaluate()` throw
+   * (fail-closed) instead of returning it.
+   */
+  pinnedServerPublicKey?: string;
 }
 
 /** Fully resolved, ready-to-use config. */
@@ -57,6 +67,7 @@ export interface ResolvedConfig {
   policy: GuardPolicy;
   agentSecret?: string;
   horizonUrl: string;
+  pinnedServerPublicKey?: string;
 }
 
 /** Fields persisted to ~/.baret/config.json. Never includes the secret. */
@@ -67,6 +78,7 @@ export interface PersistedConfig {
   /** Stored as a template id or an inline policy object. */
   policy?: PolicyTemplateId | GuardPolicy;
   horizonUrl?: string;
+  pinnedServerPublicKey?: string;
 }
 
 export const CONFIG_DIR = join(homedir(), ".baret");
@@ -102,6 +114,7 @@ function envConfig(env: NodeJS.ProcessEnv = process.env): RawConfig {
   if (env.BARET_POLICY) out.policy = env.BARET_POLICY;
   if (env.BARET_AGENT_SECRET) out.agentSecret = env.BARET_AGENT_SECRET;
   if (env.BARET_HORIZON_URL) out.horizonUrl = env.BARET_HORIZON_URL;
+  if (env.BARET_PINNED_SERVER_PUBLIC_KEY) out.pinnedServerPublicKey = env.BARET_PINNED_SERVER_PUBLIC_KEY;
   return out;
 }
 
@@ -181,5 +194,6 @@ export function loadConfig(
     // Secret is intentionally only sourced from explicit/env (never the file).
     agentSecret: explicit.agentSecret ?? env.agentSecret,
     horizonUrl: resolveHorizonUrl(network, pick("horizonUrl") as string),
+    pinnedServerPublicKey: pick("pinnedServerPublicKey") as string | undefined,
   };
 }

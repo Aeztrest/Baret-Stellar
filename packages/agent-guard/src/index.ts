@@ -32,6 +32,8 @@ export {
   type PersistedConfig,
 } from "./config.js";
 
+export { verifyVerdictAttestation, AttestationError } from "./attestation.js";
+
 // Re-export the guard primitives + policy toolkit so agent-guard is a
 // one-stop import.
 export {

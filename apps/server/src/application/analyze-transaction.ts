@@ -1,4 +1,4 @@
-import { StrKey } from "@stellar/stellar-sdk";
+import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import type { AppConfig } from "../config/index.js";
 import type { AnalyzeRequestBody } from "../domain/policy.js";
 import type { Decision } from "../domain/decision.js";
@@ -22,6 +22,7 @@ import { parseSorobanAuthTree } from "../simulation/cpi-parser.js";
 import { decodeTransactionOperations } from "../analysis/instruction-decoder.js";
 import { generateSuggestions } from "../analysis/suggestion-engine.js";
 import { getAuditStore } from "../data/audit-store.js";
+import { signVerdict } from "../attestation/sign-verdict.js";
 
 export type AnalyzeTimings = {
   preFetchMs: number;
@@ -35,13 +36,15 @@ export type AnalyzeDeps = {
   /** Factory returns the configured single-network adapter. */
   createRpc: () => StellarRpcAdapter;
   onAnalyzeTimings?: (t: AnalyzeTimings) => void;
+  /** When set, every response is signed — see attestation/sign-verdict.ts. */
+  signingKeypair?: Keypair | null;
 };
 
 export async function analyzeTransaction(
   body: AnalyzeRequestBody,
   deps: AnalyzeDeps,
 ): Promise<Decision> {
-  const { config, createRpc, onAnalyzeTimings } = deps;
+  const { config, createRpc, onAnalyzeTimings, signingKeypair } = deps;
   const t0 = performance.now();
 
   if (body.network !== config.stellar.network) {
@@ -155,6 +158,11 @@ export async function analyzeTransaction(
     txSummary,
   );
   decision.suggestions = suggestionResult.suggestions;
+
+  if (signingKeypair) {
+    decision.attestation = signVerdict(signingKeypair, tx.hash().toString("hex"), decision);
+  }
+
   const t3 = performance.now();
   const postSimMs = t3 - t2;
 

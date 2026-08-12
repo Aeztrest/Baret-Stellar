@@ -117,4 +117,12 @@ export const analyzeResponseSchema = z.object({
     confidence: z.enum(["high", "medium", "low"]),
     integratorRequestId: z.string().optional(),
   }),
+  attestation: z
+    .object({
+      signature: z.string(),
+      signerPublicKey: z.string(),
+      signedAt: z.number(),
+      nonce: z.string(),
+    })
+    .optional(),
 });

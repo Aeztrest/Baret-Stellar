@@ -13,6 +13,7 @@ import { registerReplayRoute } from "./api/routes/replay.js";
 import { registerDemoPaywallRoute } from "./api/routes/demo-paywall.js";
 import { apiError } from "./api/errors.js";
 import { createDeltagX402 } from "./infra/x402.js";
+import { loadSigningKeypair } from "./attestation/signing-key.js";
 
 /**
  * The x402 payment gate is wired into exactly one route: `POST /v1/analyze`
@@ -115,7 +116,7 @@ export async function buildApp(config: AppConfig) {
     x402 ? { checkX402Facilitator: x402.checkFacilitator } : undefined,
   );
 
-  const analyzeDeps = { config, createRpc };
+  const analyzeDeps = { config, createRpc, signingKeypair: loadSigningKeypair() };
   registerAnalyzeRoute(app, analyzeDeps, x402);
   registerBatchRoute(app, analyzeDeps);
   registerMcpRoutes(app, analyzeDeps);

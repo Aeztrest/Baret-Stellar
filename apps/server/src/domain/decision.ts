@@ -3,6 +3,7 @@ import type { RiskFinding } from "./findings.js";
 import type { StellarNetwork } from "../config/index.js";
 import type { TransactionSummary } from "./instruction-summary.js";
 import type { CpiTrace } from "./cpi-trace.js";
+import type { VerdictAttestation } from "../attestation/sign-verdict.js";
 
 export type DecisionMeta = {
   analysisVersion: string;
@@ -35,4 +36,6 @@ export type Decision = {
   annotation?: TransactionAnnotation;
   suggestions?: TransactionSuggestionOutput[];
   meta: DecisionMeta;
+  /** Present only when the server has BARET_SIGNING_SECRET configured. */
+  attestation?: VerdictAttestation;
 };
