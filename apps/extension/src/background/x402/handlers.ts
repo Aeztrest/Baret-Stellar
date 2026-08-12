@@ -123,6 +123,10 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
 
   // 2. Network match.
   const snap = getSnapshot();
+  const accountPubkey = snap.authorityAddress;
+  if (!accountPubkey) {
+    return { action: "decline", reason: "Wallet not ready." };
+  }
   if (snap.network !== network) {
     return {
       action: "decline",
@@ -172,10 +176,11 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   }
 
   // 4. Allowance lookup / auto-create.
-  const allowanceId = makeAllowanceId(origin, requirements.asset);
+  const allowanceId = makeAllowanceId(accountPubkey, origin, requirements.asset);
   let allowance = await readAllowance(allowanceId);
   if (!allowance) {
     allowance = await createDefaultAllowance(
+      accountPubkey,
       origin,
       requirements.asset,
       snap.authorityAddress!,
@@ -278,6 +283,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     const summary = `Auto-paid x402 · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`;
     await appendHistory({
       type: "x402",
+      accountPubkey,
       signature: null,
       origin,
       summary,
@@ -362,6 +368,7 @@ export async function loadPolicy(): Promise<GuardPolicy> {
  * this into a live, auto-signable mandate.
  */
 export async function createDefaultAllowance(
+  accountPubkey: string,
   origin: string,
   asset: string,
   subKeyPubkey: string,
@@ -369,7 +376,8 @@ export async function createDefaultAllowance(
 ): Promise<AllowanceRow> {
   const now = Date.now();
   const row: AllowanceRow = {
-    id: makeAllowanceId(origin, asset),
+    id: makeAllowanceId(accountPubkey, origin, asset),
+    accountPubkey,
     merchantOrigin: origin,
     asset,
     capPerTx: policy.maxX402PerTx ?? 1.0,

@@ -35,7 +35,7 @@ import {
   type SignSuccess,
 } from "./sign-queue";
 import { appendHistory, listHistory } from "../db/history";
-import { readSitePermission, writeSitePermission } from "../db/site-permissions";
+import { makeSitePermissionId, readSitePermission, writeSitePermission } from "../db/site-permissions";
 import { getSubKeypair } from "../crypto/sub-key-cache";
 import {
   buildMandatePreview,
@@ -93,8 +93,9 @@ export const wsConnect: WsHandler = async (raw) => {
   if (!s.walletAddress || !s.authorityAddress) {
     throw new Error("Wallet not ready.");
   }
+  const accountPubkey = s.authorityAddress;
 
-  const perm = await readSitePermission(origin);
+  const perm = await readSitePermission(accountPubkey, origin);
   if (perm?.status === "denied" && perm.remembered) {
     throw new Error(`Connection to ${origin} was previously denied.`);
   }
@@ -103,6 +104,8 @@ export const wsConnect: WsHandler = async (raw) => {
     if (!approval.allow) {
       if (approval.remember) {
         await writeSitePermission({
+          id: makeSitePermissionId(accountPubkey, origin),
+          accountPubkey,
           origin,
           status: "denied",
           remembered: true,
@@ -113,6 +116,8 @@ export const wsConnect: WsHandler = async (raw) => {
     }
     if (approval.remember) {
       await writeSitePermission({
+        id: makeSitePermissionId(accountPubkey, origin),
+        accountPubkey,
         origin,
         status: "trusted",
         remembered: true,
@@ -122,10 +127,11 @@ export const wsConnect: WsHandler = async (raw) => {
   }
 
   try {
-    const prior = await listHistory({ type: "dapp", origin });
+    const prior = await listHistory({ accountPubkey, type: "dapp", origin });
     if (prior.length === 0) {
       await appendHistory({
         type: "dapp",
+        accountPubkey,
         signature: null,
         origin,
         summary: "Connected via Stellar wallet provider",
@@ -174,7 +180,9 @@ export const wsDisconnect: WsHandler = async (_raw) => {
 
 export const wsIsConnected: WsHandler = async (raw) => {
   const { origin } = raw as WsConnectReq;
-  const perm = await readSitePermission(origin);
+  const accountPubkey = getState().authorityAddress;
+  if (!accountPubkey) return { connected: false };
+  const perm = await readSitePermission(accountPubkey, origin);
   return { connected: perm?.status === "trusted" && isUnlocked() };
 };
 
@@ -404,13 +412,15 @@ export async function tryAutoApproveX402AuthEntry(
   }
 
   // Per-merchant allowance + rolling caps.
-  const allowanceId = makeAllowanceId(origin, intent.contract);
+  const accountPubkey = authority.publicKey();
+  const allowanceId = makeAllowanceId(accountPubkey, origin, intent.contract);
   let allowance = await readAllowance(allowanceId);
   if (!allowance) {
     allowance = await createDefaultAllowance(
+      accountPubkey,
       origin,
       intent.contract,
-      authority.publicKey(),
+      accountPubkey,
       policy,
     );
   }
@@ -446,6 +456,7 @@ export async function tryAutoApproveX402AuthEntry(
   const summary = `Auto-paid x402 · ${amountUi.toFixed(6)} → ${intent.to.slice(0, 6)}…${intent.to.slice(-4)}`;
   await appendHistory({
     type: "x402",
+    accountPubkey,
     signature: null,
     origin,
     summary,

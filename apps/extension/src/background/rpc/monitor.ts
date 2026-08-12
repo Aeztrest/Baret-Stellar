@@ -125,9 +125,14 @@ class Monitor {
     tx: Horizon.ServerApi.TransactionRecord,
     scope: "authority" | "wallet",
   ): Promise<void> {
+    // The monitor only ever polls once `start()` has set an account, so
+    // this is non-null in practice; fall back defensively rather than throw.
+    const accountPubkey = this.authorityAddr ?? "unknown";
+
     if (!tx.successful) {
       await appendHistory({
         type: "alert",
+        accountPubkey,
         signature: tx.hash,
         origin: null,
         summary: `Failed transaction touched your ${scope === "wallet" ? "smart wallet" : "authority"}`,
@@ -139,7 +144,7 @@ class Monitor {
       return;
     }
 
-    const recent = await listHistory({ limit: 200 });
+    const recent = await listHistory({ accountPubkey, limit: 200 });
     const matched = recent.find((h) => h.signature === tx.hash);
     if (matched) return; // legitimate
 
@@ -156,6 +161,7 @@ class Monitor {
 
     await appendHistory({
       type: "alert",
+      accountPubkey,
       signature: tx.hash,
       origin: null,
       summary: `Drift detected. unauthorized tx on ${scope === "wallet" ? "smart wallet" : "authority"}`,

@@ -102,7 +102,7 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("a brand-new merchant always requires manual approval, even under a permissive auto-approve policy", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, BALANCED_POLICY); // x402AutoApprove: true
 
     const requirements = makeRequirements();
@@ -121,7 +121,7 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
     expect(queued?.x402Mandate?.merchantOrigin).toBe(MERCHANT_ORIGIN);
 
     // The allowance must still be "pending" — never silently promoted.
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const row = await allowances.readAllowance(allowanceId);
     expect(row?.status).toBe("pending");
     expect(allowances.isMandateLive(row!)).toBe(false);
@@ -135,14 +135,15 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("a live mandate (already active, not expired) auto-approves without a popup and notifies the user", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, BALANCED_POLICY);
 
     const requirements = makeRequirements();
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: requirements.asset,
       capPerTx: 1,
@@ -178,14 +179,15 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("an expired mandate falls back to manual approval even though status is still active", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, BALANCED_POLICY);
 
     const requirements = makeRequirements();
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: requirements.asset,
       capPerTx: 1,
@@ -225,14 +227,15 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("Strict policy (x402AutoApprove: false) requires manual approval even for a live mandate", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, STRICT_POLICY);
 
     const requirements = makeRequirements({ amount: "500000" }); // within Strict's 0.10 per-tx cap
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: requirements.asset,
       capPerTx: 0.1,

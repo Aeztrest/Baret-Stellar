@@ -344,9 +344,9 @@ const unlockHandler: Handler<"wallet.unlock"> = async ({ passphrase }) => {
   unlockWith(secret, row.activeIndex);
   secret.fill(0);
 
-  await preloadActiveSubKeys(passphrase);
-
   const active = activeAccountEntry(row);
+  await preloadActiveSubKeys(passphrase, active.authorityPubkey);
+
   const wallet = active.smartWalletAddress ?? active.authorityPubkey;
   dispatch({
     type: "wallet.unlocked",
@@ -697,14 +697,21 @@ const networkSet: Handler<"network.set"> = async ({ network }) => {
 
 /* ────────────── Allowance ledger ────────────── */
 
+/** Throws if no wallet exists yet — every ledger/history/sub-key handler needs an account to scope to. */
+function requireActiveAccountPubkey(): string {
+  const accountPubkey = getSnapshot().authorityAddress;
+  if (!accountPubkey) throw new Error("No wallet initialized.");
+  return accountPubkey;
+}
+
 const ledgerListHandler: Handler<"ledger.list"> = async ({ filter } = {}) => {
-  return listAllowances(filter);
+  return listAllowances(requireActiveAccountPubkey(), filter);
 };
 
 const ledgerPauseHandler: Handler<"ledger.pause"> = async ({
   merchantOrigin,
 }) => {
-  const all = await listAllowances();
+  const all = await listAllowances(requireActiveAccountPubkey());
   const target = all.find((a) => a.merchantOrigin === merchantOrigin);
   if (!target) throw new Error(`No allowance found for ${merchantOrigin}`);
   await setAllowanceStatus(target.id, "paused");
@@ -714,7 +721,7 @@ const ledgerPauseHandler: Handler<"ledger.pause"> = async ({
 const ledgerUnpauseHandler: Handler<"ledger.unpause"> = async ({
   merchantOrigin,
 }) => {
-  const all = await listAllowances();
+  const all = await listAllowances(requireActiveAccountPubkey());
   const target = all.find((a) => a.merchantOrigin === merchantOrigin);
   if (!target) throw new Error(`No allowance found for ${merchantOrigin}`);
   await setAllowanceStatus(target.id, "active");
@@ -725,16 +732,18 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
   merchantOrigin,
 }) => {
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
-  const all = await listAllowances();
+  const accountPubkey = requireActiveAccountPubkey();
+  const all = await listAllowances(accountPubkey);
   const target = all.find((a) => a.merchantOrigin === merchantOrigin);
   if (!target) throw new Error(`No allowance found for ${merchantOrigin}`);
 
-  const subKey = await findActiveSubKeyForMerchant(merchantOrigin);
+  const subKey = await findActiveSubKeyForMerchant(accountPubkey, merchantOrigin);
 
   if (!subKey) {
     await setAllowanceStatus(target.id, "revoked");
     await appendHistory({
       type: "alert",
+      accountPubkey,
       signature: null,
       origin: merchantOrigin,
       summary: `Revoked allowance for ${merchantOrigin} (local-only. no on-chain sub-key)`,
@@ -773,6 +782,7 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
         await setAllowanceStatus(target.id, "revoked");
         await appendHistory({
           type: "alert",
+          accountPubkey,
           signature: out.signature,
           origin: merchantOrigin,
           summary: `Revoked ${merchantOrigin} on-chain (smart-wallet remove_signer)`,
@@ -794,7 +804,7 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
 /* ────────────── History + alerts ────────────── */
 
 const historyListHandler: Handler<"history.list"> = async ({ filter } = {}) => {
-  return listHistory(filter);
+  return listHistory({ ...filter, accountPubkey: requireActiveAccountPubkey() });
 };
 
 const historyDetailHandler: Handler<"history.detail"> = async ({ id }) => {
@@ -913,6 +923,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     throw new Error(
       "Unknown sign request. it may have already been processed.",
     );
+  const accountPubkey = requireActiveAccountPubkey();
 
   if (req.kind === "connect") {
     if (!accept) {
@@ -930,6 +941,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     endSignFlowIfDrained();
     await appendHistory({
       type: "dapp",
+      accountPubkey,
       signature: null,
       origin: req.origin,
       summary: `Declined ${kindLabel(req.kind)} from ${req.origin}`,
@@ -974,6 +986,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
       result.kind === "transactionAndSend" ? result.signature : null;
     await appendHistory({
       type: "dapp",
+      accountPubkey,
       signature,
       origin: req.origin,
       summary: `Signed ${kindLabel(req.kind)} for ${req.origin}`,
@@ -999,6 +1012,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     endSignFlowIfDrained();
     await appendHistory({
       type: "alert",
+      accountPubkey,
       signature: null,
       origin: req.origin,
       summary: `Sign failed for ${req.origin}`,

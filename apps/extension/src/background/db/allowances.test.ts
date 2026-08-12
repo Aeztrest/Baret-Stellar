@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IDBFactory } from "fake-indexeddb";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { AllowanceRow } from "./allowances";
 
 function makeRow(overrides: Partial<AllowanceRow> = {}): AllowanceRow {
   const now = Date.now();
   return {
-    id: "https://merchant.example::USDC",
+    id: "GACCOUNT0::https://merchant.example::USDC",
+    accountPubkey: "GACCOUNT0",
     merchantOrigin: "https://merchant.example",
     asset: "USDC",
     capPerTx: 1,
@@ -39,6 +40,10 @@ function makeRow(overrides: Partial<AllowanceRow> = {}): AllowanceRow {
 async function freshAllowancesModule() {
   vi.resetModules();
   (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
+  // Node has no IndexedDB globals; `listAllowances` uses `IDBKeyRange.only(...)`
+  // to query the new `accountPubkey` index, so the fake's IDBKeyRange must be
+  // present too (indexedDB itself is already polyfilled the same way above).
+  (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
   return import("./allowances");
 }
 
@@ -121,6 +126,49 @@ describe("tryReserveSpend — concurrent x402 payments", () => {
     await mod.releaseReservedSpend(row.id, 6);
     const afterRelease = await mod.tryReserveSpend(row.id, 6);
     expect(afterRelease.ok).toBe(true);
+  });
+});
+
+describe("listAllowances — account scoping", () => {
+  let mod: Awaited<ReturnType<typeof freshAllowancesModule>>;
+
+  beforeEach(async () => {
+    mod = await freshAllowancesModule();
+  });
+
+  it("only returns rows belonging to the requested account", async () => {
+    await mod.writeAllowance(makeRow({
+      id: mod.makeAllowanceId("GACCOUNT0", "https://merchant.example", "USDC"),
+      accountPubkey: "GACCOUNT0",
+    }));
+    await mod.writeAllowance(makeRow({
+      id: mod.makeAllowanceId("GACCOUNT1", "https://merchant.example", "USDC"),
+      accountPubkey: "GACCOUNT1",
+      merchantOrigin: "https://merchant.example",
+    }));
+
+    const account0Rows = await mod.listAllowances("GACCOUNT0");
+    expect(account0Rows).toHaveLength(1);
+    expect(account0Rows[0]!.accountPubkey).toBe("GACCOUNT0");
+
+    const account1Rows = await mod.listAllowances("GACCOUNT1");
+    expect(account1Rows).toHaveLength(1);
+    expect(account1Rows[0]!.accountPubkey).toBe("GACCOUNT1");
+  });
+
+  it("the same merchant+asset under two different accounts gets two independent rows", async () => {
+    const idA = mod.makeAllowanceId("GACCOUNT0", "https://merchant.example", "USDC");
+    const idB = mod.makeAllowanceId("GACCOUNT1", "https://merchant.example", "USDC");
+    expect(idA).not.toBe(idB);
+
+    await mod.writeAllowance(makeRow({ id: idA, accountPubkey: "GACCOUNT0" }));
+    const reservedA = await mod.tryReserveSpend(idA, 2);
+    expect(reservedA.ok).toBe(true);
+
+    // Account 1 never wrote a row for this merchant — its allowance is
+    // untouched (a fresh reservation against it must fail as "not found",
+    // not silently share account 0's spend total).
+    await expect(mod.tryReserveSpend(idB, 2)).rejects.toThrow();
   });
 });
 

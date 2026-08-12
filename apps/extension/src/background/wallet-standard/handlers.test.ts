@@ -115,7 +115,7 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
       expect(decision.mandatePreview.merchantOrigin).toBe(MERCHANT_ORIGIN);
     }
 
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, ASSET);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, ASSET);
     const row = await allowances.readAllowance(allowanceId);
     expect(row?.status).toBe("pending");
   });
@@ -125,10 +125,11 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
     await setPolicy(browserMod, BALANCED_POLICY);
 
     const merchant = Keypair.random().publicKey();
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, ASSET);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, ASSET);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: ASSET,
       capPerTx: 1,
@@ -163,10 +164,11 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
     await setPolicy(browserMod, BALANCED_POLICY);
 
     const merchant = Keypair.random().publicKey();
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, ASSET);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, ASSET);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: ASSET,
       capPerTx: 1,

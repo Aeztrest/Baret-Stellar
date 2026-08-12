@@ -19,6 +19,12 @@ import type { EncryptedBlob } from "../crypto/kdf";
 export interface SubKeyRow {
   /** Sub-key public key (base58). Primary key. */
   pubkey: string;
+  /**
+   * The owning account's stable `authorityPubkey` (see db/keystore.ts).
+   * Rows created before multi-account scoping (DB v4) were backfilled onto
+   * account 0 by the v3->v4 migration in db/index.ts.
+   */
+  accountPubkey: string;
   /** Origin of the merchant this sub-key was provisioned for. */
   merchantOrigin: string;
   /** Encrypted secret key bytes (64). Decryption uses the wallet passphrase. */
@@ -56,19 +62,25 @@ export async function readSubKey(pubkey: string): Promise<SubKeyRow | null> {
   return (r ?? null) as SubKeyRow | null;
 }
 
-export async function findActiveSubKeyForMerchant(merchantOrigin: string): Promise<SubKeyRow | null> {
-  const all = await listSubKeys({ merchantOrigin });
+export async function findActiveSubKeyForMerchant(
+  accountPubkey: string,
+  merchantOrigin: string,
+): Promise<SubKeyRow | null> {
+  const all = await listSubKeys(accountPubkey, { merchantOrigin });
   return all.find((r) => r.status === "active") ?? null;
 }
 
-export async function listSubKeys(filter?: { merchantOrigin?: string; status?: SubKeyRow["status"] }): Promise<SubKeyRow[]> {
+export async function listSubKeys(
+  accountPubkey: string,
+  filter?: { merchantOrigin?: string; status?: SubKeyRow["status"] },
+): Promise<SubKeyRow[]> {
   await ensureSubKeyStore();
   const db = await openDb();
   if (!db.objectStoreNames.contains(STORE_NAME)) return [];
   const t = db.transaction(STORE_NAME, "readonly");
   return new Promise<SubKeyRow[]>((resolve, reject) => {
     const out: SubKeyRow[] = [];
-    const req = t.objectStore(STORE_NAME).openCursor();
+    const req = t.objectStore(STORE_NAME).index("accountPubkey").openCursor(IDBKeyRange.only(accountPubkey));
     req.onsuccess = () => {
       const cur = req.result;
       if (!cur) return resolve(out);
