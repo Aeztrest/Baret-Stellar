@@ -454,16 +454,24 @@ re-unlock.
 
 Each merchant the user authorizes gets its own derived sub-key:
 
-- For the primary authority, we generate a child signer scoped by a Soroban
-  allowance (e.g. an XLM/asset spend cap per day and an allow-list of
-  contract ids the sub-key may invoke).
+- For the primary authority, we generate a child signer and register it on
+  the smart wallet via `add_signer`.
 - The sub-key's secret is itself encrypted under the same passphrase + a
   per-sub-key salt.
-- Revoking a sub-key submits a Soroban transaction that zeroes the allowance;
-  the local encrypted record is then deleted.
+- Revoking a sub-key submits a `remove_signer` transaction; the local
+  encrypted record is then deleted.
 
-Sub-keys give us per-merchant blast-radius isolation without forcing the user
-to manage N independent keypairs.
+**This is the intended design, not the current implementation.** The
+allowance passed to `add_signer` is scoped by a Soroban allowance *in
+theory* — today the deployed smart-wallet contract has no per-signer cap
+enforcement at all, so `buildAddSubKeyTransaction` registers each sub-key
+with `{ unlimited: true }`. Per-tx/hour/day caps are enforced only by this
+extension's own bookkeeping (`db/allowances.ts`), not on-chain. See the
+SECURITY NOTE in `apps/extension/src/background/swig/sub-keys.ts` and the
+roadmap in `docs/x402-defense.md` §10 for the plan to close this gap. Until
+then, "per-merchant blast-radius isolation" holds only as long as the
+sub-key secret itself is never exfiltrated — it is not a chain-enforced
+guarantee.
 
 ---
 

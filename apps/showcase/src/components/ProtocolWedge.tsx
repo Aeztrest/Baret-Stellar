@@ -27,7 +27,7 @@ const CALLOUTS = [
   {
     icon: KeyRound,
     gap: "Authority key compromise. If the signing key leaks, x402 has no per-merchant scope to limit the damage.",
-    response: "A per-merchant scoped sub-key. A leaked key drains only that merchant's remaining cap, and you revoke it on-chain with one tap.",
+    response: "A per-merchant scoped sub-key you revoke on-chain with one tap. Spend caps are enforced by the extension today; a bounded on-chain allowance is on the roadmap.",
   },
 ];
 

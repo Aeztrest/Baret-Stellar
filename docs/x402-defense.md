@@ -125,7 +125,7 @@ The transaction XDR carries partial signatures and base64-roundtrips them lossle
 
 ### BARET signing rules
 
-- The **authority** is *not* the user's main keypair when the merchant has a per-merchant scoped sub-key (see §6 — Revoke). Each merchant gets its own scoped signer with a tight set of rights: spend up to `dailyCap` of `asset`, no other rights.
+- The **authority** is *not* the user's main keypair when the merchant has a per-merchant scoped sub-key (see §6 — attack matrix). Each merchant gets its own scoped signer, and the extension enforces `dailyCap` of `asset` for it — but that cap is extension-side bookkeeping today, not an on-chain restriction on the signer itself (see §10 — Roadmap).
 - Signing happens in the background service worker, never in the popup or content script. The encrypted authority is unlocked only with the user's session passphrase, kept in service-worker memory only, zeroed on session timeout.
 - Every signature emits a `signed` event into the local audit log with: `(timestamp, origin, requestHash, txSignature, ledgerEntryId)`. Available in *Activity → x402* and exportable as JSON.
 
@@ -178,7 +178,7 @@ The transaction XDR carries partial signatures and base64-roundtrips them lossle
 | **Verify-not-settle race / double-settle.** Facilitator returns `success: true` to multiple parallel `/settle` calls; chain debits once, server unlocks N resources. | Spec only *recommends* a 120 s settlement cache; not enforced. | **Facilitator reputation list** — known-good facilitators carry a `dedupes_settles: true` flag in our seed list, cross-referenced against `allowedFacilitators`. Unknown facilitators trip a soft warning + lower trust threshold. |
 | **Post-access price escalation.** First call cheap, follow-ups 5x more expensive. | Each 402 is independent; no rate or price tracking. | **Per-merchant amount-stddev ledger** — flag when a payment's `amount` deviates more than σ × N from this merchant's running mean. |
 | **Facilitator signer impersonation.** Resource server names a `sponsorBy` that's not actually authorized by the named facilitator. | No cross-check; clients trust whatever's published. | **`/supported` endpoint cross-check** at sign time. Stale-cached for 1 h; refresh on miss. |
-| **Authority key compromise.** Agent's keypair leaks; attacker signs payments out-of-band. | No detection; no per-merchant scope. | **Per-merchant scoped sub-key** with tight rights. Compromised sub-key drains only that merchant's allowance (up to remaining cap). One-tap revoke rotates the sub-key on-chain. |
+| **Authority key compromise.** Agent's keypair leaks; attacker signs payments out-of-band. | No detection; no per-merchant scope. | **Per-merchant scoped sub-key**, revocable on-chain with one tap. ⚠️ The per-tx/hour/day caps are enforced by the extension today, not by the deployed smart-wallet contract — a leaked, decrypted sub-key secret is *not yet* capped on-chain. See [§10 Roadmap](#10-roadmap--bounding-sub-key-spend-on-chain) and the SECURITY NOTE in `apps/extension/src/background/swig/sub-keys.ts`. |
 | **Validity-window replay.** Facilitator delays settle to near the end of the transaction's `timeBounds`, gambles on parallel resource servers. | Stellar ledger dedupe is keyed on the tx hash / source-account sequence, not on the merchant. | **30-second validity-window freshness ceiling** at sign time. We refuse stale txs. |
 | **Memo collision.** Merchant uses the same `extra.memo` twice to confuse invoice tracking. | Spec doesn't forbid memo reuse globally. | **Local memo dedupe per merchant.** Reuse → soft warning + visible audit log entry. |
 | **"It worked, but did the merchant deliver?"** — a perpetual UX hole in any pay-per-API protocol. | x402 has no notion of resource delivery. | **Settle-but-no-200 watchdog.** If the corresponding HTTP request never returns 200 within `maxTimeoutSeconds`, we surface a *Receipt without delivery* alert and offer the dispute audit log. |
@@ -213,6 +213,55 @@ These are deliberate gaps in v1 — listed here so they're not silently lost.
 - **Cross-device authority sync.** A single user with the wallet on two browsers needs allowance-ledger consistency. v1: per-device. v2: optional encrypted cloud-sync (E2EE) or a user-owned relay.
 - **Programmable allowances** (e.g. "let agent X spend up to 1 USDC, but only from 9–17 GMT"). Today it's per-merchant + global window. v2: a small DSL on top of the ledger.
 - **Merchant-side BARET endpoint.** A small reverse SDK so merchants can *display* "This site honors BARET policies" badges and pre-validate payments before issuing 402s.
+
+---
+
+## 10. Roadmap — bounding sub-key spend on-chain
+
+> **Status: design sketch, not implemented.** Filed in response to a repo
+> review that (correctly) flagged the attack-matrix row above as
+> overclaiming — see the SECURITY NOTE in
+> `apps/extension/src/background/swig/sub-keys.ts`.
+
+**The gap.** `buildAddSubKeyTransaction` registers a sub-key on the
+smart-wallet contract via `add_signer(signer, { unlimited: true })`. The
+per-tx/hour/day caps described elsewhere in this doc are enforced entirely
+by this extension's own bookkeeping (`tryReserveSpend` in
+`apps/extension/src/background/db/allowances.ts`). If a sub-key's encrypted
+secret is ever exfiltrated and decrypted outside the extension, the
+attacker can sign an arbitrary `transfer` against the smart wallet with no
+on-chain ceiling.
+
+Separately, `contracts/contracts/payment-guard` — the deployed
+**PaymentGuard** Soroban contract — already implements almost everything
+needed to close this gap: `set_allowance` (per-tx cap + rolling 24h cap per
+merchant), `pause` / `resume` / `revoke`, and `deposit` / `pay` / `withdraw`,
+all covered by 26 passing tests. It is live on testnet
+(see the README for the contract ID) but **nothing in `apps/extension` or
+`apps/server` calls it** — the sub-key flow and PaymentGuard are two
+unconnected systems today.
+
+**Option A — route sub-key spend through PaymentGuard (recommended).**
+The smart wallet deposits working capital into PaymentGuard via
+`deposit()`. Instead of an unlimited raw-transfer signer, the sub-key is
+authorized only to invoke PaymentGuard's `pay(merchant, amount)` — which
+already enforces the per-merchant per-tx and daily caps on-chain. A leaked
+sub-key can then only drain up to whatever PaymentGuard has left for that
+merchant, which is exactly what the landing copy claims today. This reuses
+a contract that's already written, deployed, and tested, instead of
+building new cap logic.
+
+**Option B — enforce caps in the smart-wallet contract itself.** Extend
+`add_signer` to accept and actually enforce a bounded allowance struct
+(matching what `docs/extension-architecture.md` §8.3 currently describes as
+the intended design). This duplicates PaymentGuard's cap logic in a second
+contract and is more work; only worth it if a sub-key needs to call
+something other than a payment (e.g. other contract invocations that
+PaymentGuard's `pay`-shaped interface doesn't cover).
+
+**Open question.** Whether sub-keys need non-payment call scopes at all
+decides between A and B — if every real sub-key use case is "pay this
+merchant up to X," Option A is strictly less work for the same guarantee.
 
 ---
 

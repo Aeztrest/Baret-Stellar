@@ -1,12 +1,16 @@
 /**
- * Sub-key store. per-merchant scoped Swig authorities.
+ * Sub-key store. per-merchant scoped smart-wallet signers.
  *
- * Each row corresponds to a Swig AddAuthority instruction the user
- * approved on-chain. The keypair signs only that merchant's transactions
- * (x402 payments, scoped dApp interactions); compromise of one row affects
- * only one merchant.
+ * Each row corresponds to an `add_signer` transaction the user approved
+ * on-chain (see `../swig/sub-keys.ts`). The keypair is meant to sign only
+ * that merchant's transactions (x402 payments, scoped dApp interactions),
+ * but the deployed smart-wallet contract does not currently enforce a
+ * per-signer spending cap — the allowance is registered as unlimited, and
+ * caps are enforced only by this extension's own bookkeeping
+ * (`allowances.ts`). Compromise of a row's secret is NOT yet scoped to one
+ * merchant on-chain. See the SECURITY NOTE in `../swig/sub-keys.ts`.
  *
- * Spec: docs/x402-defense.md §4 (per-merchant Swig sub-key isolation).
+ * Spec: docs/x402-defense.md §4 and §10 (roadmap for closing this gap).
  */
 
 import { asPromise, openDb, tx } from "./index";
