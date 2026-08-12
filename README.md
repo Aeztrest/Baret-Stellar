@@ -1,5 +1,7 @@
 # Baret
 
+[![CI](https://github.com/Aeztrest/Baret-Stellar/actions/workflows/ci.yml/badge.svg)](https://github.com/Aeztrest/Baret-Stellar/actions/workflows/ci.yml)
+
 > **The Stellar smart wallet with a transaction firewall.**
 > Pre-sign simulation, per-site policy, rolling spend caps, and the first
 > wallet-level defense for the **x402** agentic-payment protocol — backed by an

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: Node (build, typecheck, lint, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Workspace packages (e.g. swig-guard) are consumed via their dist/
+      # output, so dependents (agent-guard, wallet, showcase, extension)
+      # need it built before typecheck can resolve their types.
+      - run: pnpm -r --if-present build
+
+      - run: pnpm -r --if-present typecheck
+
+      - run: pnpm -r --if-present lint
+
+      - run: pnpm -r --if-present test
+
+  contracts:
+    name: Contracts (cargo test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+
+      - run: cargo test --manifest-path contracts/Cargo.toml
+
+  docs:
+    name: Docs (baret_docs)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: baret_docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: baret_docs/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run build
