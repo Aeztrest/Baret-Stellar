@@ -183,7 +183,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
       accountPubkey,
       origin,
       requirements.asset,
-      snap.authorityAddress!,
+      requirements.payTo,
       policy,
     );
   }
@@ -364,14 +364,18 @@ export async function loadPolicy(): Promise<GuardPolicy> {
 /**
  * Auto-creates an allowance the first time a (merchant, asset) pair is seen.
  * Always starts `status: "pending"` — never auto-approved. Trust is only
- * granted by a manual approval (see `promoteAllowance`), which is what turns
- * this into a live, auto-signable mandate.
+ * granted by a manual approval, which is also the point a real, on-chain
+ * scoped sub-key gets provisioned for this row (see `txSignHandler` in
+ * `messaging/handlers.ts` and `swig/sub-keys.ts#provisionMerchantSubKey`) —
+ * there is deliberately no sub-key yet at auto-create time, since minting one
+ * costs a real on-chain signer slot + policy allowance the user hasn't
+ * agreed to yet.
  */
 export async function createDefaultAllowance(
   accountPubkey: string,
   origin: string,
   asset: string,
-  subKeyPubkey: string,
+  payTo: string,
   policy: GuardPolicy,
 ): Promise<AllowanceRow> {
   const now = Date.now();
@@ -380,6 +384,7 @@ export async function createDefaultAllowance(
     accountPubkey,
     merchantOrigin: origin,
     asset,
+    payTo,
     capPerTx: policy.maxX402PerTx ?? 1.0,
     capPerHour: policy.x402HourlyCap ?? 5.0,
     capPerDay: policy.x402DailyCap ?? 25.0,
@@ -394,7 +399,7 @@ export async function createDefaultAllowance(
     authorizedAt: null,
     nonce: 0,
     status: "pending",
-    subKeyPubkey,
+    subKeyPubkey: "",
     createdAt: now,
     updatedAt: now,
   };

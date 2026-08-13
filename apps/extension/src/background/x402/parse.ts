@@ -122,3 +122,8 @@ export function atomicToUi(amount: string, decimals = 7): number {
   const fracPart = a % scale;
   return Number(intPart) + Number(fracPart) / Number(scale);
 }
+
+/** UI → atomic conversion, inverse of {@link atomicToUi}. Rounds to the nearest atomic unit. */
+export function uiToAtomic(amount: number, decimals = 7): bigint {
+  return BigInt(Math.round(amount * 10 ** decimals));
+}

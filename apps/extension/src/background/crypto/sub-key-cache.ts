@@ -30,6 +30,17 @@ let passphraseExpiryTimer: ReturnType<typeof setTimeout> | null = null;
  */
 const PASSPHRASE_TTL_MS = 5 * 60 * 1000;
 
+/**
+ * The passphrase remembered by the most recent unlock/preload, if its TTL
+ * hasn't lapsed. Used to encrypt a freshly-provisioned sub-key's secret at
+ * rest (see `messaging/handlers.ts`'s `txSignHandler`) with the same scheme
+ * `decryptSubKey` expects — there's deliberately no separate encryption key
+ * for new sub-keys.
+ */
+export function getCachedPassphrase(): string | null {
+  return cachedPassphrase;
+}
+
 export function rememberPassphrase(passphrase: string): void {
   cachedPassphrase = passphrase;
   if (passphraseExpiryTimer) clearTimeout(passphraseExpiryTimer);

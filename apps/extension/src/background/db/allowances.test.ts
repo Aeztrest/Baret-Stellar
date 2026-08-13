@@ -9,6 +9,7 @@ function makeRow(overrides: Partial<AllowanceRow> = {}): AllowanceRow {
     accountPubkey: "GACCOUNT0",
     merchantOrigin: "https://merchant.example",
     asset: "USDC",
+    payTo: "GMERCHANTPAYTO",
     capPerTx: 1,
     capPerHour: 5,
     capPerDay: 10,
