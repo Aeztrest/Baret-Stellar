@@ -53,6 +53,9 @@ import {
 } from "./parse";
 import { buildX402Payment, signX402Payment } from "./build";
 import { appendHistory } from "../db/history";
+import { findActiveSubKeyForMerchant } from "../db/sub-keys";
+import { getSubKeypair } from "../crypto/sub-key-cache";
+import { loadSmartWalletAddress } from "../swig/sub-keys";
 
 export const DEFAULT_MANDATE_MAX_AGE_DAYS = 30;
 
@@ -123,10 +126,26 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
 
   // 2. Network match.
   const snap = getSnapshot();
+  const accountPubkey = snap.authorityAddress;
+  if (!accountPubkey) {
+    return { action: "decline", reason: "Wallet not ready." };
+  }
   if (snap.network !== network) {
     return {
       action: "decline",
       reason: `dApp asks for ${network}; wallet on ${snap.network}.`,
+    };
+  }
+  // x402 payments are made FROM the smart wallet contract, not the classic
+  // authority account — see `buildX402Payment`/`signX402Payment`. Without
+  // one deployed there's nothing to pay from.
+  let smartWalletAddress: string;
+  try {
+    smartWalletAddress = await loadSmartWalletAddress();
+  } catch {
+    return {
+      action: "decline",
+      reason: "Smart wallet not provisioned yet. Provision it from the wallet's Home screen first.",
     };
   }
 
@@ -172,13 +191,14 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   }
 
   // 4. Allowance lookup / auto-create.
-  const allowanceId = makeAllowanceId(origin, requirements.asset);
+  const allowanceId = makeAllowanceId(accountPubkey, origin, requirements.asset);
   let allowance = await readAllowance(allowanceId);
   if (!allowance) {
     allowance = await createDefaultAllowance(
+      accountPubkey,
       origin,
       requirements.asset,
-      snap.authorityAddress!,
+      requirements.payTo,
       policy,
     );
   }
@@ -204,19 +224,14 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     policy.x402AutoApprove === false || !isMandateLive(allowance);
 
   // 6. Build the payment tx (unsigned, auth-entry based). 7-decimal precision.
+  // The payer is the smart wallet contract itself, not any one signer's own
+  // address — see `buildX402Payment`.
   const rpcUrl = getSorobanRpcUrl();
   const passphrase = getNetworkPassphrase();
-  // If this request is going to be auto-approved below (the common case),
-  // treat this authority fetch as automatic too — it belongs to the same
-  // unattended flow and must not renew the idle timer either. When manual
-  // review is required, a popup follows shortly after, so resetting here
-  // is harmless.
-  const willAutoApprove = !requiresManualApproval;
-  const authority: Keypair = useAuthority({ isAutomatic: willAutoApprove });
   let built;
   try {
     built = await buildX402Payment(
-      authority.publicKey(),
+      smartWalletAddress,
       requirements,
       rpcUrl,
       passphrase,
@@ -261,12 +276,12 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   let signedTxXdr: string;
   if (!requiresManualApproval) {
     try {
-      const authority = useAuthority({ isAutomatic: true });
+      const signer = await resolvePaymentSigner(accountPubkey, origin);
       signedTxXdr = await signX402Payment(
         built.transactionXdr,
-        authority,
+        signer,
+        smartWalletAddress,
         built.maxLedger,
-        passphrase,
       );
     } catch (err) {
       await releaseReservedSpend(allowanceId, amountUi);
@@ -278,6 +293,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     const summary = `Auto-paid x402 · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`;
     await appendHistory({
       type: "x402",
+      accountPubkey,
       signature: null,
       origin,
       summary,
@@ -350,6 +366,26 @@ function enqueueAndWait(
   });
 }
 
+/**
+ * Resolves which key signs an auto-approved x402 payment: the merchant's
+ * active, `MerchantSpendPolicy`-scoped sub-key when one has been provisioned
+ * (see `messaging/handlers.ts`'s `provisionRealSubKey`), else the wallet's
+ * admin `authority` — the same fallback `provisionRealSubKey` itself
+ * documents. Both are valid smart-wallet signers; only the sub-key is
+ * capped to this one merchant on-chain.
+ */
+export async function resolvePaymentSigner(
+  accountPubkey: string,
+  origin: string,
+): Promise<Keypair> {
+  const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin);
+  if (subKeyRow) {
+    const subKey = await getSubKeypair(subKeyRow.pubkey);
+    if (subKey) return subKey;
+  }
+  return useAuthority({ isAutomatic: true });
+}
+
 export async function loadPolicy(): Promise<GuardPolicy> {
   const all = await browser.storage.local.get(POLICY_STORAGE_KEY);
   return (all[POLICY_STORAGE_KEY] as GuardPolicy | undefined) ?? BALANCED_POLICY;
@@ -358,20 +394,27 @@ export async function loadPolicy(): Promise<GuardPolicy> {
 /**
  * Auto-creates an allowance the first time a (merchant, asset) pair is seen.
  * Always starts `status: "pending"` — never auto-approved. Trust is only
- * granted by a manual approval (see `promoteAllowance`), which is what turns
- * this into a live, auto-signable mandate.
+ * granted by a manual approval, which is also the point a real, on-chain
+ * scoped sub-key gets provisioned for this row (see `txSignHandler` in
+ * `messaging/handlers.ts` and `swig/sub-keys.ts#provisionMerchantSubKey`) —
+ * there is deliberately no sub-key yet at auto-create time, since minting one
+ * costs a real on-chain signer slot + policy allowance the user hasn't
+ * agreed to yet.
  */
 export async function createDefaultAllowance(
+  accountPubkey: string,
   origin: string,
   asset: string,
-  subKeyPubkey: string,
+  payTo: string,
   policy: GuardPolicy,
 ): Promise<AllowanceRow> {
   const now = Date.now();
   const row: AllowanceRow = {
-    id: makeAllowanceId(origin, asset),
+    id: makeAllowanceId(accountPubkey, origin, asset),
+    accountPubkey,
     merchantOrigin: origin,
     asset,
+    payTo,
     capPerTx: policy.maxX402PerTx ?? 1.0,
     capPerHour: policy.x402HourlyCap ?? 5.0,
     capPerDay: policy.x402DailyCap ?? 25.0,
@@ -386,7 +429,7 @@ export async function createDefaultAllowance(
     authorizedAt: null,
     nonce: 0,
     status: "pending",
-    subKeyPubkey,
+    subKeyPubkey: "",
     createdAt: now,
     updatedAt: now,
   };

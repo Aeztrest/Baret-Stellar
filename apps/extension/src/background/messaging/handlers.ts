@@ -63,7 +63,9 @@ import { analyzeTransaction } from "../baret/analyze-client";
 import {
   listAllowances,
   promoteAllowance,
+  readAllowance,
   setStatus as setAllowanceStatus,
+  writeAllowance,
 } from "../db/allowances";
 import {
   appendHistory,
@@ -75,12 +77,17 @@ import {
   preloadActiveSubKeys,
   clearSubKeyCache,
   evictSubKey,
+  getCachedPassphrase,
+  putSubKey,
 } from "../crypto/sub-key-cache";
 import {
   findActiveSubKeyForMerchant,
   setSubKeyStatus,
+  writeSubKey,
+  type SubKeyRow,
 } from "../db/sub-keys";
-import { buildRemoveSubKeyTransaction } from "../swig/sub-keys";
+import { buildRemoveSubKeyTransaction, provisionMerchantSubKey } from "../swig/sub-keys";
+import { uiToAtomic } from "../x402/parse";
 
 const POLICY_STORAGE_KEY = "baret.policy.v1";
 const BACKUP_ACK_STORAGE_KEY = "baret.backupAck.v1";
@@ -344,9 +351,9 @@ const unlockHandler: Handler<"wallet.unlock"> = async ({ passphrase }) => {
   unlockWith(secret, row.activeIndex);
   secret.fill(0);
 
-  await preloadActiveSubKeys(passphrase);
-
   const active = activeAccountEntry(row);
+  await preloadActiveSubKeys(passphrase, active.authorityPubkey);
+
   const wallet = active.smartWalletAddress ?? active.authorityPubkey;
   dispatch({
     type: "wallet.unlocked",
@@ -436,7 +443,25 @@ const provisionSmartWalletHandler: Handler<
 > = async () => {
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
   const horizon = getHorizon();
-  return provisionSmartWallet(horizon);
+  const result = await provisionSmartWallet(horizon);
+
+  // Refresh the live session snapshot with the newly-deployed address —
+  // otherwise `getSnapshot().walletAddress` (what x402/wallet-standard code
+  // reads to know where payments come FROM) stays stale until the next
+  // unlock, even though the keystore itself is already correct.
+  const row = await readKeystore();
+  if (row) {
+    const active = activeAccountEntry(row);
+    dispatch({
+      type: "account.updated",
+      walletAddress: active.smartWalletAddress ?? active.authorityPubkey,
+      authorityAddress: active.authorityPubkey,
+      accounts: row.accounts.map(toAccountSnapshot),
+      activeAccountIndex: row.activeIndex,
+    });
+  }
+
+  return result;
 };
 
 /* ────────────── Multi-account ────────────── */
@@ -697,14 +722,21 @@ const networkSet: Handler<"network.set"> = async ({ network }) => {
 
 /* ────────────── Allowance ledger ────────────── */
 
+/** Throws if no wallet exists yet — every ledger/history/sub-key handler needs an account to scope to. */
+function requireActiveAccountPubkey(): string {
+  const accountPubkey = getSnapshot().authorityAddress;
+  if (!accountPubkey) throw new Error("No wallet initialized.");
+  return accountPubkey;
+}
+
 const ledgerListHandler: Handler<"ledger.list"> = async ({ filter } = {}) => {
-  return listAllowances(filter);
+  return listAllowances(requireActiveAccountPubkey(), filter);
 };
 
 const ledgerPauseHandler: Handler<"ledger.pause"> = async ({
   merchantOrigin,
 }) => {
-  const all = await listAllowances();
+  const all = await listAllowances(requireActiveAccountPubkey());
   const target = all.find((a) => a.merchantOrigin === merchantOrigin);
   if (!target) throw new Error(`No allowance found for ${merchantOrigin}`);
   await setAllowanceStatus(target.id, "paused");
@@ -714,7 +746,7 @@ const ledgerPauseHandler: Handler<"ledger.pause"> = async ({
 const ledgerUnpauseHandler: Handler<"ledger.unpause"> = async ({
   merchantOrigin,
 }) => {
-  const all = await listAllowances();
+  const all = await listAllowances(requireActiveAccountPubkey());
   const target = all.find((a) => a.merchantOrigin === merchantOrigin);
   if (!target) throw new Error(`No allowance found for ${merchantOrigin}`);
   await setAllowanceStatus(target.id, "active");
@@ -725,16 +757,18 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
   merchantOrigin,
 }) => {
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
-  const all = await listAllowances();
+  const accountPubkey = requireActiveAccountPubkey();
+  const all = await listAllowances(accountPubkey);
   const target = all.find((a) => a.merchantOrigin === merchantOrigin);
   if (!target) throw new Error(`No allowance found for ${merchantOrigin}`);
 
-  const subKey = await findActiveSubKeyForMerchant(merchantOrigin);
+  const subKey = await findActiveSubKeyForMerchant(accountPubkey, merchantOrigin);
 
   if (!subKey) {
     await setAllowanceStatus(target.id, "revoked");
     await appendHistory({
       type: "alert",
+      accountPubkey,
       signature: null,
       origin: merchantOrigin,
       summary: `Revoked allowance for ${merchantOrigin} (local-only. no on-chain sub-key)`,
@@ -746,55 +780,35 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
     return { signRequestId: `local-${Date.now()}` };
   }
 
-  const sorobanServer = getSorobanServer();
-  const passphrase = getNetworkPassphrase();
+  // Registering/removing a wallet signer is a configuration action the
+  // extension performs directly with the already-unlocked authority — same
+  // as provisioning itself (`swig/provision.ts`) — not a per-payment action
+  // needing a popup review. See `swig/sub-keys.ts`'s header.
   const authority = useAuthority();
-  const txXdr = await buildRemoveSubKeyTransaction(
-    sorobanServer,
-    authority,
-    subKey.pubkey,
-    passphrase,
-  );
+  const signature = await buildRemoveSubKeyTransaction(authority, subKey.pubkey);
 
-  return new Promise<{ signRequestId: string }>((resolve) => {
-    const requestId = newRequestId();
-    enqueueSign({
-      requestId,
-      kind: "transactionAndSend",
-      origin: merchantOrigin,
-      payloadBase64: txXdr,
-      label: `Revoke ${merchantOrigin} from your smart wallet`,
-      resolve: async (out) => {
-        if (out.kind !== "transactionAndSend") return;
-        await setSubKeyStatus(subKey.pubkey, "revoked", {
-          revokeSignature: out.signature,
-        });
-        evictSubKey(subKey.pubkey);
-        await setAllowanceStatus(target.id, "revoked");
-        await appendHistory({
-          type: "alert",
-          signature: out.signature,
-          origin: merchantOrigin,
-          summary: `Revoked ${merchantOrigin} on-chain (smart-wallet remove_signer)`,
-          decision: "block",
-          reasons: ["User-initiated on-chain revoke"],
-          broadcast: true,
-          createdAt: Date.now(),
-        });
-      },
-      reject: (err) => {
-        console.warn("[BARET] revoke aborted:", err.message);
-      },
-    });
-    dispatch({ type: "sign.start" });
-    resolve({ signRequestId: requestId });
+  await setSubKeyStatus(subKey.pubkey, "revoked", { revokeSignature: signature });
+  evictSubKey(subKey.pubkey);
+  await setAllowanceStatus(target.id, "revoked");
+  await appendHistory({
+    type: "alert",
+    accountPubkey,
+    signature,
+    origin: merchantOrigin,
+    summary: `Revoked ${merchantOrigin} on-chain (smart-wallet remove_signer)`,
+    decision: "block",
+    reasons: ["User-initiated on-chain revoke"],
+    broadcast: true,
+    createdAt: Date.now(),
   });
+
+  return { signRequestId: `onchain-${Date.now()}` };
 };
 
 /* ────────────── History + alerts ────────────── */
 
 const historyListHandler: Handler<"history.list"> = async ({ filter } = {}) => {
-  return listHistory(filter);
+  return listHistory({ ...filter, accountPubkey: requireActiveAccountPubkey() });
 };
 
 const historyDetailHandler: Handler<"history.detail"> = async ({ id }) => {
@@ -902,6 +916,83 @@ function endSignFlowIfDrained(): void {
   }
 }
 
+/**
+ * Mints a real, on-chain `MerchantSpendPolicy`-scoped sub-key for a merchant
+ * the user just approved for the first time, and records it. This is the
+ * actual security upgrade behind the sub-key blast-radius guarantee: a
+ * leaked sub-key secret can only ever drain this one merchant's cap, not
+ * the wallet — see `swig/sub-keys.ts#provisionMerchantSubKey`.
+ *
+ * Best-effort and non-fatal by design: it runs AFTER the just-approved
+ * payment has already been signed and returned to the caller, so a failure
+ * here (RPC hiccup, passphrase cache expired — see
+ * `crypto/sub-key-cache.ts#getCachedPassphrase`) never unwinds that payment.
+ * It just leaves this merchant on the shared authority key for now, same as
+ * before this feature existed; the next manual approval retries it.
+ */
+async function provisionRealSubKey(
+  allowanceId: string,
+  merchantOrigin: string,
+  mandateSeconds: number,
+): Promise<void> {
+  const passphrase = getCachedPassphrase();
+  if (!passphrase) {
+    console.warn(
+      `[BARET] sub-key provisioning skipped for ${merchantOrigin}: wallet passphrase not currently cached.`,
+    );
+    return;
+  }
+  try {
+    const row = await readAllowance(allowanceId);
+    if (!row) return;
+
+    const authority = useAuthority();
+    const result = await provisionMerchantSubKey(
+      authority,
+      row.payTo,
+      row.asset,
+      uiToAtomic(row.capPerTx),
+      uiToAtomic(row.capPerDay),
+      mandateSeconds,
+    );
+
+    const encryptedSecret = await encryptWithPassphrase(result.subKey.rawSecretKey(), passphrase);
+    const now = Date.now();
+    const subKeyRow: SubKeyRow = {
+      pubkey: result.subKey.publicKey(),
+      accountPubkey: row.accountPubkey,
+      merchantOrigin,
+      encryptedSecret,
+      status: "active",
+      rotation: 0,
+      provisionSignature: result.signature,
+      revokeSignature: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await writeSubKey(subKeyRow);
+    putSubKey(subKeyRow.pubkey, result.subKey);
+
+    row.subKeyPubkey = subKeyRow.pubkey;
+    row.updatedAt = now;
+    await writeAllowance(row);
+
+    await appendHistory({
+      type: "alert",
+      accountPubkey: row.accountPubkey,
+      signature: result.signature,
+      origin: merchantOrigin,
+      summary: `Provisioned scoped on-chain sub-key for ${merchantOrigin}`,
+      decision: "allow",
+      reasons: ["MerchantSpendPolicy-gated signer registered — leaks now cap-scoped to this merchant"],
+      broadcast: true,
+      createdAt: now,
+    });
+  } catch (err) {
+    console.warn(`[BARET] sub-key provisioning failed for ${merchantOrigin}:`, err);
+  }
+}
+
 const txSignHandler: Handler<"tx.sign"> = async ({
   requestId,
   accept,
@@ -913,6 +1004,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     throw new Error(
       "Unknown sign request. it may have already been processed.",
     );
+  const accountPubkey = requireActiveAccountPubkey();
 
   if (req.kind === "connect") {
     if (!accept) {
@@ -930,6 +1022,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     endSignFlowIfDrained();
     await appendHistory({
       type: "dapp",
+      accountPubkey,
       signature: null,
       origin: req.origin,
       summary: `Declined ${kindLabel(req.kind)} from ${req.origin}`,
@@ -967,6 +1060,17 @@ const txSignHandler: Handler<"tx.sign"> = async ({
         console.warn(
           `[BARET] mandate promotion skipped for ${req.x402Mandate.allowanceId}: ${promoted.reason}`,
         );
+      } else if (req.x402Mandate.isFirstApproval) {
+        // Awaited (not fire-and-forget): the signed payment was already
+        // handed back via `req.resolve` above and the popup already closed
+        // via `endSignFlowIfDrained`, so this only delays this RPC call's
+        // own response — not the payment. Fire-and-forget here risks the
+        // MV3 service worker being torn down mid-provisioning.
+        await provisionRealSubKey(
+          req.x402Mandate.allowanceId,
+          req.x402Mandate.merchantOrigin,
+          mandateSeconds,
+        );
       }
     }
 
@@ -974,6 +1078,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
       result.kind === "transactionAndSend" ? result.signature : null;
     await appendHistory({
       type: "dapp",
+      accountPubkey,
       signature,
       origin: req.origin,
       summary: `Signed ${kindLabel(req.kind)} for ${req.origin}`,
@@ -999,6 +1104,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     endSignFlowIfDrained();
     await appendHistory({
       type: "alert",
+      accountPubkey,
       signature: null,
       origin: req.origin,
       summary: `Sign failed for ${req.origin}`,

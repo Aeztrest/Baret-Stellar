@@ -1,12 +1,15 @@
 /**
- * Sub-key store. per-merchant scoped Swig authorities.
+ * Sub-key store. per-merchant scoped smart-wallet signers.
  *
- * Each row corresponds to a Swig AddAuthority instruction the user
- * approved on-chain. The keypair signs only that merchant's transactions
- * (x402 payments, scoped dApp interactions); compromise of one row affects
- * only one merchant.
+ * Each row corresponds to a real `add_signer` transaction, registering an
+ * Ed25519 signer `SignerLimits`-scoped to one token contract and gated by
+ * `MerchantSpendPolicy` on every use (see `../swig/sub-keys.ts`). Rows are
+ * created once, at the merchant's first manually-approved mandate (see
+ * `messaging/handlers.ts`'s `txSignHandler`) — never at allowance
+ * auto-create. Compromise of a row's secret is scoped on-chain to that one
+ * merchant's cap, not the wallet.
  *
- * Spec: docs/x402-defense.md §4 (per-merchant Swig sub-key isolation).
+ * Spec: docs/x402-defense.md §4 and §11.
  */
 
 import { asPromise, openDb, tx } from "./index";
@@ -15,6 +18,12 @@ import type { EncryptedBlob } from "../crypto/kdf";
 export interface SubKeyRow {
   /** Sub-key public key (base58). Primary key. */
   pubkey: string;
+  /**
+   * The owning account's stable `authorityPubkey` (see db/keystore.ts).
+   * Rows created before multi-account scoping (DB v4) were backfilled onto
+   * account 0 by the v3->v4 migration in db/index.ts.
+   */
+  accountPubkey: string;
   /** Origin of the merchant this sub-key was provisioned for. */
   merchantOrigin: string;
   /** Encrypted secret key bytes (64). Decryption uses the wallet passphrase. */
@@ -52,19 +61,25 @@ export async function readSubKey(pubkey: string): Promise<SubKeyRow | null> {
   return (r ?? null) as SubKeyRow | null;
 }
 
-export async function findActiveSubKeyForMerchant(merchantOrigin: string): Promise<SubKeyRow | null> {
-  const all = await listSubKeys({ merchantOrigin });
+export async function findActiveSubKeyForMerchant(
+  accountPubkey: string,
+  merchantOrigin: string,
+): Promise<SubKeyRow | null> {
+  const all = await listSubKeys(accountPubkey, { merchantOrigin });
   return all.find((r) => r.status === "active") ?? null;
 }
 
-export async function listSubKeys(filter?: { merchantOrigin?: string; status?: SubKeyRow["status"] }): Promise<SubKeyRow[]> {
+export async function listSubKeys(
+  accountPubkey: string,
+  filter?: { merchantOrigin?: string; status?: SubKeyRow["status"] },
+): Promise<SubKeyRow[]> {
   await ensureSubKeyStore();
   const db = await openDb();
   if (!db.objectStoreNames.contains(STORE_NAME)) return [];
   const t = db.transaction(STORE_NAME, "readonly");
   return new Promise<SubKeyRow[]>((resolve, reject) => {
     const out: SubKeyRow[] = [];
-    const req = t.objectStore(STORE_NAME).openCursor();
+    const req = t.objectStore(STORE_NAME).index("accountPubkey").openCursor(IDBKeyRange.only(accountPubkey));
     req.onsuccess = () => {
       const cur = req.result;
       if (!cur) return resolve(out);

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IDBFactory } from "fake-indexeddb";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import { BALANCED_POLICY, STRICT_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
 import type { PaymentRequirements } from "./parse";
@@ -46,6 +46,15 @@ vi.mock("../rpc/connection", () => ({
 
 const MERCHANT_ORIGIN = "https://merchant.example";
 const ASSET = StrKey.encodeContract(Buffer.alloc(32, 1));
+const SMART_WALLET_ADDRESS = StrKey.encodeContract(Buffer.alloc(32, 2));
+
+const FAKE_BLOB = {
+  ciphertextB64: "AA==",
+  ivB64: "AA==",
+  saltB64: "AA==",
+  iterations: 600_000,
+  hash: "SHA-256" as const,
+};
 
 function makeRequirements(overrides: Partial<PaymentRequirements> = {}): PaymentRequirements {
   return {
@@ -70,22 +79,46 @@ function makeRequirements(overrides: Partial<PaymentRequirements> = {}): Payment
 async function freshEnv() {
   vi.resetModules();
   (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
+  // `resolvePaymentSigner` → `findActiveSubKeyForMerchant` (db/sub-keys.ts)
+  // uses IDBKeyRange.only(...) — Node has no IndexedDB globals.
+  (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
 
   const browserMod = (await import("webextension-polyfill")).default;
   const session = await import("../crypto/session");
   const store = await import("../state/store");
   const signQueue = await import("../wallet-standard/sign-queue");
   const allowances = await import("../db/allowances");
+  const keystore = await import("../db/keystore");
   const handlers = await import("./handlers");
 
   const secret = new Uint8Array(32).fill(9);
   session.unlockWith(secret);
   const authority = Keypair.fromRawEd25519Seed(Buffer.from(secret));
+
+  // x402 payments are built FROM the smart wallet contract (see
+  // `x402/build.ts`), so `loadSmartWalletAddress` needs a real keystore row
+  // — not just the in-memory state snapshot dispatched below.
+  await keystore.writeKeystore({
+    id: "primary",
+    blob: FAKE_BLOB,
+    authorityPubkey: authority.publicKey(),
+    smartWalletAddress: SMART_WALLET_ADDRESS,
+    createdAt: Date.now(),
+    accounts: [{
+      index: 0,
+      label: "Account 1",
+      authorityPubkey: authority.publicKey(),
+      smartWalletAddress: SMART_WALLET_ADDRESS,
+      createdAt: Date.now(),
+    }],
+    activeIndex: 0,
+  });
+
   store.dispatch({
     type: "wallet.unlocked",
-    walletAddress: authority.publicKey(),
+    walletAddress: SMART_WALLET_ADDRESS,
     authorityAddress: authority.publicKey(),
-    accounts: [{ index: 0, label: "Account 1", authorityAddress: authority.publicKey(), smartWalletAddress: null }],
+    accounts: [{ index: 0, label: "Account 1", authorityAddress: authority.publicKey(), smartWalletAddress: SMART_WALLET_ADDRESS }],
     activeAccountIndex: 0,
   });
 
@@ -102,7 +135,7 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("a brand-new merchant always requires manual approval, even under a permissive auto-approve policy", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, BALANCED_POLICY); // x402AutoApprove: true
 
     const requirements = makeRequirements();
@@ -121,7 +154,7 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
     expect(queued?.x402Mandate?.merchantOrigin).toBe(MERCHANT_ORIGIN);
 
     // The allowance must still be "pending" — never silently promoted.
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const row = await allowances.readAllowance(allowanceId);
     expect(row?.status).toBe("pending");
     expect(allowances.isMandateLive(row!)).toBe(false);
@@ -135,16 +168,18 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("a live mandate (already active, not expired) auto-approves without a popup and notifies the user", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, BALANCED_POLICY);
 
     const requirements = makeRequirements();
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: requirements.asset,
+      payTo: requirements.payTo,
       capPerTx: 1,
       capPerHour: 5,
       capPerDay: 25,
@@ -178,16 +213,18 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("an expired mandate falls back to manual approval even though status is still active", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, BALANCED_POLICY);
 
     const requirements = makeRequirements();
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: requirements.asset,
+      payTo: requirements.payTo,
       capPerTx: 1,
       capPerHour: 5,
       capPerDay: 25,
@@ -225,16 +262,18 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
   });
 
   it("Strict policy (x402AutoApprove: false) requires manual approval even for a live mandate", async () => {
-    const { handlers, signQueue, allowances, browserMod } = await freshEnv();
+    const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
     await setPolicy(browserMod, STRICT_POLICY);
 
     const requirements = makeRequirements({ amount: "500000" }); // within Strict's 0.10 per-tx cap
-    const allowanceId = allowances.makeAllowanceId(MERCHANT_ORIGIN, requirements.asset);
+    const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
     const now = Date.now();
     await allowances.writeAllowance({
       id: allowanceId,
+      accountPubkey: authority.publicKey(),
       merchantOrigin: MERCHANT_ORIGIN,
       asset: requirements.asset,
+      payTo: requirements.payTo,
       capPerTx: 0.1,
       capPerHour: 1,
       capPerDay: 5,

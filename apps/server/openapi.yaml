@@ -142,6 +142,27 @@ components:
             type: string
         meta:
           type: object
+        attestation:
+          type: object
+          description: >
+            Present only when the server has BARET_SIGNING_SECRET configured.
+            Ed25519 signature over (txHash, safe, findingsDigest, signedAt,
+            nonce) — see docs/x402-defense.md §10. The client derives txHash
+            itself from the transactionXdr it sent, rather than trusting a
+            server-supplied hash.
+          properties:
+            signature:
+              type: string
+              description: base64 Ed25519 signature
+            signerPublicKey:
+              type: string
+              description: Stellar G… address of the signing key
+            signedAt:
+              type: integer
+              description: epoch ms
+            nonce:
+              type: string
+              description: base64 random freshness marker
     ReadyResponse:
       type: object
       properties:

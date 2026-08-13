@@ -1,0 +1,21 @@
+[package]
+name = "merchant-spend-policy"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+# Pinned independently of the workspace's soroban-sdk = "25" (payment-guard):
+# this contract plugs into passkey-kit's smart-wallet as a Signer::Policy,
+# and passkey-kit's v1 contract line (smart-wallet-interface, sample-policy)
+# is built against soroban-sdk 27 — see src/smart_wallet_interface.rs's
+# provenance note. Different workspace members are free to pin different
+# major versions; each compiles to its own independent wasm.
+soroban-sdk = "27"
+
+[dev-dependencies]
+soroban-sdk = { version = "27", features = ["testutils"] }

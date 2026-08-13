@@ -66,6 +66,10 @@ export interface AllowanceSnapshot {
   id: string;
   merchantOrigin: string;
   asset: string;
+  /** Payment destination (`G…` or `C…`) this allowance's caps are scoped to
+   *  on-chain — the `merchant` half of MerchantSpendPolicy's `(wallet,
+   *  merchant)` key. Captured from the first payment request's `payTo`. */
+  payTo: string;
   capPerTx: number;
   capPerHour: number;
   capPerDay: number;

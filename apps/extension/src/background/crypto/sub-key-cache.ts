@@ -13,7 +13,7 @@
 import { Keypair } from "@stellar/stellar-sdk";
 import { Buffer } from "buffer";
 import { decryptWithPassphrase, secureZero } from "./kdf";
-import { listSubKeys, type SubKeyRow } from "../db/sub-keys";
+import { listSubKeys, readSubKey, type SubKeyRow } from "../db/sub-keys";
 
 const cache = new Map<string, Keypair>();
 let cachedPassphrase: string | null = null;
@@ -29,6 +29,17 @@ let passphraseExpiryTimer: ReturnType<typeof setTimeout> | null = null;
  * sub-keys" error path (see `throwSignerMissing`) covers that case.
  */
 const PASSPHRASE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * The passphrase remembered by the most recent unlock/preload, if its TTL
+ * hasn't lapsed. Used to encrypt a freshly-provisioned sub-key's secret at
+ * rest (see `messaging/handlers.ts`'s `txSignHandler`) with the same scheme
+ * `decryptSubKey` expects — there's deliberately no separate encryption key
+ * for new sub-keys.
+ */
+export function getCachedPassphrase(): string | null {
+  return cachedPassphrase;
+}
 
 export function rememberPassphrase(passphrase: string): void {
   cachedPassphrase = passphrase;
@@ -59,9 +70,9 @@ export function clearSubKeyCache(): void {
  * Decrypt all active sub-keys into the cache. Called once after wallet unlock.
  * No-op if the wallet has no sub-keys yet.
  */
-export async function preloadActiveSubKeys(passphrase: string): Promise<void> {
+export async function preloadActiveSubKeys(passphrase: string, accountPubkey: string): Promise<void> {
   rememberPassphrase(passphrase);
-  const active = await listSubKeys({ status: "active" });
+  const active = await listSubKeys(accountPubkey, { status: "active" });
   for (const row of active) {
     try {
       const keypair = await decryptSubKey(row, passphrase);
@@ -78,8 +89,9 @@ export async function getSubKeypair(pubkey: string): Promise<Keypair | null> {
   const hit = cache.get(pubkey);
   if (hit) return hit;
   if (!cachedPassphrase) return null;
-  const all = await listSubKeys();
-  const row = all.find((r) => r.pubkey === pubkey);
+  // Direct O(1) lookup by the sub-key's own (globally unique) pubkey — no
+  // account scoping needed here, unlike `preloadActiveSubKeys`'s "list mine".
+  const row = await readSubKey(pubkey);
   if (!row) return null;
   try {
     const kp = await decryptSubKey(row, cachedPassphrase);

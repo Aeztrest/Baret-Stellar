@@ -33,6 +33,7 @@ import {
   type RawConfig,
   type ResolvedConfig,
 } from "./config.js";
+import { verifyVerdictAttestation } from "./attestation.js";
 
 const NETWORK_PASSPHRASES: Record<StellarNetwork, string> = {
   testnet: Networks.TESTNET,
@@ -144,12 +145,26 @@ export class AgentWallet {
     transactionXdr: string,
     opts: EvaluateOptions = {},
   ): Promise<GuardEvaluation> {
-    return this.guard.evaluate({
+    const evaluation = await this.guard.evaluate({
       transactionXdr,
       userWallet: opts.userWallet ?? this.address,
       policy: this.config.policy,
       integratorRequestId: opts.integratorRequestId,
     });
+    if (this.config.pinnedServerPublicKey) {
+      // Throws (fail-closed) on a missing/wrong-signer/invalid signature —
+      // see attestation.ts. Deliberately not caught here: a forged verdict
+      // must not be treated as "server unreachable" (AnalyzeError, which
+      // guardedSign's allowOffline can bypass) — it's a worse signal than
+      // that, and should never be silently downgraded to it.
+      verifyVerdictAttestation(
+        evaluation.analysis,
+        evaluation.transactionXdr,
+        this.config.network,
+        this.config.pinnedServerPublicKey,
+      );
+    }
+    return evaluation;
   }
 
   /**

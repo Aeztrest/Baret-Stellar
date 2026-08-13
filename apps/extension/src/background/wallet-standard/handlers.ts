@@ -35,13 +35,14 @@ import {
   type SignSuccess,
 } from "./sign-queue";
 import { appendHistory, listHistory } from "../db/history";
-import { readSitePermission, writeSitePermission } from "../db/site-permissions";
+import { makeSitePermissionId, readSitePermission, writeSitePermission } from "../db/site-permissions";
 import { getSubKeypair } from "../crypto/sub-key-cache";
 import {
   buildMandatePreview,
   createDefaultAllowance,
   loadPolicy,
   notifyAutoApproved,
+  resolvePaymentSigner,
   x402Review,
 } from "../x402/handlers";
 import { atomicToUi } from "../x402/parse";
@@ -52,6 +53,8 @@ import {
   releaseReservedSpend,
   tryReserveSpend,
 } from "../db/allowances";
+import { findActiveSubKeyForMerchant } from "../db/sub-keys";
+import { loadSmartWalletAddress, signSmartWalletAuthEntry } from "../swig/sub-keys";
 
 export interface WsConnectReq {
   origin: string;
@@ -93,8 +96,9 @@ export const wsConnect: WsHandler = async (raw) => {
   if (!s.walletAddress || !s.authorityAddress) {
     throw new Error("Wallet not ready.");
   }
+  const accountPubkey = s.authorityAddress;
 
-  const perm = await readSitePermission(origin);
+  const perm = await readSitePermission(accountPubkey, origin);
   if (perm?.status === "denied" && perm.remembered) {
     throw new Error(`Connection to ${origin} was previously denied.`);
   }
@@ -103,6 +107,8 @@ export const wsConnect: WsHandler = async (raw) => {
     if (!approval.allow) {
       if (approval.remember) {
         await writeSitePermission({
+          id: makeSitePermissionId(accountPubkey, origin),
+          accountPubkey,
           origin,
           status: "denied",
           remembered: true,
@@ -113,6 +119,8 @@ export const wsConnect: WsHandler = async (raw) => {
     }
     if (approval.remember) {
       await writeSitePermission({
+        id: makeSitePermissionId(accountPubkey, origin),
+        accountPubkey,
         origin,
         status: "trusted",
         remembered: true,
@@ -122,10 +130,11 @@ export const wsConnect: WsHandler = async (raw) => {
   }
 
   try {
-    const prior = await listHistory({ type: "dapp", origin });
+    const prior = await listHistory({ accountPubkey, type: "dapp", origin });
     if (prior.length === 0) {
       await appendHistory({
         type: "dapp",
+        accountPubkey,
         signature: null,
         origin,
         summary: "Connected via Stellar wallet provider",
@@ -174,7 +183,9 @@ export const wsDisconnect: WsHandler = async (_raw) => {
 
 export const wsIsConnected: WsHandler = async (raw) => {
   const { origin } = raw as WsConnectReq;
-  const perm = await readSitePermission(origin);
+  const accountPubkey = getState().authorityAddress;
+  if (!accountPubkey) return { connected: false };
+  const perm = await readSitePermission(accountPubkey, origin);
   return { connected: perm?.status === "trusted" && isUnlocked() };
 };
 
@@ -375,11 +386,20 @@ export async function tryAutoApproveX402AuthEntry(
   const intent = parseTransferAuthEntry(authEntryXdr);
   if (!intent) return { decision: "defer" }; // Not a token transfer. let the user review it.
 
-  // Only consider payments leaving our own account. This whole function is
-  // the unattended auto-approve path, so every authority fetch in it must
-  // not renew the idle timer (see `useAuthority`'s docs).
+  // Only consider payments leaving our own smart wallet — x402 payments are
+  // made FROM the wallet contract, not any one signer's own address (see
+  // `x402/build.ts`). This whole function is the unattended auto-approve
+  // path, so every authority fetch in it must not renew the idle timer
+  // (see `useAuthority`'s docs).
   const authority = useAuthority({ isAutomatic: true });
-  if (intent.from !== authority.publicKey()) return { decision: "defer" };
+  const accountPubkey = authority.publicKey();
+  let smartWalletAddress: string;
+  try {
+    smartWalletAddress = await loadSmartWalletAddress();
+  } catch {
+    return { decision: "defer" };
+  }
+  if (intent.from !== smartWalletAddress) return { decision: "defer" };
 
   // Asset + merchant allowlists (empty list = no restriction).
   if (
@@ -404,13 +424,14 @@ export async function tryAutoApproveX402AuthEntry(
   }
 
   // Per-merchant allowance + rolling caps.
-  const allowanceId = makeAllowanceId(origin, intent.contract);
+  const allowanceId = makeAllowanceId(accountPubkey, origin, intent.contract);
   let allowance = await readAllowance(allowanceId);
   if (!allowance) {
     allowance = await createDefaultAllowance(
+      accountPubkey,
       origin,
       intent.contract,
-      authority.publicKey(),
+      intent.to,
       policy,
     );
   }
@@ -435,9 +456,15 @@ export async function tryAutoApproveX402AuthEntry(
     return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
   }
 
-  // Live mandate + within caps → sign in the background. performSign honors
+  // Live mandate + within caps → sign in the background, with the
+  // merchant's scoped sub-key when one's been provisioned (falls back to
+  // authority otherwise — see `resolvePaymentSigner`). performSign honors
   // the entry's own `signatureExpirationLedger` (the facilitator enforces it).
-  const result = await performSign("authEntry", authEntryXdr, { isAutomatic: true });
+  const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin);
+  const result = await performSign("authEntry", authEntryXdr, {
+    isAutomatic: true,
+    signerPubkey: subKeyRow?.pubkey,
+  });
   if (result.kind !== "authEntry") {
     await releaseReservedSpend(allowanceId, amountUi);
     return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
@@ -446,6 +473,7 @@ export async function tryAutoApproveX402AuthEntry(
   const summary = `Auto-paid x402 · ${amountUi.toFixed(6)} → ${intent.to.slice(0, 6)}…${intent.to.slice(-4)}`;
   await appendHistory({
     type: "x402",
+    accountPubkey,
     signature: null,
     origin,
     summary,
@@ -492,16 +520,32 @@ async function deriveValidUntilLedger(): Promise<number> {
 /* ────────────── Pure signing helpers (used by tx.sign drain handler) ────────────── */
 
 /**
+ * True when `entry`'s address-credentials target our own smart wallet
+ * contract (as opposed to a classic G… account, or some other contract
+ * entirely). Used to decide whether an auth entry needs the wallet's own
+ * `__check_auth` (via `signSmartWalletAuthEntry`) instead of a plain
+ * classic-account signature (`authorizeEntry`).
+ */
+function isSmartWalletAddressCred(
+  entry: xdr.SorobanAuthorizationEntry,
+  smartWalletAddress: string | null,
+): boolean {
+  if (!smartWalletAddress) return false;
+  const creds = entry.credentials();
+  if (creds.switch() !== xdr.SorobanCredentialsType.sorobanCredentialsAddress()) {
+    return false;
+  }
+  return (
+    Address.fromScAddress(creds.address().address()).toString() ===
+    smartWalletAddress
+  );
+}
+
+/**
  * Signs a payload. When `signerPubkey` is set, uses the per-merchant sub-key
- * from cache instead of the main authority.
- *
- * NOTE: sub-keys do not currently have an on-chain spending cap (see the
- * SECURITY NOTE on `add_signer` in `../swig/sub-keys.ts`) — per-tx/hourly/
- * daily limits are enforced only by this extension's own bookkeeping. A
- * leaked, decrypted sub-key secret can sign transfers against the smart
- * wallet with no on-chain ceiling, so this is NOT yet "zero blast radius
- * beyond one merchant"; it's scoped by policy in normal operation, not by
- * the chain.
+ * from cache instead of the main authority — both are valid smart-wallet
+ * signers, just with different on-chain `SignerLimits` (see
+ * `swig/sub-keys.ts`).
  */
 export async function performSign(
   kind: SignKind,
@@ -536,12 +580,16 @@ export async function performSign(
     const passphrase = getNetworkPassphrase();
     const validUntilLedger =
       entryExpirationLedger(entry) ?? opts?.validUntilLedger ?? 9_999_999;
-    const signed = await authorizeEntry(
-      entry,
-      signer,
-      validUntilLedger,
-      passphrase,
-    );
+
+    // Route through the smart wallet's own auth when this entry is actually
+    // addressed to it (x402 payments and anything else the wallet contract
+    // itself authorizes); otherwise it's a generic classic-account entry a
+    // dApp asked us to sign, unrelated to the smart wallet.
+    const smartWalletAddress = await loadSmartWalletAddress().catch(() => null);
+    const signed = isSmartWalletAddressCred(entry, smartWalletAddress)
+      ? await signSmartWalletAuthEntry(entry, signer, smartWalletAddress!, validUntilLedger)
+      : await authorizeEntry(entry, signer, validUntilLedger, passphrase);
+
     return {
       kind: "authEntry",
       signedAuthEntry: signed.toXDR("base64"),
@@ -550,13 +598,16 @@ export async function performSign(
   }
 
   if (kind === "x402Payment") {
-    const passphrase = getNetworkPassphrase();
+    // x402 payments are always FROM the smart wallet (see
+    // `x402/build.ts#buildX402Payment`) — by the time we're signing, one
+    // must already exist (the build step upstream already required it).
+    const smartWalletAddress = await loadSmartWalletAddress();
     const validUntil = opts?.validUntilLedger ?? 9_999_999;
     const signedTxXdr = await signX402Payment(
       payloadBase64,
       signer,
+      smartWalletAddress,
       validUntil,
-      passphrase,
     );
     return {
       kind: "x402Payment",

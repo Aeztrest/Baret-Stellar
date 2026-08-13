@@ -1,146 +1,266 @@
 /**
  * Smart-wallet sub-key add / remove builders (Stellar build).
  *
- * Stellar version: sub-keys are additional ed25519 signers on the user's
- * smart-wallet contract (Passkey Kit + custom allowance contract). The
- * smart wallet exposes:
- *   - `add_signer(signer, allowance)`. register a new signer with caps.
- *   - `remove_signer(signer)`. drop the signer.
+ * A sub-key is registered as an `Ed25519` signer on the passkey-kit smart
+ * wallet, `SignerLimits`-scoped to ONE token contract and requiring
+ * `MerchantSpendPolicy`'s (`contracts/contracts/merchant-spend-policy`)
+ * approval on every use (see `smart-wallet-config.ts` and
+ * `docs/x402-defense.md` §11). This is real, on-chain enforcement — not the
+ * unlimited-allowance placeholder this file used to build: a leaked sub-key
+ * secret cannot authorize anything the policy's per-merchant cap and the
+ * wallet's own `SignerLimits` don't already allow (no other contract, no
+ * wallet admin surface, no cap-exceeding transfer).
  *
- * Both functions return an unsigned preflighted `Transaction` (as XDR) with
- * the main authority as tx source. The sign queue routes them through the
- * popup (kind="transaction") so the user explicitly approves each on-chain
- * change.
- *
- * The exact `add_signer` / `remove_signer` interface depends on which
- * smart-wallet contract is deployed; this module wires the call shape but
- * the contract address is supplied by the keystore.
+ * Both builders submit directly (no popup sign-queue): registering or
+ * removing a signer is a wallet-configuration action the extension performs
+ * with the already-unlocked authority, the same way `provision.ts`'s
+ * initial deploy does — not a per-payment action needing user review.
  */
 
+import { Keypair, StrKey, xdr } from "@stellar/stellar-sdk";
+import { basicNodeSigner, Client as SorobanClient } from "@stellar/stellar-sdk/contract";
+import type { AssembledTransaction } from "@stellar/stellar-sdk/contract";
 import {
-  Address,
-  BASE_FEE,
-  Contract,
-  Memo,
-  nativeToScVal,
-  rpc as sorobanRpc,
-  StrKey,
-  TransactionBuilder,
-  type Keypair,
-  type Networks,
-} from "@stellar/stellar-sdk";
+  PasskeyClient,
+  Ed25519Signer,
+  SignerKey,
+  SignerStore,
+  type PasskeyKitConfig,
+} from "passkey-kit";
+import { PasskeyKit } from "passkey-kit";
 import { activeAccountEntry, readKeystore } from "../db/keystore";
+import { getNetworkPassphrase, getSorobanRpcUrl } from "../rpc/connection";
+import { SMART_WALLET_WASM_HASH, MERCHANT_SPEND_POLICY_CONTRACT_ID } from "./smart-wallet-config";
+
+/**
+ * Dynamic client surface for `contracts/contracts/merchant-spend-policy`
+ * (typed by hand against `lib.rs`'s `set_allowance` — there's no generated
+ * TS binding since the contract isn't published anywhere `stellar contract
+ * bindings` could read from; `Client.from` fetches the actual on-chain spec
+ * at call time and validates argument shapes against it regardless of this
+ * type, so a mismatch here fails loudly rather than silently).
+ */
+interface MerchantSpendPolicyClient {
+  set_allowance(args: {
+    wallet: string;
+    merchant: string;
+    cap_per_tx: bigint;
+    cap_per_day: bigint;
+    mandate_seconds: bigint;
+  }): Promise<AssembledTransaction<null>>;
+}
 
 export interface SubKeyProvisionResult {
-  /** Preflighted tx XDR (base64) ready for signing + submission. */
-  transactionXdr: string;
   /** Newly generated sub-key keypair. Caller persists this (encrypted). */
   subKey: Keypair;
   /** Smart-wallet contract address (`C…`). */
   smartWalletAddress: string;
+  /** On-chain signature of the `add_signer` transaction. */
+  signature: string;
 }
 
-/**
- * Build the `add_signer` invocation that registers `subKey` as an
- * additional signer on the user's smart wallet.
- *
- * SECURITY NOTE: the allowance struct below is `{ unlimited: true }` — the
- * smart-wallet contract deployed today has no per-signer spending-cap
- * enforcement, so this signer has NO on-chain spending limit at all. The
- * per-tx/hourly/daily caps this wallet enforces (see `tryReserveSpend` in
- * `../db/allowances.ts`) are purely off-chain, JS-side bookkeeping in this
- * extension. If a sub-key's encrypted secret is ever exfiltrated and
- * decrypted outside the extension, the attacker can sign an arbitrary
- * `transfer` directly against the smart wallet with no on-chain ceiling —
- * NOT capped to "this merchant only." Do not present this as a real
- * blast-radius guarantee anywhere in the UI or docs until the deployed
- * contract actually accepts and enforces a bounded allowance here.
- */
-export async function buildAddSubKeyTransaction(
-  sorobanServer: sorobanRpc.Server,
-  authority: Keypair,
-  subKey: Keypair,
-  networkPassphrase: string,
-): Promise<SubKeyProvisionResult> {
+/** The active account's deployed smart-wallet contract address (`C…`), read fresh from the keystore. */
+export async function loadSmartWalletAddress(): Promise<string> {
   const row = await readKeystore();
   if (!row) throw new Error("No wallet keystore");
   const smartWalletAddress = activeAccountEntry(row).smartWalletAddress;
   if (!smartWalletAddress || !StrKey.isValidContract(smartWalletAddress)) {
     throw new Error("Smart-wallet contract address missing or invalid");
   }
+  return smartWalletAddress;
+}
 
-  const contract = new Contract(smartWalletAddress);
-  const op = contract.call(
-    "add_signer",
-    nativeToScVal(Address.fromString(subKey.publicKey()), { type: "address" }),
-    // Placeholder allowance struct: unlimited until the on-chain caps land.
-    nativeToScVal({ unlimited: true }, { type: "map" }),
-  );
+/** Connects a `PasskeyKit` to an already-deployed wallet, bypassing the WebAuthn `connectWallet` ceremony — we know our own contract address from the keystore. */
+export function connectKit(smartWalletAddress: string, authorityPublicKey: string): PasskeyKit {
+  const config: PasskeyKitConfig = {
+    rpcUrl: getSorobanRpcUrl(),
+    networkPassphrase: getNetworkPassphrase(),
+    walletWasmHash: SMART_WALLET_WASM_HASH,
+  };
+  const kit = new PasskeyKit(config);
+  kit.wallet = new PasskeyClient({
+    contractId: smartWalletAddress,
+    rpcUrl: config.rpcUrl,
+    networkPassphrase: config.networkPassphrase,
+    publicKey: authorityPublicKey,
+  });
+  return kit;
+}
 
-  const account = await sorobanServer.getAccount(authority.publicKey());
-  const builder = new TransactionBuilder(account, {
-    fee: BASE_FEE,
-    networkPassphrase: networkPassphrase as Networks,
-  })
-    .addOperation(op)
-    .addMemo(Memo.text("baret:add_signer"))
-    .setTimeout(60);
-
-  const tx = builder.build();
-  const sim = await sorobanServer.simulateTransaction(tx);
-  if (sorobanRpc.Api.isSimulationError(sim)) {
-    throw new Error(`Preflight failed (add_signer): ${sim.error}`);
+/**
+ * Registers `subKey` as an Ed25519 signer on the user's smart wallet,
+ * scoped via `SignerLimits` to `tokenContractId` and gated by
+ * `MerchantSpendPolicy` — see this file's header for what that actually
+ * guarantees. `expiresAt` is a UNIX timestamp (seconds); the sub-key's
+ * on-chain signer entry and its `MerchantSpendPolicy` mandate should be
+ * granted the SAME expiry so a lapsed sub-key can't linger as a
+ * technically-still-registered (if policy-capped) signer.
+ */
+export async function buildAddSubKeyTransaction(
+  authority: Keypair,
+  subKey: Keypair,
+  tokenContractId: string,
+  expiresAt: number,
+): Promise<SubKeyProvisionResult> {
+  if (!MERCHANT_SPEND_POLICY_CONTRACT_ID) {
+    throw new Error(
+      "MerchantSpendPolicy is not deployed yet — see docs/x402-defense.md §11 for the deploy steps, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
+    );
   }
-  const assembled = sorobanRpc.assembleTransaction(tx, sim).build();
+  const smartWalletAddress = await loadSmartWalletAddress();
+  const networkPassphrase = getNetworkPassphrase();
+  const kit = connectKit(smartWalletAddress, authority.publicKey());
+
+  const limits = new Map([
+    [tokenContractId, [SignerKey.Policy(MERCHANT_SPEND_POLICY_CONTRACT_ID)]],
+  ]);
+
+  const tx = await kit.addEd25519(subKey.publicKey(), limits, SignerStore.Temporary, expiresAt);
+  // The wallet's own require_auth for add_signer — satisfied by our
+  // authority, an existing admin signer on this wallet.
+  const walletAuthorized = await kit.sign(tx, new Ed25519Signer(authority));
+  // Classic envelope signature for the transaction's source account
+  // (also `authority`, set via `connectKit`'s `publicKey`).
+  await walletAuthorized.sign({
+    signTransaction: basicNodeSigner(authority, networkPassphrase).signTransaction,
+  });
+
+  const sent = await walletAuthorized.send();
+  if (sent.getTransactionResponse?.status !== "SUCCESS") {
+    throw new Error(
+      `add_signer failed on-chain: ${JSON.stringify(sent.getTransactionResponse ?? sent)}`,
+    );
+  }
 
   return {
-    transactionXdr: assembled.toXDR(),
     subKey,
     smartWalletAddress,
+    signature: sent.sendTransactionResponse?.hash ?? "",
   };
 }
 
 /**
- * Build the `remove_signer` invocation that drops a sub-key from the
- * smart wallet. Once confirmed, the sub-key's private key is useless for
- * spending against the contract.
+ * Grants/renews `merchant`'s on-chain caps on `MerchantSpendPolicy`, THEN
+ * mints and registers a fresh Ed25519 sub-key scoped (via `SignerLimits`) to
+ * `tokenContractId` and gated by that policy — the two on-chain calls that
+ * together make a leaked sub-key's blast radius really just this merchant's
+ * cap, not the wallet. Order matters: the policy's `(wallet, merchant)`
+ * allowance must exist before the wallet grants a signer whose only
+ * authorization path runs through it, or the sub-key would be provisioned
+ * but unusable (every `policy__` check would fail with `NoAllowance`) for
+ * however long it takes the two txs to land.
+ *
+ * Called once, at the moment a merchant's mandate is FIRST manually
+ * approved (see `messaging/handlers.ts`'s `txSignHandler`) — not at
+ * allowance auto-create, so a merchant the user never approves never costs
+ * a real on-chain signer slot.
+ */
+export async function provisionMerchantSubKey(
+  authority: Keypair,
+  merchant: string,
+  tokenContractId: string,
+  capPerTxAtomic: bigint,
+  capPerDayAtomic: bigint,
+  mandateSeconds: number,
+): Promise<SubKeyProvisionResult> {
+  if (!MERCHANT_SPEND_POLICY_CONTRACT_ID) {
+    throw new Error(
+      "MerchantSpendPolicy is not deployed yet — see docs/x402-defense.md §11 for the deploy steps, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
+    );
+  }
+  const smartWalletAddress = await loadSmartWalletAddress();
+  const networkPassphrase = getNetworkPassphrase();
+  const rpcUrl = getSorobanRpcUrl();
+
+  const policyClient = await SorobanClient.from<MerchantSpendPolicyClient>({
+    contractId: MERCHANT_SPEND_POLICY_CONTRACT_ID,
+    rpcUrl,
+    networkPassphrase,
+    publicKey: authority.publicKey(),
+  });
+  const setAllowanceTx = await policyClient.set_allowance({
+    wallet: smartWalletAddress,
+    merchant,
+    cap_per_tx: capPerTxAtomic,
+    cap_per_day: capPerDayAtomic,
+    mandate_seconds: BigInt(mandateSeconds),
+  });
+
+  const kit = connectKit(smartWalletAddress, authority.publicKey());
+  // `set_allowance` requires `wallet.require_auth()` — an address-credentials
+  // auth entry for the smart wallet itself, not a classic source-account
+  // signature. `kit.sign` finds and satisfies exactly that entry.
+  const walletAuthorizedAllowance = await kit.sign(setAllowanceTx, new Ed25519Signer(authority));
+  await walletAuthorizedAllowance.sign({
+    signTransaction: basicNodeSigner(authority, networkPassphrase).signTransaction,
+  });
+  const allowanceSent = await walletAuthorizedAllowance.send();
+  if (allowanceSent.getTransactionResponse?.status !== "SUCCESS") {
+    throw new Error(
+      `MerchantSpendPolicy.set_allowance failed on-chain: ${JSON.stringify(allowanceSent.getTransactionResponse ?? allowanceSent)}`,
+    );
+  }
+
+  const subKey = Keypair.random();
+  const expiresAt = Math.floor(Date.now() / 1000) + mandateSeconds;
+  return buildAddSubKeyTransaction(authority, subKey, tokenContractId, expiresAt);
+}
+
+/**
+ * Signs a single Soroban authorization entry addressed to the smart wallet
+ * (address-credentials, not source-account) with `signer` — an authorized
+ * wallet signer, either the admin `authority` or an active merchant sub-key.
+ * Used for x402 payments, where the payer is now the smart wallet contract
+ * itself: see `x402/build.ts#signX402Payment` and
+ * `wallet-standard/handlers.ts#performSign`'s `"authEntry"` kind.
+ *
+ * `expiration`, if given, overrides the entry's own
+ * `signatureExpirationLedger` — pass the same value the caller already
+ * resolved (entry's own value, else a derived default) rather than letting
+ * passkey-kit compute its own via a fresh RPC call.
+ */
+export async function signSmartWalletAuthEntry(
+  entry: xdr.SorobanAuthorizationEntry,
+  signer: Keypair,
+  smartWalletAddress: string,
+  expiration?: number,
+): Promise<xdr.SorobanAuthorizationEntry> {
+  const kit = connectKit(smartWalletAddress, signer.publicKey());
+  return kit.signAuthEntry(
+    entry,
+    new Ed25519Signer(signer),
+    expiration != null ? { expiration } : undefined,
+  );
+}
+
+/**
+ * Removes a sub-key from the smart wallet. Once confirmed, the sub-key's
+ * private key can no longer authorize anything on this wallet at all — not
+ * even within `MerchantSpendPolicy`'s cap, since `SignerLimits` enforcement
+ * happens before the policy is ever consulted.
  */
 export async function buildRemoveSubKeyTransaction(
-  sorobanServer: sorobanRpc.Server,
   authority: Keypair,
   subKeyPubkey: string,
-  networkPassphrase: string,
 ): Promise<string> {
-  const row = await readKeystore();
-  if (!row) throw new Error("No wallet keystore");
-  const smartWalletAddress = activeAccountEntry(row).smartWalletAddress;
-  if (!smartWalletAddress || !StrKey.isValidContract(smartWalletAddress)) {
-    throw new Error("Smart-wallet contract address missing or invalid");
-  }
   if (!StrKey.isValidEd25519PublicKey(subKeyPubkey)) {
     throw new Error(`Invalid sub-key address: ${subKeyPubkey}`);
   }
+  const smartWalletAddress = await loadSmartWalletAddress();
+  const networkPassphrase = getNetworkPassphrase();
+  const kit = connectKit(smartWalletAddress, authority.publicKey());
 
-  const contract = new Contract(smartWalletAddress);
-  const op = contract.call(
-    "remove_signer",
-    nativeToScVal(Address.fromString(subKeyPubkey), { type: "address" }),
-  );
+  const tx = await kit.remove(SignerKey.Ed25519(subKeyPubkey));
+  const walletAuthorized = await kit.sign(tx, new Ed25519Signer(authority));
+  await walletAuthorized.sign({
+    signTransaction: basicNodeSigner(authority, networkPassphrase).signTransaction,
+  });
 
-  const account = await sorobanServer.getAccount(authority.publicKey());
-  const builder = new TransactionBuilder(account, {
-    fee: BASE_FEE,
-    networkPassphrase: networkPassphrase as Networks,
-  })
-    .addOperation(op)
-    .addMemo(Memo.text("baret:remove_signer"))
-    .setTimeout(60);
-
-  const tx = builder.build();
-  const sim = await sorobanServer.simulateTransaction(tx);
-  if (sorobanRpc.Api.isSimulationError(sim)) {
-    throw new Error(`Preflight failed (remove_signer): ${sim.error}`);
+  const sent = await walletAuthorized.send();
+  if (sent.getTransactionResponse?.status !== "SUCCESS") {
+    throw new Error(
+      `remove_signer failed on-chain: ${JSON.stringify(sent.getTransactionResponse ?? sent)}`,
+    );
   }
-  const assembled = sorobanRpc.assembleTransaction(tx, sim).build();
-  return assembled.toXDR();
+  return sent.sendTransactionResponse?.hash ?? "";
 }

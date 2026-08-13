@@ -9,6 +9,12 @@ import type { AllowanceSnapshot } from "@stellar-thorn/ext-protocol";
 import { asPromise, tx } from "./index";
 
 export interface AllowanceRow extends AllowanceSnapshot {
+  /**
+   * The owning account's stable `authorityPubkey` (see db/keystore.ts).
+   * Rows created before multi-account scoping (DB v4) were backfilled onto
+   * account 0 by the v3->v4 migration in db/index.ts.
+   */
+  accountPubkey: string;
   /** epoch ms. start of the current rolling-hour window. */
   spentHourTs: number;
   /** epoch ms. start of the current rolling-day window. */
@@ -18,9 +24,10 @@ export interface AllowanceRow extends AllowanceSnapshot {
   updatedAt: number;
 }
 
-export function makeAllowanceId(merchantOrigin: string, asset: string): string {
-  // Stable, deterministic id so the same merchant + asset always lands in the same row.
-  return `${merchantOrigin}::${asset}`;
+export function makeAllowanceId(accountPubkey: string, merchantOrigin: string, asset: string): string {
+  // Stable, deterministic id so the same account + merchant + asset always
+  // lands in the same row.
+  return `${accountPubkey}::${merchantOrigin}::${asset}`;
 }
 
 export async function readAllowance(id: string): Promise<AllowanceRow | null> {
@@ -30,11 +37,14 @@ export async function readAllowance(id: string): Promise<AllowanceRow | null> {
   });
 }
 
-export async function listAllowances(filter?: { status?: AllowanceSnapshot["status"] }): Promise<AllowanceRow[]> {
+export async function listAllowances(
+  accountPubkey: string,
+  filter?: { status?: AllowanceSnapshot["status"] },
+): Promise<AllowanceRow[]> {
   return tx("allowances", "readonly", async (t) => {
     const out: AllowanceRow[] = [];
     return new Promise<AllowanceRow[]>((resolve, reject) => {
-      const req = t.objectStore("allowances").openCursor();
+      const req = t.objectStore("allowances").index("accountPubkey").openCursor(IDBKeyRange.only(accountPubkey));
       req.onsuccess = () => {
         const cur = req.result;
         if (!cur) return resolve(out);

@@ -60,7 +60,10 @@ export type Action =
   | { type: "watch.add"; pubkey: string }
   | { type: "watch.remove"; pubkey: string }
   | { type: "activity.touch" }
-  | { type: "account.switched"; walletAddress: string; authorityAddress: string; accounts: AccountSnapshot[]; activeAccountIndex: number };
+  | { type: "account.switched"; walletAddress: string; authorityAddress: string; accounts: AccountSnapshot[]; activeAccountIndex: number }
+  /** Active account's addresses/list changed without switching which one is
+   *  active — e.g. its smart wallet just got provisioned. */
+  | { type: "account.updated"; walletAddress: string; authorityAddress: string; accounts: AccountSnapshot[]; activeAccountIndex: number };
 
 export function reduce(state: WalletState, action: Action): WalletState {
   switch (action.type) {
@@ -77,6 +80,7 @@ export function reduce(state: WalletState, action: Action): WalletState {
       };
 
     case "account.switched":
+    case "account.updated":
       return {
         ...state,
         walletAddress: action.walletAddress,

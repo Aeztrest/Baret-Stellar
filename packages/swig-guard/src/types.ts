@@ -108,6 +108,14 @@ export interface DecisionMeta {
   integratorRequestId?: string;
 }
 
+/** Mirror of apps/server/src/attestation/sign-verdict.ts's `VerdictAttestation`. */
+export interface VerdictAttestation {
+  signature: string;
+  signerPublicKey: string;
+  signedAt: number;
+  nonce: string;
+}
+
 export interface AnalysisResult {
   safe: boolean;
   reasons: string[];
@@ -117,6 +125,8 @@ export interface AnalysisResult {
   meta?: DecisionMeta;
   annotation?: unknown;
   suggestions?: unknown;
+  /** Present only when the server has BARET_SIGNING_SECRET configured. */
+  attestation?: VerdictAttestation;
 }
 
 /** Highest severity present in a list of findings, or null if empty. */

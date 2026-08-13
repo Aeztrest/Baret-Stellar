@@ -19,14 +19,18 @@ async function makeRow(merchantOrigin: string) {
   };
 }
 
+const ACCOUNT_PUBKEY = "GACCOUNT0FAKEACCOUNTPUBKEYFORSUBKEYCACHETEST";
+
 describe("sub-key-cache — cached passphrase TTL", () => {
   let listSubKeysMock: ReturnType<typeof vi.fn>;
+  let readSubKeyMock: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.resetModules();
     vi.useFakeTimers();
     listSubKeysMock = vi.fn(async () => []);
-    vi.doMock("../db/sub-keys", () => ({ listSubKeys: listSubKeysMock }));
+    readSubKeyMock = vi.fn(async () => null);
+    vi.doMock("../db/sub-keys", () => ({ listSubKeys: listSubKeysMock, readSubKey: readSubKeyMock }));
   });
 
   afterEach(() => {
@@ -43,8 +47,8 @@ describe("sub-key-cache — cached passphrase TTL", () => {
     // time; simulate a sub-key added afterward by not including it in the
     // preload call, so `getSubKeypair`'s lazy fallback path is what's
     // actually exercised here.
-    await preloadActiveSubKeys(PASSPHRASE);
-    listSubKeysMock.mockResolvedValue([row]);
+    await preloadActiveSubKeys(PASSPHRASE, ACCOUNT_PUBKEY);
+    readSubKeyMock.mockResolvedValue(row);
 
     const found = await getSubKeypair(row.pubkey);
     expect(found?.publicKey()).toBe(row.pubkey);
@@ -55,12 +59,12 @@ describe("sub-key-cache — cached passphrase TTL", () => {
     listSubKeysMock.mockResolvedValue([]); // nothing active at preload time
 
     const { preloadActiveSubKeys, getSubKeypair } = await import("./sub-key-cache");
-    await preloadActiveSubKeys(PASSPHRASE);
+    await preloadActiveSubKeys(PASSPHRASE, ACCOUNT_PUBKEY);
 
     // A new sub-key row appears later (e.g. provisioned mid-session) —
     // not yet in the in-memory cache, so this must go through the lazy
     // (cachedPassphrase-based) path.
-    listSubKeysMock.mockResolvedValue([row]);
+    readSubKeyMock.mockResolvedValue(row);
 
     vi.advanceTimersByTime(5 * 60 * 1000 + 1);
 
@@ -73,10 +77,10 @@ describe("sub-key-cache — cached passphrase TTL", () => {
     listSubKeysMock.mockResolvedValue([]);
 
     const { preloadActiveSubKeys, getSubKeypair, clearSubKeyCache } = await import("./sub-key-cache");
-    await preloadActiveSubKeys(PASSPHRASE);
+    await preloadActiveSubKeys(PASSPHRASE, ACCOUNT_PUBKEY);
     clearSubKeyCache();
 
-    listSubKeysMock.mockResolvedValue([row]);
+    readSubKeyMock.mockResolvedValue(row);
     const found = await getSubKeypair(row.pubkey);
     expect(found).toBeNull();
   });
