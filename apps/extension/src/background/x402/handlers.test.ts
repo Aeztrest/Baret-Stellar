@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IDBFactory } from "fake-indexeddb";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import { BALANCED_POLICY, STRICT_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
 import type { PaymentRequirements } from "./parse";
@@ -46,6 +46,15 @@ vi.mock("../rpc/connection", () => ({
 
 const MERCHANT_ORIGIN = "https://merchant.example";
 const ASSET = StrKey.encodeContract(Buffer.alloc(32, 1));
+const SMART_WALLET_ADDRESS = StrKey.encodeContract(Buffer.alloc(32, 2));
+
+const FAKE_BLOB = {
+  ciphertextB64: "AA==",
+  ivB64: "AA==",
+  saltB64: "AA==",
+  iterations: 600_000,
+  hash: "SHA-256" as const,
+};
 
 function makeRequirements(overrides: Partial<PaymentRequirements> = {}): PaymentRequirements {
   return {
@@ -70,22 +79,46 @@ function makeRequirements(overrides: Partial<PaymentRequirements> = {}): Payment
 async function freshEnv() {
   vi.resetModules();
   (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
+  // `resolvePaymentSigner` → `findActiveSubKeyForMerchant` (db/sub-keys.ts)
+  // uses IDBKeyRange.only(...) — Node has no IndexedDB globals.
+  (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
 
   const browserMod = (await import("webextension-polyfill")).default;
   const session = await import("../crypto/session");
   const store = await import("../state/store");
   const signQueue = await import("../wallet-standard/sign-queue");
   const allowances = await import("../db/allowances");
+  const keystore = await import("../db/keystore");
   const handlers = await import("./handlers");
 
   const secret = new Uint8Array(32).fill(9);
   session.unlockWith(secret);
   const authority = Keypair.fromRawEd25519Seed(Buffer.from(secret));
+
+  // x402 payments are built FROM the smart wallet contract (see
+  // `x402/build.ts`), so `loadSmartWalletAddress` needs a real keystore row
+  // — not just the in-memory state snapshot dispatched below.
+  await keystore.writeKeystore({
+    id: "primary",
+    blob: FAKE_BLOB,
+    authorityPubkey: authority.publicKey(),
+    smartWalletAddress: SMART_WALLET_ADDRESS,
+    createdAt: Date.now(),
+    accounts: [{
+      index: 0,
+      label: "Account 1",
+      authorityPubkey: authority.publicKey(),
+      smartWalletAddress: SMART_WALLET_ADDRESS,
+      createdAt: Date.now(),
+    }],
+    activeIndex: 0,
+  });
+
   store.dispatch({
     type: "wallet.unlocked",
-    walletAddress: authority.publicKey(),
+    walletAddress: SMART_WALLET_ADDRESS,
     authorityAddress: authority.publicKey(),
-    accounts: [{ index: 0, label: "Account 1", authorityAddress: authority.publicKey(), smartWalletAddress: null }],
+    accounts: [{ index: 0, label: "Account 1", authorityAddress: authority.publicKey(), smartWalletAddress: SMART_WALLET_ADDRESS }],
     activeAccountIndex: 0,
   });
 

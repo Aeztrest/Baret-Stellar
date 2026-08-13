@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IDBFactory } from "fake-indexeddb";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { Address, Keypair, nativeToScVal, StrKey, xdr } from "@stellar/stellar-sdk";
 import { BALANCED_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
 
@@ -37,6 +37,15 @@ vi.mock("../rpc/connection", () => ({
 
 const MERCHANT_ORIGIN = "https://merchant.example";
 const ASSET = StrKey.encodeContract(Buffer.alloc(32, 2));
+const SMART_WALLET_ADDRESS = StrKey.encodeContract(Buffer.alloc(32, 3));
+
+const FAKE_BLOB = {
+  ciphertextB64: "AA==",
+  ivB64: "AA==",
+  saltB64: "AA==",
+  iterations: 600_000,
+  hash: "SHA-256" as const,
+};
 
 /**
  * Builds a minimal, decodable `transfer(from, to, amount)` Soroban
@@ -71,21 +80,45 @@ function buildTransferAuthEntryXdr(fromPk: string, toPk: string, amountAtomic: b
 async function freshEnv() {
   vi.resetModules();
   (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
+  // `findActiveSubKeyForMerchant` (db/sub-keys.ts) uses IDBKeyRange.only(...)
+  // to query its accountPubkey index — Node has no IndexedDB globals.
+  (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
 
   const browserMod = (await import("webextension-polyfill")).default;
   const session = await import("../crypto/session");
   const store = await import("../state/store");
   const allowances = await import("../db/allowances");
+  const keystore = await import("../db/keystore");
   const handlers = await import("./handlers");
 
   const secret = new Uint8Array(32).fill(11);
   session.unlockWith(secret);
   const authority = Keypair.fromRawEd25519Seed(Buffer.from(secret));
+
+  // x402 payments are made FROM the smart wallet contract, not the
+  // authority's own address — `loadSmartWalletAddress` needs a real
+  // keystore row for that.
+  await keystore.writeKeystore({
+    id: "primary",
+    blob: FAKE_BLOB,
+    authorityPubkey: authority.publicKey(),
+    smartWalletAddress: SMART_WALLET_ADDRESS,
+    createdAt: Date.now(),
+    accounts: [{
+      index: 0,
+      label: "Account 1",
+      authorityPubkey: authority.publicKey(),
+      smartWalletAddress: SMART_WALLET_ADDRESS,
+      createdAt: Date.now(),
+    }],
+    activeIndex: 0,
+  });
+
   store.dispatch({
     type: "wallet.unlocked",
-    walletAddress: authority.publicKey(),
+    walletAddress: SMART_WALLET_ADDRESS,
     authorityAddress: authority.publicKey(),
-    accounts: [{ index: 0, label: "Account 1", authorityAddress: authority.publicKey(), smartWalletAddress: null }],
+    accounts: [{ index: 0, label: "Account 1", authorityAddress: authority.publicKey(), smartWalletAddress: SMART_WALLET_ADDRESS }],
     activeAccountIndex: 0,
   });
 
@@ -106,7 +139,7 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
     await setPolicy(browserMod, BALANCED_POLICY);
 
     const merchant = Keypair.random().publicKey();
-    const entryXdr = buildTransferAuthEntryXdr(authority.publicKey(), merchant, 5_000_000n, ASSET);
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
 
     const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
     expect(decision.decision).toBe("manual");
@@ -152,7 +185,7 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
       updatedAt: now,
     });
 
-    const entryXdr = buildTransferAuthEntryXdr(authority.publicKey(), merchant, 5_000_000n, ASSET);
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
     const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
 
     expect(decision.decision).toBe("signed");
@@ -192,7 +225,7 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
       updatedAt: now - 1000,
     });
 
-    const entryXdr = buildTransferAuthEntryXdr(authority.publicKey(), merchant, 5_000_000n, ASSET);
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
     const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
 
     expect(decision.decision).toBe("manual");

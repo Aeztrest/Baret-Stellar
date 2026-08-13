@@ -53,6 +53,9 @@ import {
 } from "./parse";
 import { buildX402Payment, signX402Payment } from "./build";
 import { appendHistory } from "../db/history";
+import { findActiveSubKeyForMerchant } from "../db/sub-keys";
+import { getSubKeypair } from "../crypto/sub-key-cache";
+import { loadSmartWalletAddress } from "../swig/sub-keys";
 
 export const DEFAULT_MANDATE_MAX_AGE_DAYS = 30;
 
@@ -133,6 +136,18 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
       reason: `dApp asks for ${network}; wallet on ${snap.network}.`,
     };
   }
+  // x402 payments are made FROM the smart wallet contract, not the classic
+  // authority account — see `buildX402Payment`/`signX402Payment`. Without
+  // one deployed there's nothing to pay from.
+  let smartWalletAddress: string;
+  try {
+    smartWalletAddress = await loadSmartWalletAddress();
+  } catch {
+    return {
+      action: "decline",
+      reason: "Smart wallet not provisioned yet. Provision it from the wallet's Home screen first.",
+    };
+  }
 
   // 3. Policy + allowlists.
   const policy = await loadPolicy();
@@ -209,19 +224,14 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     policy.x402AutoApprove === false || !isMandateLive(allowance);
 
   // 6. Build the payment tx (unsigned, auth-entry based). 7-decimal precision.
+  // The payer is the smart wallet contract itself, not any one signer's own
+  // address — see `buildX402Payment`.
   const rpcUrl = getSorobanRpcUrl();
   const passphrase = getNetworkPassphrase();
-  // If this request is going to be auto-approved below (the common case),
-  // treat this authority fetch as automatic too — it belongs to the same
-  // unattended flow and must not renew the idle timer either. When manual
-  // review is required, a popup follows shortly after, so resetting here
-  // is harmless.
-  const willAutoApprove = !requiresManualApproval;
-  const authority: Keypair = useAuthority({ isAutomatic: willAutoApprove });
   let built;
   try {
     built = await buildX402Payment(
-      authority.publicKey(),
+      smartWalletAddress,
       requirements,
       rpcUrl,
       passphrase,
@@ -266,12 +276,12 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
   let signedTxXdr: string;
   if (!requiresManualApproval) {
     try {
-      const authority = useAuthority({ isAutomatic: true });
+      const signer = await resolvePaymentSigner(accountPubkey, origin);
       signedTxXdr = await signX402Payment(
         built.transactionXdr,
-        authority,
+        signer,
+        smartWalletAddress,
         built.maxLedger,
-        passphrase,
       );
     } catch (err) {
       await releaseReservedSpend(allowanceId, amountUi);
@@ -354,6 +364,26 @@ function enqueueAndWait(
     });
     dispatch({ type: "sign.start" });
   });
+}
+
+/**
+ * Resolves which key signs an auto-approved x402 payment: the merchant's
+ * active, `MerchantSpendPolicy`-scoped sub-key when one has been provisioned
+ * (see `messaging/handlers.ts`'s `provisionRealSubKey`), else the wallet's
+ * admin `authority` — the same fallback `provisionRealSubKey` itself
+ * documents. Both are valid smart-wallet signers; only the sub-key is
+ * capped to this one merchant on-chain.
+ */
+export async function resolvePaymentSigner(
+  accountPubkey: string,
+  origin: string,
+): Promise<Keypair> {
+  const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin);
+  if (subKeyRow) {
+    const subKey = await getSubKeypair(subKeyRow.pubkey);
+    if (subKey) return subKey;
+  }
+  return useAuthority({ isAutomatic: true });
 }
 
 export async function loadPolicy(): Promise<GuardPolicy> {

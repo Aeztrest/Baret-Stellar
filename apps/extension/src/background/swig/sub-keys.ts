@@ -17,7 +17,7 @@
  * initial deploy does — not a per-payment action needing user review.
  */
 
-import { Keypair, StrKey } from "@stellar/stellar-sdk";
+import { Keypair, StrKey, xdr } from "@stellar/stellar-sdk";
 import { basicNodeSigner, Client as SorobanClient } from "@stellar/stellar-sdk/contract";
 import type { AssembledTransaction } from "@stellar/stellar-sdk/contract";
 import {
@@ -59,7 +59,8 @@ export interface SubKeyProvisionResult {
   signature: string;
 }
 
-async function loadSmartWalletAddress(): Promise<string> {
+/** The active account's deployed smart-wallet contract address (`C…`), read fresh from the keystore. */
+export async function loadSmartWalletAddress(): Promise<string> {
   const row = await readKeystore();
   if (!row) throw new Error("No wallet keystore");
   const smartWalletAddress = activeAccountEntry(row).smartWalletAddress;
@@ -70,7 +71,7 @@ async function loadSmartWalletAddress(): Promise<string> {
 }
 
 /** Connects a `PasskeyKit` to an already-deployed wallet, bypassing the WebAuthn `connectWallet` ceremony — we know our own contract address from the keystore. */
-function connectKit(smartWalletAddress: string, authorityPublicKey: string): PasskeyKit {
+export function connectKit(smartWalletAddress: string, authorityPublicKey: string): PasskeyKit {
   const config: PasskeyKitConfig = {
     rpcUrl: getSorobanRpcUrl(),
     networkPassphrase: getNetworkPassphrase(),
@@ -203,6 +204,33 @@ export async function provisionMerchantSubKey(
   const subKey = Keypair.random();
   const expiresAt = Math.floor(Date.now() / 1000) + mandateSeconds;
   return buildAddSubKeyTransaction(authority, subKey, tokenContractId, expiresAt);
+}
+
+/**
+ * Signs a single Soroban authorization entry addressed to the smart wallet
+ * (address-credentials, not source-account) with `signer` — an authorized
+ * wallet signer, either the admin `authority` or an active merchant sub-key.
+ * Used for x402 payments, where the payer is now the smart wallet contract
+ * itself: see `x402/build.ts#signX402Payment` and
+ * `wallet-standard/handlers.ts#performSign`'s `"authEntry"` kind.
+ *
+ * `expiration`, if given, overrides the entry's own
+ * `signatureExpirationLedger` — pass the same value the caller already
+ * resolved (entry's own value, else a derived default) rather than letting
+ * passkey-kit compute its own via a fresh RPC call.
+ */
+export async function signSmartWalletAuthEntry(
+  entry: xdr.SorobanAuthorizationEntry,
+  signer: Keypair,
+  smartWalletAddress: string,
+  expiration?: number,
+): Promise<xdr.SorobanAuthorizationEntry> {
+  const kit = connectKit(smartWalletAddress, signer.publicKey());
+  return kit.signAuthEntry(
+    entry,
+    new Ed25519Signer(signer),
+    expiration != null ? { expiration } : undefined,
+  );
 }
 
 /**

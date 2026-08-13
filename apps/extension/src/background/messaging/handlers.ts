@@ -443,7 +443,25 @@ const provisionSmartWalletHandler: Handler<
 > = async () => {
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
   const horizon = getHorizon();
-  return provisionSmartWallet(horizon);
+  const result = await provisionSmartWallet(horizon);
+
+  // Refresh the live session snapshot with the newly-deployed address —
+  // otherwise `getSnapshot().walletAddress` (what x402/wallet-standard code
+  // reads to know where payments come FROM) stays stale until the next
+  // unlock, even though the keystore itself is already correct.
+  const row = await readKeystore();
+  if (row) {
+    const active = activeAccountEntry(row);
+    dispatch({
+      type: "account.updated",
+      walletAddress: active.smartWalletAddress ?? active.authorityPubkey,
+      authorityAddress: active.authorityPubkey,
+      accounts: row.accounts.map(toAccountSnapshot),
+      activeAccountIndex: row.activeIndex,
+    });
+  }
+
+  return result;
 };
 
 /* ────────────── Multi-account ────────────── */

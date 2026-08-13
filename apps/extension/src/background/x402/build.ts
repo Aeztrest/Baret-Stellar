@@ -15,7 +15,6 @@
 
 import {
   Address,
-  authorizeEntry,
   contract,
   nativeToScVal,
   rpc as sorobanRpc,
@@ -23,6 +22,7 @@ import {
   xdr,
   type Keypair,
 } from "@stellar/stellar-sdk";
+import { signSmartWalletAuthEntry } from "../swig/sub-keys";
 import type { PaymentRequirements } from "./parse";
 
 /** x402 Stellar default: ~5s per ledger (matches the reference facilitator). */
@@ -82,11 +82,19 @@ export async function buildX402Payment(
 }
 
 /**
- * Sign the payer's ADDRESS-credential auth entry inside an unsigned x402
- * transfer. NOT the transaction envelope. The facilitator rebuilds, fee-bumps
- * and submits, so an envelope signature would be wrong and source-account
- * credentials are rejected. `authorizeEntry` sets the facilitator-enforced
- * `signatureExpirationLedger` and signs the entry's preimage.
+ * Sign the smart wallet's ADDRESS-credential auth entry inside an unsigned
+ * x402 transfer. NOT the transaction envelope. The facilitator rebuilds,
+ * fee-bumps and submits, so an envelope signature would be wrong and
+ * source-account credentials are rejected.
+ *
+ * The payer is the smart wallet contract itself (see `buildX402Payment`),
+ * so `signer` — the wallet's admin `authority` or an active merchant
+ * sub-key, either way just ONE of possibly several authorized signers —
+ * can't sign the entry directly the way a classic account would. It goes
+ * through the wallet's own `__check_auth` via
+ * `swig/sub-keys.ts#signSmartWalletAuthEntry` (passkey-kit's
+ * `signAuthEntry`), which is why entries are matched against
+ * `smartWalletAddress`, not `signer`'s own address.
  *
  * Used by both the popup sign path (`performSign`) and the policy-driven
  * background auto-approve path (`x402Review`).
@@ -94,25 +102,24 @@ export async function buildX402Payment(
 export async function signX402Payment(
   unsignedTxXdr: string,
   signer: Keypair,
+  smartWalletAddress: string,
   validUntilLedger: number,
-  networkPassphrase: string,
 ): Promise<string> {
   const env = xdr.TransactionEnvelope.fromXDR(unsignedTxXdr, "base64");
   const op0 = env.v1().tx().operations()[0];
   if (!op0) throw new Error("x402 payment tx has no operation to authorize.");
   const ihfOp = op0.body().invokeHostFunctionOp();
-  const signerAddr = signer.publicKey();
   const signedAuth: xdr.SorobanAuthorizationEntry[] = [];
   for (const entry of ihfOp.auth()) {
     const creds = entry.credentials();
-    const isPayerAddressCred =
+    const isWalletAddressCred =
       creds.switch() ===
         xdr.SorobanCredentialsType.sorobanCredentialsAddress() &&
       Address.fromScAddress(creds.address().address()).toString() ===
-        signerAddr;
+        smartWalletAddress;
     signedAuth.push(
-      isPayerAddressCred
-        ? await authorizeEntry(entry, signer, validUntilLedger, networkPassphrase)
+      isWalletAddressCred
+        ? await signSmartWalletAuthEntry(entry, signer, smartWalletAddress, validUntilLedger)
         : entry,
     );
   }
