@@ -755,50 +755,29 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
     return { signRequestId: `local-${Date.now()}` };
   }
 
-  const sorobanServer = getSorobanServer();
-  const passphrase = getNetworkPassphrase();
+  // Registering/removing a wallet signer is a configuration action the
+  // extension performs directly with the already-unlocked authority — same
+  // as provisioning itself (`swig/provision.ts`) — not a per-payment action
+  // needing a popup review. See `swig/sub-keys.ts`'s header.
   const authority = useAuthority();
-  const txXdr = await buildRemoveSubKeyTransaction(
-    sorobanServer,
-    authority,
-    subKey.pubkey,
-    passphrase,
-  );
+  const signature = await buildRemoveSubKeyTransaction(authority, subKey.pubkey);
 
-  return new Promise<{ signRequestId: string }>((resolve) => {
-    const requestId = newRequestId();
-    enqueueSign({
-      requestId,
-      kind: "transactionAndSend",
-      origin: merchantOrigin,
-      payloadBase64: txXdr,
-      label: `Revoke ${merchantOrigin} from your smart wallet`,
-      resolve: async (out) => {
-        if (out.kind !== "transactionAndSend") return;
-        await setSubKeyStatus(subKey.pubkey, "revoked", {
-          revokeSignature: out.signature,
-        });
-        evictSubKey(subKey.pubkey);
-        await setAllowanceStatus(target.id, "revoked");
-        await appendHistory({
-          type: "alert",
-          accountPubkey,
-          signature: out.signature,
-          origin: merchantOrigin,
-          summary: `Revoked ${merchantOrigin} on-chain (smart-wallet remove_signer)`,
-          decision: "block",
-          reasons: ["User-initiated on-chain revoke"],
-          broadcast: true,
-          createdAt: Date.now(),
-        });
-      },
-      reject: (err) => {
-        console.warn("[BARET] revoke aborted:", err.message);
-      },
-    });
-    dispatch({ type: "sign.start" });
-    resolve({ signRequestId: requestId });
+  await setSubKeyStatus(subKey.pubkey, "revoked", { revokeSignature: signature });
+  evictSubKey(subKey.pubkey);
+  await setAllowanceStatus(target.id, "revoked");
+  await appendHistory({
+    type: "alert",
+    accountPubkey,
+    signature,
+    origin: merchantOrigin,
+    summary: `Revoked ${merchantOrigin} on-chain (smart-wallet remove_signer)`,
+    decision: "block",
+    reasons: ["User-initiated on-chain revoke"],
+    broadcast: true,
+    createdAt: Date.now(),
   });
+
+  return { signRequestId: `onchain-${Date.now()}` };
 };
 
 /* ────────────── History + alerts ────────────── */
