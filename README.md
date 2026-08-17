@@ -5,8 +5,10 @@
 > **The Stellar smart wallet with a transaction firewall.**
 > Pre-sign simulation, per-site policy, rolling spend caps, and the first
 > wallet-level defense for the **x402** agentic-payment protocol — backed by an
-> on-chain **PaymentGuard** Soroban contract that enforces spending limits on
-> the ledger itself.
+> on-chain **MerchantSpendPolicy** Soroban contract that gates spending
+> directly on the user's own smart wallet. Non-custodial: funds never leave
+> the wallet — the contract only decides which scoped signer may authorize
+> what, up to what cap.
 
 Baret ships as a Chrome/Firefox extension, a live showcase that proves every
 claim with **real Stellar testnet transactions**, a merchant + analysis server,
@@ -16,30 +18,37 @@ and a deployed Soroban smart contract. It is a single pnpm monorepo.
 
 ## 🛰️ Deployed Soroban contract (Stellar testnet)
 
-The on-chain heart of Baret. **PaymentGuard** is a spending-limit vault: the
-wallet owner deposits a token and grants each merchant a per-transaction cap
-plus a rolling 24-hour cap. An autonomous agent can then settle payments
-**without the owner signing each one** — the caps *are* the firewall. Payments
-above a cap, to an unregistered merchant, or to a paused/revoked merchant are
-rejected by the contract.
+The on-chain heart of Baret. **MerchantSpendPolicy** is a non-custodial
+spending policy, not a vault — the user's funds stay in their own smart
+wallet the entire time. The wallet owner grants each merchant a
+per-transaction cap, a rolling 24-hour cap, and a mandate lifetime, bound to
+one specific scoped signer (sub-key). That sub-key can then settle payments
+to *that* merchant, within cap, **without the owner signing each one** — but
+it cannot authorize anything else: not a transfer to a different merchant,
+not the wallet's own admin surface, not an amount over the cap. A leaked
+sub-key's blast radius is exactly the one merchant it was granted to.
 
 | | |
 |---|---|
-| **Contract ID** | [`CCYDHJZAR4RGYQ3UZBJ6UBDNE2IV6GJK4BWLKY5W5OVNSB5WNRZNSYK2`](https://stellar.expert/explorer/testnet/contract/CCYDHJZAR4RGYQ3UZBJ6UBDNE2IV6GJK4BWLKY5W5OVNSB5WNRZNSYK2) |
+| **Contract ID** | [`CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S`](https://stellar.expert/explorer/testnet/contract/CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S) |
 | **Network** | Stellar testnet (`Test SDF Network ; September 2015`) |
-| **Wasm hash** | `159bb19cdd45119e8bfb696bc29042786608bc256f1c55a39e5a93d8725344b7` |
-| **Token (USDC SAC)** | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` |
-| **Source** | [`contracts/contracts/payment-guard`](./contracts/contracts/payment-guard) |
-| **Full deploy record** | [`contracts/DEPLOYMENT.md`](./contracts/DEPLOYMENT.md) |
+| **Wasm hash** | `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834` |
+| **Multi-tenant** | One deployment serves every wallet that installs it as a signer — no per-user redeploy |
+| **Source** | [`contracts/contracts/merchant-spend-policy`](./contracts/contracts/merchant-spend-policy) |
+| **Full deploy record** | [`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`](./contracts/contracts/merchant-spend-policy/DEPLOYMENT.md) |
 
-Built with the Soroban SDK (Rust), 23 passing unit tests, deployed and
-initialized live on testnet. Redeployed after a security review fixed an
-unauthenticated `init()` and a fixed-window (rather than truly rolling) daily
-cap — see [`DEPLOYMENT.md`](./contracts/DEPLOYMENT.md#security-fixes-in-v2)
-for what changed and why. The contract is the on-chain mirror of the
-off-chain x402 firewall described below — see [the smart-contract
-section](#the-on-chain-smart-contract--contracts) for the interface and a
-copy-paste demo.
+Built with the Soroban SDK (Rust), 14 passing unit tests. Plugs into the
+wallet as a `PolicyInterface` signer (the same extension mechanism
+[passkey-kit](https://github.com/stellar/passkey-kit)'s smart wallet uses for
+any co-signing policy) — see [the smart-contract
+section](#the-on-chain-smart-contract--contracts) for the interface.
+
+> An earlier iteration of this idea, **PaymentGuard**
+> (`contracts/contracts/payment-guard`), used a custodial vault model instead
+> — deposit funds into the contract, let it `pay()` on your behalf. It's
+> still in the repo (real code, real tests) but is **not** part of the
+> current product: Baret's design now keeps funds in the user's own smart
+> wallet at all times, never in a separate contract-held balance.
 
 ---
 
@@ -53,7 +62,7 @@ There is no firewall.
 |---|---|---|
 | **Blind sign**       | A contract ID and a button.                                            | Decodes the tx, simulates it, runs 25+ risk detectors, and renders a plain-language verdict *before* you sign. |
 | **Approval drainer** | "Approve unlimited spend" is one click; revocation lives elsewhere.    | Stateful allowance ledger, rolling caps, one-tap pause / revoke per merchant. |
-| **Agentic x402**     | An AI agent silently re-signs micro-payments — no spend cap, no audit. | Per-merchant cap, hourly/daily limits, facilitator allowlist, anomaly detection — enforced at sign time **and** on-chain via PaymentGuard. |
+| **Agentic x402**     | An AI agent silently re-signs micro-payments — no spend cap, no audit. | Per-merchant cap, hourly/daily limits, facilitator allowlist, anomaly detection — enforced at sign time **and** on-chain via MerchantSpendPolicy. |
 
 The third row is the wedge. x402 agentic payments are live on Stellar, and no
 wallet today protects this surface. Baret does — at the wallet **and** at the
@@ -67,37 +76,36 @@ Baret is **one product across several surfaces**, all in one monorepo.
 
 ### The on-chain smart contract — `contracts/`
 
-**PaymentGuard** (Soroban / Rust). A spending-limit vault that enforces Baret's
-x402 caps on the ledger, deployed to testnet at
-[`CBBC3OXC…CGJZD`](https://stellar.expert/explorer/testnet/contract/CBBC3OXC62ZWMPIHZVUVFVT27XC32LDYBO53ZMLTEJ272OG7CKHCGJZD).
+**MerchantSpendPolicy** (Soroban / Rust). Installed as a `Policy` signer on
+the user's own smart wallet (passkey-kit), deployed to testnet at
+[`CCWTPB4F72…SQ2DHQ5S`](https://stellar.expert/explorer/testnet/contract/CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S).
 
 | Function | Auth | Purpose |
 |---|---|---|
-| `init(owner, token)` | one-time | Record the owning wallet + the token SAC (e.g. USDC) |
-| `deposit(from, amount)` | `from` | Fund the vault |
-| `set_allowance(merchant, cap_per_tx, cap_per_day)` | owner | Grant / update a merchant's caps |
-| `pause` / `resume` / `revoke(merchant)` | owner | Toggle a merchant on the fly |
-| `pay(merchant, amount)` | — | **Agentic spend** — no owner signature; caps enforce it |
-| `withdraw(amount)` | owner | Pull funds back out |
-| `get_owner` / `get_token` / `get_allowance(m)` / `available_today(m)` | view | Read on-chain state |
+| `set_allowance(wallet, merchant, signer, cap_per_tx, cap_per_day, mandate_seconds)` | `wallet` | Grant/renew a merchant's caps, bound to the ONE sub-key that may spend against them |
+| `pause` / `resume` / `revoke(wallet, merchant)` | `wallet` | Toggle a merchant on the fly |
+| `install(wallet)` / `uninstall(wallet)` | `wallet` / permissionless | Lifecycle hooks, called by the wallet's own `add_signer`/`remove_signer` — not invoked directly |
+| `policy__(source, signer, contexts)` | — (called by the wallet during `__check_auth`) | **The actual gate** — deny-by-default; approves a `transfer` only if `signer` is the sub-key that merchant's allowance was granted to, within cap, within its mandate |
+| `get_allowance(wallet, m)` / `available_today(wallet, m)` | view | Read on-chain state |
 
 ```bash
-ID=CBBC3OXC62ZWMPIHZVUVFVT27XC32LDYBO53ZMLTEJ272OG7CKHCGJZD
+ID=CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S
 
-# Owner grants a merchant: max 0.1 USDC/tx, 1 USDC/day (7-decimal atomic units)
-stellar contract invoke --id $ID --source bb-testnet --network testnet \
-  -- set_allowance --merchant <G…> --cap_per_tx 1000000 --cap_per_day 10000000
-
-# An agent pays 0.001 USDC — within caps, no owner signature
-stellar contract invoke --id $ID --source bb-testnet --network testnet \
-  -- pay --merchant <G…> --amount 10000
+# Wallet owner grants a merchant to a specific sub-key: max 0.1 USDC/tx, 1 USDC/day,
+# 30-day mandate (7-decimal atomic units; signer = the sub-key's raw Ed25519 pubkey)
+stellar contract invoke --id $ID --source my-wallet --network testnet \
+  -- set_allowance --wallet <C…> --merchant <G…> --signer <32-byte-hex> \
+     --cap_per_tx 1000000 --cap_per_day 10000000 --mandate_seconds 2592000
 
 # Remaining daily allowance
-stellar contract invoke --id $ID --source bb-testnet --network testnet \
-  -- available_today --merchant <G…>
+stellar contract invoke --id $ID --source my-wallet --network testnet \
+  -- available_today --wallet <C…> --merchant <G…>
 ```
 
-Build, test, and redeploy steps are in [`contracts/DEPLOYMENT.md`](./contracts/DEPLOYMENT.md).
+`policy__` itself is never called this way in practice — the smart wallet
+invokes it internally during `__check_auth` when the sub-key signs a
+transfer. Build, test, and redeploy steps are in
+[`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`](./contracts/contracts/merchant-spend-policy/DEPLOYMENT.md).
 
 ### The extension — `apps/extension`
 
@@ -171,7 +179,7 @@ pnpm --filter @stellar-thorn/server x402-setup
 
 | Package | Role |
 |---|---|
-| `@stellar-thorn/swig-guard`     | Policy DSL + analyzer: pre-sign rules, x402 rules, allowance rules, behavioral alerts. The off-chain twin of the on-chain PaymentGuard. |
+| `@stellar-thorn/swig-guard`     | Policy DSL + analyzer: pre-sign rules, x402 rules, allowance rules, behavioral alerts. The off-chain twin of the on-chain MerchantSpendPolicy. |
 | `@stellar-thorn/agent-guard`    | Pre-sign firewall for **agent & program wallets** — `AgentWallet` SDK + `baret` CLI (analyze / sign / submit). Control page at `/agents`. |
 | `@stellar-thorn/ext-protocol`   | Type-safe message envelope shared by every extension surface. |
 | `@stellar-thorn/wallet-adapter` | Wallet Standard adapter the showcase consumes. |
@@ -255,8 +263,9 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
 ├────────────────────────────────────────────────────────────┤
 │ 3. x402 FIREWALL  (off-chain policy + on-chain contract)   │
 │    HTTP-402 fetch interceptor + policy gate, mirrored by    │
-│    the PaymentGuard Soroban contract enforcing per-tx and   │
-│    rolling 24h caps on the ledger itself.                  │
+│    MerchantSpendPolicy — installed on the user's own smart  │
+│    wallet, gating a scoped sub-key's per-tx and rolling     │
+│    24h caps directly, with funds never leaving the wallet. │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -279,12 +288,13 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
                                                   ConnectApproval)
                                       │
                                       ▼  x402 payments (optional)
-                              PaymentGuard contract on Stellar testnet
+                    smart wallet + MerchantSpendPolicy on Stellar testnet
 ```
 
 The user signs in the **popup**. Every approval is gated by the policy engine
-plus the analyze server, and on-chain spending is bounded by PaymentGuard. No
-keys ever leave the extension.
+plus the analyze server, and on-chain spending is bounded by
+MerchantSpendPolicy — installed directly on the user's own smart wallet, not
+a separate contract holding their funds. No keys ever leave the extension.
 
 Full design notes live in [`docs/`](./docs) and [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
@@ -301,8 +311,9 @@ pnpm test                # vitest in @stellar-thorn/server
 pnpm --filter @stellar-thorn/server x402-setup   # bootstrap merchant on testnet
 
 # Smart contract (in ./contracts)
-cargo test               # PaymentGuard unit tests
-stellar contract build   # → target/wasm32v1-none/release/payment_guard.wasm
+cargo test -p merchant-spend-policy   # MerchantSpendPolicy unit tests
+stellar contract build --package merchant-spend-policy
+  # → target/wasm32v1-none/release/merchant_spend_policy.wasm
 ```
 
 ---
@@ -311,11 +322,12 @@ stellar contract build   # → target/wasm32v1-none/release/payment_guard.wasm
 
 **Hackathon-stage. Stellar testnet.**
 
-The PaymentGuard contract is deployed and initialized on testnet (address
-above). The extension installs as an unpacked / temporary add-on — not yet on
-the Chrome Web Store or AMO. The merchant + analyze server run on localhost;
-production would deploy them behind a real edge. Known limits and follow-on
-work are tracked in [`LIMITATIONS.md`](./LIMITATIONS.md).
+The MerchantSpendPolicy contract is deployed on testnet (address above); a
+wallet installs it as a signer the first time it approves a merchant. The
+extension installs as an unpacked / temporary add-on — not yet on the Chrome
+Web Store or AMO. The merchant + analyze server run on localhost; production
+would deploy them behind a real edge. Known limits and follow-on work are
+tracked in [`LIMITATIONS.md`](./LIMITATIONS.md).
 
 ---
 
