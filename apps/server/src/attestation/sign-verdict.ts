@@ -41,20 +41,30 @@ export interface AttestedVerdict {
  * Deterministic JSON serialization (object keys sorted recursively) so the
  * findings digest never depends on which order a detector happened to build
  * an object literal in — matters because the *signing* side sees findings
- * fresh off the risk detectors, while the *verifying* side (swig-guard)
- * sees them round-tripped through JSON over the wire; without a canonical
- * form the two could disagree on key order for reasons that have nothing to
- * do with the findings actually being different.
+ * fresh off the risk detectors, while the *verifying* side (agent-guard's
+ * `attestation.ts`) sees them round-tripped through JSON over the wire;
+ * without a canonical form the two could disagree on key order for reasons
+ * that have nothing to do with the findings actually being different.
+ *
+ * Object keys whose value is `undefined` are DROPPED, and `undefined`
+ * array elements serialize as `null` — matching `JSON.stringify`'s actual
+ * behavior (never emitting the invalid-JSON literal `undefined`), since
+ * that's what the object looks like on the verifying side after it's
+ * really gone over the wire as HTTP JSON. Diverging from that here would
+ * make a legitimate, unmodified verdict fail signature verification
+ * whenever a detector sets an optional field to `undefined` explicitly
+ * rather than omitting it.
  */
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
+    return `[${value.map((v) => (v === undefined ? "null" : stableStringify(v))).join(",")}]`;
   }
   if (value !== null && typeof value === "object") {
-    const keys = Object.keys(value as Record<string, unknown>).sort();
-    return `{${keys
-      .map((k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`)
-      .join(",")}}`;
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj)
+      .filter((k) => obj[k] !== undefined)
+      .sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }

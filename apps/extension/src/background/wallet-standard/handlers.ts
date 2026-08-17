@@ -461,10 +461,22 @@ export async function tryAutoApproveX402AuthEntry(
   // authority otherwise — see `resolvePaymentSigner`). performSign honors
   // the entry's own `signatureExpirationLedger` (the facilitator enforces it).
   const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin);
-  const result = await performSign("authEntry", authEntryXdr, {
-    isAutomatic: true,
-    signerPubkey: subKeyRow?.pubkey,
-  });
+  // Wrapped in try/catch (unlike a plain await) because performSign can
+  // THROW — e.g. the sub-key passphrase cache TTL lapsed between the
+  // reservation above and this call, a routine/expected condition, not just
+  // return a wrong-kind result — and the reservation above must be released
+  // either way or a failed auto-approval permanently shrinks this merchant's
+  // cap with no payment ever completing.
+  let result;
+  try {
+    result = await performSign("authEntry", authEntryXdr, {
+      isAutomatic: true,
+      signerPubkey: subKeyRow?.pubkey,
+    });
+  } catch {
+    await releaseReservedSpend(allowanceId, amountUi);
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
+  }
   if (result.kind !== "authEntry") {
     await releaseReservedSpend(allowanceId, amountUi);
     return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };

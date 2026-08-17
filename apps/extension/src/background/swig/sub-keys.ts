@@ -44,6 +44,7 @@ interface MerchantSpendPolicyClient {
   set_allowance(args: {
     wallet: string;
     merchant: string;
+    signer: Buffer;
     cap_per_tx: bigint;
     cap_per_day: bigint;
     mandate_seconds: bigint;
@@ -140,15 +141,66 @@ export async function buildAddSubKeyTransaction(
 }
 
 /**
- * Grants/renews `merchant`'s on-chain caps on `MerchantSpendPolicy`, THEN
- * mints and registers a fresh Ed25519 sub-key scoped (via `SignerLimits`) to
- * `tokenContractId` and gated by that policy — the two on-chain calls that
- * together make a leaked sub-key's blast radius really just this merchant's
- * cap, not the wallet. Order matters: the policy's `(wallet, merchant)`
- * allowance must exist before the wallet grants a signer whose only
- * authorization path runs through it, or the sub-key would be provisioned
- * but unusable (every `policy__` check would fail with `NoAllowance`) for
- * however long it takes the two txs to land.
+ * Registers `MerchantSpendPolicy` itself as a `Policy` signer on the wallet,
+ * if it isn't one already — idempotent (checks `kit.getSigner` first, sends
+ * nothing if already installed). This is the ONLY thing that fires the
+ * policy's `install(wallet)` hook (invoked by the wallet's own `add_signer`
+ * for a `Signer::Policy` entry — see `smart-wallet`'s `add_signer_impl`),
+ * which is in turn required before `policy__` will accept anything for this
+ * wallet (`Error::NotInstalled` otherwise). Registered with an EMPTY limits
+ * map — `Some({})`, not `undefined`/unlimited — so this policy has NO
+ * independent authority to cover a context on its own; it can only ever act
+ * as a REQUIRED CO-SIGNER named inside another signer's own `SignerLimits`
+ * (a co-signer's own limits are never consulted for that role — see
+ * `smart-wallet`'s `context.rs#verify_signer_limit_keys`). Without this, the
+ * policy's own `SignerLimits` would default to unlimited and it could be
+ * used as a secretless, standalone `Signature::Policy` authorizer, bypassing
+ * the sub-key's Ed25519 signature entirely.
+ */
+async function ensurePolicyInstalled(authority: Keypair): Promise<void> {
+  if (!MERCHANT_SPEND_POLICY_CONTRACT_ID) {
+    throw new Error(
+      "MerchantSpendPolicy is not deployed yet — see contracts/contracts/merchant-spend-policy/DEPLOYMENT.md, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
+    );
+  }
+  const smartWalletAddress = await loadSmartWalletAddress();
+  const networkPassphrase = getNetworkPassphrase();
+  const kit = connectKit(smartWalletAddress, authority.publicKey());
+
+  const alreadyInstalled = await kit.getSigner(SignerKey.Policy(MERCHANT_SPEND_POLICY_CONTRACT_ID));
+  if (alreadyInstalled) return;
+
+  const tx = await kit.addPolicy(MERCHANT_SPEND_POLICY_CONTRACT_ID, new Map(), SignerStore.Persistent);
+  const walletAuthorized = await kit.sign(tx, new Ed25519Signer(authority));
+  await walletAuthorized.sign({
+    signTransaction: basicNodeSigner(authority, networkPassphrase).signTransaction,
+  });
+  const sent = await walletAuthorized.send();
+  if (sent.getTransactionResponse?.status !== "SUCCESS") {
+    throw new Error(
+      `MerchantSpendPolicy install (add_signer) failed on-chain: ${JSON.stringify(sent.getTransactionResponse ?? sent)}`,
+    );
+  }
+}
+
+/**
+ * Grants/renews `merchant`'s on-chain caps on `MerchantSpendPolicy`, bound
+ * to a freshly minted sub-key, THEN registers that sub-key as an Ed25519
+ * signer scoped (via `SignerLimits`) to `tokenContractId` and gated by that
+ * policy — the on-chain calls that together make a leaked sub-key's blast
+ * radius really just this merchant's cap, not the wallet AND not any other
+ * merchant the wallet also approved (`policy__` checks the invoking signer
+ * against `Allowance.signer`, set here). Order matters:
+ *
+ * 1. The policy must be installed as a wallet signer (`ensurePolicyInstalled`)
+ *    before `policy__` will accept anything for this wallet at all.
+ * 2. The sub-key is generated BEFORE `set_allowance` so its public key can be
+ *    bound into the allowance record `policy__` checks against.
+ * 3. The policy's `(wallet, merchant)` allowance must exist before the
+ *    wallet grants a signer whose only authorization path runs through it,
+ *    or the sub-key would be provisioned but unusable (every `policy__`
+ *    check would fail with `NoAllowance`) for however long it takes the two
+ *    txs to land.
  *
  * Called once, at the moment a merchant's mandate is FIRST manually
  * approved (see `messaging/handlers.ts`'s `txSignHandler`) — not at
@@ -165,12 +217,16 @@ export async function provisionMerchantSubKey(
 ): Promise<SubKeyProvisionResult> {
   if (!MERCHANT_SPEND_POLICY_CONTRACT_ID) {
     throw new Error(
-      "MerchantSpendPolicy is not deployed yet — see docs/x402-defense.md §11 for the deploy steps, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
+      "MerchantSpendPolicy is not deployed yet — see contracts/contracts/merchant-spend-policy/DEPLOYMENT.md, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
     );
   }
+  await ensurePolicyInstalled(authority);
+
   const smartWalletAddress = await loadSmartWalletAddress();
   const networkPassphrase = getNetworkPassphrase();
   const rpcUrl = getSorobanRpcUrl();
+
+  const subKey = Keypair.random();
 
   const policyClient = await SorobanClient.from<MerchantSpendPolicyClient>({
     contractId: MERCHANT_SPEND_POLICY_CONTRACT_ID,
@@ -181,6 +237,7 @@ export async function provisionMerchantSubKey(
   const setAllowanceTx = await policyClient.set_allowance({
     wallet: smartWalletAddress,
     merchant,
+    signer: subKey.rawPublicKey(),
     cap_per_tx: capPerTxAtomic,
     cap_per_day: capPerDayAtomic,
     mandate_seconds: BigInt(mandateSeconds),
@@ -201,7 +258,6 @@ export async function provisionMerchantSubKey(
     );
   }
 
-  const subKey = Keypair.random();
   const expiresAt = Math.floor(Date.now() / 1000) + mandateSeconds;
   return buildAddSubKeyTransaction(authority, subKey, tokenContractId, expiresAt);
 }

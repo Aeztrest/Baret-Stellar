@@ -26,6 +26,15 @@
 //! entirely: without the sub-key's private key, nobody can trigger a payment
 //! at all, capped or not.
 //!
+//! Per-merchant isolation also requires binding: `Allowance.signer` records
+//! WHICH sub-key a merchant's mandate was granted to, and `policy__` rejects
+//! any invocation whose `signer` argument doesn't match it. Without this, a
+//! wallet with two merchants approved on the same token would let either
+//! merchant's sub-key spend against the OTHER's cap too (both sub-keys' only
+//! required co-signer is this same policy contract, and this contract's
+//! storage is keyed by `(wallet, merchant)`, not by signer) — the exact
+//! cross-merchant blast radius the per-merchant design exists to prevent.
+//!
 //! Multi-tenant, no owner/init: unlike `PaymentGuard` (one deployed instance
 //! per user's vault), one deployment of this policy serves every wallet that
 //! installs it — storage is keyed by `(wallet, merchant)`, and every
@@ -52,7 +61,7 @@ use smart_wallet_interface::{types::SignerKey, PolicyInterface, SmartWalletClien
 use soroban_sdk::{
     auth::{Context, ContractContext},
     contract, contractevent, contracterror, contractimpl, contracttype, panic_with_error,
-    symbol_short, vec, Address, Env, TryFromVal, Vec,
+    symbol_short, vec, Address, BytesN, Env, TryFromVal, Vec,
 };
 
 const DAY_SECONDS: u64 = 86_400;
@@ -74,6 +83,11 @@ pub enum Status {
 #[contracttype]
 #[derive(Clone)]
 pub struct Allowance {
+    /// The Ed25519 sub-key this merchant's mandate is bound to — `policy__`
+    /// rejects any invocation whose `signer` doesn't match, so a leaked
+    /// sub-key can only ever spend against ITS OWN merchant's allowance,
+    /// never another merchant's the same wallet also approved.
+    pub signer: BytesN<32>,
     /// Largest single payment allowed to this merchant (atomic units).
     pub cap_per_tx: i128,
     /// Cumulative spend allowed per any trailing 24h window (atomic units).
@@ -104,6 +118,7 @@ pub struct AllowanceSet {
     pub wallet: Address,
     #[topic]
     pub merchant: Address,
+    pub signer: BytesN<32>,
     pub cap_per_tx: i128,
     pub cap_per_day: i128,
 }
@@ -124,6 +139,10 @@ pub enum Error {
     /// shaped unexpectedly, a `transfer` not FROM the wallet itself, or one
     /// whose `to` has no allowance recorded.
     NotAllowed = 9,
+    /// The invoking signer isn't the Ed25519 sub-key this merchant's
+    /// allowance was granted to — e.g. a different merchant's sub-key for
+    /// the same wallet attempting to spend against this one.
+    WrongSigner = 10,
 }
 
 #[contract]
@@ -140,6 +159,7 @@ impl Contract {
         env: Env,
         wallet: Address,
         merchant: Address,
+        signer: BytesN<32>,
         cap_per_tx: i128,
         cap_per_day: i128,
         mandate_seconds: u64,
@@ -151,6 +171,7 @@ impl Contract {
 
         let key = DataKey::Allowance(wallet.clone(), merchant.clone());
         let allowance = Allowance {
+            signer: signer.clone(),
             cap_per_tx,
             cap_per_day,
             spend_log: vec![&env],
@@ -163,6 +184,7 @@ impl Contract {
         AllowanceSet {
             wallet,
             merchant,
+            signer,
             cap_per_tx,
             cap_per_day,
         }
@@ -258,7 +280,7 @@ impl PolicyInterface for Contract {
         // its own TTL).
     }
 
-    fn policy__(env: Env, source: Address, _signer: SignerKey, contexts: Vec<Context>) {
+    fn policy__(env: Env, source: Address, signer: SignerKey, contexts: Vec<Context>) {
         // `source` is the wallet. Caller-authenticated per PolicyInterface's
         // requirement for any state-committing policy: satisfied by invoker
         // auth when the wallet itself is the direct caller (the real path,
@@ -318,6 +340,15 @@ impl PolicyInterface for Contract {
             .persistent()
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, Error::NoAllowance));
+
+        // Bind this check to the SPECIFIC sub-key this merchant's mandate
+        // was granted to. Without this, any signer scoped (via the wallet's
+        // own SignerLimits) to require this policy on the same token could
+        // spend against ANY merchant's live allowance on this wallet — a
+        // leaked sub-key for merchant A would drain merchant B's cap too.
+        if signer != SignerKey::Ed25519(allowance.signer.clone()) {
+            panic_with_error!(&env, Error::WrongSigner);
+        }
 
         if allowance.status != Status::Active {
             panic_with_error!(&env, Error::NotActive);

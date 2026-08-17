@@ -6,7 +6,13 @@
  */
 
 import type { AllowanceSnapshot } from "@stellar-thorn/ext-protocol";
-import { asPromise, tx } from "./index";
+import { asPromise, collectByIndex, tx } from "./index";
+
+/** One settled (or reserved-and-not-yet-released) payment, for the true sliding-window cap check. */
+export interface SpendLogEntry {
+  ts: number;
+  amount: number;
+}
 
 export interface AllowanceRow extends AllowanceSnapshot {
   /**
@@ -15,9 +21,23 @@ export interface AllowanceRow extends AllowanceSnapshot {
    * account 0 by the v3->v4 migration in db/index.ts.
    */
   accountPubkey: string;
-  /** epoch ms. start of the current rolling-hour window. */
+  /**
+   * (timestamp, amount) of every settled/reserved payment still inside the
+   * trailing 24h window — the same true-sliding-window model as
+   * `MerchantSpendPolicy::prune_and_sum` on-chain (`contracts/contracts/
+   * merchant-spend-policy/src/lib.rs`), not a tumbling reset-on-elapse
+   * counter. `spentHour`/`spentDay` below are DERIVED from this log on
+   * every `tryReserveSpend`/`releaseReservedSpend` call — kept as their own
+   * fields only because `AllowanceSnapshot` exposes them to the popup UI.
+   * Rows written before this field existed read as `[]` (see the `?? []`
+   * fallback in `tryReserveSpend`) — a one-time, safe-direction reset (more
+   * permissive, never less) of in-flight rolling totals, not a security
+   * regression.
+   */
+  spendLog: SpendLogEntry[];
+  /** epoch ms this row's `spentHour`/`spentDay` were last recomputed. Display-only. */
   spentHourTs: number;
-  /** epoch ms. start of the current rolling-day window. */
+  /** epoch ms this row's `spentHour`/`spentDay` were last recomputed. Display-only. */
   spentDayTs: number;
   spentTx: number;
   createdAt: number;
@@ -42,18 +62,8 @@ export async function listAllowances(
   filter?: { status?: AllowanceSnapshot["status"] },
 ): Promise<AllowanceRow[]> {
   return tx("allowances", "readonly", async (t) => {
-    const out: AllowanceRow[] = [];
-    return new Promise<AllowanceRow[]>((resolve, reject) => {
-      const req = t.objectStore("allowances").index("accountPubkey").openCursor(IDBKeyRange.only(accountPubkey));
-      req.onsuccess = () => {
-        const cur = req.result;
-        if (!cur) return resolve(out);
-        const row = cur.value as AllowanceRow;
-        if (!filter?.status || row.status === filter.status) out.push(row);
-        cur.continue();
-      };
-      req.onerror = () => reject(req.error ?? new Error("Cursor failed"));
-    });
+    const rows = await collectByIndex<AllowanceRow>(t, "allowances", "accountPubkey", accountPubkey);
+    return filter?.status ? rows.filter((row) => row.status === filter.status) : rows;
   });
 }
 
@@ -118,24 +128,60 @@ export async function promoteAllowance(
 
 export type ReserveSpendResult =
   | { ok: true; row: AllowanceRow }
-  | { ok: false; reason: "hourly" | "daily"; row: AllowanceRow };
+  | { ok: false; reason: "tx" | "hourly" | "daily"; row: AllowanceRow };
 
 /**
- * Atomically checks the rolling hourly/daily caps against `amount` and, only
- * if both pass, commits the spend — read, check, and write all happen
- * inside a single IndexedDB transaction. IndexedDB serializes readwrite
- * transactions against the same object store, so two concurrent callers
- * for the same allowance id can never both observe the pre-spend totals:
- * whichever transaction commits first is what the other one sees. This is
- * what actually closes the race — the previous approach (read the totals,
- * decide to sign, `recordHit` afterward as two separate transactions) let
- * N concurrent requests all read the same "not yet over cap" totals before
- * any of them wrote back, so up to N× the intended cap could be signed.
+ * Atomically checks the per-tx cap and the rolling hourly/daily caps against
+ * `amount` and, only if all three pass, commits the spend — read, check, and
+ * write all happen inside a single IndexedDB transaction. IndexedDB
+ * serializes readwrite transactions against the same object store, so two
+ * concurrent callers for the same allowance id can never both observe the
+ * pre-spend totals: whichever transaction commits first is what the other
+ * one sees. This is what actually closes the race — the previous approach
+ * (read the totals, decide to sign, `recordHit` afterward as two separate
+ * transactions) let N concurrent requests all read the same "not yet over
+ * cap" totals before any of them wrote back, so up to N× the intended cap
+ * could be signed.
+ *
+ * `capPerTx` is checked here (not just the global, optional
+ * `GuardPolicy.maxX402PerTx` callers may also check) because it's the
+ * PER-MERCHANT value the user actually saw and approved in the mandate
+ * preview — a global cap being unset or looser than one merchant's
+ * configured `capPerTx` must never let that merchant's own limit go
+ * unenforced.
  *
  * Callers MUST call {@link releaseReservedSpend} if signing ends up failing
  * after a successful reservation, or the failed attempt permanently
  * consumes cap headroom it never actually spent.
  */
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * Drops every log entry older than the trailing 24h window (the longer of
+ * the two windows we ever check) and returns the sliding-window sums for
+ * both the hourly and daily caps. True sliding window, not a tumbling
+ * reset-on-elapse counter — mirrors `MerchantSpendPolicy::prune_and_sum` on
+ * the Rust side exactly so the off-chain pre-check and the on-chain gate
+ * never disagree about how much is "still within the last hour/day". A
+ * tumbling reset lets up to 2x the cap land within milliseconds of a window
+ * boundary (spend right before the reset, then again right after); a
+ * sliding window cannot be gamed that way.
+ */
+function pruneAndSum(
+  log: SpendLogEntry[],
+  now: number,
+): { pruned: SpendLogEntry[]; hourSum: number; daySum: number } {
+  const pruned = log.filter((e) => now - e.ts < DAY_MS);
+  let hourSum = 0;
+  let daySum = 0;
+  for (const e of pruned) {
+    daySum += e.amount;
+    if (now - e.ts < HOUR_MS) hourSum += e.amount;
+  }
+  return { pruned, hourSum, daySum };
+}
+
 export async function tryReserveSpend(
   id: string,
   amountUi: number,
@@ -145,37 +191,35 @@ export async function tryReserveSpend(
     const row = (await asPromise(store.get(id))) as AllowanceRow | undefined;
     if (!row) throw new Error(`No allowance for id=${id}`);
 
+    if (row.capPerTx > 0 && amountUi > row.capPerTx) {
+      return { ok: false as const, reason: "tx" as const, row };
+    }
+
     const now = Date.now();
-    const HOUR = 60 * 60 * 1000;
-    const DAY = 24 * HOUR;
+    const { pruned, hourSum, daySum } = pruneAndSum(row.spendLog ?? [], now);
 
-    if (now - row.spentHourTs > HOUR) {
-      row.spentHourTs = now;
-      row.spentHour = 0;
+    if (row.capPerHour > 0 && hourSum + amountUi > row.capPerHour) {
+      return { ok: false as const, reason: "hourly" as const, row: { ...row, spendLog: pruned } };
     }
-    if (now - row.spentDayTs > DAY) {
-      row.spentDayTs = now;
-      row.spentDay = 0;
+    if (row.capPerDay > 0 && daySum + amountUi > row.capPerDay) {
+      return { ok: false as const, reason: "daily" as const, row: { ...row, spendLog: pruned } };
     }
 
-    const projHour = row.spentHour + amountUi;
-    const projDay = row.spentDay + amountUi;
-
-    if (row.capPerHour > 0 && projHour > row.capPerHour) {
-      return { ok: false as const, reason: "hourly" as const, row };
-    }
-    if (row.capPerDay > 0 && projDay > row.capPerDay) {
-      return { ok: false as const, reason: "daily" as const, row };
-    }
-
-    row.spentHour = projHour;
-    row.spentDay = projDay;
-    row.spentTx = amountUi;
-    row.hits += 1;
-    row.lastHitAt = now;
-    row.updatedAt = now;
-    await asPromise(store.put(row));
-    return { ok: true as const, row };
+    pruned.push({ ts: now, amount: amountUi });
+    const newRow: AllowanceRow = {
+      ...row,
+      spendLog: pruned,
+      spentHour: hourSum + amountUi,
+      spentHourTs: now,
+      spentDay: daySum + amountUi,
+      spentDayTs: now,
+      spentTx: amountUi,
+      hits: row.hits + 1,
+      lastHitAt: now,
+      updatedAt: now,
+    };
+    await asPromise(store.put(newRow));
+    return { ok: true as const, row: newRow };
   });
 }
 
@@ -190,10 +234,27 @@ export async function releaseReservedSpend(id: string, amountUi: number): Promis
     const store = t.objectStore("allowances");
     const row = (await asPromise(store.get(id))) as AllowanceRow | undefined;
     if (!row) return;
-    row.spentHour = Math.max(0, row.spentHour - amountUi);
-    row.spentDay = Math.max(0, row.spentDay - amountUi);
+
+    const log = row.spendLog ?? [];
+    // Remove the specific reservation being rolled back — the most recent
+    // entry matching this amount (the one `tryReserveSpend` just pushed for
+    // it), not an arbitrary one, so releasing one failed reservation can
+    // never accidentally cancel out a different, still-valid one for the
+    // same amount.
+    const idxFromEnd = [...log].reverse().findIndex((e) => e.amount === amountUi);
+    if (idxFromEnd !== -1) {
+      log.splice(log.length - 1 - idxFromEnd, 1);
+    }
+
+    const now = Date.now();
+    const { pruned, hourSum, daySum } = pruneAndSum(log, now);
+    row.spendLog = pruned;
+    row.spentHour = hourSum;
+    row.spentHourTs = now;
+    row.spentDay = daySum;
+    row.spentDayTs = now;
     row.hits = Math.max(0, row.hits - 1);
-    row.updatedAt = Date.now();
+    row.updatedAt = now;
     await asPromise(store.put(row));
   });
 }

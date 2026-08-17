@@ -5,7 +5,7 @@ use smart_wallet_interface::types::{SignerExpiration, SignerLimits, SignerVal};
 use soroban_sdk::{
     contract, contractimpl,
     testutils::{Address as _, Ledger},
-    Address, Env, IntoVal,
+    Address, BytesN, Env, IntoVal,
 };
 
 const MANDATE_SECS: u64 = 30 * DAY_SECONDS;
@@ -53,23 +53,34 @@ fn transfer_context(
     })
 }
 
-/// `policy__`'s `signer` argument is opaque to this contract (only
-/// `source`/`contexts` are inspected) — any well-formed key works in tests.
-fn dummy_signer_key(env: &Env) -> SignerKey {
-    SignerKey::Ed25519(soroban_sdk::BytesN::from_array(env, &[0u8; 32]))
+/// A deterministic 32-byte Ed25519 public key for tests, distinguished by
+/// `tag` so a test can build two DIFFERENT signers (e.g. "the sub-key
+/// merchant A's allowance was granted to" vs. "merchant B's sub-key").
+fn signer_bytes(env: &Env, tag: u8) -> BytesN<32> {
+    BytesN::from_array(env, &[tag; 32])
+}
+
+fn signer_key(env: &Env, tag: u8) -> SignerKey {
+    SignerKey::Ed25519(signer_bytes(env, tag))
 }
 
 #[test]
 fn transfer_within_caps_settles_and_records_spend() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &30_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &MANDATE_SECS,
+    );
 
     let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 10_000);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 
@@ -77,17 +88,47 @@ fn transfer_within_caps_settles_and_records_spend() {
 }
 
 #[test]
+#[should_panic] // WrongSigner
+fn transfer_with_wrong_signer_reverts() {
+    let f = setup();
+    let token = Address::generate(&f.env);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &MANDATE_SECS,
+    );
+
+    // A DIFFERENT sub-key (e.g. one provisioned for another merchant on the
+    // same wallet) attempting to spend against this merchant's allowance.
+    let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 1_000);
+    f.policy.policy__(
+        &f.wallet,
+        &signer_key(&f.env, 2),
+        &soroban_sdk::vec![&f.env, ctx],
+    );
+}
+
+#[test]
 #[should_panic] // ExceedsPerTx
 fn transfer_above_per_tx_cap_reverts() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &30_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &MANDATE_SECS,
+    );
 
     let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 10_001);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 }
@@ -97,14 +138,20 @@ fn transfer_above_per_tx_cap_reverts() {
 fn cumulative_spend_past_daily_cap_reverts() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &25_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &25_000,
+        &MANDATE_SECS,
+    );
 
     for _ in 0..2 {
         let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 10_000);
         f.policy.policy__(
             &f.wallet,
-            &dummy_signer_key(&f.env),
+            &signer_key(&f.env, 1),
             &soroban_sdk::vec![&f.env, ctx],
         );
     }
@@ -112,7 +159,7 @@ fn cumulative_spend_past_daily_cap_reverts() {
     let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 10_000);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 }
@@ -121,13 +168,19 @@ fn cumulative_spend_past_daily_cap_reverts() {
 fn rolling_window_resets_after_24h() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &10_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &10_000,
+        &MANDATE_SECS,
+    );
 
     let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 10_000);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx.clone()],
     );
     assert_eq!(f.policy.available_today(&f.wallet, &f.merchant), 0);
@@ -137,7 +190,7 @@ fn rolling_window_resets_after_24h() {
     // A day later the sliding window has fully rolled off — full cap again.
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
     assert_eq!(f.policy.available_today(&f.wallet, &f.merchant), 0);
@@ -152,7 +205,7 @@ fn transfer_to_unregistered_merchant_reverts() {
     let ctx = transfer_context(&f.env, &token, &f.wallet, &stranger, 1);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 }
@@ -162,14 +215,20 @@ fn transfer_to_unregistered_merchant_reverts() {
 fn transfer_to_revoked_merchant_reverts() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &30_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &MANDATE_SECS,
+    );
     f.policy.revoke(&f.wallet, &f.merchant);
 
     let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 1_000);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 }
@@ -178,15 +237,21 @@ fn transfer_to_revoked_merchant_reverts() {
 fn pause_then_resume_restores_spend() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &30_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &MANDATE_SECS,
+    );
     f.policy.pause(&f.wallet, &f.merchant);
     f.policy.resume(&f.wallet, &f.merchant);
 
     let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 5_000);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
     assert_eq!(f.policy.available_today(&f.wallet, &f.merchant), 25_000);
@@ -197,14 +262,20 @@ fn pause_then_resume_restores_spend() {
 fn transfer_after_mandate_expiry_reverts() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &30_000, &1_000);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &1_000,
+    );
     f.env.ledger().with_mut(|l| l.timestamp += 1_001);
 
     let ctx = transfer_context(&f.env, &token, &f.wallet, &f.merchant, 1_000);
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 }
@@ -223,7 +294,7 @@ fn policy_refuses_wallets_that_never_installed_it() {
 
     // Deliberately never called `install(wallet)`.
     let ctx = transfer_context(&env, &token, &wallet, &merchant, 1);
-    policy.policy__(&wallet, &dummy_signer_key(&env), &soroban_sdk::vec![&env, ctx]);
+    policy.policy__(&wallet, &signer_key(&env, 1), &soroban_sdk::vec![&env, ctx]);
 }
 
 #[test]
@@ -231,8 +302,14 @@ fn policy_refuses_wallets_that_never_installed_it() {
 fn policy_denies_non_transfer_invocations() {
     let f = setup();
     let token = Address::generate(&f.env);
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &30_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &MANDATE_SECS,
+    );
 
     let ctx = Context::Contract(ContractContext {
         contract: token,
@@ -241,7 +318,7 @@ fn policy_denies_non_transfer_invocations() {
     });
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 }
@@ -250,8 +327,14 @@ fn policy_denies_non_transfer_invocations() {
 #[should_panic] // NotAllowed — targets the wallet's own admin surface
 fn policy_denies_context_targeting_the_wallet_itself() {
     let f = setup();
-    f.policy
-        .set_allowance(&f.wallet, &f.merchant, &10_000, &30_000, &MANDATE_SECS);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &MANDATE_SECS,
+    );
 
     let ctx = Context::Contract(ContractContext {
         contract: f.wallet.clone(),
@@ -260,7 +343,7 @@ fn policy_denies_context_targeting_the_wallet_itself() {
     });
     f.policy.policy__(
         &f.wallet,
-        &dummy_signer_key(&f.env),
+        &signer_key(&f.env, 1),
         &soroban_sdk::vec![&f.env, ctx],
     );
 }

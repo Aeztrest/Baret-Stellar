@@ -59,6 +59,28 @@ describe("signVerdict", () => {
     expect(a.equals(b)).toBe(true);
   });
 
+  it("a finding with an explicitly-undefined optional field verifies the same as one where that key is simply absent", () => {
+    // Simulates the actual server/client divergence this guards against: the
+    // signing side may build a findings object with an optional key present
+    // but `undefined`; once that object round-trips through a real HTTP
+    // JSON response and JSON.parse on the client, that key is gone
+    // entirely. The canonical digest must match in both cases, or a
+    // legitimate verdict fails signature verification.
+    const withUndefinedKey = canonicalVerdictPayload(
+      TX_HASH,
+      { safe: true, riskFindings: [{ code: "X", severity: "low", message: "m", extra: undefined }] },
+      1000,
+      "nonce",
+    );
+    const keyOmitted = canonicalVerdictPayload(
+      TX_HASH,
+      { safe: true, riskFindings: [{ code: "X", severity: "low", message: "m" }] },
+      1000,
+      "nonce",
+    );
+    expect(withUndefinedKey.equals(keyOmitted)).toBe(true);
+  });
+
   it("two signatures for the same verdict use different nonces (freshness)", () => {
     const kp = Keypair.random();
     const first = signVerdict(kp, TX_HASH, { safe: true, riskFindings: [] });

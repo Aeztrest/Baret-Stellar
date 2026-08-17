@@ -6,16 +6,20 @@ gated by this policy can only ever transfer to the one merchant it was
 granted, up to that merchant's `cap_per_tx`/rolling `cap_per_day` — see
 `src/lib.rs` and `docs/x402-defense.md` §11.
 
-This is the one piece of Faz 1-4 that needed a real testnet secret to
-finish, so it was left for you to run. Everything up to this point (the
-contract, the extension's provisioning/signing code) is already written,
-tested, and committed — this contract just isn't deployed anywhere yet, so
-`MERCHANT_SPEND_POLICY_CONTRACT_ID` in
-`apps/extension/src/background/swig/smart-wallet-config.ts` is still `null`.
-Sub-key provisioning refuses to run while that's the case (fails closed,
-not silently unscoped) — so until you do this, first-time merchant
-approvals work exactly as they did before Faz 1-4 (signed by the wallet's
-admin authority, no scoped sub-key minted), just without the on-chain cap.
+Deployed on testnet at `CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S`
+(wasm hash `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834`),
+wired into `MERCHANT_SPEND_POLICY_CONTRACT_ID` in
+`apps/extension/src/background/swig/smart-wallet-config.ts`. Sub-key
+provisioning refuses to run while that constant is `null` (fails closed, not
+silently unscoped) — the section below is only needed to redeploy after a
+future contract change (bump the wasm hash and the constant again).
+
+The extension also needs this policy registered as a `Policy` signer on
+each user's smart wallet before `policy__` will accept anything for it — see
+`src/lib.rs`'s `install(wallet)` hook. That registration is automatic
+(`sub-keys.ts#ensurePolicyInstalled`, idempotent, called from
+`provisionMerchantSubKey` the first time any merchant is approved), not a
+manual deploy-time step.
 
 You do **not** need to deploy the smart-wallet contract itself — the
 extension already deploys per-user wallet *instances* from passkey-kit's
@@ -69,11 +73,11 @@ and was written against the real contract's interface.
 
 | Function | Auth | Purpose |
 |----------|------|---------|
-| `set_allowance(wallet, merchant, cap_per_tx, cap_per_day, mandate_seconds)` | `wallet` | Grant/renew `merchant`'s caps for `wallet`. Multi-tenant — no single owner, each wallet administers only its own entries |
+| `set_allowance(wallet, merchant, signer, cap_per_tx, cap_per_day, mandate_seconds)` | `wallet` | Grant/renew `merchant`'s caps for `wallet`, bound to the specific Ed25519 sub-key (`signer`, raw 32-byte public key) that will spend against it. Multi-tenant — no single owner, each wallet administers only its own entries |
 | `pause / resume / revoke(wallet, merchant)` | `wallet` | Toggle one merchant |
 | `get_allowance(wallet, merchant)` / `available_today(wallet, merchant)` | — (view) | Read state |
-| `install(wallet)` / `uninstall(wallet)` | `wallet` / permissionless | `PolicyInterface` lifecycle hooks, called by passkey-kit's `add_signer`/`remove_signer` — not invoked directly |
-| `policy__(source, signer, contexts)` | — (called by the smart wallet itself) | The actual gate: deny-by-default, exactly one `transfer` context, `to` must match a live, unexpired, non-paused `Allowance` for that merchant, amount within `cap_per_tx` and the rolling 24h `cap_per_day` |
+| `install(wallet)` / `uninstall(wallet)` | `wallet` / permissionless | `PolicyInterface` lifecycle hooks, called by passkey-kit's `add_signer`/`remove_signer` when this policy itself is (de)registered as a `Policy` signer on the wallet — see `sub-keys.ts#ensurePolicyInstalled`, called automatically before the first `set_allowance`. Not invoked directly |
+| `policy__(source, signer, contexts)` | — (called by the smart wallet itself) | The actual gate: deny-by-default, exactly one `transfer` context, `to` must match a live, unexpired, non-paused `Allowance` for that merchant, `signer` must match the `Allowance.signer` that merchant's mandate was granted to (rejects `WrongSigner` otherwise — this is what stops merchant A's leaked sub-key from spending against merchant B's cap), amount within `cap_per_tx` and the rolling 24h `cap_per_day` |
 
 ## End-to-end verification
 

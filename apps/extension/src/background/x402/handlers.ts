@@ -243,7 +243,10 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     };
   }
 
-  // 7. Apply caps.
+  // 7. Apply caps. The global, optional `maxX402PerTx` is a user-wide safety
+  // net checked first; `tryReserveSpend` below ALSO checks the per-merchant
+  // `capPerTx` the user actually approved for this mandate (never skippable
+  // by leaving the global cap unset or looser).
   const amountUi = atomicToUi(requirements.amount);
   if (policy.maxX402PerTx !== undefined && amountUi > policy.maxX402PerTx) {
     return {
@@ -252,19 +255,23 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     };
   }
 
-  // Hourly/daily caps are shared, mutable per-merchant state — reserve the
-  // spend atomically now, BEFORE signing, so two concurrent requests for
-  // the same merchant can't both pass the check before either commits
-  // (see `tryReserveSpend` for why a plain read-then-sign-then-record
+  // Per-tx/hourly/daily caps are shared, mutable per-merchant state —
+  // reserve the spend atomically now, BEFORE signing, so two concurrent
+  // requests for the same merchant can't both pass the check before either
+  // commits (see `tryReserveSpend` for why a plain read-then-sign-then-record
   // sequence lets N concurrent payments add up to N× the intended cap).
   // If signing fails below, the reservation is released.
   const reservation = await tryReserveSpend(allowanceId, amountUi);
   if (!reservation.ok) {
     const cap =
-      reservation.reason === "hourly" ? allowance.capPerHour : allowance.capPerDay;
+      reservation.reason === "tx"
+        ? allowance.capPerTx
+        : reservation.reason === "hourly"
+          ? allowance.capPerHour
+          : allowance.capPerDay;
     return {
       action: "decline",
-      reason: `${origin}: would exceed ${cap} ${reservation.reason} cap.`,
+      reason: `${origin}: would exceed ${cap} ${reservation.reason === "tx" ? "per-tx" : reservation.reason} cap.`,
     };
   }
 
@@ -419,6 +426,7 @@ export async function createDefaultAllowance(
     capPerHour: policy.x402HourlyCap ?? 5.0,
     capPerDay: policy.x402DailyCap ?? 25.0,
     spentTx: 0,
+    spendLog: [],
     spentHour: 0,
     spentHourTs: now,
     spentDay: 0,

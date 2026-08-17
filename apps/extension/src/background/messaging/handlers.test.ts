@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IDBFactory } from "fake-indexeddb";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 
 // Multi-account handlers: derive-on-demand from the already-unlocked root
 // seed (no passphrase re-entry to add or switch accounts, matching how
@@ -28,6 +28,9 @@ vi.mock("webextension-polyfill", () => {
 async function freshEnv() {
   vi.resetModules();
   (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
+  // `listAllowances`/`listSitePermissions` query the `accountPubkey` index via
+  // `IDBKeyRange.only(...)`, so the fake's IDBKeyRange must be present too.
+  (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
 
   const keystore = await import("../db/keystore");
   await keystore.clearKeystore();
@@ -111,5 +114,107 @@ describe("multi-account RPC handlers", () => {
     const added = await env.handlers["wallet.addAccount"]({});
     const row = await env.keystore.readKeystore();
     expect(row!.activeIndex).toBe(added.index);
+  });
+});
+
+describe("history.detail — account scoping", () => {
+  let env: Awaited<ReturnType<typeof freshEnv>>;
+
+  beforeEach(async () => {
+    env = await freshEnv();
+    await env.handlers["wallet.create"]({ passphrase: PASSPHRASE, network: "testnet" });
+  });
+
+  it("returns an account's own entry", async () => {
+    const history = await import("../db/history");
+    const accountPubkey = env.store.getSnapshot().authorityAddress!;
+    await history.appendHistory({
+      type: "dapp",
+      accountPubkey,
+      signature: null,
+      origin: "https://mine.example",
+      summary: "connected",
+      decision: "allow",
+      reasons: [],
+      broadcast: false,
+      createdAt: Date.now(),
+    });
+    const [entry] = await env.handlers["history.list"]({});
+    const detail = await env.handlers["history.detail"]({ id: entry!.id });
+    expect(detail.origin).toBe("https://mine.example");
+  });
+
+  it("refuses to return another account's entry, even with a known id", async () => {
+    const history = await import("../db/history");
+    const accountPubkey = env.store.getSnapshot().authorityAddress!;
+    await history.appendHistory({
+      type: "dapp",
+      accountPubkey,
+      signature: null,
+      origin: "https://mine.example",
+      summary: "connected",
+      decision: "allow",
+      reasons: [],
+      broadcast: false,
+      createdAt: Date.now(),
+    });
+    const [entry] = await env.handlers["history.list"]({});
+
+    await env.handlers["wallet.addAccount"]({}); // switches to account 1
+
+    await expect(env.handlers["history.detail"]({ id: entry!.id })).rejects.toThrow();
+  });
+});
+
+describe("sitePermissions.* RPC handlers", () => {
+  let env: Awaited<ReturnType<typeof freshEnv>>;
+
+  beforeEach(async () => {
+    env = await freshEnv();
+    await env.handlers["wallet.create"]({ passphrase: PASSPHRASE, network: "testnet" });
+  });
+
+  it("lists nothing when no connect decision has ever been remembered", async () => {
+    const list = await env.handlers["sitePermissions.list"](undefined);
+    expect(list).toEqual([]);
+  });
+
+  it("lists a remembered grant for the active account and can revoke it", async () => {
+    const sitePerms = await import("../db/site-permissions");
+    const accountPubkey = env.store.getSnapshot().authorityAddress!;
+    await sitePerms.writeSitePermission({
+      id: sitePerms.makeSitePermissionId(accountPubkey, "https://trusted.example"),
+      accountPubkey,
+      origin: "https://trusted.example",
+      status: "trusted",
+      grantedAt: Date.now(),
+      remembered: true,
+    });
+
+    const listed = await env.handlers["sitePermissions.list"](undefined);
+    expect(listed).toEqual([
+      { origin: "https://trusted.example", status: "trusted", grantedAt: expect.any(Number), remembered: true },
+    ]);
+
+    await env.handlers["sitePermissions.revoke"]({ origin: "https://trusted.example" });
+    expect(await env.handlers["sitePermissions.list"](undefined)).toEqual([]);
+  });
+
+  it("only lists the active account's grants, not another account's", async () => {
+    const sitePerms = await import("../db/site-permissions");
+    const account0 = env.store.getSnapshot().authorityAddress!;
+    await sitePerms.writeSitePermission({
+      id: sitePerms.makeSitePermissionId(account0, "https://account0-only.example"),
+      accountPubkey: account0,
+      origin: "https://account0-only.example",
+      status: "trusted",
+      grantedAt: Date.now(),
+      remembered: true,
+    });
+
+    await env.handlers["wallet.addAccount"]({}); // switches to account 1
+
+    const listed = await env.handlers["sitePermissions.list"](undefined);
+    expect(listed).toEqual([]);
   });
 });

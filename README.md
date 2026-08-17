@@ -129,9 +129,9 @@ Chrome MV3 + Firefox MV3. The wallet itself.
 
 A standalone landing site + interactive demo. Every page is real React.
 
-- **`/home`** — product landing: hero, detector marquee, the three pillars,
+- **`/`** — product landing: hero, detector marquee, the three pillars,
   showcase strip, x402 section, stats bar.
-- **`/`** — the Hub: demo dApps in a card grid, each with a one-line
+- **`/showcase`** — the Hub: demo dApps in a card grid, each with a one-line
   threat-model tag.
 - **`/install`** — one-click extension installer with browser auto-detect
   (Chrome / Brave / Edge / Firefox) and step-by-step "load unpacked" guidance.
