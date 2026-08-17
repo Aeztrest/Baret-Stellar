@@ -67,7 +67,8 @@ transaction first is just how wallets work.
 2. It keeps a ledger. Every approval is a row with a cap and a clock. One tap to
    pause or revoke. No more "unlimited approval" you forgot about.
 3. It holds the line for agents. x402 payments get per-site limits, enforced at
-   sign time and again on-chain by the PaymentGuard contract.
+   sign time and again on-chain by MerchantSpendPolicy, installed directly on
+   the user's own smart wallet.
 
 ---
 
