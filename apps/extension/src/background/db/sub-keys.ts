@@ -12,7 +12,7 @@
  * Spec: docs/x402-defense.md §4 and §11.
  */
 
-import { asPromise, openDb, tx } from "./index";
+import { asPromise, collectByIndex, openDb, tx } from "./index";
 import type { EncryptedBlob } from "../crypto/kdf";
 
 export interface SubKeyRow {
@@ -77,20 +77,12 @@ export async function listSubKeys(
   const db = await openDb();
   if (!db.objectStoreNames.contains(STORE_NAME)) return [];
   const t = db.transaction(STORE_NAME, "readonly");
-  return new Promise<SubKeyRow[]>((resolve, reject) => {
-    const out: SubKeyRow[] = [];
-    const req = t.objectStore(STORE_NAME).index("accountPubkey").openCursor(IDBKeyRange.only(accountPubkey));
-    req.onsuccess = () => {
-      const cur = req.result;
-      if (!cur) return resolve(out);
-      const row = cur.value as SubKeyRow;
-      const okOrigin = !filter?.merchantOrigin || row.merchantOrigin === filter.merchantOrigin;
-      const okStatus = !filter?.status || row.status === filter.status;
-      if (okOrigin && okStatus) out.push(row);
-      cur.continue();
-    };
-    req.onerror = () => reject(req.error ?? new Error("Cursor failed"));
-  });
+  const rows = await collectByIndex<SubKeyRow>(t, "sub_keys", "accountPubkey", accountPubkey);
+  return rows.filter(
+    (row) =>
+      (!filter?.merchantOrigin || row.merchantOrigin === filter.merchantOrigin) &&
+      (!filter?.status || row.status === filter.status),
+  );
 }
 
 export async function writeSubKey(row: SubKeyRow): Promise<void> {

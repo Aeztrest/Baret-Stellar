@@ -127,11 +127,28 @@ function backfillAllowances(versionTxn: IDBTransaction, accountPubkey: string): 
     const cursor = cursorReq.result;
     if (!cursor) return;
     const row = cursor.value as {
-      id: string; merchantOrigin: string; asset: string; accountPubkey?: string;
+      id: string; merchantOrigin: string; asset: string; accountPubkey?: string; status?: string;
     };
     if (!row.accountPubkey) {
       cursor.delete();
-      store.put({ ...row, accountPubkey, id: `${accountPubkey}::${row.merchantOrigin}::${row.asset}` });
+      // Multi-account already existed under schema v3 (`wallet.addAccount`),
+      // so an "unscoped" row here isn't necessarily account 0's — it could
+      // be a mandate a user granted while account 1 (or later) was active.
+      // We have no record of which account actually created it, so we
+      // cannot correctly attribute it. Attaching it to account 0 while
+      // preserving an "active" status would silently hand account 0 a live,
+      // auto-approving mandate it never actually earned. Force it back to
+      // "pending" instead — the record (caps, history) survives the
+      // migration, but the FIRST payment after upgrade always re-shows the
+      // manual mandate-approval popup under whichever account it lands on,
+      // rather than auto-paying on a fabricated trust relationship.
+      const status = row.status === "active" ? "pending" : row.status;
+      store.put({
+        ...row,
+        accountPubkey,
+        status,
+        id: `${accountPubkey}::${row.merchantOrigin}::${row.asset}`,
+      });
     }
     cursor.continue();
   };
@@ -191,7 +208,16 @@ function migrateSitePermissions(
         origin: row.origin,
         status: row.status,
         grantedAt: row.grantedAt,
-        remembered: row.remembered,
+        // Multi-account already existed under schema v3, so we can't tell
+        // which account actually granted this "always trust" decision — it
+        // may have been account 1, not account 0. `remembered: true` is
+        // what lets `wsConnect` skip the connect popup entirely (see
+        // `wallet-standard/handlers.ts`), so carrying it over as-is would
+        // silently auto-connect account 0 to an origin it never itself
+        // approved. Force it false: the record (and a `denied` status, if
+        // that's what it was) survives, but a `trusted` grant always
+        // re-prompts once after upgrade instead of silently auto-connecting.
+        remembered: false,
       });
     }
   };
@@ -220,5 +246,31 @@ export function asPromise<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error("IndexedDB request failed"));
+  });
+}
+
+/**
+ * Collects every row in `store` whose `indexName` index matches `key` — the
+ * "list this account's rows" query every account-scoped store
+ * (allowances/sub_keys/site_permissions) runs, factored out so the cursor
+ * plumbing (and the `IDBKeyRange.only` it depends on) lives in one place
+ * instead of being hand-copied per store.
+ */
+export function collectByIndex<T>(
+  t: IDBTransaction,
+  storeName: StoreName,
+  indexName: string,
+  key: IDBValidKey,
+): Promise<T[]> {
+  return new Promise<T[]>((resolve, reject) => {
+    const out: T[] = [];
+    const req = t.objectStore(storeName).index(indexName).openCursor(IDBKeyRange.only(key));
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (!cur) return resolve(out);
+      out.push(cur.value as T);
+      cur.continue();
+    };
+    req.onerror = () => reject(req.error ?? new Error(`${storeName}.${indexName} cursor failed`));
   });
 }

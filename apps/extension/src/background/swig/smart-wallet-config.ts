@@ -15,9 +15,14 @@ export const SMART_WALLET_WASM_HASH =
 
 /**
  * MerchantSpendPolicy contract address (testnet), deployed from
- * `contracts/contracts/merchant-spend-policy`. `null` until deployed — see
- * the Faz 5 deploy instructions. Sub-key provisioning
- * (`swig/sub-keys.ts`) refuses to run while this is unset rather than
- * silently falling back to an unscoped signer.
+ * `contracts/contracts/merchant-spend-policy` per
+ * `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`
+ * (wasm hash `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834`
+ * — the `set_allowance(..., signer, ...)` / per-merchant signer-binding
+ * revision; a wallet must call `sub-keys.ts#ensurePolicyInstalled` (via
+ * `provisionMerchantSubKey`) before `policy__` will accept anything for it).
+ * Sub-key provisioning (`swig/sub-keys.ts`) refuses to run while this is
+ * unset rather than silently falling back to an unscoped signer.
  */
-export const MERCHANT_SPEND_POLICY_CONTRACT_ID: string | null = null;
+export const MERCHANT_SPEND_POLICY_CONTRACT_ID: string | null =
+  "CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S";

@@ -13,9 +13,9 @@ import { useCallback, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Globe, ShieldOff, ShieldCheck, Pause, Play, Trash2,
-  ExternalLink, AlertTriangle,
+  ExternalLink, AlertTriangle, Link2Off,
 } from "lucide-react";
-import type { AllowanceSnapshot, HistoryEntry } from "@stellar-thorn/ext-protocol";
+import type { AllowanceSnapshot, HistoryEntry, SitePermissionSnapshot } from "@stellar-thorn/ext-protocol";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
 import { Button, Dialog, shortAddr, usePolling, SpotlightCard, RevealGroup, RevealItem } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
@@ -34,21 +34,25 @@ export function SiteDetailPage() {
   const [allowances, setAllowances] = useState<AllowanceSnapshot[] | null>(null);
   const [history, setHistory] = useState<HistoryEntry[] | null>(null);
   const [policy, setPolicy] = useState<GuardPolicy | null>(null);
+  const [sitePermission, setSitePermission] = useState<SitePermissionSnapshot | null | undefined>(undefined);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [forgetDialogOpen, setForgetDialogOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!origin) return;
     try {
-      const [a, h, p] = await Promise.all([
+      const [a, h, p, perms] = await Promise.all([
         rpc.call("ledger.list", { filter: undefined }),
         rpc.call("history.list", { filter: { origin } }),
         rpc.call("policy.read", undefined as never),
+        rpc.call("sitePermissions.list", undefined),
       ]);
       setAllowances(a.filter((row) => row.merchantOrigin === origin));
       setHistory(h);
       setPolicy(p as GuardPolicy);
+      setSitePermission(perms.find((row) => row.origin === origin) ?? null);
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -66,7 +70,7 @@ export function SiteDetailPage() {
     );
   }
 
-  const loading = allowances === null || history === null || policy === null;
+  const loading = allowances === null || history === null || policy === null || sitePermission === undefined;
   const blocked = policy?.blockedMerchantOrigins?.includes(origin) ?? false;
   const explicitlyAllowed = policy?.allowedMerchantOrigins?.includes(origin) ?? false;
 
@@ -116,6 +120,16 @@ export function SiteDetailPage() {
     setRevokeDialogOpen(false);
     setBusy("revoke");
     try { await rpc.call("ledger.revoke", { merchantOrigin: origin }); await refresh(); }
+    catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(null); }
+  };
+
+  /* ───── connection trust ───── */
+
+  const onForgetSite = async () => {
+    setForgetDialogOpen(false);
+    setBusy("forget");
+    try { await rpc.call("sitePermissions.revoke", { origin }); await refresh(); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(null); }
   };
@@ -198,6 +212,38 @@ export function SiteDetailPage() {
           </SpotlightCard>
           </RevealItem>
 
+          {/* Connection trust */}
+          {sitePermission && (
+          <RevealItem>
+          <SpotlightCard>
+          <div className="p-6 space-y-3">
+            <h2 className="font-bold text-sm">Connection</h2>
+            {sitePermission.remembered ? (
+              <>
+                <p className="text-text-faint text-xs leading-relaxed">
+                  You told this site to <strong>always {sitePermission.status === "trusted" ? "connect" : "stay blocked"}</strong>{" "}
+                  — it {sitePermission.status === "trusted" ? "connects without asking" : "is refused"} every time, with no popup.
+                </p>
+                <Button
+                  variant="secondary" size="sm"
+                  onClick={() => setForgetDialogOpen(true)}
+                  loading={busy === "forget"}
+                  leftIcon={<Link2Off size={11} />}
+                >
+                  Forget this site
+                </Button>
+              </>
+            ) : (
+              <p className="text-text-faint text-xs leading-relaxed">
+                Last connect decision: <strong>{sitePermission.status}</strong>, not remembered — you'll
+                still be asked next time this site tries to connect.
+              </p>
+            )}
+          </div>
+          </SpotlightCard>
+          </RevealItem>
+          )}
+
           {/* Allowances */}
           <RevealItem>
           <SpotlightCard>
@@ -269,6 +315,19 @@ export function SiteDetailPage() {
           <>
             <Button variant="secondary" fullWidth onClick={() => setRevokeDialogOpen(false)}>Cancel</Button>
             <Button variant="danger" fullWidth onClick={onRevoke}>Revoke</Button>
+          </>
+        }
+      />
+
+      <Dialog
+        open={forgetDialogOpen}
+        onOpenChange={setForgetDialogOpen}
+        title="Forget this site?"
+        description={`${pretty(origin)} will be asked for permission again the next time it tries to connect, instead of connecting automatically.`}
+        footer={
+          <>
+            <Button variant="secondary" fullWidth onClick={() => setForgetDialogOpen(false)}>Cancel</Button>
+            <Button variant="danger" fullWidth onClick={onForgetSite}>Forget</Button>
           </>
         }
       />

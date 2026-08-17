@@ -73,6 +73,7 @@ import {
   listHistory,
 } from "../db/history";
 import { countUnread, dismiss as dismissAlert, listAlerts } from "../db/alerts";
+import { deleteSitePermission, listSitePermissions } from "../db/site-permissions";
 import {
   preloadActiveSubKeys,
   clearSubKeyCache,
@@ -813,7 +814,14 @@ const historyListHandler: Handler<"history.list"> = async ({ filter } = {}) => {
 
 const historyDetailHandler: Handler<"history.detail"> = async ({ id }) => {
   const r = await getHistoryEntry(id);
-  if (!r) throw new Error("History entry not found");
+  // Every other history/allowance/sub-key/site-permission accessor is
+  // account-scoped (see historyListHandler above) — a bare id lookup with
+  // no ownership check would let any account read any other account's
+  // history entry (origin, signature, decision reasons) just by supplying
+  // its id.
+  if (!r || r.accountPubkey !== requireActiveAccountPubkey()) {
+    throw new Error("History entry not found");
+  }
   let analysis: unknown = null;
   const json = (r as { analysisJson?: string }).analysisJson;
   if (json) {
@@ -824,6 +832,23 @@ const historyDetailHandler: Handler<"history.detail"> = async ({ id }) => {
     }
   }
   return { ...r, analysis };
+};
+
+/* ────────────── Connected-site trust ────────────── */
+
+const sitePermissionsListHandler: Handler<"sitePermissions.list"> = async () => {
+  const rows = await listSitePermissions(requireActiveAccountPubkey());
+  return rows.map((r) => ({
+    origin: r.origin,
+    status: r.status,
+    grantedAt: r.grantedAt,
+    remembered: r.remembered,
+  }));
+};
+
+const sitePermissionsRevokeHandler: Handler<"sitePermissions.revoke"> = async ({ origin }) => {
+  await deleteSitePermission(requireActiveAccountPubkey(), origin);
+  return { ok: true };
 };
 
 const alertsListHandler: Handler<"alerts.list"> = async ({
@@ -1179,6 +1204,9 @@ export const handlers: { [M in ExtRpcMethod]: Handler<M> } = {
 
   "alerts.list": alertsListHandler,
   "alerts.dismiss": alertsDismissHandler,
+
+  "sitePermissions.list": sitePermissionsListHandler,
+  "sitePermissions.revoke": sitePermissionsRevokeHandler,
 };
 
 /* ────────────── Helpers ────────────── */

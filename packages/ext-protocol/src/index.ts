@@ -93,6 +93,15 @@ export interface AllowanceSnapshot {
   subKeyPubkey: string;
 }
 
+/** A dApp's remembered `standard:connect` trust decision for the active account. */
+export interface SitePermissionSnapshot {
+  origin: string;
+  status: "trusted" | "denied";
+  grantedAt: number;
+  /** True = "always trust", so future connects skip the popup entirely. */
+  remembered: boolean;
+}
+
 /** Preview of the mandate a manual x402 approval will grant, shown in the sign popup. */
 export interface X402MandatePreview {
   allowanceId: string;
@@ -261,6 +270,11 @@ export interface ExtRpc {
   "history.detail":    { req: { id: string };                             rsp: HistoryEntry & { analysis: unknown } };
   "alerts.list":       { req: { includeDismissed?: boolean };             rsp: AlertEntry[] };
   "alerts.dismiss":    { req: { id: string };                             rsp: { ok: true } };
+
+  /* Connected-site trust (standard:connect "always trust") ─ */
+  "sitePermissions.list":   { req: void;                                   rsp: SitePermissionSnapshot[] };
+  /** Forgets a remembered connect decision — the site prompts again next `standard:connect`. */
+  "sitePermissions.revoke": { req: { origin: string };                     rsp: { ok: true } };
 
   /* Network ──────────────────────────────── */
   "network.set":       { req: { network: StellarNetwork };                       rsp: { ok: true } };

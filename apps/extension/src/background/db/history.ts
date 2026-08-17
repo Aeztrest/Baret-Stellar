@@ -6,7 +6,7 @@
  */
 
 import type { HistoryEntry } from "@stellar-thorn/ext-protocol";
-import { asPromise, tx } from "./index";
+import { asPromise, collectByIndex, tx } from "./index";
 
 const MAX_ENTRIES = 500;
 
@@ -40,22 +40,38 @@ export async function listHistory(filter?: {
   type?: HistoryEntry["type"]; origin?: string; from?: number; to?: number;
   limit?: number;
 }): Promise<HistoryRow[]> {
+  const limit = filter?.limit ?? 100;
+  const matches = (row: HistoryRow): boolean => {
+    const okType   = !filter?.type   || row.type   === filter.type;
+    const okOrigin = !filter?.origin || row.origin === filter.origin;
+    const okFrom   = filter?.from === undefined || row.createdAt >= filter.from;
+    const okTo     = filter?.to   === undefined || row.createdAt <= filter.to;
+    return okType && okOrigin && okFrom && okTo;
+  };
+
   return tx("history", "readonly", async (t) => {
+    if (filter?.accountPubkey) {
+      // Scoped to one account: walk ONLY that account's rows via the
+      // `accountPubkey` index, instead of the `createdAt` index across
+      // every account — with several accounts active, most of that store
+      // walk would otherwise be other accounts' (irrelevant) rows the old
+      // implementation had to skip past before finding this account's most
+      // recent `limit` entries. Not createdAt-ordered as it comes off the
+      // index, so sort+slice happens after collecting.
+      const rows = await collectByIndex<HistoryRow>(t, "history", "accountPubkey", filter.accountPubkey);
+      return rows.filter(matches).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
+    }
+
     const out: HistoryRow[] = [];
-    const limit = filter?.limit ?? 100;
     return new Promise<HistoryRow[]>((resolve, reject) => {
+      // Unscoped (no caller currently does this — kept for completeness).
       // Iterate by createdAt index, descending (most recent first).
       const req = t.objectStore("history").index("createdAt").openCursor(null, "prev");
       req.onsuccess = () => {
         const cur = req.result;
         if (!cur || out.length >= limit) return resolve(out);
         const row = cur.value as HistoryRow;
-        const okAccount = !filter?.accountPubkey || row.accountPubkey === filter.accountPubkey;
-        const okType   = !filter?.type   || row.type   === filter.type;
-        const okOrigin = !filter?.origin || row.origin === filter.origin;
-        const okFrom   = filter?.from === undefined || row.createdAt >= filter.from;
-        const okTo     = filter?.to   === undefined || row.createdAt <= filter.to;
-        if (okAccount && okType && okOrigin && okFrom && okTo) out.push(row);
+        if (matches(row)) out.push(row);
         cur.continue();
       };
       req.onerror = () => reject(req.error ?? new Error("Cursor failed"));

@@ -11,7 +11,7 @@
  * Schema lives at v3/v4 in db/index.ts. Single source of truth.
  */
 
-import { asPromise, openDb } from "./index";
+import { asPromise, collectByIndex, openDb } from "./index";
 
 export interface SitePermissionRow {
   id: string;                 // primary key, `${accountPubkey}::${origin}`
@@ -48,17 +48,7 @@ export async function listSitePermissions(accountPubkey: string): Promise<SitePe
   const db = await openDb();
   if (!db.objectStoreNames.contains(STORE)) return [];
   const t = db.transaction(STORE, "readonly");
-  return new Promise<SitePermissionRow[]>((resolve, reject) => {
-    const out: SitePermissionRow[] = [];
-    const req = t.objectStore(STORE).index("accountPubkey").openCursor(IDBKeyRange.only(accountPubkey));
-    req.onsuccess = () => {
-      const cur = req.result;
-      if (!cur) return resolve(out);
-      out.push(cur.value as SitePermissionRow);
-      cur.continue();
-    };
-    req.onerror = () => reject(req.error ?? new Error("Site-permissions cursor failed"));
-  });
+  return collectByIndex<SitePermissionRow>(t, "site_permissions", "accountPubkey", accountPubkey);
 }
 
 export async function deleteSitePermission(accountPubkey: string, origin: string): Promise<void> {

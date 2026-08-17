@@ -95,6 +95,10 @@ describe("v3 -> v4 account-scoping migration", () => {
     expect(allowances).toHaveLength(1);
     expect(allowances[0]!.accountPubkey).toBe(ACCOUNT0);
     expect(allowances[0]!.id).toBe(`${ACCOUNT0}::https://merchant.example::USDC`);
+    // Multi-account already existed under schema v3, so this row's TRUE
+    // owning account is unknown — it must not carry over as a live,
+    // auto-approving mandate onto account 0. See backfillAllowances.
+    expect((allowances[0] as unknown as { status: string }).status).toBe("pending");
 
     const history = (await getAll(upgradedDb, "history")) as Array<{ accountPubkey: string }>;
     expect(history).toHaveLength(1);
@@ -121,13 +125,40 @@ describe("v3 -> v4 account-scoping migration", () => {
     const upgradedDb = await openDb();
 
     const rows = (await getAll(upgradedDb, "site_permissions")) as Array<{
-      id: string; accountPubkey: string; origin: string; status: string;
+      id: string; accountPubkey: string; origin: string; status: string; remembered: boolean;
     }>;
     expect(rows).toHaveLength(1);
     expect(rows[0]!.id).toBe(`${ACCOUNT0}::https://trusted.example`);
     expect(rows[0]!.accountPubkey).toBe(ACCOUNT0);
     expect(rows[0]!.origin).toBe("https://trusted.example");
     expect(rows[0]!.status).toBe("trusted");
+    // Multi-account already existed under schema v3, so this "always trust"
+    // grant's TRUE owning account is unknown — it must not silently let
+    // account 0 auto-connect on a decision it never itself made. See
+    // migrateSitePermissions.
+    expect(rows[0]!.remembered).toBe(false);
+  });
+
+  it("downgrades a migrated allowance's status from active to pending, but leaves paused/revoked alone", async () => {
+    const legacyDb = await openLegacyV3Db();
+    await put(legacyDb, "keystore", { id: "primary", authorityPubkey: ACCOUNT0 });
+    await put(legacyDb, "allowances", {
+      id: "https://paused.example::USDC",
+      merchantOrigin: "https://paused.example",
+      asset: "USDC",
+      status: "paused",
+    });
+    legacyDb.close();
+
+    vi.resetModules();
+    const { openDb } = await import("./index");
+    const upgradedDb = await openDb();
+
+    const allowances = (await getAll(upgradedDb, "allowances")) as Array<{ status: string }>;
+    expect(allowances).toHaveLength(1);
+    // Already non-live pre-migration — no live-mandate risk to downgrade,
+    // so the explicit pause decision is preserved rather than overwritten.
+    expect(allowances[0]!.status).toBe("paused");
   });
 
   it("a fresh install (no keystore, no v3 data) upgrades cleanly with no rows to backfill", async () => {

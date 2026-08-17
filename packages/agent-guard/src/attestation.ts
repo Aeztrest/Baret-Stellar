@@ -31,17 +31,21 @@ export class AttestationError extends Error {
  * Deterministic JSON serialization (object keys sorted recursively) so the
  * findings digest never depends on incidental key order — MUST stay in
  * sync with the server's `stableStringify` in
- * apps/server/src/attestation/sign-verdict.ts.
+ * apps/server/src/attestation/sign-verdict.ts, INCLUDING its `undefined`
+ * handling (keys dropped, array elements -> `null`, matching what
+ * `JSON.stringify` actually produces on the wire) — see that file's doc
+ * comment for why.
  */
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
+    return `[${value.map((v) => (v === undefined ? "null" : stableStringify(v))).join(",")}]`;
   }
   if (value !== null && typeof value === "object") {
-    const keys = Object.keys(value as Record<string, unknown>).sort();
-    return `{${keys
-      .map((k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`)
-      .join(",")}}`;
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj)
+      .filter((k) => obj[k] !== undefined)
+      .sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }

@@ -10,10 +10,11 @@ function makeRow(overrides: Partial<AllowanceRow> = {}): AllowanceRow {
     merchantOrigin: "https://merchant.example",
     asset: "USDC",
     payTo: "GMERCHANTPAYTO",
-    capPerTx: 1,
+    capPerTx: 1000,
     capPerHour: 5,
     capPerDay: 10,
     spentTx: 0,
+    spendLog: [],
     spentHour: 0,
     spentHourTs: now,
     spentDay: 0,
@@ -68,6 +69,14 @@ describe("tryReserveSpend — concurrent x402 payments", () => {
     }
   });
 
+  it("declines a spend that would exceed the per-tx cap", async () => {
+    const row = makeRow({ capPerTx: 5, capPerHour: 100, capPerDay: 100 });
+    await mod.writeAllowance(row);
+
+    const result = await mod.tryReserveSpend(row.id, 6);
+    expect(result).toMatchObject({ ok: false, reason: "tx" });
+  });
+
   it("declines a spend that would exceed the hourly cap", async () => {
     const row = makeRow({ capPerHour: 5 });
     await mod.writeAllowance(row);
@@ -109,6 +118,39 @@ describe("tryReserveSpend — concurrent x402 payments", () => {
     // With a cap of 10 and steps of 3, exactly 3 of the 4 must succeed
     // (running totals 3, 6, 9 all fit; the 4th would hit 12 > 10) — not all 4.
     expect(succeeded.length).toBe(3);
+  });
+
+  it("is a TRUE sliding window: an old spend ages out entry-by-entry, not via a single reset baseline", async () => {
+    // Regression test for the tumbling-window bug this replaced: a tumbling
+    // counter resets its ENTIRE window baseline in one shot once any time
+    // has elapsed past the threshold, which can admit a burst of spends
+    // clustered right around the reset moment that together exceed the cap
+    // within an actual trailing hour. A true sliding window instead ages
+    // out each entry independently by ITS OWN timestamp.
+    // Stub Date.now only (not full fake timers) — fake-indexeddb relies on
+    // real macrotasks/microtasks internally to fire its own events, which
+    // vi.useFakeTimers() would starve.
+    const t0 = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(t0);
+    try {
+      const row = makeRow({ capPerHour: 10, capPerDay: 1000 });
+      await mod.writeAllowance(row);
+
+      const first = await mod.tryReserveSpend(row.id, 10);
+      expect(first.ok).toBe(true); // fills the hourly cap exactly
+
+      // 59 minutes later: the first spend is still inside the trailing hour.
+      nowSpy.mockReturnValue(t0 + 59 * 60 * 1000);
+      const stillWithinHour = await mod.tryReserveSpend(row.id, 1);
+      expect(stillWithinHour).toMatchObject({ ok: false, reason: "hourly" });
+
+      // 61 minutes later: the first spend has now genuinely aged out.
+      nowSpy.mockReturnValue(t0 + 61 * 60 * 1000);
+      const afterRollOff = await mod.tryReserveSpend(row.id, 10);
+      expect(afterRollOff.ok).toBe(true);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("releaseReservedSpend gives back exactly the amount that was reserved", async () => {
