@@ -14,25 +14,25 @@
     "@stellar-thorn/swig-guard": "workspace:*",
     "@stellar-thorn/ui": "workspace:*",
     "@stellar-thorn/wallet-adapter": "workspace:*",
-    "@stellar/stellar-sdk": "^15.1.0",
-    "framer-motion": "^11.15.0",
-    "lucide-react": "^0.468.0",
+    "@stellar/stellar-sdk": "^16.2.0",
+    "framer-motion": "^13.1.0",
+    "lucide-react": "^1.31.0",
     "qrcode": "^1.5.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.5",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.5",
-    "vite-plugin-node-polyfills": "^0.22.0",
-    "vitest": "^2.1.9"
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "vitest": "^4.1.10"
   }
 }
