@@ -20,6 +20,7 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
+import { ExplorerLink } from "../../components/ExplorerLink";
 import { useScenarioAction } from "../../baret/useScenarioAction";
 import { claimhubScenario, CLAIMHUB_AIRDROP } from "../../baret/scenarios";
 
@@ -98,7 +99,7 @@ const CONFETTI = [
 
 export default function ClaimHub() {
   const { connected, openWalletModal, shortAddress } = useWallet();
-  const { run, pending, success, reset } = useScenarioAction();
+  const { run, pending, success, txHash, reset } = useScenarioAction();
   const [dangerous, setDangerous] = useState(false);
   const [checked, setChecked] = useState(false);
   const [pendingCheck, setPendingCheck] = useState(false);
@@ -288,8 +289,9 @@ export default function ClaimHub() {
 
                   {success ? (
                     <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
-                      <div className="w-full rounded-xl border border-emerald-600/25 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">
-                        ✓ {CLAIMHUB_AIRDROP.amountLabel} Claimed!
+                      <div className="space-y-1.5 rounded-xl border border-emerald-600/25 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        <p>✓ {CLAIMHUB_AIRDROP.amountLabel} Claimed!</p>
+                        {txHash && <ExplorerLink txHash={txHash} />}
                       </div>
                       <button
                         onClick={reset}

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { SiteShell } from "../../components/SiteShell";
+import { ExplorerLink } from "../../components/ExplorerLink";
 import { useScenarioAction } from "../../baret/useScenarioAction";
 import { novaswapScenario } from "../../baret/scenarios";
 import { useWallet } from "../../wallet/context";
@@ -114,7 +115,7 @@ function Sparkline({ data, up }: { data: number[]; up: boolean }) {
 
 export default function NovaSwap() {
   const { connected } = useWallet();
-  const { run, pending, success, reset } = useScenarioAction();
+  const { run, pending, success, txHash, reset } = useScenarioAction();
   const [fromToken, setFromToken] = useState(TOKENS[0]);
   const [toToken, setToToken] = useState(TOKENS[1]);
   const [amount, setAmount] = useState("0.5");
@@ -440,8 +441,9 @@ export default function NovaSwap() {
                 {/* Swap button */}
                 {success ? (
                   <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
-                    <div className="w-full rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                      ✓ Swap Successful
+                    <div className="space-y-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                      <p>✓ Swap Successful</p>
+                      {txHash && <ExplorerLink txHash={txHash} />}
                     </div>
                     <button
                       onClick={reset}

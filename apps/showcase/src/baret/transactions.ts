@@ -2,10 +2,15 @@
  * Showcase demo transaction builders (Stellar build).
  *
  * Each scenario produces a different Stellar tx shape so Baret's policy
- * gate has something distinct to evaluate. Safe scenarios use plain XLM
- * payments or USDC Soroban transfers; danger scenarios reach for the
- * common Stellar attack primitives. unlimited trustlines, account merge to
- * an attacker address, Soroban allowance grants to unknown contracts.
+ * gate has something distinct to evaluate. Safe scenarios are small
+ * self-payments (harmless, never need a pre-funded token balance, never
+ * touch an address the user doesn't own); danger scenarios reach for real
+ * Stellar attack primitives: unlimited trustlines, AccountMerge to an
+ * attacker address, an unlimited Soroban allowance on the real USDC asset
+ * contract, and a real payment straight to an unrecognized address. Every
+ * scenario below builds an operation that actually exists on testnet —
+ * none of them target a made-up, undeployed contract, because those can
+ * never pass Soroban simulation and would just fail silently on submit.
  *
  * The returned XDR is unsigned; whichever wallet is connected signs and
  * submits it. When that's Baret, its own popup runs the real analysis
@@ -22,6 +27,7 @@ import {
   nativeToScVal,
   Networks,
   Operation,
+  rpc,
   TransactionBuilder,
   xdr,
   type Networks as NetworksType,
@@ -40,33 +46,38 @@ export type ScenarioId =
   | "launchpad-danger";
 
 const HORIZON_TESTNET = "https://horizon-testnet.stellar.org";
+const SOROBAN_RPC_TESTNET = "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE: NetworksType = Networks.TESTNET;
 
-// Circle USDC Soroban Asset Contract on testnet.
+// Circle USDC Soroban Asset Contract on testnet — a real, deployed contract,
+// so `approve` against it actually simulates and submits.
 const USDC_SAC_TESTNET =
   "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
 
-// Synthetic contract addresses for danger scenarios. recognizable as
-// untrusted because they're not on any known-safe allowlist.
-const FAKE_DEX_CONTRACT =
-  "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-const FAKE_DRAINER_CONTRACT =
-  "CBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
-const FAKE_STAKING_CONTRACT =
-  "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
-const FAKE_CLAIM_CONTRACT =
-  "CDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD";
-const FAKE_LAUNCH_CONTRACT =
-  "CEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE";
-
-// Synthetic attacker G… address for AccountMerge danger scenarios.
+// Synthetic attacker/unknown addresses for danger scenarios. Real,
+// validly-encoded testnet keypairs whose secret keys were generated once
+// and discarded — recognizable as untrusted because they're not on any
+// known-safe allowlist, and nobody holds the private key, so anything
+// sent to them is gone for good, same as a real drainer address. (Must be
+// real StrKey addresses, not placeholder strings — the SDK rejects
+// anything that isn't a validly checksummed address at build time.)
+const FAKE_DRAINER_ADDRESS =
+  "GDRDIEXE3C26HHX4IPISH4PHTP53TIOESRPFF7WQAYENHE3CYEELNM4E";
+const FAKE_LAUNCH_ADDRESS =
+  "GCJLJNITXN6KLTF2AIFT7VWOU2MAVG6D32YVIC7VAKR2F3METF2CQU2Y";
 const ATTACKER_ACCOUNT =
-  "GBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+  "GATEOM52PKBR4PQISO326PP2UIF4NRZGLRGJ2FVFVJP4NILABZYGW2B6";
 
-// Stellar uses int64-max ("9223372036854775807") as the trustline "unlimited"
-// sentinel and ~i128-max for Soroban allowances.
-const STELLAR_UNLIMITED_TRUSTLINE = "9223372036854775807";
+// changeTrust's `limit` is a decimal string (up to 7 fractional digits), not
+// raw stroops — this is int64-max stroops (9223372036854775807) expressed in
+// that decimal form, i.e. the trustline "unlimited" sentinel.
+const STELLAR_UNLIMITED_TRUSTLINE = "922337203685.4775807";
 const SOROBAN_UNLIMITED_AMOUNT = (2n ** 127n - 1n).toString();
+// A Soroban allowance's `live_until_ledger` can't be set further out than
+// the network's max entry TTL (~3,110,400 ledgers, ~6 months at 5s/ledger)
+// past the current ledger. It's an absolute ledger number, so it has to be
+// computed from the current ledger at build time, not hardcoded.
+const MAX_APPROVAL_TTL_LEDGERS = 3_100_000;
 
 export interface BuiltScenario {
   /** Base64 unsigned TransactionEnvelope XDR. */
@@ -112,32 +123,32 @@ export async function buildScenario(
       );
 
     case "novaswap-danger":
+      // Soroban transactions can't carry a classic memo.
       return finish(
-        builder
-          .addOperation(
-            sorobanInvoke(FAKE_DEX_CONTRACT, "approve", [
-              addressArg(userWallet),
-              addressArg(FAKE_DRAINER_CONTRACT),
-              i128Arg(SOROBAN_UNLIMITED_AMOUNT),
-              u32Arg(99_999_999),
-            ]),
-          )
-          .addMemo(Memo.text("novaswap:danger-approve")),
-        "NovaSwap: unlimited Soroban approve to a stranger contract",
+        builder.addOperation(
+          sorobanInvoke(USDC_SAC_TESTNET, "approve", [
+            addressArg(userWallet),
+            addressArg(FAKE_DRAINER_ADDRESS),
+            i128Arg(SOROBAN_UNLIMITED_AMOUNT),
+            u32Arg(await approvalExpirationLedger()),
+          ]),
+        ),
+        "NovaSwap: unlimited USDC approve to a stranger contract",
+        { soroban: true },
       );
 
     case "pixeldrop-safe":
       return finish(
         builder
           .addOperation(
-            sorobanInvoke(USDC_SAC_TESTNET, "transfer", [
-              addressArg(userWallet),
-              addressArg(userWallet),
-              i128Arg("10000"),
-            ]),
+            Operation.payment({
+              destination: userWallet,
+              asset: Asset.native(),
+              amount: "0.0001000",
+            }),
           )
           .addMemo(Memo.text("pixeldrop:safe-mint")),
-        "PixelDrop: 0.001 USDC SAC transfer (mint fee)",
+        "PixelDrop: 0.0001 XLM mint-fee self-payment",
       );
 
     case "pixeldrop-danger":
@@ -157,39 +168,42 @@ export async function buildScenario(
       return finish(
         builder
           .addOperation(
-            sorobanInvoke(FAKE_STAKING_CONTRACT, "deposit", [
-              addressArg(userWallet),
-              i128Arg("10000000"),
-            ]),
+            Operation.payment({
+              destination: userWallet,
+              asset: Asset.native(),
+              amount: "0.0001000",
+            }),
           )
-          .addMemo(Memo.text("orbityield:deposit-1xlm")),
-        "OrbitYield: deposit 1 XLM into staking",
+          .addMemo(Memo.text("orbityield:safe-deposit")),
+        "OrbitYield: 0.0001 XLM stake self-payment",
       );
 
     case "orbityield-warn":
       return finish(
         builder
           .addOperation(
-            sorobanInvoke(FAKE_STAKING_CONTRACT, "deposit", [
-              addressArg(userWallet),
-              i128Arg("1000000000"),
-            ]),
+            Operation.payment({
+              destination: ATTACKER_ACCOUNT,
+              asset: Asset.native(),
+              amount: "5.0000000",
+            }),
           )
-          .addMemo(Memo.text("orbityield:deposit-100xlm")),
-        "OrbitYield: deposit 100 XLM (large position warns on resource fee)",
+          .addMemo(Memo.text("orbityield:unverified-pool")),
+        "OrbitYield: 5 XLM sent to an unverified pool address",
       );
 
     case "claimhub-safe":
       return finish(
         builder
           .addOperation(
-            sorobanInvoke(FAKE_CLAIM_CONTRACT, "claim", [
-              addressArg(userWallet),
-              i128Arg("1000"),
-            ]),
+            Operation.payment({
+              destination: userWallet,
+              asset: Asset.native(),
+              amount: "0.0001000",
+            }),
           )
           .addMemo(Memo.text("claimhub:airdrop-claim")),
-        "ClaimHub: airdrop claim call on the demo claim contract",
+        "ClaimHub: 0.0001 XLM claim self-payment",
       );
 
     case "claimhub-danger":
@@ -208,28 +222,29 @@ export async function buildScenario(
       return finish(
         builder
           .addOperation(
-            sorobanInvoke(FAKE_LAUNCH_CONTRACT, "buy", [
-              addressArg(userWallet),
-              i128Arg("5000000"),
-            ]),
+            Operation.payment({
+              destination: userWallet,
+              asset: Asset.native(),
+              amount: "0.0001000",
+            }),
           )
           .addMemo(Memo.text("launchpad:presale-buy")),
-        "LaunchPad: 0.5 XLM presale allocation",
+        "LaunchPad: 0.0001 XLM contribution self-payment",
       );
 
     case "launchpad-danger":
+      // Soroban transactions can't carry a classic memo.
       return finish(
-        builder
-          .addOperation(
-            sorobanInvoke(USDC_SAC_TESTNET, "approve", [
-              addressArg(userWallet),
-              addressArg(FAKE_LAUNCH_CONTRACT),
-              i128Arg(SOROBAN_UNLIMITED_AMOUNT),
-              u32Arg(99_999_999),
-            ]),
-          )
-          .addMemo(Memo.text("launchpad:approve-drainer")),
+        builder.addOperation(
+          sorobanInvoke(USDC_SAC_TESTNET, "approve", [
+            addressArg(userWallet),
+            addressArg(FAKE_LAUNCH_ADDRESS),
+            i128Arg(SOROBAN_UNLIMITED_AMOUNT),
+            u32Arg(await approvalExpirationLedger()),
+          ]),
+        ),
         "LaunchPad: unlimited USDC approve to a stranger launch contract",
+        { soroban: true },
       );
   }
 }
@@ -246,9 +261,29 @@ export async function submitSignedTransaction(signedTxXdr: string): Promise<stri
   return result.hash;
 }
 
-function finish(builder: TransactionBuilder, label: string): BuiltScenario {
+/**
+ * Classic operations (payment, changeTrust, accountMerge) submit as-is.
+ * A Soroban `invokeHostFunction` needs its resource footprint + fee
+ * simulated and attached first, or the network rejects it outright.
+ */
+async function finish(
+  builder: TransactionBuilder,
+  label: string,
+  opts: { soroban?: boolean } = {},
+): Promise<BuiltScenario> {
   const tx = builder.setTimeout(60).build();
-  return { transactionXdr: tx.toXDR(), label };
+  if (!opts.soroban) {
+    return { transactionXdr: tx.toXDR(), label };
+  }
+  const server = new rpc.Server(SOROBAN_RPC_TESTNET);
+  const prepared = await server.prepareTransaction(tx);
+  return { transactionXdr: prepared.toXDR(), label };
+}
+
+async function approvalExpirationLedger(): Promise<number> {
+  const server = new rpc.Server(SOROBAN_RPC_TESTNET);
+  const { sequence } = await server.getLatestLedger();
+  return sequence + MAX_APPROVAL_TTL_LEDGERS;
 }
 
 function sorobanInvoke(
