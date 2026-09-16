@@ -8,7 +8,17 @@
  * existing site code expects.
  */
 
+import { Networks } from "@stellar/stellar-sdk";
 import { submitSignedTransaction } from "../baret/transactions";
+
+// The showcase is testnet-only, end to end. Wallets that support multiple
+// networks (Freighter) need this passed explicitly on every sign call —
+// without it, Freighter doesn't know which network the XDR is for and
+// falls back to assuming Public/Main Net, which it then refuses to sign
+// while set to Test Net ("the transaction you're trying to sign is on
+// Main Net"). Baret ignores the hint (it's testnet-only itself) but
+// takes it too, for symmetry.
+const SHOWCASE_NETWORK_PASSPHRASE = Networks.TESTNET;
 
 export class WalletStandardBridgeError extends Error {
   constructor(
@@ -110,7 +120,9 @@ export class WalletStandardBridge {
    * forwards to the facilitator. The facilitator fee-bumps and broadcasts.
    */
   async signTransaction(xdr: string): Promise<{ signedTxXdr: string }> {
-    const r = await this.provider.signTransaction(xdr);
+    const r = await this.provider.signTransaction(xdr, {
+      networkPassphrase: SHOWCASE_NETWORK_PASSPHRASE,
+    });
     if (r.error || !r.signedTxXdr) {
       throw new WalletStandardBridgeError(
         r.error || `${this.provider.name} did not return a signed XDR`,
