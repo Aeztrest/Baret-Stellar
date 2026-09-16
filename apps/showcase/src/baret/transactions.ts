@@ -129,6 +129,33 @@ export interface ScenarioParams {
   amount?: string;
   /** Item count for scenarios priced per-unit (PixelDrop's mint quantity). */
   qty?: number;
+  /** NovaSwap only: which side of the pair `amount` is denominated in ("XLM" sends XLM for USDC, "USDC" sends USDC for XLM). Defaults to "XLM". */
+  fromSymbol?: string;
+}
+
+/**
+ * Real quote for a NovaSwap trade via the live testnet DEX order book —
+ * the same source `buildScenario`'s novaswap-safe case uses for its
+ * `destMin`, so what the UI shows before signing and what the tx actually
+ * enforces are never two different numbers.
+ */
+export async function getNovaSwapQuote(
+  fromSymbol: string,
+  sendAmount: string,
+): Promise<{ destAmount: string } | null> {
+  const amt = parseFloat(sendAmount);
+  if (!Number.isFinite(amt) || amt <= 0) return null;
+  const horizon = new Horizon.Server(HORIZON_TESTNET);
+  const sendAsset = fromSymbol === "USDC" ? USDC_CLASSIC : Asset.native();
+  const destAsset = fromSymbol === "USDC" ? Asset.native() : USDC_CLASSIC;
+  try {
+    const res = await horizon.strictSendPaths(sendAsset, sendAmount, [destAsset]).call();
+    const best = res.records[0];
+    if (!best) return null;
+    return { destAmount: best.destination_amount };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -155,31 +182,39 @@ export async function buildScenario(
 
   switch (scenario) {
     case "novaswap-safe": {
-      // Real swap: establish (or no-op confirm) the USDC trustline, then
-      // route the XLM straight through the live testnet DEX order book.
-      // destMin is nominal rather than a tight slippage bound — a demo
-      // should not intermittently fail because the book moved between
-      // building and signing.
+      // Real swap, either direction, routed through the live testnet DEX
+      // order book. destMin comes from the SAME quote endpoint the UI
+      // calls (getNovaSwapQuote) with a real slippage tolerance — so the
+      // number shown before signing and the floor the transaction
+      // actually enforces are the same source of truth, not two
+      // independently-guessed numbers that can silently disagree.
       const sendAmount = params.amount?.trim() || "0.5";
+      const reversed = params.fromSymbol === "USDC";
+      const sendAsset = reversed ? USDC_CLASSIC : Asset.native();
+      const destAsset = reversed ? Asset.native() : USDC_CLASSIC;
+
+      const quote = await getNovaSwapQuote(reversed ? "USDC" : "XLM", sendAmount);
+      if (!quote) {
+        throw new Error(
+          "No route available for this swap on the testnet DEX right now. Try a smaller amount.",
+        );
+      }
+      // Accept up to 2% worse than the quoted price — genuine slippage
+      // protection, not the near-zero placeholder this used to be.
+      const destMin = (parseFloat(quote.destAmount) * 0.98).toFixed(7);
+
+      const ops = reversed
+        ? [Operation.pathPaymentStrictSend({ sendAsset, sendAmount, destination: userWallet, destAsset, destMin })]
+        : [
+            Operation.changeTrust({ asset: USDC_CLASSIC, limit: DEMO_ASSET_TRUST_LIMIT }),
+            Operation.pathPaymentStrictSend({ sendAsset, sendAmount, destination: userWallet, destAsset, destMin }),
+          ];
+      for (const op of ops) builder.addOperation(op);
+
+      const [fromSym, toSym] = reversed ? ["USDC", "XLM"] : ["XLM", "USDC"];
       return finish(
-        builder
-          .addOperation(
-            Operation.changeTrust({
-              asset: USDC_CLASSIC,
-              limit: DEMO_ASSET_TRUST_LIMIT,
-            }),
-          )
-          .addOperation(
-            Operation.pathPaymentStrictSend({
-              sendAsset: Asset.native(),
-              sendAmount,
-              destination: userWallet,
-              destAsset: USDC_CLASSIC,
-              destMin: "0.0000001",
-            }),
-          )
-          .addMemo(Memo.text("novaswap:safe-swap")),
-        `NovaSwap: swap ${sendAmount} XLM → USDC on the testnet DEX`,
+        builder.addMemo(Memo.text("novaswap:safe-swap")),
+        `NovaSwap: swap ${sendAmount} ${fromSym} → ~${quote.destAmount} ${toSym} on the testnet DEX`,
       );
     }
 

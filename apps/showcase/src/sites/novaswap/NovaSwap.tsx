@@ -21,7 +21,7 @@ import { SiteShell } from "../../components/SiteShell";
 import { ExplorerLink } from "../../components/ExplorerLink";
 import { useScenarioAction } from "../../baret/useScenarioAction";
 import { novaswapScenario } from "../../baret/scenarios";
-import { simulateDrainerSweep } from "../../baret/transactions";
+import { getNovaSwapQuote, simulateDrainerSweep } from "../../baret/transactions";
 import { useWallet } from "../../wallet/context";
 
 const THEME = {
@@ -138,11 +138,40 @@ export default function NovaSwap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [success]);
 
-  const outputAmount = fromToken.price * parseFloat(amount || "0") / toToken.price;
+  // Real quote from the live testnet DEX order book — the same source
+  // buildScenario uses for the transaction's actual destMin, so this
+  // number is never allowed to drift from what the tx will really do.
+  const [quote, setQuote] = useState<{ destAmount: string } | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    const amt = parseFloat(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setQuoteLoading(true);
+    const t = setTimeout(() => {
+      getNovaSwapQuote(fromToken.symbol, amount)
+        .then((q) => {
+          if (!cancelled) setQuote(q);
+        })
+        .finally(() => {
+          if (!cancelled) setQuoteLoading(false);
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [amount, fromToken.symbol]);
+
+  const outputAmount = quote ? parseFloat(quote.destAmount) : NaN;
   const scenario = novaswapScenario(dangerous, amount, fromToken.symbol, toToken.symbol, outputAmount);
 
   function handleSwap() {
-    void run(scenario.id, { amount });
+    void run(scenario.id, { amount, fromSymbol: fromToken.symbol });
   }
 
   function handleReset() {
@@ -443,7 +472,7 @@ export default function NovaSwap() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="flex-1 text-2xl font-bold text-slate-700 dark:text-slate-200">
-                      {isNaN(outputAmount) ? "0" : outputAmount.toFixed(2)}
+                      {quoteLoading ? "…" : isNaN(outputAmount) ? "0" : outputAmount.toFixed(4)}
                     </span>
                     <button className="flex items-center gap-2 rounded-xl border border-black/5 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-white">
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 text-xs font-black text-white">$</span>
@@ -451,22 +480,28 @@ export default function NovaSwap() {
                       <ChevronDown size={13} className="text-slate-400" />
                     </button>
                   </div>
-                  <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">≈ ${(outputAmount * toToken.price).toFixed(2)}</p>
+                  <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                    {quoteLoading || isNaN(outputAmount) ? "Fetching live rate…" : `≈ $${(outputAmount * toToken.price).toFixed(2)}`}
+                  </p>
                 </div>
 
                 {/* Route info */}
                 <div className="flex items-center justify-between px-1 text-xs text-slate-400 dark:text-slate-500">
-                  <span className="flex items-center gap-1"><Route size={11} /> Route: Soroswap</span>
-                  <span className="flex items-center gap-1">0.3% fee <Info size={11} /></span>
+                  <span className="flex items-center gap-1"><Route size={11} /> Route: live testnet DEX order book</span>
                 </div>
 
                 {/* Extra route breakdown */}
                 <div className="space-y-2 rounded-2xl border border-indigo-500/15 bg-indigo-50/70 p-3 text-xs dark:border-indigo-400/15 dark:bg-indigo-500/[0.06]">
                   {[
-                    { label: "Rate", value: `1 ${fromToken.symbol} = ${(fromToken.price / toToken.price).toFixed(4)} ${toToken.symbol}` },
-                    { label: "Price impact", value: "0.04%" },
-                    { label: "Min. received", value: `${isNaN(outputAmount) ? "0" : (outputAmount * 0.995).toFixed(4)} ${toToken.symbol}` },
-                    { label: "Network fee", value: "~0.00001 XLM" },
+                    {
+                      label: "Rate",
+                      value: isNaN(outputAmount)
+                        ? "—"
+                        : `1 ${fromToken.symbol} = ${(outputAmount / parseFloat(amount || "1")).toFixed(4)} ${toToken.symbol}`,
+                    },
+                    // 2% tolerance — the exact floor buildScenario enforces as destMin,
+                    // so this is never a different number than what the tx allows.
+                    { label: "Min. received (2% slippage)", value: `${isNaN(outputAmount) ? "0" : (outputAmount * 0.98).toFixed(4)} ${toToken.symbol}` },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-center justify-between">
                       <span className="text-slate-500 dark:text-slate-400">{label}</span>
