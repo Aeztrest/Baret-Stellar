@@ -51,7 +51,10 @@ export function runRiskDetection(input: RiskDetectionInput): RiskFinding[] {
 
   const findings: RiskFinding[] = [];
 
-  findings.push(...detectSimulationFindings(simulation));
+  const hasSorobanOp = tx.operations.some(
+    (op) => op.type === "invokeHostFunction",
+  );
+  findings.push(...detectSimulationFindings(simulation, hasSorobanOp));
   findings.push(
     ...detectContractFindings({
       contractAddresses: txAccounts.contractAddresses,

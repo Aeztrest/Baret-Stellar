@@ -559,12 +559,7 @@ const renameAccountHandler: Handler<"wallet.renameAccount"> = async ({ index, la
   return { ok: true };
 };
 
-const policyReadHandler: Handler<"policy.read"> = async () => {
-  const all = await browser.storage.local.get(POLICY_STORAGE_KEY);
-  const stored =
-    (all[POLICY_STORAGE_KEY] as GuardPolicy | undefined) ?? BALANCED_POLICY;
-  return stored;
-};
+const policyReadHandler: Handler<"policy.read"> = async () => loadPolicy();
 
 const policyWriteHandler: Handler<"policy.write"> = async ({ policy }) => {
   await browser.storage.local.set({ [POLICY_STORAGE_KEY]: policy });
@@ -912,7 +907,7 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
       offline: false,
     };
   }
-  const policy = (await loadPolicy()) ?? {};
+  const policy = await loadPolicy();
   return analyzeTransaction(
     {
       network: snap.network,
@@ -924,9 +919,20 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
   );
 };
 
-async function loadPolicy(): Promise<GuardPolicy | null> {
+/**
+ * The active policy, falling back to `BALANCED_POLICY` — the documented
+ * "production default" (see packages/swig-guard/src/policy.ts) — until the
+ * user explicitly saves one. This must be the single fallback everywhere
+ * policy is read: the sign/analyze pipeline previously fell back to `{}`
+ * here while the options-page read handler fell back to `BALANCED_POLICY`,
+ * so a wallet that had never saved a policy showed "Balanced" as active in
+ * settings while actually enforcing nothing — every block gate in
+ * policy/engine.ts is opt-in per flag, so an empty policy blocks almost
+ * nothing.
+ */
+async function loadPolicy(): Promise<GuardPolicy> {
   const all = await browser.storage.local.get(POLICY_STORAGE_KEY);
-  return (all[POLICY_STORAGE_KEY] as GuardPolicy | undefined) ?? null;
+  return (all[POLICY_STORAGE_KEY] as GuardPolicy | undefined) ?? BALANCED_POLICY;
 }
 
 /**

@@ -1,9 +1,11 @@
 /**
- * SiteShell. common chrome (nav + content slot + Baret badge) shared by every
- * showcase demo site. Each fake site keeps its OWN accent (`theme.primary`) and
- * its own full-bleed canvas (set inside its content), so the showcase reads as a
- * family of distinct-looking third-party apps that Baret inspects. Dark/light
- * aware: the nav adapts and carries its own theme toggle.
+ * SiteShell. common chrome (nav + content slot) shared by every showcase
+ * demo site. Each fake site keeps its OWN accent (`theme.primary`) and its
+ * own full-bleed canvas (set inside its content), so the showcase reads as
+ * a family of distinct-looking third-party apps — no Baret branding here,
+ * by design: the site should look identical whether or not the visitor has
+ * Baret installed. Dark/light aware: the nav adapts and carries its own
+ * theme toggle.
  */
 
 import { useState, type ReactNode } from "react";
@@ -11,7 +13,6 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Check, ChevronDown, Copy, LogOut, ShieldCheck } from "lucide-react";
 import { ThemeToggle } from "@stellar-thorn/ui";
 import { useWallet } from "../wallet/context";
-import { BaretBadge } from "./BaretBadge";
 
 export interface SiteTheme {
   name: string;
@@ -182,7 +183,6 @@ export function SiteShell({ theme, children, navLinks }: Props) {
       </Link>
       <NavBar theme={theme} navLinks={navLinks} />
       <main className="pt-[68px]">{children}</main>
-      <BaretBadge />
     </div>
   );
 }
