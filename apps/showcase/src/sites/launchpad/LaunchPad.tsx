@@ -60,7 +60,11 @@ export default function LaunchPad() {
   const scenario = launchpadScenario(dangerous, contribution);
 
   function handleBuy() {
-    void run(scenario.id);
+    // "Contribution" is a displayed USD figure; the real on-chain payment
+    // is a small, symbolic XLM amount (1/1000th) so demo wallets don't
+    // drain testnet XLM on repeated runs.
+    const realXlm = (parseFloat(contribution || "0") / 1000).toFixed(7);
+    void run(scenario.id, { amount: realXlm });
   }
 
   // The danger project looks as polished as the safe one on purpose. The red

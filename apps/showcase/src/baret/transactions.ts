@@ -1,28 +1,40 @@
 /**
  * Showcase demo transaction builders (Stellar build).
  *
- * Each scenario produces a different Stellar tx shape so Baret's policy
- * gate has something distinct to evaluate. Safe scenarios are small
- * self-payments (harmless, never need a pre-funded token balance, never
- * touch an address the user doesn't own); danger scenarios reach for real
- * Stellar attack primitives: unlimited trustlines, AccountMerge to an
- * attacker address, an unlimited Soroban allowance on the real USDC asset
- * contract, and a real payment straight to an unrecognized address. Every
- * scenario below builds an operation that actually exists on testnet —
- * none of them target a made-up, undeployed contract, because those can
- * never pass Soroban simulation and would just fail silently on submit.
+ * Every scenario here is a real, submittable, on-chain transaction — none
+ * of them are facades. "Safe" scenarios do the thing the site claims:
+ * NovaSwap really swaps XLM for USDC on the live testnet DEX order book;
+ * OrbitYield really locks XLM in a claimable balance; PixelDrop, ClaimHub
+ * and LaunchPad really issue their own classic demo assets (PHNTM, LUMA,
+ * NOVA) to the user's wallet. "Danger" scenarios reach for real Stellar
+ * attack primitives: unlimited trustlines, AccountMerge to an attacker
+ * address, an unlimited Soroban allowance on the real USDC asset contract,
+ * and a real payment straight to an unrecognized address.
  *
- * The returned XDR is unsigned; whichever wallet is connected signs and
- * submits it. When that's Baret, its own popup runs the real analysis
- * pipeline before it signs — nothing on the site pre-checks it.
+ * The three classic-asset scenarios (PixelDrop/ClaimHub/LaunchPad "safe")
+ * need a second signature: the demo issuer account has to authorize the
+ * `payment` operation that sends its own asset. `DEMO_ISSUER` below is a
+ * throwaway testnet-only keypair with no real value and no purpose beyond
+ * signing these three ops — embedding its secret here is intentional, the
+ * same way `analyze.ts`'s demo API key is intentionally public. `finish()`
+ * co-signs with it before returning the XDR; Baret's own `signTransaction`
+ * round-trips the envelope (decode → sign → encode) and appends the
+ * user's signature on top without disturbing this one, so both signatures
+ * land in the same submitted transaction.
+ *
+ * The returned XDR is otherwise unsigned; whichever wallet is connected
+ * signs and submits it. When that's Baret, its own popup runs the real
+ * analysis pipeline before it signs — nothing on the site pre-checks it.
  */
 
 import {
   Address,
   Asset,
   BASE_FEE,
+  Claimant,
   Contract,
   Horizon,
+  Keypair,
   Memo,
   nativeToScVal,
   Networks,
@@ -49,10 +61,26 @@ const HORIZON_TESTNET = "https://horizon-testnet.stellar.org";
 const SOROBAN_RPC_TESTNET = "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE: NetworksType = Networks.TESTNET;
 
-// Circle USDC Soroban Asset Contract on testnet — a real, deployed contract,
-// so `approve` against it actually simulates and submits.
+// Circle USDC — the same asset referenced by the danger scenarios below,
+// both forms: classic (for the real DEX swap) and its Soroban Asset
+// Contract wrapper (for the unlimited-approve attack).
+const USDC_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+const USDC_CLASSIC = new Asset("USDC", USDC_ISSUER);
 const USDC_SAC_TESTNET =
   "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+
+// Demo token issuer. Testnet-only, funded via friendbot, holds no asset of
+// real value — see file header. Issues PHNTM (PixelDrop), LUMA (ClaimHub),
+// NOVA (LaunchPad).
+const DEMO_ISSUER = Keypair.fromSecret(
+  "SCHGMLONQHTLBFIBJK75MEZFPF3ZJOPXULEKHZU3TJ6MBETJ6XC6WXQ5",
+);
+const PHNTM = new Asset("PHNTM", DEMO_ISSUER.publicKey());
+const LUMA = new Asset("LUMA", DEMO_ISSUER.publicKey());
+const NOVA = new Asset("NOVA", DEMO_ISSUER.publicKey());
+// Trust limit for the demo assets above: generous, but a real bound rather
+// than the int64-max "unlimited" sentinel the danger scenarios use.
+const DEMO_ASSET_TRUST_LIMIT = "1000000";
 
 // Synthetic attacker/unknown addresses for danger scenarios. Real,
 // validly-encoded testnet keypairs whose secret keys were generated once
@@ -78,12 +106,22 @@ const SOROBAN_UNLIMITED_AMOUNT = (2n ** 127n - 1n).toString();
 // past the current ledger. It's an absolute ledger number, so it has to be
 // computed from the current ledger at build time, not hardcoded.
 const MAX_APPROVAL_TTL_LEDGERS = 3_100_000;
+// How long OrbitYield's "stake" locks XLM before it can be claimed back.
+// Short on purpose — this is a demo, not a real 30-day unbond.
+const STAKE_LOCK_SECONDS = 5 * 60;
 
 export interface BuiltScenario {
-  /** Base64 unsigned TransactionEnvelope XDR. */
+  /** Base64 unsigned (or, for the 3 co-signed cases, partially-signed) TransactionEnvelope XDR. */
   transactionXdr: string;
   /** Short human description of the scenario. */
   label: string;
+}
+
+export interface ScenarioParams {
+  /** XLM amount for the primary action (swap send amount, stake amount, contribution). Decimal string. */
+  amount?: string;
+  /** Item count for scenarios priced per-unit (PixelDrop's mint quantity). */
+  qty?: number;
 }
 
 /**
@@ -94,6 +132,7 @@ export interface BuiltScenario {
 export async function buildScenario(
   scenario: ScenarioId,
   userWallet: string,
+  params: ScenarioParams = {},
 ): Promise<BuiltScenario> {
   const horizon = new Horizon.Server(HORIZON_TESTNET);
   const source = await horizon.loadAccount(userWallet).catch(() => {
@@ -108,19 +147,34 @@ export async function buildScenario(
   });
 
   switch (scenario) {
-    case "novaswap-safe":
+    case "novaswap-safe": {
+      // Real swap: establish (or no-op confirm) the USDC trustline, then
+      // route the XLM straight through the live testnet DEX order book.
+      // destMin is nominal rather than a tight slippage bound — a demo
+      // should not intermittently fail because the book moved between
+      // building and signing.
+      const sendAmount = params.amount?.trim() || "0.5";
       return finish(
         builder
           .addOperation(
-            Operation.payment({
-              destination: userWallet,
-              asset: Asset.native(),
-              amount: "0.0001000",
+            Operation.changeTrust({
+              asset: USDC_CLASSIC,
+              limit: DEMO_ASSET_TRUST_LIMIT,
             }),
           )
-          .addMemo(Memo.text("novaswap:safe-quote")),
-        "NovaSwap: 0.0001 XLM self-payment quote",
+          .addOperation(
+            Operation.pathPaymentStrictSend({
+              sendAsset: Asset.native(),
+              sendAmount,
+              destination: userWallet,
+              destAsset: USDC_CLASSIC,
+              destMin: "0.0000001",
+            }),
+          )
+          .addMemo(Memo.text("novaswap:safe-swap")),
+        `NovaSwap: swap ${sendAmount} XLM → USDC on the testnet DEX`,
       );
+    }
 
     case "novaswap-danger":
       // Soroban transactions can't carry a classic memo.
@@ -137,19 +191,37 @@ export async function buildScenario(
         { soroban: true },
       );
 
-    case "pixeldrop-safe":
+    case "pixeldrop-safe": {
+      // Real mint: pay the real XLM price, receive real PHNTM tokens
+      // (fungible receipts standing in for individually-numbered NFTs —
+      // real value transfer either way, on-chain and verifiable).
+      const qty = Math.max(1, Math.min(5, params.qty ?? 1));
+      const priceXlm = (25 * qty).toFixed(7);
       return finish(
         builder
           .addOperation(
+            Operation.changeTrust({ asset: PHNTM, limit: DEMO_ASSET_TRUST_LIMIT }),
+          )
+          .addOperation(
             Operation.payment({
               destination: userWallet,
+              asset: PHNTM,
+              amount: qty.toFixed(7),
+              source: DEMO_ISSUER.publicKey(),
+            }),
+          )
+          .addOperation(
+            Operation.payment({
+              destination: DEMO_ISSUER.publicKey(),
               asset: Asset.native(),
-              amount: "0.0001000",
+              amount: priceXlm,
             }),
           )
           .addMemo(Memo.text("pixeldrop:safe-mint")),
-        "PixelDrop: 0.0001 XLM mint-fee self-payment",
+        `PixelDrop: mint ${qty} PHNTM for ${priceXlm} XLM`,
+        { issuerSign: true },
       );
+    }
 
     case "pixeldrop-danger":
       return finish(
@@ -164,19 +236,33 @@ export async function buildScenario(
         "PixelDrop: unlimited trustline to an untrusted issuer",
       );
 
-    case "orbityield-safe":
+    case "orbityield-safe": {
+      // Real stake: XLM actually leaves the spendable balance into a
+      // claimable balance the user can only reclaim after the lock window
+      // — the same primitive real Stellar liquid-staking-style lockups use.
+      const amount = params.amount?.trim() || "1";
       return finish(
         builder
           .addOperation(
-            Operation.payment({
-              destination: userWallet,
+            Operation.createClaimableBalance({
               asset: Asset.native(),
-              amount: "0.0001000",
+              amount,
+              claimants: [
+                new Claimant(
+                  userWallet,
+                  Claimant.predicateNot(
+                    Claimant.predicateBeforeRelativeTime(
+                      STAKE_LOCK_SECONDS.toString(),
+                    ),
+                  ),
+                ),
+              ],
             }),
           )
-          .addMemo(Memo.text("orbityield:safe-deposit")),
-        "OrbitYield: 0.0001 XLM stake self-payment",
+          .addMemo(Memo.text("orbityield:safe-stake")),
+        `OrbitYield: lock ${amount} XLM for ${STAKE_LOCK_SECONDS / 60} min`,
       );
+    }
 
     case "orbityield-warn":
       return finish(
@@ -193,17 +279,23 @@ export async function buildScenario(
       );
 
     case "claimhub-safe":
+      // Real airdrop: free, real LUMA lands in the user's wallet.
       return finish(
         builder
           .addOperation(
+            Operation.changeTrust({ asset: LUMA, limit: DEMO_ASSET_TRUST_LIMIT }),
+          )
+          .addOperation(
             Operation.payment({
               destination: userWallet,
-              asset: Asset.native(),
-              amount: "0.0001000",
+              asset: LUMA,
+              amount: "2500.0000000",
+              source: DEMO_ISSUER.publicKey(),
             }),
           )
           .addMemo(Memo.text("claimhub:airdrop-claim")),
-        "ClaimHub: 0.0001 XLM claim self-payment",
+        "ClaimHub: claim 2,500 LUMA (real airdrop)",
+        { issuerSign: true },
       );
 
     case "claimhub-danger":
@@ -218,19 +310,38 @@ export async function buildScenario(
         "ClaimHub: AccountMerge. drains entire XLM balance to attacker",
       );
 
-    case "launchpad-safe":
+    case "launchpad-safe": {
+      // Real contribution: pay real XLM into the sale, receive real NOVA
+      // presale tokens back in the same atomic transaction. Internal demo
+      // rate (1 XLM : 1,000 NOVA) — independent of the site's displayed
+      // USD price, which is narrative copy for a fictional presale.
+      const contributionXlm = params.amount?.trim() || "0.5000000";
+      const novaOut = (parseFloat(contributionXlm) * 1000).toFixed(7);
       return finish(
         builder
           .addOperation(
+            Operation.changeTrust({ asset: NOVA, limit: DEMO_ASSET_TRUST_LIMIT }),
+          )
+          .addOperation(
+            Operation.payment({
+              destination: DEMO_ISSUER.publicKey(),
+              asset: Asset.native(),
+              amount: contributionXlm,
+            }),
+          )
+          .addOperation(
             Operation.payment({
               destination: userWallet,
-              asset: Asset.native(),
-              amount: "0.0001000",
+              asset: NOVA,
+              amount: novaOut,
+              source: DEMO_ISSUER.publicKey(),
             }),
           )
           .addMemo(Memo.text("launchpad:presale-buy")),
-        "LaunchPad: 0.0001 XLM contribution self-payment",
+        `LaunchPad: contribute ${contributionXlm} XLM for ${novaOut} NOVA`,
+        { issuerSign: true },
       );
+    }
 
     case "launchpad-danger":
       // Soroban transactions can't carry a classic memo.
@@ -262,22 +373,28 @@ export async function submitSignedTransaction(signedTxXdr: string): Promise<stri
 }
 
 /**
- * Classic operations (payment, changeTrust, accountMerge) submit as-is.
- * A Soroban `invokeHostFunction` needs its resource footprint + fee
- * simulated and attached first, or the network rejects it outright.
+ * Classic operations (payment, changeTrust, accountMerge, …) submit as-is,
+ * optionally co-signed by the demo issuer when the scenario sends one of
+ * its assets. A Soroban `invokeHostFunction` needs its resource footprint
+ * + fee simulated and attached first, or the network rejects it outright.
  */
 async function finish(
   builder: TransactionBuilder,
   label: string,
-  opts: { soroban?: boolean } = {},
+  opts: { soroban?: boolean; issuerSign?: boolean } = {},
 ): Promise<BuiltScenario> {
   const tx = builder.setTimeout(60).build();
-  if (!opts.soroban) {
-    return { transactionXdr: tx.toXDR(), label };
+
+  if (opts.soroban) {
+    const server = new rpc.Server(SOROBAN_RPC_TESTNET);
+    const prepared = await server.prepareTransaction(tx);
+    return { transactionXdr: prepared.toXDR(), label };
   }
-  const server = new rpc.Server(SOROBAN_RPC_TESTNET);
-  const prepared = await server.prepareTransaction(tx);
-  return { transactionXdr: prepared.toXDR(), label };
+
+  if (opts.issuerSign) {
+    tx.sign(DEMO_ISSUER);
+  }
+  return { transactionXdr: tx.toXDR(), label };
 }
 
 async function approvalExpirationLedger(): Promise<number> {

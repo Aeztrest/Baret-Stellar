@@ -81,7 +81,7 @@ export default function OrbitYield() {
   const scenario = orbityieldScenario(dangerous, amount, pool?.name ?? "?");
 
   function handleStake() {
-    void run(scenario.id);
+    void run(scenario.id, { amount });
   }
   // Yearly estimate always follows the pool the user is actually staking into,
   // including the unverified 48% pool behind the danger toggle.

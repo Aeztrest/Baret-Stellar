@@ -126,7 +126,7 @@ export default function NovaSwap() {
   const scenario = novaswapScenario(dangerous, amount, fromToken.symbol, toToken.symbol, outputAmount);
 
   function handleSwap() {
-    void run(scenario.id);
+    void run(scenario.id, { amount });
   }
 
   function flip() {
