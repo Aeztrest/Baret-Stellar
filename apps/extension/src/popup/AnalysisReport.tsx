@@ -64,6 +64,9 @@ const SEVERITY_LABEL: Record<RiskFindingPayload["severity"], string> = {
 
 const STROOPS_PER_XLM = 10_000_000n;
 const REASONS_PREVIEW = 3;
+/** Same sentinels the server's risk detectors use — see apps/server/src/risk/detectors/deltas.ts. */
+const UNLIMITED_TRUSTLINE_LIMIT = 9_223_372_036_854_775_807n;
+const UNLIMITED_ALLOWANCE_THRESHOLD = 2n ** 96n;
 
 export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
   const [reasonsExpanded, setReasonsExpanded] = useState(false);
@@ -136,7 +139,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
               <DeltaRow
                 key={`trust-${i}`}
                 label={`Trustline ${t.direction} → ${shortAddr(t.asset)}`}
-                value={t.newLimit}
+                value={formatUnlimitedAware(t.newLimit, UNLIMITED_TRUSTLINE_LIMIT)}
                 tone="warn"
               />
             ))}
@@ -144,7 +147,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
               <DeltaRow
                 key={`allow-${i}`}
                 label={`Allowance → ${shortAddr(al.spender)}`}
-                value={al.amount}
+                value={formatUnlimitedAware(al.amount, UNLIMITED_ALLOWANCE_THRESHOLD)}
                 tone="warn"
               />
             ))}
@@ -242,6 +245,26 @@ function FindingRow({ finding }: { finding: RiskFindingPayload }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Same sentinels behind UNLIMITED_TRUSTLINE / SOROBAN_ALLOWANCE_UNLIMITED
+ * are meant for a machine to compare against, not a person to read
+ * digit-by-digit — "170141183460469231731687303715884105727" doesn't
+ * register as "unlimited" at a glance the way the word does.
+ */
+function formatUnlimitedAware(raw: string, unlimitedAt: bigint): string {
+  try {
+    const v = BigInt(raw);
+    if (v >= unlimitedAt) return "Unlimited";
+    const whole = v / STROOPS_PER_XLM;
+    const frac = v % STROOPS_PER_XLM;
+    return frac === 0n
+      ? whole.toString()
+      : `${whole}.${frac.toString().padStart(7, "0").replace(/0+$/, "")}`;
+  } catch {
+    return raw;
+  }
 }
 
 function formatStroopsAsXlm(stroopsStr: string): string {

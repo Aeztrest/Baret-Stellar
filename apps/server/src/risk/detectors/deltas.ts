@@ -2,9 +2,9 @@ import type { EstimatedChanges } from "../../domain/estimated-changes.js";
 import type { RiskFinding } from "../../domain/findings.js";
 
 /** Stellar trustline "unlimited" sentinel: int64 max in stroops. */
-const UNLIMITED_TRUSTLINE_LIMIT = 9_223_372_036_854_775_807n;
+export const UNLIMITED_TRUSTLINE_LIMIT = 9_223_372_036_854_775_807n;
 /** A Soroban allowance ≥ 2^96 is treated as effectively unlimited. */
-const UNLIMITED_ALLOWANCE_THRESHOLD = 2n ** 96n;
+export const UNLIMITED_ALLOWANCE_THRESHOLD = 2n ** 96n;
 
 /**
  * Surfaces Soroban allowance grants and classic trustline changes as risk
@@ -46,7 +46,7 @@ export function detectAllowanceAndTrustlineFindings(
       findings.push({
         code: "UNLIMITED_TRUSTLINE",
         severity: "high",
-        message: `Trustline for ${tl.asset} on ${tl.accountId} opens at max int64 (unlimited).`,
+        message: `Opens an unlimited trustline for ${tl.asset} on ${shortAddr(tl.accountId)}.`,
         details: { accountId: tl.accountId, asset: tl.asset },
       });
     }
@@ -73,7 +73,7 @@ export function detectAllowanceAndTrustlineFindings(
       findings.push({
         code: "SOROBAN_ALLOWANCE_UNLIMITED",
         severity: "high",
-        message: `Soroban allowance grant on ${a.tokenAddress} to ${a.spender} is effectively unlimited.`,
+        message: `Gives ${shortAddr(a.spender)} an effectively unlimited allowance on ${shortAddr(a.tokenAddress)}.`,
         details: { tokenAddress: a.tokenAddress, spender: a.spender },
       });
     }
@@ -130,4 +130,10 @@ function malformedAmountFinding(
     message: `Could not parse ${field} ("${rawValue}"); unlimited-amount detection was skipped for this entry rather than assumed safe.`,
     details: { ...details, rawValue },
   };
+}
+
+/** Full addresses stay in `details` for verification; findings' prose reads better short. */
+function shortAddr(addr: string): string {
+  if (addr.length <= 12) return addr;
+  return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }

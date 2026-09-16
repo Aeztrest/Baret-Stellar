@@ -137,9 +137,14 @@ export async function analyzeTransaction(
     simulation,
     estimatedChanges,
     riskFindings,
-    simulationWarnings: simulation.events
-      .filter((ev) => ev.type === "diagnostic")
-      .map((ev) => ev.dataXdr),
+    // `simulation.events` carries diagnostic events' raw XDR payloads —
+    // contract-internal debug traces, not human-readable text. This used
+    // to dump that base64 straight into "warnings," which showed up in
+    // the sign screen as an unreadable blob instead of an actual warning.
+    // There's currently no genuine human-readable warning source from
+    // Soroban preflight to surface here, so leave this empty rather than
+    // show something misleading.
+    simulationWarnings: [],
     usdcAsset: `${config.stellar.usdcCode}:${config.stellar.usdcIssuer}`,
     usdcContractAddress: config.stellar.usdcContractAddress,
     userWallet,

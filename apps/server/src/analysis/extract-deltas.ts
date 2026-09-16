@@ -17,6 +17,10 @@ import type {
   NormalizedSimulation,
   SimulationAccountState,
 } from "../domain/simulation-normalized.js";
+import {
+  UNLIMITED_ALLOWANCE_THRESHOLD,
+  UNLIMITED_TRUSTLINE_LIMIT,
+} from "../risk/detectors/deltas.js";
 
 const STROOPS_PER_UNIT = 10_000_000n; // Stellar uses 7-decimal precision.
 const SOROBAN_DECIMALS = 7;
@@ -181,7 +185,7 @@ function applyClassicOperationEffects(
         asset,
         newLimit: limitStroops,
         direction: limit === "0" ? "removed" : "added",
-        message: `changeTrust → ${asset} limit ${limit}`,
+        message: `Trustline for ${asset}, limit ${formatUnlimitedAwareAmount(BigInt(limitStroops), UNLIMITED_TRUSTLINE_LIMIT)}`,
       });
       break;
     }
@@ -245,7 +249,7 @@ function parseStaticApproveOperation(
     spender,
     amount: amount.toString(),
     expirationLedger,
-    message: `approve → ${spender} amount ${amount}`,
+    message: `Approves ${shortAddr(spender)} to spend ${formatUnlimitedAwareAmount(amount, UNLIMITED_ALLOWANCE_THRESHOLD)}`,
   });
 }
 
@@ -324,7 +328,7 @@ function parseSorobanTokenEvent(
         spender,
         amount: amount.toString(),
         expirationLedger: null,
-        message: `approve → ${spender} amount ${amount}`,
+        message: `Approves ${shortAddr(spender)} to spend ${formatUnlimitedAwareAmount(amount, UNLIMITED_ALLOWANCE_THRESHOLD)}`,
       });
       break;
     }
@@ -408,6 +412,26 @@ function decimalToStroops(decimal: string): bigint {
   const [whole, frac = ""] = decimal.split(".");
   const fracPadded = (frac + "0000000").slice(0, 7);
   return BigInt(whole ?? "0") * STROOPS_PER_UNIT + BigInt(fracPadded || "0");
+}
+
+/**
+ * Human phrasing for a raw allowance/trustline amount. The "unlimited"
+ * sentinels (int64-max stroops for trustlines, ~i128-max for Soroban
+ * allowances) are deliberately huge numbers meant for a machine to
+ * compare against, not for a person to read digit-by-digit in a sign
+ * prompt.
+ */
+function shortAddr(addr: string): string {
+  if (addr.length <= 12) return addr;
+  return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
+}
+
+function formatUnlimitedAwareAmount(raw: bigint, unlimitedAt: bigint): string {
+  if (raw >= unlimitedAt) return "unlimited";
+  const whole = raw / STROOPS_PER_UNIT;
+  const frac = raw % STROOPS_PER_UNIT;
+  if (frac === 0n) return whole.toString();
+  return `${whole}.${frac.toString().padStart(7, "0").replace(/0+$/, "")}`;
 }
 
 function scvAsString(v: xdr.ScVal | undefined): string | null {
