@@ -8,9 +8,7 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
-import { RiskPreview } from "../../baret/RiskPreview";
-import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { useScenarioAction } from "../../baret/useScenarioAction";
 import { launchpadScenario, LAUNCHPAD_PROJECTS } from "../../baret/scenarios";
 
 const THEME = {
@@ -47,15 +45,10 @@ function useCountdown(target: number) {
 }
 
 export default function LaunchPad() {
-  const { connected, openWalletModal, walletAddress, adapter, connectRawWallet } = useWallet();
+  const { connected } = useWallet();
+  const { run, pending, success, reset } = useScenarioAction();
   const [contribution, setContribution] = useState("500");
   const [dangerous, setDangerous] = useState(false);
-  const [resultState, setResultState] = useState<ResultState>("idle");
-  const [via, setVia] = useState<ResultVia>("baret");
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [resultMessage, setResultMessage] = useState<string | null>(null);
-  const [previewTx, setPreviewTx] = useState<string | null>(null);
-  const success = txHash !== null;
 
   const countdown = useCountdown(LAUNCH_AT);
 
@@ -64,60 +57,9 @@ export default function LaunchPad() {
   const pct = (raised / goal) * 100;
   const participants = dangerous ? 2113 : 3847;
   const scenario = launchpadScenario(dangerous, contribution);
-  const scenarioLabel = scenario.label;
 
-  function reset() {
-    setTxHash(null);
-    setResultMessage(null);
-    setResultState("idle");
-  }
-
-  async function handleBuy() {
-    if (!connected || !walletAddress) { openWalletModal(); return; }
-    try {
-      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
-      setPreviewTx(tx);
-    } catch (e) {
-      setResultState("error");
-      setResultMessage(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  async function sendViaBaret() {
-    if (!previewTx) return;
-    setPreviewTx(null);
-    setVia("baret");
-    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
-    try {
-      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
-      setTxHash(hash); setResultState("confirmed");
-    } catch (e) {
-      if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
-        setResultState("blocked"); setResultMessage(e.message);
-      } else {
-        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
-      }
-    }
-  }
-  // The "without protection" path: a genuinely different wallet (Freighter)
-  // signs the same scenario over its own key and submits straight to Horizon.
-  // Baret's connected account can only ever be signed by Baret, by design.
-  async function sendRaw() {
-    setVia("raw");
-    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
-    try {
-      const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
-      const { signedTxXdr } = await raw.signTransaction(rawTx);
-      const hash = await submitSignedTransaction(signedTxXdr);
-      setTxHash(hash); setResultState("confirmed");
-    } catch (e) {
-      if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
-        setResultState("blocked"); setResultMessage(e.message);
-      } else {
-        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
-      }
-    }
+  function handleBuy() {
+    void run(scenario.id);
   }
 
   // The danger project looks as polished as the safe one on purpose. The red
@@ -214,15 +156,6 @@ export default function LaunchPad() {
       theme={THEME}
       navLinks={[{ label: "Active Launches", href: "#launches" }, { label: "Upcoming", href: "#upcoming" }, { label: "Portfolio", href: "#portfolio" }, { label: "Leaderboard", href: "#leaderboard" }]}
     >
-      <ResultOverlay
-        state={resultState}
-        via={via}
-        txHash={txHash}
-        message={resultMessage}
-        scenarioLabel={scenarioLabel}
-        onClose={() => setResultState("idle")}
-      />
-
       {/* Canvas: near-black in dark, lime-50 in light */}
       <div className="relative min-h-screen bg-lime-50 px-4 pb-28 pt-10 text-neutral-900 dark:bg-[#0a0e0a] dark:text-neutral-100">
         {/* Glow + grid backdrop */}
@@ -524,10 +457,11 @@ export default function LaunchPad() {
                 ) : (
                   <button
                     onClick={handleBuy}
-                    className="w-full rounded-xl py-3.5 text-sm font-bold text-neutral-950 transition-all hover:brightness-105 active:scale-[0.99]"
+                    disabled={pending}
+                    className="w-full rounded-xl py-3.5 text-sm font-bold text-neutral-950 transition-all hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
                     style={{ background: "linear-gradient(135deg,#a3e635,#16a34a)", boxShadow: "0 10px 30px -10px rgba(22,163,74,0.6)" }}
                   >
-                    {connected ? "Contribute Now" : "Connect Wallet"}
+                    {pending ? "Confirm in your wallet…" : connected ? "Contribute Now" : "Connect Wallet"}
                   </button>
                 )}
 
@@ -670,16 +604,6 @@ export default function LaunchPad() {
           </motion.section>
         </div>
       </div>
-
-      <RiskPreview
-        open={previewTx !== null}
-        transactionXdr={previewTx}
-        userWallet={walletAddress ?? null}
-        scenarioLabel={scenarioLabel}
-        onClose={() => setPreviewTx(null)}
-        onProceedWithBaret={sendViaBaret}
-        onProceedRaw={sendRaw}
-      />
     </SiteShell>
   );
 }

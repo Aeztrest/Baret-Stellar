@@ -23,9 +23,7 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
-import { RiskPreview } from "../../baret/RiskPreview";
-import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { useScenarioAction } from "../../baret/useScenarioAction";
 import { pixeldropScenario, PIXELDROP_MINT } from "../../baret/scenarios";
 
 const THEME = {
@@ -149,70 +147,14 @@ const FAQ = [
 ];
 
 export default function PixelDrop() {
-  const { connected, openWalletModal, walletAddress, adapter, connectRawWallet } = useWallet();
+  const { connected } = useWallet();
+  const { run, pending, success, reset } = useScenarioAction();
   const [qty, setQty] = useState(1);
   const [dangerous, setDangerous] = useState(false);
-  const [resultState, setResultState] = useState<ResultState>("idle");
-  const [via, setVia] = useState<ResultVia>("baret");
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [resultMessage, setResultMessage] = useState<string | null>(null);
-  const [previewTx, setPreviewTx] = useState<string | null>(null);
-  const success = txHash !== null;
   const scenario = pixeldropScenario(dangerous, qty);
-  const scenarioLabel = scenario.label;
 
-  function reset() {
-    setTxHash(null);
-    setResultMessage(null);
-    setResultState("idle");
-  }
-
-  async function handleMint() {
-    if (!connected || !walletAddress) { openWalletModal(); return; }
-    try {
-      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
-      setPreviewTx(tx);
-    } catch (e) {
-      setResultState("error");
-      setResultMessage(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  async function sendViaBaret() {
-    if (!previewTx) return;
-    setPreviewTx(null);
-    setVia("baret");
-    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
-    try {
-      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
-      setTxHash(hash); setResultState("confirmed");
-    } catch (e) {
-      if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
-        setResultState("blocked"); setResultMessage(e.message);
-      } else {
-        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
-      }
-    }
-  }
-  // The "without protection" path: a genuinely different wallet (Freighter)
-  // signs the same scenario over its own key and submits straight to Horizon.
-  // Baret's connected account can only ever be signed by Baret, by design.
-  async function sendRaw() {
-    setVia("raw");
-    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
-    try {
-      const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
-      const { signedTxXdr } = await raw.signTransaction(rawTx);
-      const hash = await submitSignedTransaction(signedTxXdr);
-      setTxHash(hash); setResultState("confirmed");
-    } catch (e) {
-      if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
-        setResultState("blocked"); setResultMessage(e.message);
-      } else {
-        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
-      }
-    }
+  function handleMint() {
+    void run(scenario.id);
   }
 
   const pct = (NFT_COLLECTION.minted / NFT_COLLECTION.supply) * 100;
@@ -226,15 +168,6 @@ export default function PixelDrop() {
       theme={THEME}
       navLinks={[{ label: "Mint", href: "#mint" }, { label: "Gallery", href: "#gallery" }, { label: "Roadmap", href: "#roadmap" }, { label: "Community", href: "#community" }]}
     >
-      <ResultOverlay
-        state={resultState}
-        via={via}
-        txHash={txHash}
-        message={resultMessage}
-        scenarioLabel={scenarioLabel}
-        onClose={() => setResultState("idle")}
-      />
-
       {/* Full-bleed cyberpunk canvas */}
       <div className="fixed inset-0 -z-10 bg-fuchsia-50 dark:bg-[#0a0713]" />
       {/* Neon grid */}
@@ -421,8 +354,8 @@ export default function PixelDrop() {
                   </button>
                 </motion.div>
               ) : (
-                <button onClick={handleMint} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-pink-500 py-4 font-bold text-white shadow-[0_8px_30px_-8px_rgba(217,70,239,0.6)] transition-all hover:shadow-[0_10px_40px_-6px_rgba(217,70,239,0.8)] hover:brightness-110 active:scale-[0.99]">
-                  {connected ? `Mint ${qty} Phantom${qty > 1 ? "s" : ""}` : "Connect Wallet"}
+                <button onClick={handleMint} disabled={pending} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-pink-500 py-4 font-bold text-white shadow-[0_8px_30px_-8px_rgba(217,70,239,0.6)] transition-all hover:shadow-[0_10px_40px_-6px_rgba(217,70,239,0.8)] hover:brightness-110 active:scale-[0.99] disabled:opacity-60">
+                  {pending ? "Confirm in your wallet…" : connected ? `Mint ${qty} Phantom${qty > 1 ? "s" : ""}` : "Connect Wallet"}
                   <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
                 </button>
               )}
@@ -632,16 +565,6 @@ export default function PixelDrop() {
 
         </motion.div>
       </div>
-
-      <RiskPreview
-        open={previewTx !== null}
-        transactionXdr={previewTx}
-        userWallet={walletAddress ?? null}
-        scenarioLabel={scenarioLabel}
-        onClose={() => setPreviewTx(null)}
-        onProceedWithBaret={sendViaBaret}
-        onProceedRaw={sendRaw}
-      />
     </SiteShell>
   );
 }

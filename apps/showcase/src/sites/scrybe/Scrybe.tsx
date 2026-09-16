@@ -86,7 +86,7 @@ const EXAMPLES: { q: string; a: string; ms: number }[] = [
 const FLOW_STEPS: { n: string; icon: typeof Zap; t: string; b: string }[] = [
   { n: "01", icon: MessageSquare, t: "Ask", b: "The page requests an answer over plain HTTP." },
   { n: "02", icon: Lock, t: "402 Payment Required", b: "The oracle returns PaymentRequirements: $0.001 USDC." },
-  { n: "03", icon: ShieldCheck, t: "Baret signs", b: "Your wallet signs a SEP-43 auth entry under your caps." },
+  { n: "03", icon: ShieldCheck, t: "Wallet signs", b: "Your wallet signs a SEP-43 auth entry under your caps." },
   { n: "04", icon: Zap, t: "Settle", b: "The facilitator lands the transfer and returns the proof." },
 ];
 
@@ -540,7 +540,7 @@ function ProgressStep({ entry }: { entry: AnswerEntry }) {
   const PHASES: Array<{ key: Phase; label: string }> = [
     { key: "asking",    label: "Asking the oracle" },
     { key: "paywalled", label: "Building $0.001 USDC payment" },
-    { key: "signing",   label: "Baret reviewing + signing" },
+    { key: "signing",   label: "Wallet reviewing + signing" },
     { key: "settling",  label: "Settling on Stellar" },
   ];
   const idx = PHASES.findIndex((p) => p.key === entry.phase);
@@ -687,7 +687,7 @@ function PricingFlow() {
           {[
             "No subscription, no minimum spend",
             "Pay only for answers you receive",
-            "Baret enforces your per-tx caps",
+            "Your wallet enforces your per-tx caps",
             "Every call carries its own proof",
           ].map((li) => (
             <li key={li} className="flex items-start gap-2">

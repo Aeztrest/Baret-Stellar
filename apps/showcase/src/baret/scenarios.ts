@@ -1,9 +1,9 @@
 /**
  * Single source of truth for every demo scenario the showcase sites run.
  *
- * Each site imports its scenario copy from here, so the page button, the
- * success state, and the `scenarioLabel` handed to RiskPreview can never
- * disagree. The `id` maps to the transaction shape built in transactions.ts.
+ * Each site imports its scenario copy from here, so the page button and
+ * the success state can never disagree. The `id` maps to the transaction
+ * shape built in transactions.ts.
  */
 
 import type { ScenarioId } from "./transactions";
@@ -11,7 +11,7 @@ import type { ScenarioId } from "./transactions";
 export interface ScenarioCopy {
   /** Which transaction transactions.ts builds for this scenario. */
   id: ScenarioId;
-  /** Canonical human label. Shown in the RiskPreview hero and reused on the page. */
+  /** Canonical human label, reused everywhere the scenario is named on the page. */
   label: string;
 }
 

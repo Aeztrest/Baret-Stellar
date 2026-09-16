@@ -17,9 +17,7 @@ import {
 } from "lucide-react";
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { SiteShell } from "../../components/SiteShell";
-import { ResultOverlay, type ResultState, type ResultVia } from "../../baret/ResultOverlay";
-import { RiskPreview } from "../../baret/RiskPreview";
-import { buildScenario, submitSignedTransaction } from "../../baret/transactions";
+import { useScenarioAction } from "../../baret/useScenarioAction";
 import { novaswapScenario } from "../../baret/scenarios";
 import { useWallet } from "../../wallet/context";
 
@@ -115,77 +113,19 @@ function Sparkline({ data, up }: { data: number[]; up: boolean }) {
 }
 
 export default function NovaSwap() {
-  const { connected, openWalletModal, walletAddress, adapter, connectRawWallet } = useWallet();
+  const { connected } = useWallet();
+  const { run, pending, success, reset } = useScenarioAction();
   const [fromToken, setFromToken] = useState(TOKENS[0]);
   const [toToken, setToToken] = useState(TOKENS[1]);
   const [amount, setAmount] = useState("0.5");
   const [dangerous, setDangerous] = useState(false);
-  const [resultState, setResultState] = useState<ResultState>("idle");
-  const [via, setVia] = useState<ResultVia>("baret");
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [resultMessage, setResultMessage] = useState<string | null>(null);
-  const [previewTx, setPreviewTx] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("1D");
 
   const outputAmount = fromToken.price * parseFloat(amount || "0") / toToken.price;
-  const success = txHash !== null;
   const scenario = novaswapScenario(dangerous, amount, fromToken.symbol, toToken.symbol, outputAmount);
-  const scenarioLabel = scenario.label;
 
-  function reset() {
-    setTxHash(null);
-    setResultMessage(null);
-    setResultState("idle");
-  }
-
-  async function handleSwap() {
-    if (!connected || !walletAddress) { openWalletModal(); return; }
-    try {
-      const __built = await buildScenario(scenario.id, walletAddress); const tx = __built.transactionXdr;
-      setPreviewTx(tx);   // opens RiskPreview, user decides how to send
-    } catch (e) {
-      setResultState("error");
-      setResultMessage(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  async function sendViaBaret() {
-    if (!previewTx) return;
-    setPreviewTx(null);
-    setVia("baret");
-    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
-    try {
-      const { signature: hash } = await adapter.signAndSendTransaction(previewTx);
-      setTxHash(hash); setResultState("confirmed");
-    } catch (e) {
-      if ((e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message))) {
-        setResultState("blocked"); setResultMessage(e.message);
-      } else {
-        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
-      }
-    }
-  }
-  // The "without protection" path. Baret enforces its policy at sign time
-  // inside its own popup, so there is no code path that skips the check for its
-  // own account. The only honest comparison is a genuinely different wallet
-  // signing the same scenario over its own key: connects a second wallet
-  // (Freighter) and submits directly to Horizon, no Baret pipeline involved.
-  async function sendRaw() {
-    setVia("raw");
-    setResultState("awaiting"); setTxHash(null); setResultMessage(null);
-    try {
-      const raw = await connectRawWallet();
-      const { transactionXdr: rawTx } = await buildScenario(scenario.id, raw.address);
-      const { signedTxXdr } = await raw.signTransaction(rawTx);
-      const hash = await submitSignedTransaction(signedTxXdr);
-      setTxHash(hash); setResultState("confirmed");
-    } catch (e) {
-      if (e instanceof Error && /SIGN_REJECTED|POPUP_CLOSED|User cancel|declined/.test(e.message)) {
-        setResultState("blocked"); setResultMessage(e.message);
-      } else {
-        setResultState("error"); setResultMessage(e instanceof Error ? e.message : String(e));
-      }
-    }
+  function handleSwap() {
+    void run(scenario.id);
   }
 
   function flip() {
@@ -219,15 +159,6 @@ export default function NovaSwap() {
         { label: "Governance", href: "#governance" },
       ]}
     >
-      <ResultOverlay
-        state={resultState}
-        via={via}
-        txHash={txHash}
-        message={resultMessage}
-        scenarioLabel={scenarioLabel}
-        onClose={() => setResultState("idle")}
-      />
-
       {/* ── Full-bleed indigo/violet canvas ── */}
       <div className="relative min-h-screen overflow-hidden bg-indigo-50/60 dark:bg-[#080b1a]">
         {/* backdrop: glows + grid */}
@@ -522,9 +453,10 @@ export default function NovaSwap() {
                 ) : (
                   <button
                     onClick={handleSwap}
-                    className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 py-4 font-bold text-white shadow-[0_10px_30px_-8px_rgba(99,102,241,0.7)] transition-all hover:brightness-110 active:scale-[0.99]"
+                    disabled={pending}
+                    className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 py-4 font-bold text-white shadow-[0_10px_30px_-8px_rgba(99,102,241,0.7)] transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60"
                   >
-                    {connected ? "Swap" : "Connect Wallet to Swap"}
+                    {pending ? "Confirm in your wallet…" : connected ? "Swap" : "Connect Wallet to Swap"}
                   </button>
                 )}
 
@@ -611,16 +543,6 @@ export default function NovaSwap() {
           </div>
         </div>
       </div>
-
-      <RiskPreview
-        open={previewTx !== null}
-        transactionXdr={previewTx}
-        userWallet={walletAddress ?? null}
-        scenarioLabel={scenarioLabel}
-        onClose={() => setPreviewTx(null)}
-        onProceedWithBaret={sendViaBaret}
-        onProceedRaw={sendRaw}
-      />
     </SiteShell>
   );
 }

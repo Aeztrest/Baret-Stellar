@@ -7,9 +7,9 @@
  * common Stellar attack primitives. unlimited trustlines, account merge to
  * an attacker address, Soroban allowance grants to unknown contracts.
  *
- * The returned XDR is unsigned; the demo wallet signs + submits (or, when
- * `Sign with BARET` is chosen, the extension popup signs after running
- * the same analyze pipeline a second time as authoritative gatekeeper).
+ * The returned XDR is unsigned; whichever wallet is connected signs and
+ * submits it. When that's Baret, its own popup runs the real analysis
+ * pipeline before it signs — nothing on the site pre-checks it.
  */
 
 import {
@@ -71,7 +71,7 @@ const SOROBAN_UNLIMITED_AMOUNT = (2n ** 127n - 1n).toString();
 export interface BuiltScenario {
   /** Base64 unsigned TransactionEnvelope XDR. */
   transactionXdr: string;
-  /** Short human description rendered in the RiskPreview hero. */
+  /** Short human description of the scenario. */
   label: string;
 }
 
@@ -235,9 +235,9 @@ export async function buildScenario(
 }
 
 /**
- * Submit an already-signed transaction directly to Horizon. no Baret
- * analyze call, no wallet-side policy gate. This is the actual "without
- * protection" path: it never touches the Baret pipeline at all.
+ * Submit an already-signed transaction directly to Horizon. Used as the
+ * fallback for wallets (Baret included) that only implement
+ * `signTransaction`, not `signAndSendTransaction`.
  */
 export async function submitSignedTransaction(signedTxXdr: string): Promise<string> {
   const horizon = new Horizon.Server(HORIZON_TESTNET);
