@@ -8,6 +8,8 @@
  * existing site code expects.
  */
 
+import { submitSignedTransaction } from "../baret/transactions";
+
 export class WalletStandardBridgeError extends Error {
   constructor(
     message: string,
@@ -173,10 +175,11 @@ export class WalletStandardBridge {
       }
       return { signature: r.signature, signedTxXdr: r.signedTxXdr };
     }
-    throw new WalletStandardBridgeError(
-      `${this.provider.name} doesn't expose signAndSendTransaction; sign then submit via Horizon`,
-      "NO_SIGN_AND_SEND",
-    );
+    // Baret (and Freighter) only implement signTransaction, not
+    // signAndSendTransaction. Sign, then submit the result ourselves.
+    const { signedTxXdr } = await this.signTransaction(xdr);
+    const signature = await submitSignedTransaction(signedTxXdr);
+    return { signature, signedTxXdr };
   }
 }
 
