@@ -155,7 +155,7 @@ export default function PixelDrop() {
   const scenario = pixeldropScenario(dangerous, qty);
 
   function handleMint() {
-    void run(scenario.id);
+    void run(scenario.id, { qty });
   }
 
   const pct = (NFT_COLLECTION.minted / NFT_COLLECTION.supply) * 100;

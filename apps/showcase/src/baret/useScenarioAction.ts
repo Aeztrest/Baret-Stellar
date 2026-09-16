@@ -10,7 +10,7 @@
 import { useCallback, useState } from "react";
 import { toast } from "@stellar-thorn/ui";
 import { useWallet } from "../wallet/context";
-import { buildScenario, type ScenarioId } from "./transactions";
+import { buildScenario, type ScenarioId, type ScenarioParams } from "./transactions";
 
 export function useScenarioAction() {
   const { connected, openWalletModal, walletAddress, adapter } = useWallet();
@@ -20,14 +20,14 @@ export function useScenarioAction() {
   const reset = useCallback(() => setTxHash(null), []);
 
   const run = useCallback(
-    async (scenarioId: ScenarioId) => {
+    async (scenarioId: ScenarioId, params?: ScenarioParams) => {
       if (!connected || !walletAddress) {
         openWalletModal();
         return;
       }
       setPending(true);
       try {
-        const { transactionXdr } = await buildScenario(scenarioId, walletAddress);
+        const { transactionXdr } = await buildScenario(scenarioId, walletAddress, params);
         const { signature } = await adapter.signAndSendTransaction(transactionXdr);
         setTxHash(signature);
       } catch (err) {
