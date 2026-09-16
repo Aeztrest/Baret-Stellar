@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowUpDown,
@@ -14,12 +14,14 @@ import {
   BarChart3,
   Layers,
   Clock,
+  Skull,
 } from "lucide-react";
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { SiteShell } from "../../components/SiteShell";
 import { ExplorerLink } from "../../components/ExplorerLink";
 import { useScenarioAction } from "../../baret/useScenarioAction";
 import { novaswapScenario } from "../../baret/scenarios";
+import { simulateDrainerSweep } from "../../baret/transactions";
 import { useWallet } from "../../wallet/context";
 
 const THEME = {
@@ -114,7 +116,7 @@ function Sparkline({ data, up }: { data: number[]; up: boolean }) {
 }
 
 export default function NovaSwap() {
-  const { connected } = useWallet();
+  const { connected, walletAddress } = useWallet();
   const { run, pending, success, txHash, reset } = useScenarioAction();
   const [fromToken, setFromToken] = useState(TOKENS[0]);
   const [toToken, setToToken] = useState(TOKENS[1]);
@@ -122,11 +124,46 @@ export default function NovaSwap() {
   const [dangerous, setDangerous] = useState(false);
   const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("1D");
 
+  // Tracks whether the last *confirmed* swap was the danger scenario —
+  // i.e. the unlimited USDC approval actually went through — so the
+  // attacker-sweep step below only appears once there's something for it
+  // to do.
+  const [approvalLive, setApprovalLive] = useState(false);
+  const [sweeping, setSweeping] = useState(false);
+  const [sweepResult, setSweepResult] = useState<{ hash: string; amount: string } | null>(null);
+  const [sweepError, setSweepError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (success && dangerous) setApprovalLive(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [success]);
+
   const outputAmount = fromToken.price * parseFloat(amount || "0") / toToken.price;
   const scenario = novaswapScenario(dangerous, amount, fromToken.symbol, toToken.symbol, outputAmount);
 
   function handleSwap() {
     void run(scenario.id, { amount });
+  }
+
+  function handleReset() {
+    reset();
+    setApprovalLive(false);
+    setSweepResult(null);
+    setSweepError(null);
+  }
+
+  async function handleSweep() {
+    if (!walletAddress) return;
+    setSweeping(true);
+    setSweepError(null);
+    try {
+      const { hash, sweptAmount } = await simulateDrainerSweep(walletAddress);
+      setSweepResult({ hash, amount: sweptAmount });
+    } catch (e) {
+      setSweepError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSweeping(false);
+    }
   }
 
   function flip() {
@@ -446,7 +483,7 @@ export default function NovaSwap() {
                       {txHash && <ExplorerLink txHash={txHash} />}
                     </div>
                     <button
-                      onClick={reset}
+                      onClick={handleReset}
                       className="w-full rounded-xl border border-black/10 py-2.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:text-white"
                     >
                       Run it again
@@ -466,6 +503,42 @@ export default function NovaSwap() {
                 <div className="pt-2">
                   <DangerModeToggle checked={dangerous} onChange={setDangerous} label="Simulate a drainer swap" activeColor="#dc2626" />
                 </div>
+
+                {/* Second half of the drainer scenario: once the unlimited
+                    approval actually went through, show that it can be
+                    exercised without asking the user again. */}
+                {approvalLive && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/[0.06] p-3.5 dark:bg-red-500/10"
+                  >
+                    <p className="flex items-start gap-1.5 text-xs leading-relaxed text-red-700 dark:text-red-400">
+                      <Skull size={13} className="mt-0.5 shrink-0" />
+                      The unlimited approval is live on-chain. An attacker with that
+                      permission doesn't need you to sign anything again.
+                    </p>
+                    {sweepResult ? (
+                      <div className="space-y-1 text-xs text-red-700 dark:text-red-400">
+                        <p className="font-semibold">
+                          ✓ Swept {sweepResult.amount} USDC to the attacker's wallet — with no further action from you.
+                        </p>
+                        <ExplorerLink txHash={sweepResult.hash} />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleSweep}
+                        disabled={sweeping}
+                        className="w-full rounded-lg border border-red-500/40 bg-white px-3 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-500/10 disabled:opacity-60 dark:bg-neutral-900 dark:text-red-400"
+                      >
+                        {sweeping ? "Sweeping…" : "Simulate attacker sweep"}
+                      </button>
+                    )}
+                    {sweepError && (
+                      <p className="text-[11px] leading-relaxed text-red-600/80 dark:text-red-400/70">{sweepError}</p>
+                    )}
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           </div>

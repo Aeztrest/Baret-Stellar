@@ -83,16 +83,23 @@ const NOVA = new Asset("NOVA", DEMO_ISSUER.publicKey());
 const DEMO_ASSET_TRUST_LIMIT = "1000000";
 
 // Synthetic attacker/unknown addresses for danger scenarios. Real,
-// validly-encoded testnet keypairs whose secret keys were generated once
-// and discarded — recognizable as untrusted because they're not on any
-// known-safe allowlist, and nobody holds the private key, so anything
-// sent to them is gone for good, same as a real drainer address. (Must be
-// real StrKey addresses, not placeholder strings — the SDK rejects
-// anything that isn't a validly checksummed address at build time.)
-const FAKE_DRAINER_ADDRESS =
-  "GDRDIEXE3C26HHX4IPISH4PHTP53TIOESRPFF7WQAYENHE3CYEELNM4E";
-const FAKE_LAUNCH_ADDRESS =
-  "GCJLJNITXN6KLTF2AIFT7VWOU2MAVG6D32YVIC7VAKR2F3METF2CQU2Y";
+// validly-encoded testnet keypairs — recognizable as untrusted because
+// they're not on any known-safe allowlist. (Must be real StrKey
+// addresses, not placeholder strings — the SDK rejects anything that
+// isn't a validly checksummed address at build time.)
+//
+// USDC_DRAINER's secret is intentionally kept (unlike a "nobody holds the
+// key" drainer address) so `simulateDrainerSweep` below can actually play
+// out the second half of the attack: once NovaSwap's or LaunchPad's danger
+// scenario grants it an unlimited USDC allowance, this is the same key
+// that would, for real, pull the balance later without asking again.
+// Demonstrating that follow-through is the whole point — an approval that
+// never gets exercised doesn't show why it was dangerous to sign. Reused
+// across both sites: it's the same drainer identity preying on more than
+// one dApp, same as a real one would.
+const USDC_DRAINER = Keypair.fromSecret(
+  "SAJ4C3WYHOHZRGO7CB7C7EXE7QK7E3434CGNVZYHY7JFAY2X5CTNAJVL",
+);
 const ATTACKER_ACCOUNT =
   "GATEOM52PKBR4PQISO326PP2UIF4NRZGLRGJ2FVFVJP4NILABZYGW2B6";
 
@@ -182,7 +189,7 @@ export async function buildScenario(
         builder.addOperation(
           sorobanInvoke(USDC_SAC_TESTNET, "approve", [
             addressArg(userWallet),
-            addressArg(FAKE_DRAINER_ADDRESS),
+            addressArg(USDC_DRAINER.publicKey()),
             i128Arg(SOROBAN_UNLIMITED_AMOUNT),
             u32Arg(await approvalExpirationLedger()),
           ]),
@@ -349,7 +356,7 @@ export async function buildScenario(
         builder.addOperation(
           sorobanInvoke(USDC_SAC_TESTNET, "approve", [
             addressArg(userWallet),
-            addressArg(FAKE_LAUNCH_ADDRESS),
+            addressArg(USDC_DRAINER.publicKey()),
             i128Arg(SOROBAN_UNLIMITED_AMOUNT),
             u32Arg(await approvalExpirationLedger()),
           ]),
@@ -358,6 +365,66 @@ export async function buildScenario(
         { soroban: true },
       );
   }
+}
+
+/**
+ * Plays out the second half of NovaSwap's and LaunchPad's danger
+ * scenarios (both grant USDC_DRAINER an unlimited USDC allowance): once
+ * that `approve` call has actually been signed and confirmed, an attacker
+ * holding the approved spender key needs nothing further from the
+ * victim — they just call the standard SEP-41 `transfer_from` and take
+ * whatever's there. This is that call, signed and submitted entirely by
+ * `USDC_DRAINER`'s own key. The user isn't involved: that's the
+ * point of the demonstration. Sweeps the wallet's full current USDC
+ * balance (capped by the granted allowance, though at this amount that
+ * never binds).
+ */
+export async function simulateDrainerSweep(
+  userWallet: string,
+): Promise<{ hash: string; sweptAmount: string }> {
+  const horizon = new Horizon.Server(HORIZON_TESTNET);
+  const victim = await horizon.loadAccount(userWallet).catch(() => {
+    throw new Error(`Couldn't load ${userWallet} on testnet.`);
+  });
+  const usdcRow = victim.balances.find(
+    (b) =>
+      b.asset_type !== "native" &&
+      "asset_code" in b &&
+      b.asset_code === "USDC" &&
+      "asset_issuer" in b &&
+      b.asset_issuer === USDC_ISSUER,
+  );
+  const sweptAmount = usdcRow && "balance" in usdcRow ? usdcRow.balance : "0";
+  if (parseFloat(sweptAmount) <= 0) {
+    throw new Error(
+      "This wallet holds 0 USDC — nothing to sweep. Get some real USDC first (NovaSwap's safe swap is the quickest way), then try the danger scenario again.",
+    );
+  }
+
+  const drainerAccount = await horizon
+    .loadAccount(USDC_DRAINER.publicKey())
+    .catch(() => {
+      throw new Error(
+        `Drainer account ${USDC_DRAINER.publicKey()} isn't funded on testnet.`,
+      );
+    });
+  const builder = new TransactionBuilder(drainerAccount, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  }).addOperation(
+    sorobanInvoke(USDC_SAC_TESTNET, "transfer_from", [
+      addressArg(USDC_DRAINER.publicKey()),
+      addressArg(userWallet),
+      addressArg(USDC_DRAINER.publicKey()),
+      i128Arg(decimalToRaw(sweptAmount)),
+    ]),
+  );
+  const tx = builder.setTimeout(60).build();
+  const server = new rpc.Server(SOROBAN_RPC_TESTNET);
+  const prepared = await server.prepareTransaction(tx);
+  prepared.sign(USDC_DRAINER);
+  const hash = await submitSignedTransaction(prepared.toXDR());
+  return { hash, sweptAmount };
 }
 
 /**
@@ -410,6 +477,13 @@ function sorobanInvoke(
 ): ReturnType<typeof Operation.invokeHostFunction> {
   const contract = new Contract(contractAddress);
   return contract.call(functionName, ...args);
+}
+
+/** Decimal asset-amount string (up to 7 fractional digits) → raw i128 units. */
+function decimalToRaw(decimal: string): bigint {
+  const [whole, frac = ""] = decimal.split(".");
+  const fracPadded = (frac + "0000000").slice(0, 7);
+  return BigInt(whole || "0") * 10_000_000n + BigInt(fracPadded || "0");
 }
 
 function addressArg(address: string): xdr.ScVal {
