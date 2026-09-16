@@ -23,6 +23,7 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
+import { ExplorerLink } from "../../components/ExplorerLink";
 import { useScenarioAction } from "../../baret/useScenarioAction";
 import { pixeldropScenario, PIXELDROP_MINT } from "../../baret/scenarios";
 
@@ -148,7 +149,7 @@ const FAQ = [
 
 export default function PixelDrop() {
   const { connected } = useWallet();
-  const { run, pending, success, reset } = useScenarioAction();
+  const { run, pending, success, txHash, reset } = useScenarioAction();
   const [qty, setQty] = useState(1);
   const [dangerous, setDangerous] = useState(false);
   const scenario = pixeldropScenario(dangerous, qty);
@@ -343,8 +344,9 @@ export default function PixelDrop() {
 
               {success ? (
                 <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
-                  <div className="w-full rounded-xl border border-cyan-400/40 bg-cyan-50 py-4 text-center font-bold text-cyan-600 dark:border-cyan-400/30 dark:bg-cyan-500/10 dark:text-cyan-300">
-                    ✓ {qty} Phantom{qty > 1 ? "s" : ""} Minted!
+                  <div className="space-y-1.5 rounded-xl border border-cyan-400/40 bg-cyan-50 py-4 text-center font-bold text-cyan-600 dark:border-cyan-400/30 dark:bg-cyan-500/10 dark:text-cyan-300">
+                    <p>✓ {qty} Phantom{qty > 1 ? "s" : ""} Minted!</p>
+                    {txHash && <ExplorerLink txHash={txHash} />}
                   </div>
                   <button
                     onClick={reset}

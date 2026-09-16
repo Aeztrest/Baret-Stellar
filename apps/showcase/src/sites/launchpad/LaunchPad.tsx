@@ -8,6 +8,7 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
+import { ExplorerLink } from "../../components/ExplorerLink";
 import { useScenarioAction } from "../../baret/useScenarioAction";
 import { launchpadScenario, LAUNCHPAD_PROJECTS } from "../../baret/scenarios";
 
@@ -46,7 +47,7 @@ function useCountdown(target: number) {
 
 export default function LaunchPad() {
   const { connected } = useWallet();
-  const { run, pending, success, reset } = useScenarioAction();
+  const { run, pending, success, txHash, reset } = useScenarioAction();
   const [contribution, setContribution] = useState("500");
   const [dangerous, setDangerous] = useState(false);
 
@@ -444,8 +445,9 @@ export default function LaunchPad() {
 
                 {success ? (
                   <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
-                    <div className="w-full rounded-xl border border-lime-500/30 bg-lime-400/15 py-3.5 text-center text-sm font-bold text-green-700 dark:text-lime-300">
-                      ✓ ${contribution} Invested
+                    <div className="space-y-1.5 rounded-xl border border-lime-500/30 bg-lime-400/15 py-3.5 text-center text-sm font-bold text-green-700 dark:text-lime-300">
+                      <p>✓ ${contribution} Invested</p>
+                      {txHash && <ExplorerLink txHash={txHash} />}
                     </div>
                     <button
                       onClick={reset}

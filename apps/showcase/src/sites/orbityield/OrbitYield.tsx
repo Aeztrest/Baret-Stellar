@@ -17,6 +17,7 @@ import {
 import { DangerModeToggle } from "@stellar-thorn/showcase-ui";
 import { useWallet } from "../../wallet/context";
 import { SiteShell } from "../../components/SiteShell";
+import { ExplorerLink } from "../../components/ExplorerLink";
 import { useScenarioAction } from "../../baret/useScenarioAction";
 import { orbityieldScenario, ORBITYIELD_DANGER_POOL } from "../../baret/scenarios";
 
@@ -71,7 +72,7 @@ function buildPaths(data: number[], w: number, h: number, pad = 6) {
 
 export default function OrbitYield() {
   const { connected } = useWallet();
-  const { run, pending, success, reset } = useScenarioAction();
+  const { run, pending, success, txHash, reset } = useScenarioAction();
   const [amount, setAmount] = useState("10");
   const [selectedPool, setSelectedPool] = useState(0);
   const [dangerous, setDangerous] = useState(false);
@@ -376,8 +377,9 @@ export default function OrbitYield() {
 
                   {success ? (
                     <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="space-y-2">
-                      <div className="w-full rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                        ✓ {amount} XLM Staked
+                      <div className="space-y-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 py-4 text-center font-bold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        <p>✓ {amount} XLM Staked</p>
+                        {txHash && <ExplorerLink txHash={txHash} />}
                       </div>
                       <button
                         onClick={reset}

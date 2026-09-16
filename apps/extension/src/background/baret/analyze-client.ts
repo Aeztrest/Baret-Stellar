@@ -12,8 +12,16 @@ import type {
   RiskFindingPayload,
 } from "@stellar-thorn/ext-protocol";
 
-const DEFAULT_BASE_URL = "http://localhost:8080";
-const ANALYZE_TIMEOUT_MS = 12_000;
+// Dev builds talk to the local apps/server; packaged (chrome/firefox)
+// builds must point at the hosted analyze server, or every analysis call
+// fails with ANALYZE_UNREACHABLE for anyone who isn't running apps/server
+// on their own machine — which is everyone testing the deployed showcase.
+const DEFAULT_BASE_URL = import.meta.env.PROD
+  ? "https://baret-stellar.onrender.com"
+  : "http://localhost:8080";
+// Render's free plan sleeps after 15 min idle and takes ~30s to cold-start
+// on the next request. Give it real room instead of timing out mid-wake.
+const ANALYZE_TIMEOUT_MS = 25_000;
 
 export interface AnalyzeClientOptions {
   baseUrl?: string;
