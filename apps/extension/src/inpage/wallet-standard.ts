@@ -60,11 +60,15 @@ export interface SignMessageResult {
 
 /* ────────────── Brand glyph for the wallet picker ────────────── */
 
+// Matches the authoritative brand glyph at packages/ui/src/brand/Mark.tsx
+// (the hard hat: dome + center rib + brim, brand orange). Duplicated here
+// as a raw SVG string rather than imported because this file runs in the
+// page's MAIN world, outside the extension's own React bundle.
 const ICON_DATA_URL: `data:image/svg+xml;base64,${string}` = (() => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-    <rect width="24" height="24" rx="6" fill="#3D6DFF"/>
-    <path d="M12 5L18 18H6Z" fill="#FAFAFB"/>
-    <rect x="4" y="19" width="16" height="1.6" rx="0.8" fill="#FAFAFB"/>
+    <path d="M5 15.5a7 7 0 0 1 14 0Z" fill="#FF6B00"/>
+    <rect x="10.8" y="6.2" width="2.4" height="4.6" rx="1.2" fill="#FFFFFF"/>
+    <rect x="3.2" y="16.2" width="17.6" height="2.4" rx="1.2" fill="#FF6B00"/>
   </svg>`;
   return `data:image/svg+xml;base64,${btoa(svg)}` as `data:image/svg+xml;base64,${string}`;
 })();

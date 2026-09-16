@@ -2,6 +2,7 @@ import {
   Address,
   Asset,
   Operation,
+  scValToNative,
   Transaction,
   xdr,
 } from "@stellar/stellar-sdk";
@@ -80,7 +81,18 @@ export function extractEstimatedChanges(
     applyClassicOperationEffects(op, opSource, native, assets, trustlines);
   }
 
-  // Soroban transfer / approve events live in `simulation.events`.
+  // Soroban transfer / approve events live in `simulation.events` — but
+  // public RPC nodes don't reliably return diagnostic events, so a
+  // top-level `approve` invocation can silently produce zero events and
+  // this analyzer would then see no allowance at all (the exact miss that
+  // let an unlimited approve through as "safe"). Decode top-level approve
+  // calls directly from the operation body first — that data is always
+  // present in the tx itself, no RPC diagnostics required — then layer
+  // the event-derived transfer/burn/mint/approve data on top for anything
+  // the static pass can't see (nested cross-contract calls).
+  for (const op of tx.operations) {
+    parseStaticApproveOperation(op, allowances);
+  }
   for (const ev of simulation.events) {
     parseSorobanTokenEvent(ev.contractId, ev.topicsXdr, ev.dataXdr, assets, allowances);
   }
@@ -187,6 +199,57 @@ function applyClassicOperationEffects(
 }
 
 /**
+ * Decodes a top-level Soroban `approve(from, spender, amount,
+ * expiration_ledger)` invocation directly from the operation body — the
+ * standard SEP-41 token signature. Unlike the event-based path below, this
+ * needs nothing from simulation: the args are already in the transaction
+ * that's about to be signed.
+ */
+function parseStaticApproveOperation(
+  op: Operation,
+  allowances: SorobanAllowanceChange[],
+): void {
+  if (op.type !== "invokeHostFunction") return;
+  const o = op as Operation.InvokeHostFunction;
+  if (o.func.switch().name !== "hostFunctionTypeInvokeContract") return;
+  const invoke = o.func.invokeContract();
+  let fnName: string;
+  try {
+    fnName = invoke.functionName().toString();
+  } catch {
+    return;
+  }
+  if (fnName !== "approve") return;
+
+  const args = invoke.args();
+  if (args.length < 4) return;
+  let contractId: string;
+  let spender: string;
+  let amount: bigint;
+  let expirationLedger: number | null;
+  try {
+    contractId = Address.fromScAddress(invoke.contractAddress()).toString();
+    spender = scvAsAddress(args[1]) ?? "";
+    amount = scvAsBigInt(args[2]) ?? 0n;
+    const exp = scValToNative(args[3]);
+    expirationLedger = typeof exp === "number" ? exp : Number(exp);
+  } catch {
+    return;
+  }
+  if (!spender) return;
+
+  allowances.push({
+    kind: "soroban_allowance",
+    tokenAddress: contractId,
+    fromAddress: op.source ?? "",
+    spender,
+    amount: amount.toString(),
+    expirationLedger,
+    message: `approve → ${spender} amount ${amount}`,
+  });
+}
+
+/**
  * Decodes a Soroban diagnostic event into either an asset balance delta
  * (`transfer` / `burn` / `mint`) or an allowance grant (`approve`).
  *
@@ -246,6 +309,14 @@ function parseSorobanTokenEvent(
       const spender = scvAsAddress(topics[2]);
       const amount = scvAsBigInt(data);
       if (!from || !spender || amount == null) return;
+      // Already captured by the static operation-body pass above.
+      if (
+        allowances.some(
+          (a) => a.tokenAddress === contractId && a.spender === spender,
+        )
+      ) {
+        return;
+      }
       allowances.push({
         kind: "soroban_allowance",
         tokenAddress: contractId,
