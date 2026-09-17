@@ -72,11 +72,11 @@ export function ConnectApproval() {
           <span className="flex-1 bg-border" />
         </div>
         <div className="px-4 pb-3 pt-3.5">
-          <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+          <h1 className="font-display text-lg font-semibold uppercase tracking-tight leading-tight text-foreground">Allow connection?</h1>
+          <div className="mt-1 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
             <Globe size={11} />
             <span className="truncate">{request.origin}</span>
           </div>
-          <h1 className="font-display text-lg font-semibold uppercase tracking-tight leading-tight text-foreground">Allow connection?</h1>
         </div>
       </header>
 

@@ -12,9 +12,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Globe, Loader2, X, ShieldCheck, ShieldX, AlertTriangle, RefreshCw, Repeat } from "lucide-react";
+import { motion } from "framer-motion";
+import { Globe, Loader2, X, ShieldCheck, ShieldX, AlertTriangle, RefreshCw, Repeat, Check, Circle } from "lucide-react";
 import type { AnalyzeResponse, X402MandatePreview } from "@stellar-thorn/ext-protocol";
-import { Button, usePolling } from "@stellar-thorn/ui";
+import { Button, Mark, usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 import { AnalysisReport } from "./AnalysisReport";
 
@@ -102,13 +103,7 @@ export function SignRequest() {
       <div className="flex-1 overflow-y-auto px-4 py-3.5 flex flex-col gap-3">
         {request.x402Mandate && <MandatePreviewCard mandate={request.x402Mandate} />}
 
-        {analyzing && !analysis && (
-          <div className="card !p-5 flex flex-col items-center gap-2.5 text-center">
-            <Loader2 size={18} className="animate-spin text-accent-soft" />
-            <p className="text-text-muted text-xs">Reading the transaction…</p>
-            <p className="text-text-faint text-[10px]">Decoding each operation, running your policy checks.</p>
-          </div>
-        )}
+        {analyzing && !analysis && <AnalyzingCard />}
 
         {!analyzing && !analysis && analysisError && (
           <div className="card !p-4 flex flex-col items-center gap-2.5 text-center">
@@ -164,6 +159,70 @@ export function SignRequest() {
   );
 }
 
+const ANALYZE_STEPS = [
+  "Reading the transaction",
+  "Checking contracts & allowances",
+  "Simulating balance changes",
+  "Applying your policy",
+];
+
+/**
+ * The analyze call usually resolves in well under a second — this isn't
+ * pacing itself to a known server-reported progress, it's just breaking
+ * one short wait into a sequence that reads as active work instead of a
+ * static spinner. Advances on a timer; the last step just holds (spinner,
+ * not a false "done") if a real request runs long.
+ */
+function AnalyzingCard() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStep((s) => (s < ANALYZE_STEPS.length - 1 ? s + 1 : s));
+    }, 550);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="card !p-5 flex flex-col items-center gap-4">
+      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+        <motion.span
+          aria-hidden
+          className="absolute inset-0 rounded-full"
+          style={{ border: "2px solid var(--accent-soft)" }}
+          animate={{ scale: [1, 1.4], opacity: [0.55, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut" }}
+        />
+        <motion.span
+          aria-hidden
+          className="absolute inset-0 rounded-full"
+          style={{ border: "2px solid var(--accent-soft)" }}
+          animate={{ scale: [1, 1.4], opacity: [0.55, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut", delay: 0.6 }}
+        />
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-accent-soft">
+          <Mark size={18} />
+        </div>
+      </div>
+
+      <div className="w-full space-y-2">
+        {ANALYZE_STEPS.map((label, i) => (
+          <div key={label} className="flex items-center gap-2 text-[11px]">
+            {i < step ? (
+              <Check size={12} className="shrink-0 text-ok" />
+            ) : i === step ? (
+              <Loader2 size={12} className="shrink-0 animate-spin text-accent-soft" />
+            ) : (
+              <Circle size={5} className="shrink-0 fill-current text-text-faint" />
+            )}
+            <span className={i <= step ? "text-text" : "text-text-faint"}>{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MandatePreviewCard({ mandate }: { mandate: X402MandatePreview }) {
   const expiry = new Date(mandate.expiresAt).toLocaleDateString(undefined, {
     year: "numeric",
@@ -196,13 +255,13 @@ function Header({ origin, verb }: { origin: string; verb: string }) {
         <span className="flex-1 bg-border" />
       </div>
       <div className="px-4 pb-3 pt-3.5">
-        <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-          <Globe size={11} />
-          <span className="truncate">{origin}</span>
-        </div>
         <h1 className="font-display text-lg font-semibold uppercase tracking-tight leading-tight text-foreground">
           {verb}
         </h1>
+        <div className="mt-1 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+          <Globe size={11} />
+          <span className="truncate">{origin}</span>
+        </div>
       </div>
     </header>
   );
