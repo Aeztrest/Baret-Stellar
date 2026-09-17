@@ -36,6 +36,15 @@ services:
       # panelinden değiştir ve frontend'deki API_KEY'i de güncelle.
       - key: DELTAG_API_KEYS
         value: dev-key-change-me
-      # x402 ödeme akışı kapalı (ücretsiz demo). Açmak istersen docs/ + .env.example'a bak.
+      # X402_ENABLED sadece POST /v1/analyze'ın kendi x402 ödeme kapısını
+      # açar/kapatır — DELTAG_API_KEYS zaten açık olduğu için kapalı bırakıyoruz.
+      # Scrybe showcase'inin /demo/scrybe endpoint'i bundan bağımsız: sadece
+      # X402_MERCHANT_SECRET'a bakar, o olmadan route hiç kayıt olmuyor (404).
       - key: X402_ENABLED
         value: "false"
+      # Scrybe (Cortex) showcase'inin gerçek x402 ödeme akışı için zorunlu.
+      # sync: false → Render panelinden elle girilir, buraya gerçek değer
+      # yazılmaz. Değer: `pnpm --filter @stellar-thorn/server x402-setup`
+      # çıktısındaki (veya apps/server/.env'deki) X402_MERCHANT_SECRET.
+      - key: X402_MERCHANT_SECRET
+        sync: false
