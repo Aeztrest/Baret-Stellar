@@ -131,7 +131,7 @@ export function AnalysisReport({ result }: { result: AnalyzeResponse }) {
               <DeltaRow
                 key={`asset-${i}`}
                 label={a.assetCode || shortAddr(a.asset)}
-                value={a.delta}
+                value={`${formatAssetDelta(a.delta, a.decimals)} ${a.assetCode || ""}`.trim()}
                 negative={a.delta.startsWith("-")}
               />
             ))}
@@ -264,6 +264,21 @@ function formatUnlimitedAware(raw: string, unlimitedAt: bigint): string {
       : `${whole}.${frac.toString().padStart(7, "0").replace(/0+$/, "")}`;
   } catch {
     return raw;
+  }
+}
+
+/** Raw base-unit asset delta (e.g. "580282463" at 7 decimals) → "+58.0282463". */
+function formatAssetDelta(rawStr: string, decimals: number): string {
+  const negative = rawStr.startsWith("-");
+  const abs = negative ? rawStr.slice(1) : rawStr;
+  try {
+    const scale = 10n ** BigInt(decimals);
+    const v = BigInt(abs);
+    const whole = v / scale;
+    const frac = (v % scale).toString().padStart(decimals, "0");
+    return `${negative ? "-" : "+"}${whole.toString()}.${frac}`;
+  } catch {
+    return `${negative ? "-" : "+"}${abs}`;
   }
 }
 

@@ -189,6 +189,26 @@ function applyClassicOperationEffects(
       });
       break;
     }
+    case "pathPaymentStrictSend": {
+      // The exact send amount leaves the source; the network guarantees
+      // the destination gets AT LEAST destMin (the actual fill from the
+      // order book can be more, but destMin is the only number known
+      // without live pricing at analyze time — showing it under-promises
+      // rather than over-promises what the signer will receive).
+      const o = op as Operation.PathPaymentStrictSend;
+      applyPathLeg(native, assets, opSource, o.sendAsset, o.sendAmount, -1n);
+      applyPathLeg(native, assets, o.destination, o.destAsset, o.destMin, 1n);
+      break;
+    }
+    case "pathPaymentStrictReceive": {
+      // Mirror image: the destination gets exactly destAmount; the source
+      // pays AT MOST sendMax. Showing sendMax as the outflow is the
+      // conservative (worst-case) read for the signer.
+      const o = op as Operation.PathPaymentStrictReceive;
+      applyPathLeg(native, assets, opSource, o.sendAsset, o.sendMax, -1n);
+      applyPathLeg(native, assets, o.destination, o.destAsset, o.destAmount, 1n);
+      break;
+    }
     case "clawback": {
       const o = op as Operation.Clawback;
       const stroops = decimalToStroops(o.amount);
@@ -334,6 +354,23 @@ function parseSorobanTokenEvent(
     }
     default:
       break;
+  }
+}
+
+/** Shared leg-applier for the two path-payment cases: one native-or-asset amount, one sign. */
+function applyPathLeg(
+  native: Map<string, NativeBalanceChange>,
+  assets: Map<string, AssetBalanceChange>,
+  accountId: string,
+  asset: Asset,
+  amount: string,
+  sign: 1n | -1n,
+): void {
+  const stroops = decimalToStroops(amount) * sign;
+  if (asset.isNative()) {
+    applyNative(native, accountId, stroops);
+  } else {
+    applyAsset(assets, accountId, canonicalAssetFromSdk(asset), stroops, asset.getCode(), asset.getIssuer());
   }
 }
 
