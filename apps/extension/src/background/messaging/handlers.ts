@@ -88,7 +88,7 @@ import {
   type SubKeyRow,
 } from "../db/sub-keys";
 import { buildRemoveSubKeyTransaction, provisionMerchantSubKey } from "../swig/sub-keys";
-import { uiToAtomic } from "../x402/parse";
+import { atomicToUi, parseTransferAuthEntry, uiToAtomic } from "../x402/parse";
 
 const POLICY_STORAGE_KEY = "baret.policy.v1";
 const BACKUP_ACK_STORAGE_KEY = "baret.backupAck.v1";
@@ -113,6 +113,11 @@ const EMPTY_CHANGES = {
   trustlines: [],
   allowances: [],
 };
+
+/** `GABCD…WXYZ`-style truncation for addresses/contract ids in plain-text advisories. */
+function shortId(id: string): string {
+  return id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id;
+}
 
 /* ────────────── Wallet lifecycle ────────────── */
 
@@ -891,18 +896,109 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
     };
   }
   if (req.kind === "authEntry") {
-    // Auth entry signing doesn't yield a full tx to simulate; surface the
-    // entry context as an info advisory.
+    // An auth entry doesn't carry a full transaction to run through
+    // `analyzeTransaction`'s simulator, so this used to just say "no
+    // on-chain submit yet" and call it safe — meaning the popup never told
+    // the user what the entry actually authorizes, only what the calling
+    // page *claimed*. A page (or a compromised/malicious one) can show
+    // "$0.001" while handing the wallet an entry that really authorizes
+    // 10 USDC; nothing here caught that. Decode the entry's own invocation
+    // (same ground-truth parse `tryAutoApproveX402AuthEntry` uses to gate
+    // silent auto-approval) and surface the REAL amount + destination, so a
+    // mismatch is visible in the one place a dApp's UI can't lie: the data
+    // being cryptographically signed.
+    const intent = parseTransferAuthEntry(req.payloadBase64);
+    if (!intent) {
+      const note =
+        "Baret couldn't decode what this authorization actually does — it isn't a recognized token transfer. There's nothing to compare against what the site told you, so treat this as unverified.";
+      return {
+        decision: "advisory" as const,
+        safe: false,
+        blockingReasons: [],
+        advisoryReasons: [note],
+        reasons: [note],
+        riskFindings: [],
+        estimatedChanges: EMPTY_CHANGES,
+        simulationWarnings: [],
+        offline: false,
+      };
+    }
+    const amountUi = atomicToUi(intent.amountAtomic);
+    const note = `This authorizes sending ${amountUi.toFixed(7)} of ${shortId(intent.contract)} from your wallet to ${shortId(intent.to)}. Compare this against what the site quoted you before signing.`;
+
+    // Ground truth also lets us check the asset itself. `tryAutoApproveX402AuthEntry`
+    // already checks `allowedAssets` before silently auto-signing, but a
+    // "defer" out of that path used to land here with no signal at all — a
+    // look-alike token (same symbol, different issuer/contract) would sail
+    // through this popup exactly like a legitimate first payment. Surface it
+    // as a real, hold-to-override block instead of a delta row the user has
+    // to notice unprompted.
+    const policy = await loadPolicy();
+    if (
+      policy.allowedAssets &&
+      policy.allowedAssets.length > 0 &&
+      !policy.allowedAssets.includes(intent.contract)
+    ) {
+      const warning = `${note} This asset isn't on your trusted-assets list — it may be a look-alike token, not the one you meant to pay in.`;
+      return {
+        decision: "block" as const,
+        safe: false,
+        blockingReasons: [warning],
+        advisoryReasons: [],
+        reasons: [warning],
+        riskFindings: [
+          {
+            code: "X402_ASSET_NOT_ALLOWED",
+            severity: "high" as const,
+            message: `Paying in an untrusted asset (${shortId(intent.contract)}), not your allow-listed USDC.`,
+          },
+        ],
+        estimatedChanges: {
+          native: [],
+          assets: [
+            {
+              accountId: intent.from,
+              asset: intent.contract,
+              assetCode: "",
+              assetIssuer: null,
+              preBalance: "",
+              postBalance: "",
+              delta: `-${intent.amountAtomic}`,
+              decimals: 7,
+            },
+          ],
+          trustlines: [],
+          allowances: [],
+        },
+        simulationWarnings: [],
+        offline: false,
+      };
+    }
+
     return {
       decision: "advisory" as const,
       safe: true,
       blockingReasons: [],
-      advisoryReasons: [
-        "Signing a Soroban authorization entry. no on-chain submit yet.",
-      ],
-      reasons: [],
+      advisoryReasons: [note],
+      reasons: [note],
       riskFindings: [],
-      estimatedChanges: EMPTY_CHANGES,
+      estimatedChanges: {
+        native: [],
+        assets: [
+          {
+            accountId: intent.from,
+            asset: intent.contract,
+            assetCode: "",
+            assetIssuer: null,
+            preBalance: "",
+            postBalance: "",
+            delta: `-${intent.amountAtomic}`,
+            decimals: 7,
+          },
+        ],
+        trustlines: [],
+        allowances: [],
+      },
       simulationWarnings: [],
       offline: false,
     };

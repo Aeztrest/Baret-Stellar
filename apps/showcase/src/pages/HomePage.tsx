@@ -21,7 +21,8 @@ import { BackdropGrid, LandingHeader, LandingFooter, HazardRule, BaretMark, SOCI
 import { ProtocolWedge } from "../components/ProtocolWedge";
 
 const SHOWCASE_SITES = [
-  { path: "/scrybe",     name: "Scrybe",     tag: "x402 paywall",   threat: "Agent drift", flagship: true },
+  { path: "/scrybe",     name: "Scrybe",     tag: "x402 paywall",   threat: "Real x402 payment" },
+  { path: "/cortex",     name: "Cortex",     tag: "x402 console",   threat: "Agent drift · blind signing", flagship: true },
   { path: "/novaswap",   name: "NovaSwap",   tag: "DeFi swap",      threat: "Fund drain" },
   { path: "/pixeldrop",  name: "PixelDrop",  tag: "NFT mint",       threat: "Wallet drainer" },
   { path: "/orbityield", name: "OrbitYield", tag: "Liquid staking", threat: "Unverified pool" },
@@ -457,7 +458,7 @@ function ShowcaseStrip() {
           <SectionHeading
             index="03"
             eyebrow="Try it yourself"
-            title="Six fake-but-real dApps"
+            title="Seven fake-but-real dApps"
             lead="Connect a wallet and click a button. Baret catches the threat live. No slides, no mocks."
           />
           <Link

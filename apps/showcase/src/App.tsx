@@ -21,6 +21,7 @@ const ROUTE_META: Record<string, { title: string; description: string }> = {
   "/agents": { title: "Baret Agents | A firewall in front of every agent signature", description: "The AgentWallet SDK and CLI. Analyze, sign, and submit with a firewall that checks every transaction before the key signs." },
   "/install": { title: "Install Baret", description: "One-click install for Chrome, Brave, Edge, and Firefox, with step-by-step load-unpacked guidance." },
   "/scrybe": { title: "Scrybe | Pay-per-question oracle on x402", description: "A real x402 paywall on Stellar testnet. Ask a question, pay about $0.001 USDC, and watch it settle on-chain." },
+  "/cortex": { title: "Cortex | The x402 attack console", description: "Three real x402 attacks on Stellar testnet: agent drift, a swapped payment asset, and a page that lies about the price. Watch Baret catch each one live." },
   "/novaswap": { title: "NovaSwap, a DeFi swap demo | Baret", description: "A Stellar DEX that looks real and hides a fund-drain attack. Watch Baret catch it before you sign." },
   "/pixeldrop": { title: "PixelDrop, an NFT mint demo | Baret", description: "An NFT mint that hides a wallet drainer. Watch Baret catch it before you sign." },
   "/orbityield": { title: "OrbitYield, a liquid staking demo | Baret", description: "A liquid-staking site that routes to an unverified pool. Watch Baret catch it before you sign." },
@@ -94,6 +95,7 @@ const OrbitYield = lazy(() => import("./sites/orbityield/OrbitYield"));
 const ClaimHub  = lazy(() => import("./sites/claimhub/ClaimHub"));
 const LaunchPad = lazy(() => import("./sites/launchpad/LaunchPad"));
 const Scrybe       = lazy(() => import("./sites/scrybe/Scrybe"));
+const Cortex       = lazy(() => import("./sites/cortex/Cortex"));
 const InstallPage  = lazy(() => import("./pages/InstallPage"));
 const HomePage     = lazy(() => import("./pages/HomePage"));
 const DocsPage     = lazy(() => import("./pages/DocsPage"));
@@ -137,6 +139,7 @@ export default function App() {
             <Route path="/claimhub"  element={<RouteShell><ClaimHub /></RouteShell>} />
             <Route path="/launchpad" element={<RouteShell><LaunchPad /></RouteShell>} />
             <Route path="/scrybe"    element={<RouteShell><Scrybe /></RouteShell>} />
+            <Route path="/cortex"    element={<RouteShell><Cortex /></RouteShell>} />
             <Route path="/install"   element={<RouteShell><InstallPage /></RouteShell>} />
           </Routes>
         </BrowserRouter>

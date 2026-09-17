@@ -141,6 +141,19 @@ export interface GuardPolicy {
 
 /* ────── Templates ────── */
 
+/**
+ * Canonical Circle USDC Soroban Asset Contract addresses — the same values
+ * `apps/server/src/x402/merchant-config.ts` charges in. Seeded into every
+ * default template except Permissive so a look-alike asset (same symbol,
+ * different issuer/contract) is refused out of the box, not only after a
+ * user manually configures an allow-list. Both networks are listed; only
+ * the one matching the wallet's active network is ever compared against.
+ */
+const CANONICAL_USDC_CONTRACTS = [
+  "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA", // testnet
+  "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75", // pubnet
+];
+
 export const STRICT_POLICY: GuardPolicy = {
   // Pre-sign
   maxLossPercent: 25,
@@ -159,6 +172,7 @@ export const STRICT_POLICY: GuardPolicy = {
   maxX402PerTx: 0.10,
   x402HourlyCap: 1.00,
   x402DailyCap: 5.00,
+  allowedAssets: CANONICAL_USDC_CONTRACTS,
   mandateMaxAgeDays: 14,
   requireMemo: false,
   maxTimeBoundsWindowSeconds: 60,
@@ -196,6 +210,7 @@ export const BALANCED_POLICY: GuardPolicy = {
   maxX402PerTx: 1.00,
   x402HourlyCap: 5.00,
   x402DailyCap: 25.00,
+  allowedAssets: CANONICAL_USDC_CONTRACTS,
   mandateMaxAgeDays: 30,
   requireMemo: false,
   maxTimeBoundsWindowSeconds: 120,

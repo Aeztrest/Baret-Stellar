@@ -12,7 +12,6 @@ import {
   Address,
   authorizeEntry,
   Keypair,
-  scValToNative,
   TransactionBuilder,
   xdr,
   type Networks,
@@ -46,7 +45,7 @@ import {
   resolvePaymentSigner,
   x402Review,
 } from "../x402/handlers";
-import { atomicToUi } from "../x402/parse";
+import { atomicToUi, parseTransferAuthEntry } from "../x402/parse";
 import {
   isMandateLive,
   makeAllowanceId,
@@ -352,52 +351,6 @@ export const wsSignAuthEntry: WsHandler = async (raw) => {
   };
 };
 
-/**
- * The SAC `transfer(from, to, amount)` an x402 payment authorizes, parsed out
- * of a Soroban authorization entry. Returns null when the entry isn't a
- * recognizable token transfer. the caller then defers to manual confirmation.
- */
-interface TransferIntent {
-  /** Token contract (`C…`). the x402 `asset`. */
-  contract: string;
-  /** Payer (`G…`/`C…`). must be our own account to auto-approve. */
-  from: string;
-  /** Merchant (`G…`/`C…`). */
-  to: string;
-  /** Amount in atomic (7-decimal) units. */
-  amountAtomic: string;
-}
-
-function parseTransferAuthEntry(authEntryXdr: string): TransferIntent | null {
-  try {
-    const entry = xdr.SorobanAuthorizationEntry.fromXDR(authEntryXdr, "base64");
-    const fn = entry.rootInvocation().function();
-    if (
-      fn.switch() !==
-      xdr.SorobanAuthorizedFunctionType.sorobanAuthorizedFunctionTypeContractFn()
-    ) {
-      return null;
-    }
-    const call = fn.contractFn();
-    if (call.functionName().toString() !== "transfer") return null;
-    const args = call.args();
-    if (args.length < 3) return null;
-    const from = scValToNative(args[0]!);
-    const to = scValToNative(args[1]!);
-    const amount = scValToNative(args[2]!);
-    if (typeof from !== "string" || typeof to !== "string") return null;
-    if (typeof amount !== "bigint" && typeof amount !== "number") return null;
-    return {
-      contract: Address.fromScAddress(call.contractAddress()).toString(),
-      from,
-      to,
-      amountAtomic: amount.toString(),
-    };
-  } catch {
-    return null;
-  }
-}
-
 type AutoApproveDecision =
   | { decision: "signed"; result: Extract<SignSuccess, { kind: "authEntry" }> }
   | { decision: "manual"; mandatePreview: X402MandatePreview }
@@ -484,7 +437,7 @@ export async function tryAutoApproveX402AuthEntry(
   const requiresManualApproval =
     policy.x402AutoApprove === false || !isMandateLive(allowance);
   if (requiresManualApproval) {
-    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy, amountUi) };
   }
 
   // Hourly/daily caps are shared, mutable per-merchant state — reserve the
@@ -493,7 +446,7 @@ export async function tryAutoApproveX402AuthEntry(
   // before either commits. See `tryReserveSpend` for the full rationale.
   const reservation = await tryReserveSpend(allowanceId, amountUi);
   if (!reservation.ok) {
-    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy, amountUi) };
   }
 
   // Live mandate + within caps → sign in the background, with the
@@ -515,11 +468,11 @@ export async function tryAutoApproveX402AuthEntry(
     });
   } catch {
     await releaseReservedSpend(allowanceId, amountUi);
-    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy, amountUi) };
   }
   if (result.kind !== "authEntry") {
     await releaseReservedSpend(allowanceId, amountUi);
-    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy) };
+    return { decision: "manual", mandatePreview: buildMandatePreview(allowance, policy, amountUi) };
   }
 
   const summary = `Auto-paid x402 · ${amountUi.toFixed(6)} → ${intent.to.slice(0, 6)}…${intent.to.slice(-4)}`;

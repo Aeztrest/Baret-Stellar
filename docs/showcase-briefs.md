@@ -573,6 +573,30 @@ end-to-end. The other five demonstrate pre-sign and approval-layer attacks;
 Cortex demonstrates the post-authorization layer where x402 is uniquely
 blind and BARET is uniquely watchful.
 
+> **Shipped implementation note (2026-09-17).** What actually got built at
+> `apps/showcase/src/sites/cortex/` + `apps/server/src/api/routes/demo-cortex.ts`
+> is a single-console version of this brief, not the three-agent
+> scrybe/cipher/atlas grid above — Scrybe stayed its own standalone, honest
+> (no-attack) x402 demo at `/scrybe` instead of living inside Cortex. Cortex
+> ships exactly three scenarios, chosen because each maps to a real, already-
+> implemented BARET defense (verified against the extension's actual code,
+> not assumed from this doc): **Agent Drift** (a real payment burst against
+> the wallet's rolling hourly/daily cap — `db/allowances.ts`), **Asset Swap**
+> (the merchant swaps in the network's real native-XLM Soroban Asset Contract
+> instead of canonical USDC — caught by the asset allow-list now seeded by
+> default in `packages/swig-guard/src/policy.ts`), and **Blind Signing** (the
+> page displays a fake low price while the real, honestly-declared
+> `PaymentRequirements.amount` is far higher — caught by a fix to
+> `messaging/handlers.ts`'s auth-entry analysis, which previously called
+> every auth-entry sign request "safe" without decoding what it actually
+> authorized). The mint-swap/CTX-token and verify-not-settle/fake-facilitator
+> attacks in §6.6 above were NOT built — no fake facilitator or fictional
+> asset-issuance infra exists in this repo, and building fake infra just to
+> stage a screenshot would repeat the exact "demo without real teeth"
+> problem this note exists to avoid. `/v1/facilitator-status` and the
+> `verify_orphan` watchdog referenced in `docs/x402-defense.md` are
+> similarly unimplemented — do not write Cortex copy that claims either.
+
 ---
 
 ## 7. The Showcase Portal (landing page)

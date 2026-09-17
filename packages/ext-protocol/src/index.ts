@@ -115,6 +115,13 @@ export interface X402MandatePreview {
   /** The allowance row's nonce as observed when this preview was built. */
   nonce: number;
   isFirstApproval: boolean;
+  /**
+   * UI-decimal amount THIS specific pending request actually authorizes,
+   * decoded from the real payload being signed — not the mandate's general
+   * `capPerTx` ceiling. Undefined only when the amount couldn't be
+   * ground-truthed (caller should treat that as "unverified", not "zero").
+   */
+  requestedAmount?: number;
 }
 
 export interface HistoryEntry {
