@@ -30,8 +30,12 @@ export class StellarRpcError extends Error {
 
 /**
  * Pairs the Horizon classic API with the Soroban RPC API behind one façade
- * the analyzer uses to read chain state. Adds timeout +
- * single-retry semantics so a transient hiccup doesn't fail an analyze call.
+ * the analyzer uses to read chain state. Adds a hard per-call timeout so a
+ * stuck upstream fails fast instead of stalling an interactive sign flow —
+ * deliberately no automatic retry-on-timeout here: that used to double the
+ * worst case wait (timeout, then timeout again), and the caller already
+ * has its own retry affordance (the popup's "Retry analysis" button) for
+ * exactly this failure.
  */
 export class StellarRpcAdapter {
   readonly network: StellarNetworkConfig["network"];
@@ -62,14 +66,12 @@ export class StellarRpcAdapter {
   async loadAccount(
     accountId: string,
   ): Promise<Horizon.AccountResponse | null> {
-    return withTimeoutRetryOnce(async () => {
-      try {
-        return await this.withTimeout(this.horizon.loadAccount(accountId));
-      } catch (e) {
-        if (isHorizonNotFound(e)) return null;
-        throw mapRpcError(e);
-      }
-    });
+    try {
+      return await this.withTimeout(this.horizon.loadAccount(accountId));
+    } catch (e) {
+      if (isHorizonNotFound(e)) return null;
+      throw mapRpcError(e);
+    }
   }
 
   /**
@@ -90,13 +92,11 @@ export class StellarRpcAdapter {
   async simulateTransaction(
     tx: Transaction | FeeBumpTransaction,
   ): Promise<sorobanRpc.Api.SimulateTransactionResponse> {
-    return withTimeoutRetryOnce(async () => {
-      try {
-        return await this.withTimeout(this.soroban.simulateTransaction(tx));
-      } catch (e) {
-        throw mapRpcError(e);
-      }
-    });
+    try {
+      return await this.withTimeout(this.soroban.simulateTransaction(tx));
+    } catch (e) {
+      throw mapRpcError(e);
+    }
   }
 
   /**
@@ -107,32 +107,26 @@ export class StellarRpcAdapter {
   async getLedgerEntries(
     keys: readonly xdr.LedgerKey[],
   ): Promise<sorobanRpc.Api.GetLedgerEntriesResponse> {
-    return withTimeoutRetryOnce(async () => {
-      try {
-        return await this.withTimeout(this.soroban.getLedgerEntries(...keys));
-      } catch (e) {
-        throw mapRpcError(e);
-      }
-    });
+    try {
+      return await this.withTimeout(this.soroban.getLedgerEntries(...keys));
+    } catch (e) {
+      throw mapRpcError(e);
+    }
   }
 
   /** Network info sanity check. backing for the `/ready` endpoint. */
   async pingRpc(): Promise<void> {
-    return withTimeoutRetryOnce(async () => {
-      try {
-        const [info] = await Promise.all([
-          this.withTimeout(this.soroban.getNetwork()),
-        ]);
-        if (info.passphrase !== this.networkPassphrase) {
-          throw new StellarRpcError(
-            "RPC_BAD_RESPONSE",
-            `Soroban RPC passphrase mismatch: expected ${this.networkPassphrase}, got ${info.passphrase}`,
-          );
-        }
-      } catch (e) {
-        throw mapRpcError(e);
+    try {
+      const info = await this.withTimeout(this.soroban.getNetwork());
+      if (info.passphrase !== this.networkPassphrase) {
+        throw new StellarRpcError(
+          "RPC_BAD_RESPONSE",
+          `Soroban RPC passphrase mismatch: expected ${this.networkPassphrase}, got ${info.passphrase}`,
+        );
       }
-    });
+    } catch (e) {
+      throw mapRpcError(e);
+    }
   }
 
   /**
@@ -162,13 +156,11 @@ export class StellarRpcAdapter {
   async submitTransaction(
     tx: Transaction | FeeBumpTransaction,
   ): Promise<Horizon.HorizonApi.SubmitTransactionResponse> {
-    return withTimeoutRetryOnce(async () => {
-      try {
-        return await this.withTimeout(this.horizon.submitTransaction(tx));
-      } catch (e) {
-        throw mapRpcError(e);
-      }
-    });
+    try {
+      return await this.withTimeout(this.horizon.submitTransaction(tx));
+    } catch (e) {
+      throw mapRpcError(e);
+    }
   }
 
   private async withTimeout<T>(p: PromiseLike<T>): Promise<T> {
@@ -202,15 +194,4 @@ function mapRpcError(e: unknown): StellarRpcError {
   if (e instanceof StellarRpcError) return e;
   const msg = e instanceof Error ? e.message : String(e);
   return new StellarRpcError("RPC_UNAVAILABLE", msg, e);
-}
-
-async function withTimeoutRetryOnce<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (e) {
-    if (e instanceof StellarRpcError && e.code === "RPC_TIMEOUT") {
-      return await fn();
-    }
-    throw e;
-  }
 }
