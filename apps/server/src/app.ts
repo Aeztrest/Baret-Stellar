@@ -58,7 +58,7 @@ export async function buildApp(config: AppConfig) {
   // that need to talk to Horizon / Soroban RPC.
   const sharedAdapter = new StellarRpcAdapter(
     config.stellar,
-    config.requestTimeoutMs,
+    config.stellarRpcTimeoutMs,
   );
   const createRpc = () => sharedAdapter;
 

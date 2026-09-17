@@ -25,7 +25,19 @@ const envSchema = z.object({
 
   MAX_SIMULATION_OPERATIONS: z.coerce.number().int().positive().max(100).default(20),
   MAX_BODY_BYTES: z.coerce.number().int().positive().default(1_048_576),
-  REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(25_000),
+  // Outer HTTP request budget (Fastify's own `requestTimeout`) — a safety
+  // net, not the interactive-latency knob. Kept generous and independent
+  // from STELLAR_RPC_TIMEOUT_MS below so it never races the RPC layer's
+  // own timeout+response handling.
+  REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+  // Per-call timeout for each individual Horizon / Soroban RPC request.
+  // This WAS 25s and doubled on retry (worst case ~50s) — the actual
+  // driver of "sometimes analysis takes forever": a live wallet sign flow
+  // has no business waiting that long on one upstream call before failing
+  // over to the client's own "Retry analysis" affordance. A healthy RPC
+  // response lands in well under a second regardless of this ceiling —
+  // this only bounds how long a *stuck* call is allowed to hang.
+  STELLAR_RPC_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   DELTAG_RATE_LIMIT_MAX: z.coerce.number().int().nonnegative().default(200),
   DELTAG_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   /** 1/true: X-Forwarded-For ile gerçek istemci IP (reverse proxy / Docker arkası) */
@@ -77,6 +89,7 @@ export type AppConfig = {
   maxSimulationOperations: number;
   maxBodyBytes: number;
   requestTimeoutMs: number;
+  stellarRpcTimeoutMs: number;
   /** 0 = rate limiting disabled */
   rateLimitMax: number;
   rateLimitWindowMs: number;
@@ -204,6 +217,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     maxSimulationOperations: e.MAX_SIMULATION_OPERATIONS,
     maxBodyBytes: e.MAX_BODY_BYTES,
     requestTimeoutMs: e.REQUEST_TIMEOUT_MS,
+    stellarRpcTimeoutMs: e.STELLAR_RPC_TIMEOUT_MS,
     rateLimitMax: e.DELTAG_RATE_LIMIT_MAX,
     rateLimitWindowMs: e.DELTAG_RATE_LIMIT_WINDOW_MS,
     trustProxy,
