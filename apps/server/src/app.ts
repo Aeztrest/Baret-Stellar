@@ -11,6 +11,7 @@ import { registerBatchRoute } from "./api/routes/batch.js";
 import { registerAuditRoutes } from "./api/routes/audit.js";
 import { registerReplayRoute } from "./api/routes/replay.js";
 import { registerDemoPaywallRoute } from "./api/routes/demo-paywall.js";
+import { registerDemoCortexRoute } from "./api/routes/demo-cortex.js";
 import { apiError } from "./api/errors.js";
 import { createDeltagX402 } from "./infra/x402.js";
 import { loadSigningKeypair } from "./attestation/signing-key.js";
@@ -123,6 +124,7 @@ export async function buildApp(config: AppConfig) {
   registerAuditRoutes(app);
   registerReplayRoute(app, analyzeDeps);
   registerDemoPaywallRoute(app);
+  registerDemoCortexRoute(app);
 
   return app;
 }

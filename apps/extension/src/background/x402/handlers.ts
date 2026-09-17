@@ -59,10 +59,24 @@ import { loadSmartWalletAddress } from "../swig/sub-keys";
 
 export const DEFAULT_MANDATE_MAX_AGE_DAYS = 30;
 
-/** Builds the mandate preview shown in the manual-approval popup. */
+/**
+ * Builds the mandate preview shown in the manual-approval popup.
+ *
+ * `requestedAmount`, when given, is the UI-decimal amount ground-truthed
+ * out of the actual payload being signed right now (the raw auth entry or
+ * transaction, not anything the calling page claims) — see
+ * `x402/parse.ts#parseTransferAuthEntry`. It's kept separate from the
+ * mandate's configured `capPerTx`/etc.: those are the ceiling the user
+ * agreed to for this merchant in general, but the popup must still show
+ * what THIS specific request actually asks for, so a payment that's
+ * technically under-cap but far larger than the merchant's usual charge
+ * doesn't slip past on the strength of a reassuring-looking cap number
+ * alone.
+ */
 export function buildMandatePreview(
   allowance: AllowanceRow,
   policy: GuardPolicy,
+  requestedAmount?: number,
 ): X402MandatePreview {
   const days = policy.mandateMaxAgeDays ?? DEFAULT_MANDATE_MAX_AGE_DAYS;
   return {
@@ -75,6 +89,7 @@ export function buildMandatePreview(
     expiresAt: Date.now() + days * 24 * 60 * 60 * 1000,
     nonce: allowance.nonce,
     isFirstApproval: allowance.status === "pending",
+    requestedAmount,
   };
 }
 
@@ -315,7 +330,7 @@ export async function x402Review(rawReq: unknown): Promise<Decision> {
     // terms in the popup. On approval, `tx.sign` promotes the allowance to
     // a live mandate — see `promoteAllowance`.
     const label = `x402 payment · ${amountUi.toFixed(6)} → ${payTo.slice(0, 6)}…${payTo.slice(-4)}`;
-    const mandatePreview = buildMandatePreview(allowance, policy);
+    const mandatePreview = buildMandatePreview(allowance, policy, amountUi);
     const result = await enqueueAndWait(
       origin,
       built.transactionXdr,

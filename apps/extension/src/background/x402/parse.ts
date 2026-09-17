@@ -13,7 +13,7 @@
  *    for backwards compatibility. both are accepted.
  */
 
-import { StrKey } from "@stellar/stellar-sdk";
+import { Address, StrKey, scValToNative, xdr } from "@stellar/stellar-sdk";
 
 export interface PaymentRequirements {
   scheme: string;
@@ -126,4 +126,56 @@ export function atomicToUi(amount: string, decimals = 7): number {
 /** UI → atomic conversion, inverse of {@link atomicToUi}. Rounds to the nearest atomic unit. */
 export function uiToAtomic(amount: number, decimals = 7): bigint {
   return BigInt(Math.round(amount * 10 ** decimals));
+}
+
+/**
+ * The SAC `transfer(from, to, amount)` a Soroban authorization entry
+ * authorizes, decoded directly from the entry's own invocation tree — this
+ * is the ground truth of what signing the entry actually does, independent
+ * of whatever a dApp's own page displayed as the payment amount. Used both
+ * to gate silent auto-approval (`wallet-standard/handlers.ts`) and to show
+ * the real amount/destination in the manual sign popup
+ * (`messaging/handlers.ts#txAnalyzeRequestHandler`) instead of trusting the
+ * calling page. Returns null when the entry isn't a recognizable token
+ * transfer — callers must not treat that as "safe," only as "unparsed."
+ */
+export interface TransferIntent {
+  /** Token contract (`C…`). the x402 `asset`. */
+  contract: string;
+  /** Payer (`G…`/`C…`). */
+  from: string;
+  /** Recipient (`G…`/`C…`). */
+  to: string;
+  /** Amount in atomic (7-decimal) units. */
+  amountAtomic: string;
+}
+
+export function parseTransferAuthEntry(authEntryXdr: string): TransferIntent | null {
+  try {
+    const entry = xdr.SorobanAuthorizationEntry.fromXDR(authEntryXdr, "base64");
+    const fn = entry.rootInvocation().function();
+    if (
+      fn.switch() !==
+      xdr.SorobanAuthorizedFunctionType.sorobanAuthorizedFunctionTypeContractFn()
+    ) {
+      return null;
+    }
+    const call = fn.contractFn();
+    if (call.functionName().toString() !== "transfer") return null;
+    const args = call.args();
+    if (args.length < 3) return null;
+    const from = scValToNative(args[0]!);
+    const to = scValToNative(args[1]!);
+    const amount = scValToNative(args[2]!);
+    if (typeof from !== "string" || typeof to !== "string") return null;
+    if (typeof amount !== "bigint" && typeof amount !== "number") return null;
+    return {
+      contract: Address.fromScAddress(call.contractAddress()).toString(),
+      from,
+      to,
+      amountAtomic: amount.toString(),
+    };
+  } catch {
+    return null;
+  }
 }

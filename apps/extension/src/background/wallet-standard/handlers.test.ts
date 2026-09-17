@@ -136,7 +136,12 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
 
   it("defers to manual approval with a first-time mandate preview for a brand-new merchant", async () => {
     const { handlers, allowances, browserMod, authority } = await freshEnv();
-    await setPolicy(browserMod, BALANCED_POLICY);
+    // BALANCED_POLICY now seeds `allowedAssets` with canonical USDC only
+    // (see packages/swig-guard/src/policy.ts) — these tests exercise mandate/
+    // cap logic with a synthetic test asset, not the allow-list itself, so
+    // explicitly trust that asset the same way a real user configuring a
+    // custom merchant would.
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const merchant = Keypair.random().publicKey();
     const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
@@ -155,7 +160,12 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
 
   it("auto-signs in the background against a live mandate and notifies the user", async () => {
     const { handlers, allowances, browserMod, authority } = await freshEnv();
-    await setPolicy(browserMod, BALANCED_POLICY);
+    // BALANCED_POLICY now seeds `allowedAssets` with canonical USDC only
+    // (see packages/swig-guard/src/policy.ts) — these tests exercise mandate/
+    // cap logic with a synthetic test asset, not the allow-list itself, so
+    // explicitly trust that asset the same way a real user configuring a
+    // custom merchant would.
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const merchant = Keypair.random().publicKey();
     const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, ASSET);
@@ -196,7 +206,12 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
 
   it("falls back to manual approval once the mandate has expired, despite an active status", async () => {
     const { handlers, allowances, browserMod, authority } = await freshEnv();
-    await setPolicy(browserMod, BALANCED_POLICY);
+    // BALANCED_POLICY now seeds `allowedAssets` with canonical USDC only
+    // (see packages/swig-guard/src/policy.ts) — these tests exercise mandate/
+    // cap logic with a synthetic test asset, not the allow-list itself, so
+    // explicitly trust that asset the same way a real user configuring a
+    // custom merchant would.
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const merchant = Keypair.random().publicKey();
     const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, ASSET);
@@ -237,9 +252,37 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
     }
   });
 
+  it("carries the entry's REAL requested amount in the mandate preview, separate from the configured caps", async () => {
+    const { handlers, browserMod } = await freshEnv();
+    // BALANCED_POLICY now seeds `allowedAssets` with canonical USDC only
+    // (see packages/swig-guard/src/policy.ts) — these tests exercise mandate/
+    // cap logic with a synthetic test asset, not the allow-list itself, so
+    // explicitly trust that asset the same way a real user configuring a
+    // custom merchant would.
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
+
+    const merchant = Keypair.random().publicKey();
+    // 0.5 units — under BALANCED_POLICY's global maxX402PerTx (1.0) so this
+    // exercises the mandate-preview path (not the global-cap defer), while
+    // still being a distinct, non-default value the preview must echo back
+    // accurately rather than substituting some other number (e.g. capPerTx).
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
+
+    const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
+    expect(decision.decision).toBe("manual");
+    if (decision.decision === "manual") {
+      expect(decision.mandatePreview.requestedAmount).toBe(0.5);
+    }
+  });
+
   it("defers (not manual, not signed) for an entry that isn't a recognized token transfer", async () => {
     const { handlers, browserMod } = await freshEnv();
-    await setPolicy(browserMod, BALANCED_POLICY);
+    // BALANCED_POLICY now seeds `allowedAssets` with canonical USDC only
+    // (see packages/swig-guard/src/policy.ts) — these tests exercise mandate/
+    // cap logic with a synthetic test asset, not the allow-list itself, so
+    // explicitly trust that asset the same way a real user configuring a
+    // custom merchant would.
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const decision = await handlers.tryAutoApproveX402AuthEntry(
       MERCHANT_ORIGIN,

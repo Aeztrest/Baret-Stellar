@@ -136,7 +136,11 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
 
   it("a brand-new merchant always requires manual approval, even under a permissive auto-approve policy", async () => {
     const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
-    await setPolicy(browserMod, BALANCED_POLICY); // x402AutoApprove: true
+    // BALANCED_POLICY now seeds `allowedAssets` with canonical USDC only
+    // (see packages/swig-guard/src/policy.ts) — trust this test's synthetic
+    // asset explicitly, since these tests exercise mandate/cap logic, not
+    // the allow-list itself.
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] }); // x402AutoApprove: true
 
     const requirements = makeRequirements();
     const reviewPromise = handlers.x402Review({
@@ -169,7 +173,7 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
 
   it("a live mandate (already active, not expired) auto-approves without a popup and notifies the user", async () => {
     const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
-    await setPolicy(browserMod, BALANCED_POLICY);
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const requirements = makeRequirements();
     const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
@@ -215,7 +219,7 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
 
   it("an expired mandate falls back to manual approval even though status is still active", async () => {
     const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
-    await setPolicy(browserMod, BALANCED_POLICY);
+    await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const requirements = makeRequirements();
     const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);
@@ -265,7 +269,7 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
 
   it("Strict policy (x402AutoApprove: false) requires manual approval even for a live mandate", async () => {
     const { handlers, signQueue, allowances, browserMod, authority } = await freshEnv();
-    await setPolicy(browserMod, STRICT_POLICY);
+    await setPolicy(browserMod, { ...STRICT_POLICY, allowedAssets: [ASSET] });
 
     const requirements = makeRequirements({ amount: "500000" }); // within Strict's 0.10 per-tx cap
     const allowanceId = allowances.makeAllowanceId(authority.publicKey(), MERCHANT_ORIGIN, requirements.asset);

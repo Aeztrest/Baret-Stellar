@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Globe, Loader2, X, ShieldCheck, ShieldX, AlertTriangle, RefreshCw, Repeat, Check, Circle } from "lucide-react";
 import type { AnalyzeResponse, X402MandatePreview } from "@stellar-thorn/ext-protocol";
-import { Button, Mark, usePolling } from "@stellar-thorn/ui";
+import { Button, Mark, shortAddr, usePolling } from "@stellar-thorn/ui";
 import { useRpc } from "../shared/state-context";
 import { AnalysisReport } from "./AnalysisReport";
 
@@ -229,6 +229,16 @@ function MandatePreviewCard({ mandate }: { mandate: X402MandatePreview }) {
     month: "short",
     day: "numeric",
   });
+  // The mandate's caps are the ceiling the user is generally comfortable
+  // with for this merchant. They are NOT what this specific pending request
+  // asks for — a request can be technically under-cap while still being far
+  // larger than what this merchant usually charges. Show both, distinctly,
+  // so a renewal popup a user has seen many times before can't coast on
+  // familiar-looking cap numbers alone.
+  const nearsCap =
+    mandate.requestedAmount !== undefined &&
+    mandate.capPerTx > 0 &&
+    mandate.requestedAmount / mandate.capPerTx > 0.5;
   return (
     <div className="card !p-3 space-y-1.5" style={{ borderColor: "var(--accent-soft)" }}>
       <div className="flex items-center gap-1.5">
@@ -237,6 +247,16 @@ function MandatePreviewCard({ mandate }: { mandate: X402MandatePreview }) {
           {mandate.isFirstApproval ? "First-time authorization" : "Renewing authorization"}
         </p>
       </div>
+
+      {mandate.requestedAmount !== undefined && (
+        <p
+          className="text-[11px] font-bold leading-relaxed"
+          style={{ color: nearsCap ? "var(--warn)" : "var(--text)" }}
+        >
+          This request: {mandate.requestedAmount.toFixed(7)} {mandate.asset ? shortAddr(mandate.asset) : ""}
+        </p>
+      )}
+
       <p className="text-text-muted text-[11px] leading-relaxed">
         Approving this authorizes <span className="font-mono">{mandate.merchantOrigin}</span> to
         auto-settle future payments up to <strong>{mandate.capPerTx}</strong> per payment,{" "}

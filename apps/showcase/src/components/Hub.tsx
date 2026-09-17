@@ -1,5 +1,5 @@
 /**
- * Showcase hub, the "inspection yard". Six fake-but-real dApps, each wired to
+ * Showcase hub, the "inspection yard". Seven fake-but-real dApps, each wired to
  * a different attack pattern Baret catches live.
  *
  * Design: interactive, restrained. The brand orange stays rare (CTAs, eyebrow
@@ -17,7 +17,7 @@ import {
   Shield, ShieldCheck, ShieldAlert, ArrowRight, ArrowUpRight,
   Wallet, Sparkles, Radar, Activity, BookOpen,
   ArrowLeftRight, Image as ImageIcon, TrendingUp, Gift, Rocket,
-  CircleCheck, Eye, Network, Layers, HardHat, Gauge,
+  CircleCheck, Eye, Network, Layers, HardHat, Gauge, Cpu,
 } from "lucide-react";
 import { Eyebrow, Reveal, SpotlightCard } from "@stellar-thorn/ui";
 import { BackdropGrid, LandingHeader, LandingFooter, HazardRule } from "./LandingChrome";
@@ -102,6 +102,15 @@ const SHOWCASE: SiteSpec[] = [
     note: "A retained admin key lets a deployer mint or freeze long after launch day.",
     verdict: "Caution", icon: Rocket, bucket: "trap",
   },
+  {
+    index: "07", path: "/cortex", name: "Cortex", category: "x402",
+    tagline: "x402 agent attack console",
+    description: "Three real x402 attacks you trigger yourself: a burst of payments that drifts past your spend cap, a merchant that swaps the asset you're billed in, and a page that lies about the price while the real signed amount tells the truth.",
+    catches: ["Rolling hourly/daily cap under a payment burst", "Asset allow-list against a swapped token", "Real signed amount decoded despite a lying page"],
+    threat: "Silent agent · Blind signing",
+    note: "x402 payments happen without a human in the loop by design — the wallet is the only witness.",
+    verdict: "Blocked", icon: Cpu, bucket: "silent",
+  },
 ];
 
 const FILTERS: { label: string; bucket: Bucket | "all" }[] = [
@@ -160,9 +169,9 @@ function Hero() {
           initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.06 }}
           className="mt-6 max-w-4xl font-display text-5xl font-semibold uppercase leading-[1.0] tracking-[-0.03em] sm:text-6xl lg:text-7xl"
         >
-          Six dApps.
+          Seven dApps.
           <br />
-          Six threats.
+          Seven threats.
           <br />
           <span className="text-primary">One signature you don't make.</span>
         </motion.h1>
