@@ -22,7 +22,8 @@ import { Buffer } from "buffer";
 import { sign as nacl_sign } from "tweetnacl";
 import type { X402MandatePreview } from "@stellar-thorn/ext-protocol";
 
-import { dispatch, getState } from "../state/store";
+import { dispatch, getState, subscribe } from "../state/store";
+import { openPopupWindow } from "../popup-window";
 import { isUnlocked, useAuthority } from "../crypto/session";
 import {
   getHorizon,
@@ -77,20 +78,51 @@ export interface WsSignMsgReq {
 
 export type WsHandler = (payload: unknown) => Promise<unknown>;
 
+/**
+ * Opens the popup window (so the user sees the lock screen, same window a
+ * sign request would use) and waits for the session to unlock. Every
+ * dApp-facing entry point that used to reject outright with "wallet is
+ * locked" — leaving the user to dig the toolbar icon out themselves —
+ * routes through this instead, matching how a locked MetaMask/Freighter
+ * surfaces its own unlock prompt on connect.
+ *
+ * Resolves `false` (never rejects) on timeout or if the wallet gets reset
+ * while waiting, so callers can turn that into their own error message.
+ */
+function waitForUnlock(timeoutMs = 120_000): Promise<boolean> {
+  if (getState().phase !== "locked") return Promise.resolve(true);
+  void openPopupWindow();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      unsub();
+      resolve(false);
+    }, timeoutMs);
+    const unsub = subscribe((next) => {
+      if (next.phase === "locked") return;
+      clearTimeout(timer);
+      unsub();
+      resolve(next.phase !== "uninitialized");
+    });
+  });
+}
+
 /* ────────────── Connect / Disconnect / Info ────────────── */
 
 export const wsConnect: WsHandler = async (raw) => {
   const { origin } = raw as WsConnectReq;
   if (!origin) throw new Error("Origin required");
+  if (getState().phase === "locked") {
+    const unlocked = await waitForUnlock();
+    if (!unlocked) {
+      throw new Error(
+        "Baret wallet is still locked. Open the wallet, unlock it, then try connecting again.",
+      );
+    }
+  }
   const s = getState();
   if (s.phase === "uninitialized") {
     throw new Error(
       "Baret wallet not initialized. open the wallet to set it up first.",
-    );
-  }
-  if (s.phase === "locked") {
-    throw new Error(
-      "Baret wallet is locked. open the wallet to unlock it first.",
     );
   }
   if (!s.walletAddress || !s.authorityAddress) {
@@ -206,14 +238,22 @@ export const wsGetNetwork: WsHandler = async (_raw) => {
 
 /* ────────────── Sign methods. queue + popup ────────────── */
 
-function queueAndWait(
+async function queueAndWait(
   kind: SignKind,
   origin: string,
   payloadBase64: string,
   extra?: { validUntilLedger?: number; x402Mandate?: X402MandatePreview },
 ): Promise<SignSuccess> {
   if (!isUnlocked()) {
-    return Promise.reject(new Error("Baret wallet is locked."));
+    // The wallet locked itself (idle timeout) between connect and this
+    // sign call — same fix as wsConnect: open the popup and give the user
+    // a chance to unlock instead of dead-ending the request.
+    const unlocked = await waitForUnlock();
+    if (!unlocked) {
+      throw new Error(
+        "Baret wallet is still locked. Open the wallet, unlock it, then try again.",
+      );
+    }
   }
   return new Promise<SignSuccess>((resolve, reject) => {
     const requestId = newRequestId();
