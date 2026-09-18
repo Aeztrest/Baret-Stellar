@@ -88,11 +88,12 @@ describe("tx.analyzeRequest — authEntry ground-truth decoding", () => {
     vi.clearAllMocks();
   });
 
-  it("surfaces the REAL transfer amount and destination decoded from the entry, not a blanket 'safe'", async () => {
+  it("flags an unusually large transfer as advisory and shows the REAL amount and destination — not a blanket 'safe'", async () => {
     const { signQueue, handlers, browserMod } = await freshEnv();
     // Trust this suite's synthetic ASSET — this test is about amount/
     // destination decoding, not the allow-list (covered separately below).
-    await setPolicy(browserMod, { allowedAssets: [ASSET] });
+    // maxX402PerTx: 1 makes the 10-unit request below "unusually large".
+    await setPolicy(browserMod, { allowedAssets: [ASSET], maxX402PerTx: 1 });
     const merchant = Keypair.random().publicKey();
     // 10 units at 7-decimal atomic precision — the exact "said 0.1, signs 10"
     // shape this fix targets.
@@ -109,12 +110,36 @@ describe("tx.analyzeRequest — authEntry ground-truth decoding", () => {
 
     const result = await handlers["tx.analyzeRequest"]({ requestId });
 
+    expect(result.decision).toBe("advisory");
     expect(result.safe).toBe(true);
     expect(result.reasons.join(" ")).toContain("10.0000000");
     expect(result.reasons.join(" ")).toContain(merchant.slice(0, 6));
     expect(result.estimatedChanges.assets).toHaveLength(1);
     expect(result.estimatedChanges.assets[0]?.delta).toBe("-100000000");
     expect(result.estimatedChanges.assets[0]?.asset).toBe(ASSET);
+  });
+
+  it("clears a plain, in-cap, allow-listed micropayment as 'allow' — not every decoded transfer is a caution", async () => {
+    const { signQueue, handlers, browserMod } = await freshEnv();
+    await setPolicy(browserMod, { allowedAssets: [ASSET], maxX402PerTx: 1 });
+    const merchant = Keypair.random().publicKey();
+    // 0.001 units — a completely ordinary micropayment, well under the cap.
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 10_000n, ASSET);
+    const requestId = signQueue.newRequestId();
+    signQueue.enqueue({
+      requestId,
+      kind: "authEntry",
+      origin: "https://merchant.example",
+      payloadBase64: entryXdr,
+      resolve: () => {},
+      reject: () => {},
+    });
+
+    const result = await handlers["tx.analyzeRequest"]({ requestId });
+
+    expect(result.decision).toBe("allow");
+    expect(result.safe).toBe(true);
+    expect(result.reasons.join(" ")).toContain("0.0010000");
   });
 
   it("blocks a transfer into an asset that isn't on the trusted-assets allow-list (look-alike token)", async () => {

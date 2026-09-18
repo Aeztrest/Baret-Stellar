@@ -975,12 +975,31 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
       };
     }
 
+    // Ground truth is worth SHOWING on every recognized transfer (the
+    // `reasons` line below always renders), but it should only be scored as
+    // a caution when there's actually something to be cautious about. A
+    // plain, in-cap, allow-listed micropayment is exactly the case Baret is
+    // supposed to clear quietly — treating every auth-entry sign as
+    // "advisory" regardless of content (the original version of this fix)
+    // meant a completely normal $0.001 payment showed the same "sign with
+    // caution" verdict as a payment 2500x larger, defeating the point of
+    // having a verdict at all. Only escalate when the amount alone would
+    // already have forced a human decision elsewhere in the pipeline (it
+    // exceeds the user's own per-tx cap) — that's a real, earned signal,
+    // not decoration.
+    const isUnusuallyLarge =
+      policy.maxX402PerTx !== undefined && amountUi > policy.maxX402PerTx;
+    const reason = isUnusuallyLarge
+      ? `${note} This is larger than your usual per-payment cap (${policy.maxX402PerTx}) — read carefully before signing.`
+      : note;
+    const decision: "advisory" | "allow" = isUnusuallyLarge ? "advisory" : "allow";
+
     return {
-      decision: "advisory" as const,
+      decision,
       safe: true,
       blockingReasons: [],
-      advisoryReasons: [note],
-      reasons: [note],
+      advisoryReasons: isUnusuallyLarge ? [reason] : [],
+      reasons: [reason],
       riskFindings: [],
       estimatedChanges: {
         native: [],
