@@ -1,5 +1,10 @@
 # BARET PaymentGuard — Soroban Deployment
 
+> **SUPERSEDED. Not part of the current product.** Baret moved to the non-custodial
+> [`MerchantSpendPolicy`](./contracts/merchant-spend-policy/DEPLOYMENT.md), which keeps funds in the user's own smart wallet.
+> This file is kept as the record of the earlier custodial vault design and its testnet deployments. Nothing in `apps/*` calls these
+> contracts. The testnet v2 deployment below is stale relative to `contracts/contracts/payment-guard/src/lib.rs` (v3 was never redeployed). See [`README.md`](./README.md).
+
 On-chain spending-limit vault for x402 / agentic micropayments — the on-chain
 counterpart of BARET's off-chain x402 firewall (`packages/swig-guard`).
 The owner deposits a token and grants each merchant a per-tx cap, a rolling

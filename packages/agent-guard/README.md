@@ -17,11 +17,12 @@ plus `@stellar/stellar-sdk` for key handling and Horizon submission.
 ## Install
 
 ```bash
-pnpm add @stellar-thorn/agent-guard
-# or:  npm i @stellar-thorn/agent-guard
+# Not published to npm (the package is marked private). Use it from a checkout of this monorepo:
+pnpm install && pnpm build:guard && pnpm build:agent-guard   # then depend on it as a workspace package, or run: node packages/agent-guard/dist/cli.js
 ```
 
-Requires Node ≥ 20 and a running Baret analyze server (see the repo root).
+Requires Node ≥ 20 and a reachable Baret analyze server: run your own (`pnpm dev:server`, see the repo root) or use a hosted one. The server needs an API key: create a free one with `POST /v1/keys`
+(see the developer portal at `/developers` on the showcase, or `apps/server`'s `GET /openapi.json`) and pass it as `BARET_API_KEY`.
 
 ---
 
@@ -84,8 +85,8 @@ baret <command> [<xdr>|-] [flags]
 | `baret init` | Write `~/.baret/config.json` from flags/env | no |
 | `baret policy list` | List the built-in policy templates | no |
 
-Flags: `--server <url>`, `--network testnet|pubnet`, `--policy <id\|json>`,
-`--api-key <key>`, `--address <G…>`, `--json`.
+Flags: `--server <url>`, `--network testnet|pubnet`, `--policy <id\|json>`, `--address <G…>`, `--json`.
+The API key is deliberately **not** a flag (it would land in shell history and `ps`); set `BARET_API_KEY`.
 
 `<xdr>` may be `-` to read from **stdin**, so an agent in any language can pipe a
 transaction in and branch on the exit code:
@@ -113,10 +114,11 @@ Resolved highest-priority first: **explicit options/flags → env → `~/.baret/
 | Setting | Env var | Notes |
 |---------|---------|-------|
 | Server URL | `BARET_API_URL` | default `http://localhost:8080` |
-| API key | `BARET_API_KEY` | when the server sets `DELTAG_API_KEYS` |
+| API key | `BARET_API_KEY` | A key from `POST /v1/keys` (`baret_…`) or one of the server's `DELTAG_API_KEYS` |
 | Network | `BARET_NETWORK` | `testnet` (default) or `pubnet` |
 | Policy | `BARET_POLICY` | template id or inline JSON |
 | Horizon URL | `BARET_HORIZON_URL` | defaults to the network's public Horizon |
+| Pinned server key | `BARET_PINNED_SERVER_PUBLIC_KEY` | `G…` signing key of the server. When set, every verdict's Ed25519 `attestation` is verified; a missing/wrong/invalid one throws `AttestationError` (fail-closed). The server publishes its key at `GET /v1/meta` (`attestation.signerPublicKey`) when `BARET_SIGNING_SECRET` is configured; obtain the key out of band, since fetching it from the same server defeats the pin |
 | **Agent secret** | `BARET_AGENT_SECRET` | `S…` seed — **only** read from env/explicit option |
 
 ---
@@ -129,5 +131,6 @@ Resolved highest-priority first: **explicit options/flags → env → `~/.baret/
 - **Fail-closed.** If the analyze server is unreachable, `evaluate` throws and no
   signing happens. `guardedSign({ allowOffline: true })` is an explicit emergency
   override — use only with out-of-band trust.
+- **Verdict attestation (opt-in).** With `pinnedServerPublicKey` / `BARET_PINNED_SERVER_PUBLIC_KEY`, `evaluate()` verifies the server's signature over `(txHash, safe, findings, signedAt, nonce)`, where `txHash` is recomputed locally from the XDR you sent. A forged `safe:true` from a compromised server or proxy is rejected. `AttestationError` is not an `AnalyzeError`, so `allowOffline` can't bypass it.
 - **The guard never bypasses your policy.** A blocked transaction is never signed;
   `guardedSubmit` simply never reaches the broadcast step.

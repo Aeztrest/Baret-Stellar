@@ -1,167 +1,206 @@
 export const metadata = {
   title: 'SDKs & Integrations',
   description:
-    'Integrate Baret into wallets, browser extensions, AI agents, and any application using the REST API.',
+    'Use Baret from a wallet, an autonomous agent, an LLM tool call or plain HTTP: the guard SDK, AgentWallet and CLI, MCP tools, and the REST API.',
 }
 
 export const sections = [
-  { title: 'Wallet Adapter SDK', id: 'wallet-adapter' },
-  { title: 'Browser Extension', id: 'browser-extension' },
-  { title: 'MCP Server', id: 'mcp-server' },
+  { title: 'Agent SDK and CLI', id: 'agent-sdk' },
+  { title: 'Guard SDK for wallets', id: 'guard-sdk' },
+  { title: 'MCP tools', id: 'mcp-server' },
   { title: 'REST API', id: 'rest-api' },
 ]
 
 # SDKs & Integrations
 
-Baret can be integrated at any layer of the Stellar stack — wallet libraries, browser extensions, AI agents, or direct API calls from any language. {{ className: 'lead' }}
+Baret is an HTTP API first. On top of it there are two TypeScript packages, a command-line tool and MCP tools for LLM agents. {{ className: 'lead' }}
+
+<Note>
+  The TypeScript packages live in the Baret repository as workspace packages
+  (`@stellar-thorn/agent-guard`, `@stellar-thorn/swig-guard`) and are marked
+  private: they are **not published to npm**. Use them from a checkout of the
+  monorepo, or call the REST API directly from any language.
+</Note>
 
 ---
 
-## Wallet Adapter SDK {{ id: 'wallet-adapter' }}
+## Agent SDK and CLI {{ id: 'agent-sdk' }}
 
-The `@stellar-thorn/wallet-adapter` package wraps any Stellar wallet's `signTransaction` function. When the user tries to sign, Baret intercepts, analyzes, and either proceeds or throws a `TransactionBlockedError`.
+`@stellar-thorn/agent-guard` puts Baret in front of an autonomous agent's signing key. The agent builds a transaction; `AgentWallet` sends it to `/v1/analyze`, applies your policy, and signs and submits **only if the policy allows**. If the server cannot be reached it does **not** sign (fail-closed).
 
-### Installation
+<CodeGroup>
 
-```bash
-npm install @stellar-thorn/wallet-adapter
-```
+```ts {{ title: 'AgentWallet' }}
+import { AgentWallet } from '@stellar-thorn/agent-guard'
 
-### Usage
-
-```ts
-import { createBaretInterceptor } from '@stellar-thorn/wallet-adapter'
-
-const interceptor = createBaretInterceptor({
+const agent = AgentWallet.fromSecret(process.env.BARET_AGENT_SECRET!, {
+  serverUrl: 'https://baret-stellar.onrender.com',
   apiKey: process.env.BARET_API_KEY,
-  apiUrl: 'https://api.baret.io',
-  network: 'pubnet',
-  policyProfile: 'strict',
-  onBlock: (analysis) => {
-    // Show a warning to the user
-    showBlockedModal(analysis.verdict)
-  },
+  network: 'testnet',
+  policy: 'balanced', // 'strict' | 'balanced' | 'permissive' | a policy object
 })
 
-// Wrap your existing wallet adapter
-const secureWallet = interceptor.wrap(wallet)
-
-// Now use secureWallet.signTransaction as normal
-// Baret runs automatically before every signature
+try {
+  const { hash, explorerUrl } = await agent.guardedSubmit(transactionXdr)
+} catch (err) {
+  // GuardBlockedError: the policy refused it and the key never signed
+  // AnalyzeError: the server was unreachable (nothing was signed)
+}
 ```
 
-### Behavior
+</CodeGroup>
 
 <Properties>
-  <Property name="Safe transaction" type="pass">
-    Analysis returns `safe: true` — `signTransaction` proceeds as normal. Zero UX friction.
+  <Property name="evaluate(xdr)" type="advisory">
+    Returns the verdict. Never touches the key. Use it when you sign yourself.
   </Property>
-  <Property name="Blocked transaction" type="block">
-    Analysis returns `safe: false` — a `TransactionBlockedError` is thrown, or your `onBlock` callback is invoked.
+  <Property name="guardedSign(xdr)" type="sign">
+    Evaluates, then signs locally only if allowed. Throws `GuardBlockedError` otherwise.
   </Property>
-  <Property name="API unavailable" type="fail-open">
-    If the Baret API is unreachable, the request fails open — the transaction is not blocked. This is intentional to prevent service outages from disrupting users.
+  <Property name="guardedSubmit(xdr)" type="sign + send">
+    `guardedSign`, then broadcasts through Horizon and returns the hash and an explorer link.
   </Property>
 </Properties>
+
+To detect a compromised server or proxy, pin the server's signing key (`pinnedServerPublicKey`, or `BARET_PINNED_SERVER_PUBLIC_KEY`). Every verdict's Ed25519 attestation is then verified against your own recomputation of the transaction hash, and a missing or invalid one throws `AttestationError` (fail-closed). See [Analyze](/analyze) for how attestations work.
+
+The same thing is available as a command, usable from any language through its exit code:
+
+<CodeGroup>
+
+```bash {{ title: 'baret CLI' }}
+export BARET_API_URL=https://baret-stellar.onrender.com
+export BARET_API_KEY=baret_…
+export BARET_AGENT_SECRET=S…        # only for sign / submit; never written to disk
+
+echo "$XDR" | baret submit -
+# exit 0: allowed and sent   1: blocked by policy   2: error (bad input, server unreachable)
+```
+
+</CodeGroup>
+
+Commands: `baret analyze`, `sign`, `submit`, `address`, `init`, `policy list`. Configuration order: flags, then `BARET_*` environment variables, then `~/.baret/config.json`, then defaults. The API key can only be given through `BARET_API_KEY`.
 
 ---
 
-## Browser Extension {{ id: 'browser-extension' }}
+## Guard SDK for wallets {{ id: 'guard-sdk' }}
 
-The Baret Chrome extension (Manifest V3) automatically intercepts `signTransaction` calls from Freighter and any wallet that injects a Stellar provider into the browser.
+`@stellar-thorn/swig-guard` is the SDK the Baret extension itself is built on. It has **no dependency on the Stellar SDK** so it is safe to bundle in a browser. It holds the wallet policy type and the Strict, Balanced and Permissive templates, and a client for `/v1/analyze`. It never signs or submits.
 
-No code changes required in the dApp. The extension installs a content script that wraps the wallet's signing functions at the browser level.
+<CodeGroup>
 
-### Installation
+```ts {{ title: 'TransactionGuard' }}
+import { TransactionGuard, BALANCED_POLICY } from '@stellar-thorn/swig-guard'
 
-Install from the Chrome Web Store or load unpacked from `packages/browser-extension` for local testing.
+const guard = new TransactionGuard({
+  analyze: { baseUrl: 'https://baret-stellar.onrender.com', apiKey: BARET_KEY },
+  network: 'testnet',
+})
 
-### Configuration
+const result = await guard.evaluate({
+  transactionXdr,
+  userWallet: 'GAT3XUNP…',
+  policy: BALANCED_POLICY,
+})
 
-Open the extension popup to configure:
+if (result.decision === 'block') {
+  showWarning(result.blockingReasons) // result.analysis has the whole verdict
+}
+```
 
-<Properties>
-  <Property name="API Endpoint" type="string">
-    Your Baret API endpoint URL.
-  </Property>
-  <Property name="API Key" type="string">
-    Your API key. Stored in Chrome's local extension storage (not sent anywhere except your configured endpoint).
-  </Property>
-  <Property name="Auto-Block" type="toggle">
-    When enabled, blocked transactions are silently rejected. When disabled, a warning dialog is shown and the user can choose to proceed.
-  </Property>
-</Properties>
+</CodeGroup>
+
+If the server cannot be reached, `evaluate` throws `AnalyzeError`: treat that as "unsafe to sign" unless you deliberately choose otherwise. A plain `http://` server URL is refused unless it is a loopback address (or you set `allowInsecureHttp`), because without TLS a network attacker could forge a `safe: true` answer. Pass `paymentRequirements` when the transaction is an x402 payment.
 
 ---
 
-## MCP Server {{ id: 'mcp-server' }}
+## MCP tools {{ id: 'mcp-server' }}
 
-Baret implements the [Model Context Protocol](https://modelcontextprotocol.io/) so AI agents can call it as a tool directly.
-
-### Available tools
+Baret exposes [Model Context Protocol](https://modelcontextprotocol.io/)-style tools over HTTP so an LLM agent can ask "is this safe to sign?". Both routes need an API key.
 
 <Properties>
-  <Property name="deltag_analyze" type="tool">
-    Analyze a transaction. Input: `transactionBase64`, `network`. Returns a markdown-formatted security report.
+  <Property name="GET /mcp/tools" type="list">
+    The tool descriptors with JSON Schema inputs.
   </Property>
-  <Property name="deltag_health" type="tool">
-    Check if the Baret service is healthy and the RPC is reachable.
-  </Property>
-  <Property name="deltag_list_profiles" type="tool">
-    List available policy profiles and their descriptions.
+  <Property name="POST /mcp/call" type="call">
+    Body `{ "tool": "…", "arguments": { … } }`. A failing tool returns `422` with `isError: true`.
   </Property>
 </Properties>
 
-### Example agent prompt
+<Properties>
+  <Property name="baret_analyze" type="tool">
+    Input: `transactionXdr` (required), `network` (defaults to the server's network), `userWallet`. Returns a Markdown summary of the verdict, findings, balance changes and the authorization trace, written for a model to read. It runs with an **empty policy**; the `policyProfile` argument the descriptor lists is not applied.
+  </Property>
+  <Property name="baret_health" type="tool">
+    Reports the server's network and endpoints.
+  </Property>
+  <Property name="baret_list_profiles" type="tool">
+    Lists policy profile names. Profiles are informational; use the `policy` object with the REST API for real control.
+  </Property>
+</Properties>
 
+<CodeGroup>
+
+```bash {{ title: 'Call a tool' }}
+curl -X POST https://baret-stellar.onrender.com/mcp/call \
+  -H "Authorization: Bearer $BARET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "tool": "baret_analyze", "arguments": { "transactionXdr": "AAAAAgAAAACd…", "network": "testnet" } }'
+# { "content": [ { "type": "text", "text": "## Transaction Analysis Result\n**Verdict**: SAFE\n…" } ] }
 ```
-"Is this transaction safe to sign?"
-→ deltag_analyze({ transactionBase64: "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg...", network: "pubnet" })
-→ Returns: "## Analysis Result\n**Verdict:** ⛔ BLOCKED\n**Risk Level:** High\n**Reason:** Unlimited token approval detected..."
-```
+
+</CodeGroup>
 
 ---
 
 ## REST API {{ id: 'rest-api' }}
 
-The Baret API is a plain HTTPS REST API. Any language that can make HTTP requests can integrate with it.
+Any language that can make an HTTPS request can integrate. The machine-readable spec is `GET /openapi.json` (OpenAPI 3.0, served live by every server); generate a client from it if you like.
 
 <CodeGroup>
 
 ```bash {{ title: 'cURL' }}
-curl -X POST https://api.baret.io/v1/analyze \
-  -H "X-API-Key: {your-api-key}" \
+curl -X POST https://baret-stellar.onrender.com/v1/analyze \
+  -H "Authorization: Bearer $BARET_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"transaction":"...","network":"pubnet"}'
+  -d '{"network":"testnet","transactionXdr":"…"}'
 ```
 
-```js
-const res = await fetch('https://api.baret.io/v1/analyze', {
+```js {{ title: 'JavaScript' }}
+const res = await fetch('https://baret-stellar.onrender.com/v1/analyze', {
   method: 'POST',
-  headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ transaction: txBase64, network: 'pubnet' }),
+  headers: { Authorization: `Bearer ${BARET_KEY}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ network: 'testnet', transactionXdr }),
 })
-const { safe, verdict } = await res.json()
+const { safe, reasons, riskFindings } = await res.json()
 ```
 
-```python
-import httpx
-result = httpx.post(
-    'https://api.baret.io/v1/analyze',
-    headers={'X-API-Key': API_KEY},
-    json={'transaction': tx_base64, 'network': 'pubnet'},
+```python {{ title: 'Python' }}
+import requests
+
+verdict = requests.post(
+    'https://baret-stellar.onrender.com/v1/analyze',
+    headers={'Authorization': f'Bearer {BARET_KEY}'},
+    json={'network': 'testnet', 'transactionXdr': transaction_xdr},
+    timeout=30,
 ).json()
 ```
 
-```go
-body, _ := json.Marshal(map[string]string{
-    "transaction": txBase64,
-    "network":     "pubnet",
+```go {{ title: 'Go' }}
+body, _ := json.Marshal(map[string]any{
+    "network":        "testnet",
+    "transactionXdr": txXDR,
 })
-req, _ := http.NewRequest("POST", "https://api.baret.io/v1/analyze", bytes.NewBuffer(body))
-req.Header.Set("X-API-Key", apiKey)
+req, _ := http.NewRequest("POST", "https://baret-stellar.onrender.com/v1/analyze", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer "+key)
 req.Header.Set("Content-Type", "application/json")
 resp, _ := http.DefaultClient.Do(req)
 ```
 
 </CodeGroup>
+
+<Note>
+  Unlike the SDKs, plain REST has no built-in fail-closed behaviour. If the call
+  fails or times out, decide deliberately what your application does: for a
+  signing flow the safe default is to **not sign**.
+</Note>

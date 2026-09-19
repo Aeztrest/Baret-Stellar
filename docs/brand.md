@@ -36,14 +36,15 @@ Fitting metaphor; not used as marketing copy.
 
 ```
 ┌──────────────────────────────────┐
-│  ▲                               │
-│  ◢◣  BARET                  │
-│      ▔▔▔▔▔▔▔▔▔▔                  │
+│   ▄▄▄                            │
+│  ▐█▌█▌▄  BARET                   │   (hard-hat mark + wordmark)
+│  ▀▀▀▀▀▀▀                         │
 └──────────────────────────────────┘
 ```
 
-- Glyph: stylized thorn (a sharp triangle resting on a horizontal base,
-  suggesting both a leaf-tip and a shield bevel). 1.0× cap-height of wordmark.
+- Glyph: a stylized **hard hat** (`baret`): a safety-orange dome with a white centre
+  rib resting on an orange brim. (Earlier drafts specified a "thorn"; the shipped mark is
+  the hard hat.) 1.0× cap-height of wordmark.
 - Wordmark: Inter Display (or Inter Tight) at 700 weight, tracking -1%, all caps.
 - Lockup: glyph + 12-px gap + wordmark. Never separate the glyph from the wordmark
   in formal placements (header, splash, share cards). The glyph alone is allowed
@@ -128,8 +129,9 @@ Every state colour has a ~10% alpha background variant (`--ok-dim`, `--warn-dim`
 - **Numerical / mono:** *JetBrains Mono* (monospace, programmer-grade).
 - **Microcopy uppercase tracker:** Inter, weight 600, letter-spacing +6%, font-feature-settings `"cv11"`.
 
-All three families are loaded via Google Fonts CSS in dev; self-hosted as woff2
-in production builds. Subset to Latin Extended.
+All three families are loaded from the Google Fonts CSS endpoint by the `<head>` of
+the extension popup/options, the standalone wallet and the showcase (`apps/*/index.html`).
+Self-hosting them as woff2 is a possible follow-up and is **not** done today.
 
 ### 4.2 Type scale
 

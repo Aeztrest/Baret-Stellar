@@ -1,64 +1,126 @@
 export const metadata = {
   title: 'Authentication',
   description:
-    'Baret uses API key authentication. All requests must include your key in the X-API-Key header.',
+    'Create a free Baret API key, send it with every request, and understand the limits and the pay-per-call x402 option.',
 }
 
 # Authentication
 
-Every request to the Baret API must include your API key. Baret uses simple API key authentication — no OAuth flows, no token exchanges. {{ className: 'lead' }}
+Every request to `/v1` and `/mcp` needs an API key, except a small set of discovery routes and key creation. There are no accounts, no OAuth and no dashboard: you create a key with one request. {{ className: 'lead' }}
 
-## Getting your API key
+## Sending the key
 
-API keys are managed from the Baret dashboard. Go to **Settings → API Keys** to create or rotate keys. Each key can be labeled and revoked independently.
+Send it as a bearer token, or in the `X-API-Key` header. Both work.
 
-<Note>
-  Keep your API key secret. Never commit it to source control or expose it in
-  client-side code. If a key is compromised, rotate it immediately from the
-  dashboard.
-</Note>
-
-## Sending the API key
-
-Include your key in the `X-API-Key` request header on every call.
+<CodeGroup>
 
 ```bash {{ title: 'Authenticated request' }}
-curl -X POST https://api.baret.io/v1/analyze \
-  -H "X-API-Key: btk_live_xxxxxxxxxxxxxxxxxxxx" \
-  -H "Content-Type: application/json" \
-  -d '{ "transaction": "...", "network": "pubnet" }'
+curl https://baret-stellar.onrender.com/v1/keys/me \
+  -H "Authorization: Bearer baret_k3J9x…"
+
+# or
+curl https://baret-stellar.onrender.com/v1/keys/me \
+  -H "X-API-Key: baret_k3J9x…"
 ```
 
-## Pay-per-use with x402
+</CodeGroup>
 
-Baret also supports the HTTP 402 micropayment protocol for keyless access. If you send a request without an API key, the server responds with `402 Payment Required` and a payment challenge. You pay per-analysis in USDC on Stellar (~$0.001/request), the payment is verified on-chain, and the analysis proceeds.
+A missing or invalid key returns `401` with the error code `UNAUTHORIZED` and a `WWW-Authenticate: Bearer realm="baret"` header.
 
-```bash {{ title: 'Keyless request — triggers 402 flow' }}
-curl -X POST https://api.baret.io/v1/analyze \
-  -H "Content-Type: application/json" \
-  -d '{ "transaction": "...", "network": "pubnet" }'
-# → 402 Payment Required
-# → X-Payment-Scheme: x402
-# → X-Pay-To: <stellar-address>
-# → X-Price-USDC: 0.001
-```
+### Routes that need no key
 
-Failed analyses are not charged.
+`GET /v1/meta`, `GET /v1/detectors`, `GET /v1/policy/schema` and `POST /v1/keys` are open, as are `GET /openapi.json` (the machine-readable spec), `GET /health` and `GET /health/ready`. Everything else is closed by default.
+
+## Create, inspect and revoke a key
+
+<Row>
+  <Col>
+
+    `POST /v1/keys` creates a key instantly. The plaintext key is returned once; the server stores only its SHA-256 hash, so it cannot show it again. Creation is throttled per IP address (five per hour by default).
+
+    <Properties>
+      <Property name="name" type="string">
+        A label for you, 1 to 64 characters, no control characters.
+      </Property>
+    </Properties>
+
+    `GET /v1/keys/me` returns the key's metadata and usage (total, today, the last seven days, and per endpoint). `DELETE /v1/keys/me` revokes it permanently. Do this if a key leaks.
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="POST" label="/v1/keys">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://baret-stellar.onrender.com/v1/keys \
+      -H "Content-Type: application/json" \
+      -d '{ "name": "my-wallet-backend" }'
+    ```
+
+    </CodeGroup>
+
+    <CodeGroup>
+
+    ```json {{ title: 'Response (201)' }}
+    {
+      "key": "baret_k3J9x…",
+      "id": "key_4d8a8dd069b28546",
+      "prefix": "baret_k3J9",
+      "name": "my-wallet-backend",
+      "createdAt": "2026-09-19T17:57:34.218Z",
+      "rateLimitPerMin": 60,
+      "message": "Store this key now — it cannot be shown again."
+    }
+    ```
+
+    </CodeGroup>
+
+  </Col>
+</Row>
+
+<Note>
+  Keep your key secret and out of client-side code. If a server keeps keys only
+  in memory or on a disk that is wiped on restart (the free hosted demo does
+  this), the response includes a `warning` and issued keys can stop working; the
+  fix is to create a new one. `GET /v1/meta` reports `auth.keyIssuance` so you
+  can tell whether a server issues keys at all. An operator can switch
+  self-service keys off, in which case `POST /v1/keys` returns `403 FORBIDDEN`.
+</Note>
 
 ## Rate limits
 
-Rate limits are applied per API key based on your plan tier. Limits are communicated via standard HTTP response headers:
+Each key has a per-minute budget (60 by default). Every authenticated response carries the state of your budget:
 
 <Properties>
-  <Property name="X-RateLimit-Limit" type="string">
-    Maximum number of requests allowed in the current window.
+  <Property name="X-RateLimit-Limit" type="header">
+    Requests allowed per minute for this key.
   </Property>
-  <Property name="X-RateLimit-Remaining" type="string">
-    Requests remaining in the current window.
+  <Property name="X-RateLimit-Remaining" type="header">
+    Requests left in the current window.
   </Property>
-  <Property name="X-RateLimit-Reset" type="string">
-    Unix timestamp when the current window resets.
+  <Property name="X-RateLimit-Reset" type="header">
+    Seconds until the window resets. (Seconds, not a Unix timestamp.)
   </Property>
 </Properties>
 
-When you exceed your rate limit, the API returns `429 Too Many Requests`.
+Batch and stream calls spend one request per transaction in the body, so a batch of 25 costs 25. When you exceed the budget the API answers `429` with the error code `RATE_LIMITED`, a `Retry-After` header and `details.retryAfterSeconds`. A separate per-IP limit protects the server as a whole and also returns `429 RATE_LIMITED`.
+Keys configured directly by the server operator have no per-key budget (only the per-IP limit). Browsers can call the API directly: the server sends CORS headers, and the rate-limit headers above are readable from JavaScript.
+
+## Pay per call with x402 (optional)
+
+A server can also sell `POST /v1/analyze` over the [x402](https://github.com/coinbase/x402) payment protocol. Whether it does is in `GET /v1/meta`: `x402.enabled`, `x402.price` and `x402.payTo`. In that mode a request with no valid key gets `402 Payment Required` with a base64 `PAYMENT-REQUIRED` header describing what to pay (USDC on Stellar, about `$0.001` by default).
+You pay through an x402 client, retry with a `PAYMENT-SIGNATURE` header, and the server settles the payment only after it has produced a valid answer. Only `POST /v1/analyze` can be paid this way; every other route needs a key.
+
+<CodeGroup>
+
+```bash {{ title: 'Keyless request on an x402-enabled server' }}
+curl -i -X POST https://<x402-enabled-server>/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{ "network": "testnet", "transactionXdr": "…" }'
+# HTTP/1.1 402 Payment Required
+# PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6Miwi…   (base64 PaymentRequirements)
+```
+
+</CodeGroup>
+
+The hosted demo server does not enable x402 for the analyze route; use a key there.

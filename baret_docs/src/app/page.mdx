@@ -5,7 +5,7 @@ import { HeroPattern } from '@/components/HeroPattern'
 export const metadata = {
   title: 'Baret API',
   description:
-    'Pre-signature transaction security for Stellar. Simulate, analyze, and block dangerous transactions before they are signed.',
+    'Pre-sign transaction analysis for Stellar. Send a transaction before anyone signs it and get back what it changes, what is risky about it, and whether your policy blocks it.',
 }
 
 export const sections = [
@@ -17,20 +17,25 @@ export const sections = [
 
 # Baret API
 
-Baret is a pre-signature transaction security layer for Stellar. Before a user signs, Baret simulates the transaction, runs 7 independent risk detectors, evaluates your policy rules, and returns a clear `safe: true/false` verdict with full findings. {{ className: 'lead' }}
+Baret reads a Stellar transaction before anyone signs it. You send the transaction envelope, Baret simulates it against current chain state, works out which balances move and what is risky about it, applies your policy, and returns a plain verdict: `safe` or not, with the reasons. {{ className: 'lead' }}
 
 <div className="not-prose mt-6 mb-16 flex gap-3">
   <Button href="/quickstart" arrow="right">
     <>Quickstart</>
   </Button>
   <Button href="/authentication" variant="outline">
-    <>Get API Key</>
+    <>Get an API key</>
   </Button>
 </div>
 
 ## How it works {{ anchor: false }}
 
-Every request to `/v1/analyze` goes through the same pipeline: decode the transaction, resolve Address Lookup Tables, fetch live account states from RPC, simulate execution without broadcasting, then run 7 specialized detectors in parallel. The policy engine evaluates your configured rules against the findings and returns a final verdict — all before any signature is requested. {{ className: 'lead' }}
+Every call to `POST /v1/analyze` runs the same pipeline: decode the transaction (a fee-bump envelope is analysed through its inner transaction), read the accounts it touches from Horizon, run Soroban preflight when it contains a contract call, work out the estimated balance, trustline and allowance changes, run the risk detectors, then evaluate your `policy`. Nothing is signed or broadcast. {{ className: 'lead' }}
+
+Two things to know before you integrate:
+
+- **A server analyses one network.** The hosted demo server at `https://baret-stellar.onrender.com` is **testnet**. Ask `GET /v1/meta` which network a server runs; a request for the other one returns `WRONG_NETWORK`.
+- **A finding only blocks when your policy says so.** Findings are always reported in `riskFindings`, but `safe` turns `false` only when the matching policy option is on (or the simulation failed, or the data was incomplete). See [Policy](/policies).
 
 <div className="not-prose">
   <Button href="/analyze" variant="text" arrow="right">

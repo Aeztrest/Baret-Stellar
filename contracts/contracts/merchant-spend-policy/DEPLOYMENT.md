@@ -111,8 +111,9 @@ Once deployed and wired in:
    on-chain (contract error `ExceedsPerTx`), proving the cap is enforced
    by the network, not just the extension's own bookkeeping.
 
-Once you've confirmed this end-to-end, let me know and I'll update
-`docs/x402-defense.md` §10/§11, `docs/extension-architecture.md` §8.3,
-`LIMITATIONS.md`, and `ProtocolWedge.tsx` to describe the guarantee as
-real — deliberately not doing that until it's actually verified live, per
-the whole point of this fix.
+Documentation status: `docs/x402-defense.md` §11, `docs/extension-architecture.md` §8, `LIMITATIONS.md` and `docs/implementation-status.md` §4 already describe the guarantee as implemented in code and covered by the
+contract's unit tests. **This checklist has not been re-run against the live testnet as part of the documentation update**, so treat the live end-to-end behaviour as "expected, verify with the steps above" until someone runs it and records the result here
+(date, wallet address, the `set_allowance` / `add_signer` transaction hashes, and the outcome of the over-cap payment in step 6).
+
+Known gap to test while you are here: renew an expired mandate (re-approve after `mandate_seconds`) and confirm whether payments still succeed. Today the extension renews only its local mandate, not the on-chain allowance or the sub-key's signer expiry
+(see `docs/implementation-status.md` §4).

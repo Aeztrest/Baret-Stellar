@@ -1,5 +1,7 @@
 # Baret — Asset Catalogue & AI Generation Prompts
 
+> Route labels verified 2026-09-19: landing `/`, hub `/showcase`. Files in `apps/showcase/public/` that exist today: `og-cover.jpg`, `icon-48.png`, `icon-128.png`, `icon-512.jpg`, `apple-touch-icon.png`, `illus-guard/ledger/monitor.jpg`, `hero-scrub.mp4` + `hero-scrub.jpg` (the repo-root `assets/` folder holds source art such as `site-*.jpg` and `hero-mockup.jpg`; no code references it and it is not served).
+
 A page-by-page audit of every visual slot in the Baret frontend, with a
 copy-paste AI prompt for each. Types: **IMG** (still), **ILLUS** (monochrome
 line-art), **ILLUS-VID** (short looping line-art clip), **SCROLL-VID** (the
@@ -66,7 +68,7 @@ brim. Flat, bold, legible at 16px. No text. Maskable safe padding.
 
 ---
 
-## 2. Home — `/home` (`pages/HomePage.tsx`)
+## 2. Home — `/` (`pages/HomePage.tsx`)
 
 ### A3–A5 · Three-pillar illustrations (`ThreePillars` section)
 Monochrome line-art, one per pillar. Transparent PNG; the page blends them with
@@ -112,7 +114,7 @@ inside, a red "blocked" banner at the bottom. Matte, not glossy. Transparent bg.
 
 ---
 
-## 3. Hub — `/` (`components/Hub.tsx`)
+## 3. Hub — `/showcase` (`components/Hub.tsx`)
 
 The Hub cards are intentionally typographic + interactive (SpotlightCard). Art is
 OPTIONAL here; if you want it, generate per-scenario glyphs.
@@ -131,7 +133,7 @@ Transparent bg. 240x240.
 
 ---
 
-## 4. Demo dApp sites — `/novaswap` … `/launchpad` (`src/sites/*`)
+## 4. Demo dApp sites — `/novaswap` … `/launchpad`, `/scrybe`, `/cortex` (`src/sites/*`)
 
 These are deliberately LIGHT "third-party" sites (they impersonate real dApps).
 A hero/product image per site makes each feel production-built. Colorful is OK

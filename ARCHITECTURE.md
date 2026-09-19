@@ -1,449 +1,378 @@
-# BARET — Sistem Mimarisi
+# Baret: Sistem Mimarisi
 
-Bu doküman BARET'un mevcut **Stellar** implementasyonunu modül modül açıklar: veri akışı, simülasyon, risk tespiti, policy motoru ve istemci tarafı (SDK, eklenti, cüzdan). Kaynak doğrulu: `apps/server/src`, `packages/*/src`, `apps/{extension,wallet,showcase}/src`.
+> **Bu dosya haritadır.** Projenin ne olduğunu, hangi parçanın ne yaptığını, parçaların neden birbirine bağlı
+> olduğunu ve verinin nereden nereye aktığını anlatır. Ayrıntı isteyen her konu için bir derin dalış dokümanına
+> link verir (bkz. [`docs/README.md`](./docs/README.md)).
+>
+> **Doğruluk kuralı:** Tek otorite koddur. Bu dosya 2026-09-19'da kaynak koda karşı doğrulandı. Bir uyuşmazlık
+> görürsen koda güven, dokümanı düzelt. Dokümanları güncel tutma protokolü [`AGENTS.md`](./AGENTS.md) ve
+> [`docs/README.md`](./docs/README.md) içinde.
 
 ---
 
 ## İçindekiler
 
-1. [Proje Nedir?](#1-proje-nedir)
-2. [Monorepo & Genel Mimari](#2-monorepo--genel-mimari)
-3. [Sunucu Başlatma Akışı](#3-sunucu-başlatma-akışı)
-4. [Konfigürasyon Sistemi](#4-konfigürasyon-sistemi)
-5. [Bir İsteğin Hayat Döngüsü](#5-bir-isteğin-hayat-döngüsü)
-6. [Transaction Decode (XDR)](#6-transaction-decode-xdr)
-7. [Hesap Toplama & Simülasyon](#7-hesap-toplama--simülasyon)
-8. [Tahmini Değişimler (Delta Extraction)](#8-tahmini-değişimler-delta-extraction)
-9. [Soroban Auth Ağacı & Operasyon Decode](#9-soroban-auth-ağacı--operasyon-decode)
-10. [Risk Tespit Sistemi](#10-risk-tespit-sistemi)
-11. [Policy Motoru](#11-policy-motoru)
-12. [Öneri Motoru](#12-öneri-motoru)
-13. [Audit Trail & Reputation](#13-audit-trail--reputation)
-14. [Batch, Streaming, Replay](#14-batch-streaming-replay)
-15. [MCP Server](#15-mcp-server)
-16. [x402 Ödeme Sistemi](#16-x402-ödeme-sistemi)
-17. [swig-guard SDK](#17-swig-guard-sdk)
-18. [Wallet Adapter & Browser Extension](#18-wallet-adapter--browser-extension)
-19. [Bağımsız Cüzdan (apps/wallet)](#19-bağımsız-cüzdan-appswallet)
-20. [API Endpoint'leri](#20-api-endpointleri)
-21. [Veri Modelleri](#21-veri-modelleri)
-22. [Dosya Haritası](#22-dosya-haritası)
-23. [Agent Guard (SDK + CLI)](#23-agent-guard-sdk--cli)
+1. [Baret nedir](#1-baret-nedir)
+2. [Monorepo haritası](#2-monorepo-haritası)
+3. [Büyük resim](#3-büyük-resim)
+4. [Ana akışlar](#4-ana-akışlar)
+5. [Güven sınırları](#5-güven-sınırları)
+6. [Durum haritası (veri nerede duruyor)](#6-durum-haritası)
+7. [Portlar, ortamlar, deploy](#7-portlar-ortamlar-deploy)
+8. [Neden böyle bağlı (tasarım kararları)](#8-neden-böyle-bağlı)
+9. [İsimlendirme mirası](#9-i̇simlendirme-mirası)
+10. [Derin dalış dokümanları](#10-derin-dalış-dokümanları)
 
 ---
 
-## 1. Proje Nedir?
+## 1. Baret nedir
 
-BARET, Stellar transaction'larını **imzalanmadan önce** analiz eden bir güvenlik protokolüdür.
+Baret, **Stellar için işlem güvenlik duvarıdır**. Bir kullanıcı ya da agent bir işlemi imzalamadan önce Baret
+işlemi okur, simüle eder, risk dedektörlerinden geçirir ve kullanıcının kurallarına göre bir karar verir:
+**Safe / Caution / Blocked**. Ek olarak, AI agent'ların yaptığı **x402** mikro ödemelerine (HTTP 402) harcama
+tavanı koyar. Bu tavan hem cüzdanda hem zincir üzerinde (Soroban kontratı) uygulanır.
 
-**3 cümlede:**
-1. Bir Stellar işlemini (base64 XDR) alır, Horizon'dan hesap durumlarını çeker ve Soroban op'ları için preflight (simülasyon) çalıştırır — gerçekten göndermeden.
-2. Sonucu bağımsız risk dedektörlerinden geçirir (kontrat reputation'ı, allowance/trustline değişimleri, kaynak ücretleri, auth ağacı derinliği, x402 kuralları…).
-3. Kullanıcı policy'sine göre `safe: true/false` + gerekçe döner.
+Aynı motor dört yüzeyde sunulur:
 
-**Kim kullanır:** Stellar cüzdanları (kullanıcıyı imzadan önce uyarmak), dApp'ler, AI agent'lar (otomatik imza öncesi kontrol).
+| Yüzey | Kim kullanır | Nerede |
+|---|---|---|
+| **Tarayıcı cüzdanı** (Chrome/Firefox MV3) | İnsan kullanıcı | `apps/extension` |
+| **HTTP analiz API'si** (`/v1/analyze`, anahtarlı) | Cüzdanlar, dApp'ler, geliştiriciler | `apps/server` |
+| **Agent SDK + CLI** (`baret`) | Otonom agent / bot cüzdanları | `packages/agent-guard` |
+| **MCP araçları** (`/mcp/*`) | LLM agent'lar | `apps/server` |
+
+Bunları kanıtlayan bir **showcase** sitesi (`apps/showcase`, gerçek testnet işlemleriyle) ve zincir üzerindeki
+harcama politikası **MerchantSpendPolicy** (`contracts/`) da ürünün parçasıdır.
+
+**Durum:** Hackathon aşaması, **Stellar testnet**. Eklenti mağazada değil (unpacked/geçici add-on). Bilinen
+sınırlar: [`LIMITATIONS.md`](./LIMITATIONS.md). Spec ile gerçek arasındaki fark:
+[`docs/implementation-status.md`](./docs/implementation-status.md).
 
 ---
 
-## 2. Monorepo & Genel Mimari
+## 2. Monorepo haritası
 
-pnpm workspace. Tüm paketler `@stellar-thorn/*` adıyla.
+pnpm workspace (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). Paket adları `@stellar-thorn/*`. Not:
+`contracts/` (Rust) ve `baret_docs/` (Next.js, kendi `package-lock.json`'ı var) workspace **dışındadır**.
+
+| Dizin | Paket adı | Rol | Dev portu |
+|---|---|---|---|
+| `apps/server` | `@stellar-thorn/server` | Fastify analiz + x402 + geliştirici API'si | 8080 |
+| `apps/extension` | `@stellar-thorn/extension` | Chrome/Firefox MV3 cüzdan (asıl ürün yüzeyi) | 5181 (+HMR 5182) |
+| `apps/showcase` | `@stellar-thorn/showcase` | Landing, 7 demo dApp, `/developers` portalı, `/agents`, `/install` | 5175 |
+| `apps/wallet` | `@stellar-thorn/wallet` | Bağımsız web cüzdanı (demo/fallback) | 5180 |
+| `packages/swig-guard` | `@stellar-thorn/swig-guard` | Guard SDK: policy şablonları + `/v1/analyze` istemcisi (SDK'sız) | - |
+| `packages/agent-guard` | `@stellar-thorn/agent-guard` | `AgentWallet` + `baret` CLI + attestation doğrulama | - |
+| `packages/baret-adapter` | `@stellar-thorn/wallet-adapter` | dApp ↔ bağımsız cüzdan `postMessage` popup köprüsü | - |
+| `packages/ext-protocol` | `@stellar-thorn/ext-protocol` | Eklenti yüzeyleri arası mesaj/tip sözleşmesi | - |
+| `packages/ui` | `@stellar-thorn/ui` | Tasarım sistemi (token'lar, primitives, shadcn katmanı) | - |
+| `packages/showcase-ui` | `@stellar-thorn/showcase-ui` | Demo sitelerin ortak parçası (şimdilik `DangerModeToggle`) | - |
+| `contracts/contracts/merchant-spend-policy` | (Rust crate) | **Güncel** zincir üstü harcama politikası | - |
+| `contracts/contracts/payment-guard` | (Rust crate) | **Eski** custodial vault denemesi (ürün dışı) | - |
+| `baret_docs` | `tailwind-plus-protocol` | Herkese açık API dokümantasyon sitesi (Next.js + MDX) | 3000 |
+| `docs/` | - | Tasarım/spec dokümanları (bkz. `docs/README.md`) | - |
+| `assets/` | - | Kaynak görseller (kodda referans yok; sunulan varlıklar `apps/showcase/public/`'te) | - |
+| `scripts/` | - | Repo araçları (`check-docs.mjs`: doküman tutarlılık denetimi) | - |
+
+Paket bağımlılık grafiği ve "neden ayrı paket" gerekçesi: [`docs/architecture/packages.md`](./docs/architecture/packages.md).
+
+---
+
+## 3. Büyük resim
 
 ```
-apps/
-  server/      Fastify + TypeScript analiz API'si (çekirdek)
-  extension/   Chrome MV3 + Firefox eklentisi (Wallet Standard + x402)
-  showcase/    Demo galerisi (6 tehdit senaryosu)
-  wallet/      Bağımsız React Stellar akıllı cüzdanı
-packages/
-  swig-guard/         pre-sign guard SDK'sı (@stellar-thorn/swig-guard)
-  baret-adapter/ dApp ↔ cüzdan postMessage köprüsü (@stellar-thorn/wallet-adapter)
-  ext-protocol/       eklenti mesaj-yolu tipleri (@stellar-thorn/ext-protocol)
-  showcase-ui/        showcase ortak UI iskeleti
-  ui/                 tasarım token'ları + paylaşılan bileşenler
-contracts/   Soroban kontratları (payment-guard, Rust)
+                         ┌────────────────────────────────────────────────┐
+                         │  apps/server  (Fastify, tek süreç)             │
+                         │  /v1/analyze · /batch · /stream · /decode      │
+                         │  /v1/replay · /v1/audit/* · /mcp/*             │
+                         │  /v1/keys · /v1/meta · /openapi.json           │
+                         │  /demo/scrybe · /demo/cortex (x402 satıcı)     │
+                         └──▲─────────▲───────────▲───────────▲───────────┘
+                            │         │           │           │  Horizon + Soroban RPC
+   ┌────────────────────────┴─┐  ┌────┴─────┐ ┌───┴──────┐ ┌──┴───────────┐   ▲
+   │ apps/extension           │  │ apps/    │ │ packages/│ │ 3. taraf     │   │
+   │ (MV3 background worker)  │  │ showcase │ │ agent-   │ │ geliştirici  │   │
+   │ analyze-client ──────────┼──┘ (proxy   │ │ guard    │ │ (curl/SDK)   │   │
+   └──────▲───────────────────┘   /api →    │ │ + baret  │ └──────────────┘   │
+          │ port: bx-wallet-standard        │ │ CLI      │                    │
+   ┌──────┴──────────┐                      │ └──────────┘                    │
+   │ content script  │  (izole dünya)       └─────────┬───────────────────────┘
+   └──────▲──────────┘                                │ window.baretStellar
+          │ window.postMessage                        ▼
+   ┌──────┴──────────────────────────────────────────────┐
+   │ inpage (sayfanın MAIN dünyası)                      │◄── dApp / showcase sitesi
+   │  window.baretStellar  +  fetch() 402 interceptor    │
+   └──────────────────────────────────────────────────────┘
+
+   Extension background ──► Horizon / Soroban RPC (bakiye, gönderim, smart wallet deploy/signer işlemleri)
+                       ──► Stellar testnet: smart wallet (passkey-kit) + MerchantSpendPolicy
+   x402: cüzdan yalnızca PAYMENT-SIGNATURE üretir; facilitator'ı (/verify, /settle) SATICI SUNUCU çağırır
 ```
 
-**Teknoloji seçimleri:**
-- **Fastify** — hızlı, TypeScript-dostu Node.js web framework'ü.
-- **@stellar/stellar-sdk** — Horizon (`Horizon.Server`), Soroban RPC (`rpc.Server`), XDR, `TransactionBuilder`, `StrKey`.
-- **Zod** — environment ve request şema doğrulaması.
-- **@x402/core + @x402/stellar** — HTTP 402 ödeme akışı (Stellar exact scheme).
+Üç ana fikir:
 
-İstemci tarafı (cüzdan, eklenti, showcase) React + Vite; ortak görsel kimlik `@stellar-thorn/ui`.
+1. **İmzadan önce oku.** Sunucu işlemi çözer, Horizon'dan hesap durumunu çeker, Soroban preflight çalıştırır,
+   dedektörleri koşturur ve kullanıcının `policy` nesnesine göre `safe: true/false` döner.
+2. **Karar cüzdanda verilir.** Sunucu bir girdidir, güven sınırı değildir. Eklenti, sunucuya ulaşamazsa bile
+   "korumasız imza" uyarısıyla çalışır; x402 harcama tavanlarını sunucudan bağımsız, kendi IndexedDB'sinde
+   uygular.
+3. **Tavan zincirde de uygulanır.** Her onaylı merchant için cüzdanın smart wallet kontratına, yalnızca o
+   merchant'a ve tavana bağlı bir alt anahtar (sub-key) eklenir. Sızan alt anahtar yalnızca o merchant'ın
+   tavanını boşaltabilir (alt anahtar kurulumu best-effort'tur, bkz. §4.3). Ayrıntı: [`docs/x402-defense.md`](./docs/x402-defense.md) §11 ve
+   [`contracts/README.md`](./contracts/README.md).
 
 ---
 
-## 3. Sunucu Başlatma Akışı
+## 4. Ana akışlar
 
-**`src/index.ts`**
-```
-1. loadConfig()      → environment okunur, Zod ile doğrulanır
-2. buildApp(config)  → Fastify instance kurulur
-3. app.listen(PORT)  → dinlemeye başlar
-```
+### 4.1 Sunucuda işlem analizi (`POST /v1/analyze`)
 
-**`src/app.ts` — buildApp():**
-1. Fastify instance (logger, body limit, request timeout, trust proxy)
-2. Rate limiting (IP bazlı; `/health` muaf)
-3. RPC adapter factory (Horizon + Soroban istemcileri)
-4. Auth hook (`/v1/*` isteklerinde API key / x402 doğrulaması)
-5. x402 etkinse ödeme katmanı
-6. Route kaydı: health, analyze, batch/stream, replay, audit, mcp, demo-paywall
-
-**Rate limiting:** IP bazlı, varsayılan 60 sn'de 200 istek; `DELTAG_RATE_LIMIT_MAX=0` ile kapatılır; `/health` muaf.
-
-**Auth:** `/v1/*` isteklerinde `Authorization: Bearer <key>` ya da `x-api-key`; key `DELTAG_API_KEYS` listesinde yoksa 401. x402 modunda `/v1/analyze` ödeme ile erişilebilir (`DELTAG_AUTH_MODE`: `api_key` | `x402` | `both`).
-
----
-
-## 4. Konfigürasyon Sistemi
-
-**`src/config/index.ts`** — tüm ayarlar env'den gelir, Zod ile doğrulanır. Geçersiz/eksik değerde sunucu **hiç başlamaz**.
-
-| Değişken | Varsayılan | Zorunlu | Açıklama |
-|----------|-----------|---------|----------|
-| `PORT` | 8080 | — | Dinleme portu |
-| `NODE_ENV` | development | — | development/test/production |
-| `LOG_LEVEL` | info | — | trace→fatal |
-| `DELTAG_API_KEYS` | (boş) | — | Virgülle ayrılmış API key'leri |
-| `DELTAG_AUTH_MODE` | api_key | — | api_key / x402 / both |
-| `STELLAR_NETWORK` | testnet | — | `testnet` veya `pubnet` |
-| `STELLAR_HORIZON_URL` | — | **Evet** | Horizon endpoint'i |
-| `STELLAR_SOROBAN_RPC_URL` | — | **Evet** | Soroban RPC endpoint'i |
-| `STELLAR_USDC_ISSUER` | ağ varsayılanı | — | Klasik USDC issuer'ı (G…) |
-| `STELLAR_USDC_CODE` | USDC | — | Klasik USDC asset kodu |
-| `RISKY_CONTRACT_IDS` | (boş) | — | Tehlikeli kontrat id'leri (C…), virgülle |
-| `KNOWN_SAFE_CONTRACT_IDS` | (boş) | — | Güvenli allowlist; doluysa diğerleri "unknown exposure" |
-| `MAX_SIMULATION_OPERATIONS` | 20 | — | Ön-duruma alınacak max hesap (1–100) |
-| `MAX_BODY_BYTES` | 1MB | — | Max istek gövdesi |
-| `REQUEST_TIMEOUT_MS` | 25000 | — | RPC zaman aşımı |
-| `DELTAG_RATE_LIMIT_MAX` / `_WINDOW_MS` | 200 / 60000 | — | Rate limit |
-| `DELTAG_TRUST_PROXY` | — | — | Reverse proxy arkası gerçek IP |
-| `X402_ENABLED` | — | — | x402 ödeme kapısı |
-| `X402_PAY_TO` | — | x402'de evet | Alıcı Stellar adresi (G…) |
-| `X402_NETWORK` | `stellar:<network>` | — | CAIP-2 ağ kimliği |
-| `X402_FACILITATOR_URL` | x402.org/facilitator | — | Facilitator endpoint'i |
-| `X402_ANALYZE_PRICE` | $0.001 | — | İstek başı fiyat |
-
-USDC, ağ başına varsayılan Circle issuer'ı (klasik `G…`) ve Soroban SAC kontratı (`C…`) ile gelir.
-
----
-
-## 5. Bir İsteğin Hayat Döngüsü
-
-`POST /v1/analyze` gövdesi: `{ transactionXdr, network?, policy?, userWallet?, integratorRequestId?, paymentRequirements? }`.
+Gövde: `{ network, transactionXdr, policy?, userWallet?, integratorRequestId?, paymentRequirements? }`.
 
 ```
 İSTEK
   │
-  ▼
-[1] Rate limit (IP)
-[2] Auth (API key veya x402 ödeme)
-[3] Zod gövde doğrulama (transactionXdr zorunlu; userWallet geçerli G… olmalı)
+  ▼ onRequest hook'ları (app.ts, sırayla)
+[1] CORS (ilk; preflight'ı burada cevaplar, 401/429'lara da header ekler)
+[2] IP başına rate limit (@fastify/rate-limit; /health muaf)
+[3] Auth (api/auth.ts): /v1/* ve /mcp/* varsayılan KAPALI, PUBLIC_ROUTES muaf.
+    Bearer/X-API-Key → statik anahtar (DELTAG_API_KEYS) ya da üretilmiş anahtar (baret_…, anahtar başı dk. limiti)
+    x402 modunda POST /v1/analyze için anahtarsız geçiş → ödeme katmanı (preHandler) 402 döner
   │
-  ▼  src/application/analyze-transaction.ts
-[4]  decodeStellarTransactionXdr()      XDR → Transaction; iç tx açılır
-[5]  collectTxAccounts()                hesaplar (G…), kontratlar (C…), varlıklar
-[6]  pickAccountsForSimulation()        MAX_SIMULATION_OPERATIONS'a göre kırp
-[7]  StellarSimulator.simulate()        Horizon pre-state + Soroban preflight
-[8]  extractEstimatedChanges()          native/asset/trustline/allowance delta
-[9]  parseSorobanAuthTree()             Soroban auth entry ağacı
-[10] decodeTransactionOperations()      insan-okunur op özeti
-[11] runRiskDetection()                 tüm dedektörler
-[12] evaluatePolicy()                   policy gate'leri + ek policy bulguları
-[13] generateSuggestions()              iyileştirme önerileri
-[14] audit.record()                     in-memory kayıt
+  ▼ routes/analyze.ts → application/analyze-transaction.ts
+[4]  Zod gövde doğrulama; network ≠ sunucu ağı ise 400 WRONG_NETWORK
+[5]  decodeStellarTransactionXdr → fee-bump ise iç işlem açılır
+[6]  collectTxAccounts → G… hesaplar, C… kontratlar, varlıklar; pickAccountsForSimulation → MAX_SIMULATION_OPERATIONS'a kırp
+[7]  StellarSimulator.simulate → Horizon pre-state (paralel) + Soroban preflight
+     (preflight öncesi auth girdileri SİLİNİR: imzasız address-credential auth "recording" modunda çalışsın)
+[8]  extractEstimatedChanges → native/asset/trustline/allowance delta'ları
+[9]  parseSorobanAuthTree (cpiTrace) + decodeTransactionOperations (insan okur özet)
+[10] runRiskDetection → 8 dedektör (account, simulation, programs, cpi, reputation, compute, deltas, x402)
+[11] evaluatePolicy → policy bayrakları bulguları bloklamaya çevirir; ek bulgular (kayıp %, min bakiye)
+[12] generateSuggestions
+[13] (opsiyonel) signVerdict → Ed25519 attestation (BARET_SIGNING_SECRET varsa)
+[14] AuditStore.record (bellek, 10.000 kayıt)
   │
   ▼
-YANIT  { safe, reasons, estimatedChanges, riskFindings, simulationWarnings, meta, suggestions }
+[15] analyzeResponseSchema (Zod) ile cevap doğrulanır; x402 açıksa BU NOKTADAN SONRA ödeme settle edilir
+YANIT { safe, reasons, estimatedChanges, riskFindings, simulationWarnings, annotation, suggestions, meta, attestation? }
 ```
 
----
-
-## 6. Transaction Decode (XDR)
-
-**`src/simulation/tx-decode.ts`** — `decodeStellarTransactionXdr(xdr, networkPassphrase)`:
-- Base64 `TransactionEnvelope` XDR'ı `@stellar/stellar-sdk` `TransactionBuilder.fromXDR()` ile çözer.
-- `FeeBumpTransaction` ise iç işlem `unwrapInnerTransaction()` ile açılır.
-- Çıktı: imzalanabilir/incelenebilir `Transaction` nesnesi.
-
-> Stellar işlemi tüm hesap referanslarını XDR içinde açıkça taşır; ayrı bir adres-tablosu çözümleme adımı gerekmez.
-
-**`src/simulation/account-keys.ts`** — `collectTxAccounts(tx)` op'ları gezerek dokunulan klasik hesapları (G…), Soroban kontratlarını (C…) ve varlıkları toplar.
-
----
-
-## 7. Hesap Toplama & Simülasyon
-
-**`src/simulation/stellar-simulator.ts`** — `StellarSimulator.simulate({ network, tx, accountIdsForPreState })`:
-
-1. **Horizon pre-state:** ilgili hesapların mevcut durumu (`loadAccount`) **paralel** çekilir; `accountStateFromHorizon()` ile SDK-bağımsız wire-shape'e (`SimulationAccountState`: bakiye, trustline'lar, signer'lar, eşikler) çevrilir. 404 → "henüz fonlanmamış" stub.
-2. **Soroban preflight:** işlemde Soroban op'u (`invokeHostFunction`) varsa Soroban RPC `simulateTransaction` çalıştırılır → min kaynak ücreti, diagnostic event'ler, auth entry'leri.
-3. **Normalize:** `buildNormalizedSimulation()` her ikisini birleştirip kanonik `NormalizedSimulation` üretir:
-   - `status`: `success` | `failed`
-   - `preflighted`: Soroban preflight gerçekten çalıştı mı (sadece-classic tx'lerde false)
-   - `accounts`, `events`, `feeStroops`, `minResourceFeeStroops`, `authEntries`, `hostFnResultsXdr`
-
-Preflight "restore gerekiyor" dönerse non-fatal `failed` olarak işaretlenir (detektörler işaretler ama analiz devam eder).
-
----
-
-## 8. Tahmini Değişimler (Delta Extraction)
-
-**`src/analysis/extract-deltas.ts`** — `extractEstimatedChanges(preMap, simulation, tx, userWallet)` simülasyon öncesi/sonrası farkından `EstimatedChanges` üretir:
-
-- **native:** hesap başına XLM değişimi — `preStroops / postStroops / deltaStroops` (string; tam hassasiyet için stroop cinsinden, 1 XLM = 10.000.000 stroop).
-- **assets:** klasik trustline + Soroban token bakiye değişimleri (`asset` = `CODE:ISSUER` veya `C…`, `delta`, `decimals`).
-- **trustlines:** `changeTrust` op'larından doğan trustline değişimleri (`direction`: added/removed/increased/decreased, `newLimit`).
-- **allowances:** Soroban `approve` host-fn'lerinden allowance grant'leri (`tokenAddress`, `spender`, `amount`, `expirationLedger`).
-
-> Tutarlar **stroop** cinsindedir (1 XLM = 10.000.000 stroop); varlık değişimleri **trustline / Soroban token** bakiyeleri, yetki verme ise **Soroban allowance** olarak modellenir.
-
----
-
-## 9. Soroban Auth Ağacı & Operasyon Decode
-
-**`src/simulation/cpi-parser.ts`** — `parseSorobanAuthTree(tx)`: Soroban authorization tree'sini çıkarır (hangi auth entry hangi kontratın hangi fonksiyonuna yetki veriyor, iç içe çağrı derinliği). Derin/yoğun çağrı ağaçları risk dedektörlerine girdi olur.
-
-**`src/analysis/instruction-decoder.ts`** — `decodeTransactionOperations(tx)`: op'ları insan-okunur özete çevirir (`payment`, `changeTrust`, `setOptions`, `accountMerge`, `invokeHostFunction` → `soroban_transfer`/`soroban_approve`…). Bu özet hem audit hem öneri motoru için kullanılır.
-
----
-
-## 10. Risk Tespit Sistemi
-
-**`src/risk/index.ts` — `runRiskDetection(args)`** tüm dedektörleri sırayla çağırır, bulguları birleştirir. Dedektörler `src/risk/detectors/` altında bağımsızdır:
-
-| Dosya | Fonksiyon | Tespit | Bulgu kodları |
-|-------|-----------|--------|----------------|
-| `simulation.ts` | `detectSimulationFindings` | Preflight başarısız; sadece-classic (preflight yok) | `SIMULATION_FAILED`, `LOW_CONFIDENCE_INCOMPLETE_DATA` |
-| `programs.ts` | `detectContractFindings` | Risky listedeki kontrat; known-safe dışı kontrat | `RISKY_CONTRACT_INTERACTION`, `UNKNOWN_CONTRACT_EXPOSURE` |
-| `reputation.ts` | `detectReputationFindings` | Reputation DB'deki adres/kontrat | `KNOWN_MALICIOUS_ADDRESS` |
-| `deltas.ts` | `detectAllowanceAndTrustlineFindings` | Trustline değişim/kaldırma; Soroban allowance; sınırsızlık | `TRUSTLINE_CHANGE_DETECTED`, `TRUSTLINE_REMOVED`, `UNLIMITED_TRUSTLINE`, `SOROBAN_ALLOWANCE_GRANTED`, `SOROBAN_ALLOWANCE_UNLIMITED` |
-| `deltas.ts` | `detectIncompleteDataFinding` | Kırpılmış hesaplar / eksik userWallet | `LOW_CONFIDENCE_INCOMPLETE_DATA` |
-| `cpi.ts` | `detectCpiFindings` | Auth ağacı derinliği ≥5; invocation ≥20 | `DEEP_SUB_INVOCATION_NESTING`, `HIGH_OPERATION_COUNT` |
-| `compute.ts` | `detectResourceFindings` | Soroban min kaynak ücreti / base fee eşik aşımı | `EXCESSIVE_RESOURCE_FEE`, `EXCESSIVE_BASE_FEE` |
-| `x402.ts` | `detectX402Findings` | Memo eksik; allowlist dışı varlık; hedef/varlık uyuşmazlığı | `X402_MEMO_MISSING`, `X402_NON_CANONICAL_ASSET`, `X402_DESTINATION_MISMATCH`, `X402_ASSET_MISMATCH` |
-
-Her bulgu: `{ code, severity (low/medium/high/critical), message, details? }`.
-
-> Risk modeli tümüyle Stellar-yereldir: kontrat id'leri (`C…`), Soroban authorization tree, kaynak/base ücretleri, klasik trustline'lar ve Soroban allowance'ları üzerinden çalışır.
-
----
-
-## 11. Policy Motoru
-
-**`src/policy/engine.ts` — `evaluatePolicy(input)`** bulguları + kullanıcı policy'sini değerlendirir ve `Decision` döner. Policy basit bir nesnedir (`src/domain/policy.ts`):
-
-**Pre-sign kuralları:** `requireSuccessfulSimulation` (varsayılan açık), `blockRiskyContracts`, `blockUnknownContractExposure`, `blockSorobanAllowanceGrants`, `blockTrustlineChanges`, `blockUnlimitedTrustlines`, `blockAccountMerge`, `blockSignerChanges`, `blockMasterKeyRemoval`, `allowWarnings`, `maxLossPercent`, `minPostUsdcBalance` + `minPostAsset`.
-
-**x402 kuralları:** `requireMemo`, `maxResourceFeeStroops`, `maxBaseFeeStroops`, `allowedAssets`.
-
-Motor ek policy bulguları üretebilir: `ESTIMATED_LOSS_EXCEEDS_MAX`, `POST_BALANCE_TOO_LOW`, `LOSS_PERCENT_UNAVAILABLE`. Karar mantığı `isBlocked()` içinde **fail-closed**'dur: yeterli veri yoksa (ör. loss hesaplanamıyor) blok tarafına düşer. `Decision.meta` network, `simulatedAt`, `confidence` (low/medium/high) taşır.
-
-**İkincil DSL:** `src/policy/dsl.ts` — MCP profilleri için kural-tabanlı bir DSL vardır (operatörler: `eq/neq/gt/lt/gte/lte/in/not_in/contains/exists`; aksiyonlar: `allow/block/warn`; hazır profiller: `strict`, `defi-permissive`, `monitor-only`). Ana analiz yolu yukarıdaki nesne-policy'sini kullanır; DSL gelişmiş/opsiyoneldir.
-
-**swig-guard şablonları (istemci tarafı):** STRICT / BALANCED / PERMISSIVE (bkz. §17).
-
----
-
-## 12. Öneri Motoru
-
-**`src/analysis/suggestion-engine.ts` — `generateSuggestions(tx, decision, simulation, txSummary)`**: karar + op özetinden eyleme dönük öneriler üretir (ör. sınırsız allowance yerine sınırlı miktar, riskli kontrattan kaçınma, yüksek ücret uyarısı). Öneriler yanıtın `suggestions` alanında döner; bloklama yapmaz, yalnızca yol gösterir.
-
----
-
-## 13. Audit Trail & Reputation
-
-**Audit — `src/data/audit-store.ts`:** her analiz sonucu kaydedilir: `{ id, timestamp, network, safe, confidence, riskCodes, contractAddresses, primaryAction, userWallet?, integratorRequestId?, durationMs }`. Son **10.000** kayıt **bellekte** tutulur (kalıcı DB yok; restart'ta sıfırlanır). Kontrat bazlı istatistikler (totalSeen, blockedCount, riskCodes, lastSeen) ve agregat görünüm (top risk kodları, top bloklanan kontratlar) sunulur. Endpoint'ler: `/v1/audit/recent`, `/v1/audit/aggregate`, `/v1/audit/contract/:address`.
-
-**Reputation — `src/risk/detectors/reputation.ts` + seed verisi:** bilinen kötü adres/kontrat (drainer, phishing) listesi. İşlemdeki herhangi bir adres listede varsa `KNOWN_MALICIOUS_ADDRESS` üretilir. Şu an seed verisiyle başlar; genişletilebilir.
-
----
-
-## 14. Batch, Streaming, Replay
-
-- **Batch — `src/api/routes/batch.ts`:** `POST /v1/analyze/batch` en fazla 25 işlemi tek istekte analiz eder.
-- **Streaming (SSE):** `POST /v1/analyze/stream` sonuçları Server-Sent Events olarak akıtır (her işlem bittikçe yayınlanır).
-- **Replay — `src/api/routes/replay.ts`:** `POST /v1/replay` aynı işlemi yeniden simüle eder; `ledger` parametresi bilgilendiricidir.
-
----
-
-## 15. MCP Server
-
-**`src/mcp/server.ts` + `src/api/routes/mcp.ts`** — Model Context Protocol; AI agent'ları araç olarak çağırır.
-
-- `GET /mcp/tools` — araç tanımlarını listeler
-- `POST /mcp/call` — araç çağırır
-
-Araçlar: `baret_analyze` (işlem analiz), `baret_health` (servis durumu), `baret_list_profiles` (policy DSL profilleri).
-
----
-
-## 16. x402 Ödeme Sistemi
-
-HTTP 402 "Payment Required" üzerine kurulu mikro-ödeme. Stellar **exact scheme** (`@x402/stellar`).
-
-**`src/infra/x402.ts` + `src/x402/facilitator-client.ts`:**
-1. Ödemesiz istek → sunucu **402 + PaymentRequirements** döner.
-2. İstemci Stellar USDC ödemesi yapar (klasik asset ya da Soroban SAC).
-3. `preHandler`: `PAYMENT-SIGNATURE` header'ı facilitator'a (`X402_FACILITATOR_URL`) doğrulatılır.
-4. Analiz başarılıysa `settleAfterSuccess` ile ödeme kesinleştirilir (settlement).
-
-Ağ kimliği `stellar:testnet` / `stellar:pubnet`. Alıcı `X402_PAY_TO` (Stellar `G…` adresi). Demo: **`GET /demo/scrybe?q=…`** (`src/api/routes/demo-paywall.ts`) — showcase'in Scrybe sitesini besler.
-
----
-
-## 17. swig-guard SDK
-
-**`packages/swig-guard`** — cüzdan/dApp'lerin imzadan önce işlem değerlendirmesi için kullandığı SDK. SDK-free tutulur (Stellar SDK'sı import etmeden tüketilebilir).
-
-- **`TransactionGuard`** — `new TransactionGuard({ analyze: { baseUrl, apiKey }, network })`.
-  - `evaluate({ transactionXdr, userWallet, policy, integratorRequestId? })` → `{ decision, advisoryFindings, blockingReasons, analysis, transactionXdr }`. **Asla imzalamaz/göndermez**; sadece karar döner.
-  - `prepare(...)` — blokta `GuardBlockedError` fırlatır (exception-flow için).
-- **`analyzeTransaction(cfg, req)`** — `/v1/analyze`'a HTTP istemcisi.
-- **Tipler** — `AnalysisResult` (`safe`, `reasons`, `estimatedChanges`, `riskFindings`), `RiskFinding`, `RiskSeverity`, `StellarNetwork = "testnet" | "pubnet"`.
-- **Policy** — `GuardPolicy` + şablonlar `STRICT_POLICY` / `BALANCED_POLICY` / `PERMISSIVE_POLICY` ve `POLICY_TEMPLATES`. `validatePolicy()` / `normalizePolicy()`.
-
-İşlem XDR'ını **çağıran taraf kurar** (Stellar smart-wallet sarmalama yöntemleri deployment'a göre değişir); guard'ın işi analiz + policy uygulamaktır.
-
----
-
-## 18. Wallet Adapter & Browser Extension
-
-**`packages/baret-adapter` (@stellar-thorn/wallet-adapter):** dApp ↔ BARET cüzdanı arası `postMessage` köprüsü. Protokol mesajları (`src/protocol.ts`) `__bt: "1"` ile etiketlenir: `connect-request/approved/rejected`, `sign-request` (`transactionXdr`, mode: `sign | signAndSend`), `sign-approved` (`signedTransactionXdr`, opsiyonel `signature`), `sign-rejected`. dApp'in imzalattığı her işlem cüzdanın policy gate'inden geçer.
-
-**`apps/extension`:** Chrome MV3 + Firefox. Stellar **Wallet Standard** sağlayıcısı + **x402 interceptor**.
-- **background:** hesap durum makinesi, IndexedDB (keystore, history, allowances, site izinleri), zincir monitörü, kripto oturumu (PBKDF2 + AES-GCM), Soroban sub-key imzalama.
-- **popup:** 360×600 araç çubuğu (Home/Activity/Allowances/Settings).
-- **options:** tam cüzdan arayüzü (onboarding, policies, sites, x402).
-- **inpage:** `window.stellar` Wallet Standard API'si + HTTP 402 yanıtlarını yakalayıp USDC ödemesi kuran x402 interceptor.
-- Bağlantı/RPC: Horizon + Soroban (`src/background/rpc/connection.ts`), ağ `testnet`/`pubnet`.
-
----
-
-## 19. Bağımsız Cüzdan (apps/wallet)
-
-Port 5180'de çalışan bağımsız React Stellar akıllı cüzdanı (eklentinin daha sade, demo muadili). `@stellar/stellar-sdk` ile çalışır; swig-guard ile pre-sign analiz, wallet-adapter ile dApp bağlantısı yapar.
-
-- **Çekirdek:** `wallet/connection.ts` (Horizon + Soroban + Friendbot + stellar.expert explorer), `wallet/keypair.ts` (Stellar `Keypair`), `wallet/smart-wallet.ts` (provizyon — şimdilik authority adresini placeholder smart-wallet olarak kullanır), `wallet/stellar-tx.ts` (XLM payment XDR kur → imzala → Horizon'a gönder), `wallet/state.tsx` (identity/bakiye/fund/provision).
-- **Akış:** Onboarding'de Stellar keypair üretilir, Friendbot ile testnet XLM fonlanır; Send/Sign işlemi XDR olarak kurulup `guard.evaluate()`'e gönderilir, "allow" ise imzalanıp gönderilir.
-- **Sayfalar:** onboarding, home, send, receive, history, policies, settings, connect, sign.
-
-> Gerçek Soroban smart-wallet kontrat entegrasyonu işaretli TODO'dur; şu an `smartWalletAddress = authority adresi`.
-
----
-
-## 20. API Endpoint'leri
-
-| Yöntem | Adres | Açıklama |
-|--------|-------|----------|
-| GET | `/health` | Basit sağlık (rate-limit muaf) |
-| GET | `/health/ready` | Horizon + (varsa) x402 facilitator hazır mı |
-| POST | `/v1/analyze` | Tek işlem analizi |
-| POST | `/v1/analyze/batch` | Toplu analiz (≤25) |
-| POST | `/v1/analyze/stream` | SSE sonuç akışı |
-| POST | `/v1/replay` | Simülasyonu yeniden çalıştır |
-| GET | `/v1/audit/recent` | Son kayıtlar (≤200) |
-| GET | `/v1/audit/aggregate` | Agregat istatistikler |
-| GET | `/v1/audit/contract/:address` | Kontrat bazlı audit |
-| GET | `/mcp/tools` | MCP araç listesi |
-| POST | `/mcp/call` | MCP araç çağrısı |
-| GET | `/demo/scrybe` | x402 demo paywall |
-
----
-
-## 21. Veri Modelleri
-
-**`src/domain/`** (ve `packages/swig-guard/src/types.ts` aynalanır):
-
-- **`NormalizedSimulation`** (`simulation-normalized.ts`): `status`, `err`, `events`, `accounts: SimulationAccountState[]`, `feeStroops`, `authEntries`, `hostFnResultsXdr`, `preflighted`, `minResourceFeeStroops`.
-- **`SimulationAccountState`**: `accountId`, `exists`, `nativeBalance`, `balances: AssetBalance[]`, `sequence`, `signers`, `thresholds`.
-- **`EstimatedChanges`** (`estimated-changes.ts`): `native: NativeBalanceChange[]`, `assets: AssetBalanceChange[]`, `trustlines: TrustlineChange[]`, `allowances: SorobanAllowanceChange[]`.
-- **`RiskFinding`** (`findings.ts`): `code: RiskFindingCode`, `severity`, `message`, `details?`.
-- **`Policy`** (`policy.ts`): §11'deki alanlar.
-- **`Decision`** (`decision.ts`): `safe`, `reasons`, `estimatedChanges`, `riskFindings`, `simulationWarnings`, `meta: { analysisVersion, network, simulatedAt, confidence }`.
-
-Tüm tutarlar **stroop** (string, tam hassasiyet; 1 XLM = 10.000.000 stroop).
-
----
-
-## 22. Dosya Haritası
+Önemli davranışlar:
+- **Policy varsayılanı `{}`'dir.** Boş policy yalnızca başarısız Soroban simülasyonunu ve eksik veriyi
+  (`LOW_CONFIDENCE_INCOMPLETE_DATA`, `allowWarnings` true değilse) bloklar. Bir bulgunun bloklaması için ilgili
+  `policy` bayrağı açık olmalıdır, aksi halde bulgu yalnızca bilgilendiricidir.
+- **Fail-closed alanlar:** `maxLossPercent`/`minPostUsdcBalance` set edilip `userWallet` yoksa ya da veri
+  hesaplanamıyorsa sonuç bloklanır.
+- Üretilmiş (`baret_…`) anahtarların dakikalık limiti batch/stream'de HTTP isteği başına değil **işlem başına**
+  tüketilir (25'lik batch = 25 hak). Statik `DELTAG_API_KEYS` anahtarları yalnızca IP limitine tabidir.
+
+Tam ayrıntı (dedektör kodları, policy motoru, auth, anahtarlar, x402, MCP, audit, attestation, config):
+[`docs/architecture/server.md`](./docs/architecture/server.md).
+
+### 4.2 Cüzdanda imza akışı (eklenti)
 
 ```
-apps/server/src/
-├── index.ts                      Giriş noktası
-├── app.ts                        Fastify kurulumu, route kaydı
-├── config/index.ts               Env şeması + loadConfig()
-├── application/
-│   └── analyze-transaction.ts    Ana analiz orkestratörü
-├── simulation/
-│   ├── tx-decode.ts              XDR decode + iç tx açma
-│   ├── account-keys.ts           Hesap/kontrat/varlık toplama
-│   ├── stellar-simulator.ts      Horizon pre-state + Soroban preflight
-│   ├── normalize-simulation.ts   NormalizedSimulation üretimi
-│   ├── cpi-parser.ts             Soroban auth ağacı
-│   └── replay.ts                 Replay yardımcıları
-├── analysis/
-│   ├── extract-deltas.ts         EstimatedChanges (delta extraction)
-│   ├── instruction-decoder.ts    Operasyon → insan-okunur özet
-│   └── suggestion-engine.ts      Öneri üretimi
-├── risk/
-│   ├── index.ts                  runRiskDetection()
-│   └── detectors/                simulation, programs, reputation,
-│                                 deltas, cpi, compute, x402
-├── policy/
-│   ├── engine.ts                 evaluatePolicy()
-│   └── dsl.ts                    İkincil kural DSL'i + profiller
-├── domain/                       policy, decision, findings,
-│                                 estimated-changes, simulation-normalized
-├── data/audit-store.ts           In-memory audit trail
-├── infra/
-│   ├── stellar-rpc.ts            Horizon + Soroban RPC adapteri
-│   └── x402.ts                   x402 katmanı
-├── x402/facilitator-client.ts    Facilitator HTTP istemcisi
-├── mcp/server.ts                 MCP araçları
-└── api/routes/                   health, analyze, batch, replay,
-                                  audit, mcp, demo-paywall
-
-packages/
-├── swig-guard/      guard SDK (TransactionGuard, analyzeTransaction, policy)
-├── agent-guard/     agent/program-wallet SDK + `baret` CLI (§23)
-├── baret-adapter/  dApp ↔ cüzdan postMessage protokolü
-├── ext-protocol/    eklenti mesaj tipleri
-├── showcase-ui/     showcase UI iskeleti
-└── ui/              tasarım token'ları + bileşenler
-
-apps/{extension,wallet,showcase}/  React UI'ları (§18, §19); showcase /agents kontrol sayfası (§23)
-contracts/payment-guard/           Soroban payment-guard kontratı (Rust)
+dApp ──window.baretStellar.signTransaction(xdr)──► inpage/wallet-standard.ts
+  └─ window.postMessage {__bx_ws}──► content/index.ts (izole dünya)
+       └─ origin'i GERÇEK window.location.origin ile ezer (attachTrustedOrigin)
+       └─ port "bx-wallet-standard" ──► background/messaging/router.ts ──► wallet-standard/handlers.ts
+            ws.signTransaction → queueAndWait("transaction") → sign.start (state: signing)
+            → popup-window.ts küçük bir popup penceresi açar
+                 popup/SignRequest.tsx
+                   tx.peekRequest ──► kuyruğun başı
+                   tx.analyzeRequest ──► background/baret/analyze-client.ts ──► POST /v1/analyze
+                       (policy = kayıtlı GuardPolicy, yoksa BALANCED_POLICY; userWallet = authority G…)
+                   ─► verdict: allow / advisory / block  (sunucuya ulaşılamazsa "offline" advisory)
+                 kullanıcı Sign / Decline  (Blocked ise 1.5 sn basılı tutma ile override)
+                 tx.sign ──► performSign: aktif hesabın anahtarıyla imza (+ signAndSend ise Horizon'a gönder)
+       ◄── imzalı XDR ── dApp
 ```
 
+- Bağlanma (`ws.connect`): kilitliyse popup açıp kilit açılmasını bekler; site izni (`site_permissions`,
+  hesap+origin bazlı, `trusted|denied`, `remembered`) yoksa popup'ta `ConnectApproval` gösterir.
+- Mesaj imzası, auth entry imzası (`ws.signAuthEntry`) ve x402 ödeme imzası aynı kuyruktan geçer
+  (`SignKind`: `message | transaction | transactionAndSend | authEntry | x402Payment | connect`).
+- Anahtar yalnızca service worker belleğinde durur; boşta `idleTimeoutMs` (varsayılan 15 dk) sonra kilitlenir.
+
+Yüzeyler arası mesaj sözleşmesi, IndexedDB şeması, kripto: [`docs/extension-architecture.md`](./docs/extension-architecture.md).
+
+### 4.3 x402 harcama akışı (agent ödemeleri)
+
+Cüzdan x402 ödemelerini iki girişten yakalar. İkisi de **aynı mandate kuralına** uyar:
+
+```
+Giriş A: fetch interceptor                        Giriş B: dApp doğrudan signAuthEntry çağırır
+ (inpage/x402-interceptor.ts)                      (ör. showcase Scrybe: @x402/stellar istemcisi)
+ 402 + PaymentRequirements görür                   ws.signAuthEntry → tryAutoApproveX402AuthEntry
+ → "x402.review" → x402Review()                    (entry'yi ayrıştırır: SAC transfer(from,to,amount))
+        └───────────────┬─────────────────────────────────┘
+                        ▼
+   1. Doğrula: scheme=exact, network eşleşmesi, asset/payTo C…/G…, maxTimeoutSeconds ≤ 600, sponsorBy var
+   2. Policy listeleri: allowedAssets / blockedMerchantOrigins / allowedMerchantOrigins / allowedFacilitators
+   3. Allowance satırı (hesap::origin::asset): yoksa "pending" olarak yaratılır (oto-onay YOK)
+   4. Otomatik imza YALNIZ canlı mandate varsa (status=active ve süresi dolmamış) VE x402AutoApprove !== false
+      aksi halde popup: mandate şartları (tavanlar, süre) gösterilir, kullanıcı elle onaylar
+   5. Tavanlar: global maxX402PerTx + satır başı capPerTx/capPerHour/capPerDay (tryReserveSpend: atomik, kayan pencere)
+   6. Ödeme: smart wallet (C…) AKTÖR; auth-entry imzası passkey-kit ile (Ed25519 alt anahtar veya admin authority)
+   7. PAYMENT-SIGNATURE başlığı (v2 PaymentPayload, base64) → istek yeniden gönderilir
+```
+
+Elle onay, mandate'i canlı yapar (`promoteAllowance`) ve **ilk onayda** zincir üstü alt anahtarı kurar
+(`provisionRealSubKey`): `MerchantSpendPolicy` cüzdana `Policy` signer olarak eklenir (ilk seferde),
+`set_allowance(wallet, merchant=payTo, signer=altAnahtar, tavanlar, mandate)` çağrılır, sonra alt anahtar
+`SignerLimits{token: [Policy(MerchantSpendPolicy)]}` ile `Ed25519` signer olarak eklenir. Sonraki otomatik
+ödemeler bu alt anahtarla imzalanır ve cüzdanın `__check_auth`'u politikayı çağırır. Bu adım **best-effort**'tır:
+başarısız olursa mandate yine geçerlidir ama ödemeler admin anahtarıyla imzalanır (zincir tavanı devreye girmez).
+
+Elle iptal (`ledger.revoke`) zincirde `remove_signer` yollar. `ledger.pause` yalnızca yerel durumdur.
+
+Protokol ayrıntıları, saldırı matrisi, hangi savunmanın gerçekte var olduğu:
+[`docs/x402-defense.md`](./docs/x402-defense.md).
+
+### 4.4 x402 satıcı tarafı (sunucu)
+
+İki ayrı şey vardır, karıştırma:
+
+| | `POST /v1/analyze` paywall'ı | `/demo/scrybe` ve `/demo/cortex` |
+|---|---|---|
+| Amaç | Analiz API'sini ödemeli sunmak | Showcase'in gerçek x402 satıcısı |
+| Açan ayar | `X402_ENABLED=true` + `X402_PAY_TO` | `X402_MERCHANT_SECRET` (yoksa rota hiç kayıt olmaz) |
+| Kütüphane | `@x402/core` + `@x402/stellar` (`x402HTTPResourceServer`) | Elle yazılmış `FacilitatorClient` (`x402/facilitator-client.ts`) |
+| Auth | `DELTAG_AUTH_MODE` (`api_key`/`x402`/`both`) | Yok (`/demo/*` `/v1` altında değil) |
+
+Her ikisi de facilitator'ın `/verify` ve `/settle` uçlarını kullanır; settlement gerçek bir testnet işlemidir.
+
+### 4.5 Agent akışı
+
+`AgentWallet.guardedSubmit(xdr)`: `TransactionGuard.evaluate` → `/v1/analyze` → policy izin verirse yerel
+`Keypair` ile imzala → Horizon'a gönder. Sunucu erişilemezse **imzalamaz** (fail-closed, `allowOffline`
+bilinçli istisna). `pinnedServerPublicKey` verilirse cevaptaki Ed25519 attestation doğrulanır; yanlış/eksikse
+`AttestationError`. CLI aynı şeyi `baret analyze|sign|submit` ile yapar (çıkış kodları: 0 izin, 1 blok, 2 hata).
+
+### 4.6 Geliştirici API'si (3. taraf)
+
+`POST /v1/keys` ile ücretsiz anahtar (yalnızca SHA-256 özeti `BARET_DATA_DIR/keys.json`'da) → `Authorization:
+Bearer baret_…` → `/v1/analyze` vb. Keşif uçları (`/v1/meta`, `/v1/detectors`, `/v1/policy/schema`,
+`/openapi.json`) anahtarsızdır. Şema kaynağı: `apps/server/src/api/openapi.ts` (elle yazılmış, testle rota
+listesine kilitli). İnsan okur doküman: [`baret_docs`](./baret_docs) ve showcase'teki `/developers` portalı.
+
 ---
 
-## 23. Agent Guard (SDK + CLI)
+## 5. Güven sınırları
 
-**`packages/agent-guard` (@stellar-thorn/agent-guard)** — swig-guard'ın "batteries-included"
-üst katmanı: aynı pre-sign korumasını **otonom agent'lar ve program (bot) cüzdanları** için
-sunar. swig-guard SDK-free kalır; anahtar tutma + imzalama + Horizon'a gönderme bu paketin işidir
-(`@stellar/stellar-sdk` doğrudan bağımlılık). NodeNext build → CLI doğrudan node ile çalışır.
+| Sınır | Ne korunuyor | Nasıl |
+|---|---|---|
+| Sayfa JS'i → content script | Origin sahteciliği | Content script, payload'daki `origin`'i izole dünyanın gerçek `window.location.origin`'iyle ezer |
+| Content/popup → background | Sadece bu eklentinin bağlamları | `runtime.onConnect` port adı + `port.sender.id === runtime.id` |
+| Anahtar malzemesi | Root seed | Web Crypto PBKDF2-SHA256 **600.000** iterasyon + AES-GCM; şifresi çözülmüş seed yalnızca SW belleğinde; kilitlenince sıfırlanır; parola denemeleri kademeli geri çekilmeli |
+| Analiz sunucusu | Doğruluk | **Güven sınırı değil.** İsteğe bağlı Ed25519 attestation var; doğrulayan yalnızca `agent-guard` (eklenti/showcase doğrulamıyor) |
+| Popup penceresi (bağımsız cüzdan) | Sahte connect/sign talebi | `apps/wallet` yalnızca `window.opener`'dan gelen mesajı kabul eder (`isFromTrustedOpener`) |
+| Zincir | Harcama tavanı | `MerchantSpendPolicy.policy__`: deny-by-default, tek `transfer` bağlamı, alt anahtar bağlama, per-tx + kayan 24 s tavan, mandate süresi |
 
-- **`src/agent.ts` — `AgentWallet`**: çekirdek sınıf. `fromSecret(secret, cfg)` / `random(cfg)`.
-  - `evaluate(xdr)` → `TransactionGuard.evaluate` sarmalar (userWallet = agent adresi). **İmzalamaz.**
-  - `guardedSign(xdr)` → policy izin verirse `Keypair` ile imzalar; blokta `GuardBlockedError`. Secret gerekir.
-  - `guardedSubmit(xdr)` → guardedSign → Horizon `submitTransaction` → `{ hash, explorerUrl }`. Secret gerekir.
-  - **Fail-closed**: server erişilemezse `AnalyzeError` fırlar, imzalanmaz (`allowOffline` bilinçli istisna).
-- **`src/config.ts`**: katmanlı config çözümü (açık opsiyon → env `BARET_*` → `~/.baret/config.json` → varsayılan).
-  Agent secret'ı **asla dosyaya yazılmaz**; yalnız `BARET_AGENT_SECRET`/opsiyondan okunur.
-  `loadConfig`, `resolvePolicy` (swig-guard `POLICY_TEMPLATES`), `resolveHorizonUrl`.
-- **`src/cli.ts` — `baret`**: `node:util parseArgs` tabanlı (ek bağımlılık yok). Komutlar:
-  `analyze | sign | submit | address | init | policy list`. `<xdr>` `-` ise stdin. `--json` makine çıktısı.
-  **Exit kodları:** `0` allow/başarı, `1` policy bloğu, `2` hata — her dilden script'lenebilir.
-
-**Kontrol sayfası — `apps/showcase/src/pages/AgentsPage.tsx` (route `/agents`):** ne olduğunu basitçe
-anlatır, kopyalanabilir kurulum/SDK/CLI snippet'leri, policy seçici (Strict/Balanced/Permissive),
-**canlı playground** (gerçek `/v1/analyze`, mevcut `baret/analyze.ts` üzerinden) ve agent adresine göre
-filtreli **canlı izleme** (`/v1/audit/recent`). Nav linki paylaşılan `LandingChrome` `NAV_LINKS`'e eklidir.
+Tehdit modeli ayrıntısı ve neyin **uygulanmadığı**: [`docs/implementation-status.md`](./docs/implementation-status.md).
 
 ---
 
-> Bu doküman mevcut Stellar implementasyonunu yansıtır. Tek otorite kaynak koddur; bir uyuşmazlık görürsen koda güven ve bu dokümanı güncelle.
+## 6. Durum haritası
+
+Her parçanın veriyi nerede tuttuğu (kayıp/sıfırlanma davranışıyla):
+
+| Yer | Anahtar / depo | İçerik | Ömür |
+|---|---|---|---|
+| Eklenti IndexedDB `baret` (v4) | `keystore` | Şifreli root seed + hesap listesi | Kalıcı (+ `storage.local` aynası) |
+| | `allowances` | Merchant başı mandate/tavan/harcama günlüğü (`spendLog`) | Kalıcı, hesap kapsamlı |
+| | `sub_keys` | Şifreli alt anahtar sırları | Kalıcı, hesap kapsamlı |
+| | `history` (≤500), `alerts`, `site_permissions` | Geçmiş, alarmlar, connect izinleri | Kalıcı, hesap kapsamlı |
+| | `monitor`, `prefs` | Şemada var, **kodda kullanılmıyor** | - |
+| Eklenti `storage.local` | `baret.policy.v1` | Kayıtlı `GuardPolicy` | Kalıcı |
+| | `baret.keystore.backup.v1`, `baret.backupAck.v1`, `baret.monitor.lastSeen.v1`, `baret.overlayHidden.v1` | Keystore aynası, yedek onayı, monitör imleci, sayfa rozeti gizleme | Kalıcı |
+| Eklenti SW belleği | oturum | Çözülmüş root seed, alt anahtar önbelleği, parola (5 dk TTL), onay kuyruğu | Kilitle/SW ölünce gider |
+| Bağımsız cüzdan `localStorage` | `baret.wallet.v3`, `baret.policy.v1`, `baret.history.v1` | Şifreli anahtar, policy, geçmiş | Kalıcı (tarayıcı verisi) |
+| Sunucu belleği | `AuditStore` (10.000 kayıt), rate-limit sayaçları, reputation seed | Analiz kayıtları | **Yeniden başlatmada sıfırlanır** |
+| Sunucu diski | `BARET_DATA_DIR/keys.json` (mod 0600) | Anahtar özetleri + kullanım sayaçları | Yalnızca kalıcı diskte kalıcı (Render free'de değil) |
+| Showcase `localStorage` | tema (`@stellar-thorn/ui`), `baret.devkey` (portalın anahtarı), `baret.sample-account` (Playground'un geçici testnet adresi) | Tercihler | Tarayıcı |
+| Zincir (testnet) | passkey-kit smart wallet, `MerchantSpendPolicy` `(wallet, merchant)` satırları | Gerçek yetki/harcama durumu | Kalıcı |
+
+---
+
+## 7. Portlar, ortamlar, deploy
+
+| Parça | Yerel | Canlı | Config dosyası |
+|---|---|---|---|
+| Sunucu | `pnpm dev:server` → :8080 (Docker: host :18080) | Render (`render.yaml`, free plan, Frankfurt) | `apps/server/.env(.example)` |
+| Showcase | `pnpm dev:showcase` → :5175 (`/api` → :8080 proxy) | Vercel (`vercel.json`; `/api/*` → Render) | `apps/showcase/vite.config.ts` |
+| Bağımsız cüzdan | `pnpm dev:wallet` → :5180 | Ayrı Vercel/Cloudflare projesi (elle) | - |
+| Eklenti | `pnpm build:extension` → `dist/`, `dist-firefox/` (+ showcase `public/*.zip`) | Mağaza yok; `/install` zip verir | `manifest.config.ts` |
+| API dokümanı | `cd baret_docs && npm run dev` → :3000 | Yok (henüz deploy tanımı yok) | - |
+| Kontratlar | `cargo test --manifest-path contracts/Cargo.toml` | Testnet'te deploy edilmiş | `contracts/**/DEPLOYMENT.md` |
+
+Deploy adımları: [`DEPLOY.md`](./DEPLOY.md). Ortam değişkenlerinin tam listesi: `apps/server/src/config/index.ts`
+(şema) ve [`docs/architecture/server.md`](./docs/architecture/server.md#7-konfigürasyon).
+
+Bağlantı noktaları arasındaki sabit URL'ler (değişince birlikte güncelle):
+- Eklenti paketli build → `https://baret-stellar.onrender.com` (`background/baret/analyze-client.ts`), dev'de `http://localhost:8080`
+- Showcase → `/api/...` (proxy/rewrite), portal snippet'leri → `PUBLIC_API_URL` (`pages/developers/api.ts`)
+- Hem eklenti hem showcase analiz çağrısında herkese açık demo anahtarı **`dev-key-change-me`** gönderir
+  (`render.yaml` `DELTAG_API_KEYS` ile eşleşir). Değiştirirsen üçünü birlikte değiştir.
+
+---
+
+## 8. Neden böyle bağlı
+
+- **`swig-guard` SDK'sız (Stellar SDK import etmez).** Eklentiye ve bağımsız cüzdana paketlenir; tarayıcı
+  paketinde `@stellar/stellar-sdk` çekmeden `TransactionGuard` ve policy şablonlarını kullanabilmek için.
+  Bu yüzden Ed25519 attestation **doğrulaması** `swig-guard`'a değil, SDK'yı zaten kullanan `agent-guard`'a
+  konuldu. Sonuç: eklenti attestation'ı henüz doğrulamıyor.
+- **`ext-protocol` ayrı paket, `src` doğrudan export.** Popup, options, content ve background aynı tipleri
+  derleme zamanında paylaşır. Mesaj adı/şekli değiştiğinde tüm yüzeyler birlikte tip hatası verir.
+- **Eklenti, `swig-guard`'ın `GuardPolicy` tipini kullanır, sunucu kendi `policySchema`'sını.** Sunucu şeması
+  `.passthrough()` olduğu için cüzdanın client-only kuralları aynen gönderilebilir. İki taraf elle senkron tutulur
+  (`api/policy-schema.ts` ve `swig-guard/src/policy.ts`); bir test preset'leri karşılaştırır.
+- **`wallet-adapter` yalnızca bağımsız cüzdan içindir.** dApp ↔ `apps/wallet` popup'ı `postMessage` ile
+  konuşur. Eklenti bunu kullanmaz; eklenti `window.baretStellar` (Freighter uyumlu) sağlar. Showcase her ikisini
+  de tanır (`wallet/standard-bridge.ts`: `window.baretStellar` + Freighter).
+- **Akıllı cüzdan gerçek, ama yalnızca eklentide.** Eklenti hesap başına gerçek bir passkey-kit smart wallet
+  deploy eder; `apps/wallet`'ta `smartWalletAddress` hâlâ authority adresinin **yer tutucusudur**
+  (`wallet/smart-wallet.ts`, TODO).
+- **Sunucu tek ağa bağlıdır.** Bir süreç ya testnet ya pubnet konuşur; farklı ağ isteyen istek `WRONG_NETWORK` alır.
+- **Sunucu simülasyonu "tarihsel" değildir.** `POST /v1/replay` her zaman güncel durumla yeniden simüle eder
+  (`isHistorical: false`).
+- **İki x402 mekanizması** (bkz. 4.4) bilinçli ayrıdır: biri ürün (API'yi satmak), diğeri demo (savunmayı sergilemek).
+
+---
+
+## 9. İsimlendirme mirası
+
+Kodda göreceğin ama artık anlamını yitirmiş isimler. Yeniden adlandırmak geniş bir değişikliktir, o yüzden yalnızca burada belgeli:
+
+| İsim | Gerçek anlamı |
+|---|---|
+| `DELTAG_*` env öneki (`DELTAG_API_KEYS`, `DELTAG_AUTH_MODE`, `DELTAG_TRUST_PROXY`, `DELTAG_RATE_LIMIT_*`) | Sunucunun eski adı "DeltaG". Aktif ve gerekli, sadece adı eski |
+| `BARET_*` env öneki | Yeni öğeler (`BARET_KEY_*`, `BARET_DATA_DIR`, `BARET_CORS_ORIGINS`, `BARET_SIGNING_SECRET`) |
+| `@stellar-thorn/*` paket kapsamı | Eski marka "BLACKTHORN". Tüm workspace bunu kullanır |
+| `swig-guard`, `apps/extension/src/background/swig/` | "Swig" Solana smart wallet'ıydı. Şimdi Stellar guard SDK'sı / passkey-kit smart wallet kodu |
+| `packages/baret-adapter` dizini → `@stellar-thorn/wallet-adapter` paketi | Dizin adı ile paket adı farklı |
+| `baret_docs` (paket adı `tailwind-plus-protocol`) | Tailwind Plus "Protocol" şablonundan türedi |
+| `sub-key` / "swig sub-key" | Merchant başına smart wallet Ed25519 signer'ı (artık `MerchantSpendPolicy`'ye bağlı) |
+| "thorn" glifi (eski docs) | Marka bugün "hard hat" (baret) işaretidir (`packages/ui/src/brand/Mark.tsx`) |
+
+---
+
+## 10. Derin dalış dokümanları
+
+| Konu | Doküman |
+|---|---|
+| Doküman haritası + güncelleme protokolü | [`docs/README.md`](./docs/README.md) |
+| Sunucu iç yapısı (pipeline, dedektörler, policy, auth, anahtarlar, x402, MCP, config) | [`docs/architecture/server.md`](./docs/architecture/server.md) |
+| Paketler ve bağımlılıkları | [`docs/architecture/packages.md`](./docs/architecture/packages.md) |
+| İstemciler (showcase, bağımsız cüzdan, portal, API doküman sitesi) | [`docs/architecture/clients.md`](./docs/architecture/clients.md) |
+| Eklenti mimarisi (yüzeyler, mesajlar, DB, kripto) | [`docs/extension-architecture.md`](./docs/extension-architecture.md) |
+| x402 savunması, attestation, zincir üstü alt anahtar | [`docs/x402-defense.md`](./docs/x402-defense.md) |
+| Policy şeması ve nerede uygulandığı | [`docs/policy-dsl.md`](./docs/policy-dsl.md) |
+| Cüzdan UX spec'i (+ gerçek durum) | [`docs/wallet-spec.md`](./docs/wallet-spec.md) |
+| Spec ↔ gerçek farkı | [`docs/implementation-status.md`](./docs/implementation-status.md) |
+| Kontratlar | [`contracts/README.md`](./contracts/README.md) |
+| Bilinen sınırlar | [`LIMITATIONS.md`](./LIMITATIONS.md) |
+| Deploy | [`DEPLOY.md`](./DEPLOY.md) |
+| Sade dille özet | [`PROJE_OZETI.md`](./PROJE_OZETI.md) |

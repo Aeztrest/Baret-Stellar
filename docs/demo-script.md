@@ -19,12 +19,15 @@ pnpm build:extension            # produces dist/
 #   chrome://extensions → Developer mode → Load unpacked → apps/extension/dist/
 
 # Terminal 3
-pnpm dev:showcase               # :5174
+pnpm dev:showcase               # :5175
 ```
 
 Have ready in tabs:
 1. The wallet's options page (`chrome-extension://<id>/src/options/index.html`) showing onboarding done + Balanced policy applied
-2. `http://localhost:5174` — the showcase home
+2. `http://localhost:5175` — the showcase home (the hub of demo dApps is `/showcase`)
+
+The x402 segments need `X402_MERCHANT_SECRET` on the server (`pnpm --filter @stellar-thorn/server x402-setup`), a provisioned smart wallet
+(onboarding step 6) holding testnet USDC, and a USDC trustline on the wallet's authority account.
 
 Reset BARET's history before recording so the Activity tab is clean
 ("Reset wallet" then re-onboard, or just clear `chrome.storage.local`).
@@ -50,19 +53,19 @@ list). Voice-over over a quick fade-in.
 
 > "BARET is a Stellar smart wallet with the open-source BARET
 > guard, with three layers nothing else has: pre-flight simulation, a
-> stateful grants ledger, and a live monitor that watches what happens after
-> you sign. Testnet today, pubnet ready when you are."
+> stateful grants ledger, and a monitor that watches what happens after
+> you sign. Testnet today."
 
 ### 0:30 — 0:55 · The benign sign
 
-**Camera:** Showcase site. Click "StellarSwap." Click "Connect Wallet." Modal
-shows BARET — Recommended. Click it.
+**Camera:** Showcase hub (`/showcase`). Open "NovaSwap." Click "Connect Wallet." The picker
+lists wallets without ranking them; pick Baret.
 
-> "Wallet Standard discovery — any dApp picks BARET up the moment
-> you install."
+> "Any dApp that speaks the Freighter-style provider API finds BARET the moment
+> you install it."
 
-The extension popup connect flow runs silently. Site shows green dot +
-authority address.
+The first connect from a site opens the wallet's approval window (Allow, and optionally remember). Site shows the
+connected address.
 
 Now click "Swap" with the danger toggle off.
 
@@ -78,23 +81,27 @@ Click Sign. Returns to showcase with "Transaction confirmed."
 
 ### 0:55 — 1:30 · The malicious sign
 
-**Camera:** Toggle "Simulate malicious swap" on. Click Swap again.
+**Camera:** Flip NovaSwap's danger toggle on. Click Swap again.
 
 Popup re-renders. This time the hero is **red**: Blocked by your policy.
 
 Pause on the findings list. Read one out loud:
 
-> "BARET sees the transaction routes through an unverified contract
-> with a 92 % loss to a wallet I've never seen. The dApp's price preview
-> said 137 USDC. The actual transfer is a drain."
+> "The 'swap' isn't a swap. It's an unlimited USDC approval to a contract I've
+> never seen. Whoever holds that approval can pull every USDC I own, any time.
+> The page's button said 'Swap'. The transaction says something else."
 
-Highlight the disabled "Sign anyway" button (red, danger styling).
+Highlight that overriding needs a deliberate press-and-hold (about a second and a half), not a tap.
 
-> "There's no way to fat-finger past this. The button's disabled. Not
-> because the dApp asked nicely — because my own wallet refused."
+> "There's no way to fat-finger past this. To sign it anyway I have to hold
+> the button on purpose. Not because the dApp asked nicely. Because my own wallet refused."
 
-Click Decline. Return to showcase. The red overlay says "Blocked at the
-wallet."
+Click Decline. Return to the site: the swap did not go through.
+
+(Optional beat: NovaSwap's danger path can then show the sweep: the attacker's
+`transfer_from` taking the wallet's USDC when the approval *is* signed. Only do it with a throwaway wallet.)
+
+---
 
 ### 1:30 — 1:50 · The grant ledger + monitor
 

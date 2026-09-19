@@ -17,6 +17,9 @@ const DOCS = [
   { title: "Brand",                  desc: "Tokens, typography, and the way Baret talks to users.",                file: "brand.md",                  icon: Globe },
   { title: "Showcase Briefs",        desc: "How each fake-but-real demo dApp is wired and what it teaches.",       file: "showcase-briefs.md",        icon: BookOpen },
   { title: "Demo Script",            desc: "The end-to-end walkthrough used for live demos.",                      file: "demo-script.md",            icon: FileText },
+  { title: "Implementation Status",  desc: "What the specs promise versus what the code actually does (Turkish).", file: "implementation-status.md",  icon: Layers },
+  { title: "Server Internals",       desc: "Analyze pipeline, detectors, policy engine, keys and x402 (Turkish).", file: "architecture/server.md",    icon: Shield },
+  { title: "Docs Map",               desc: "Where every document lives and which to trust.",                       file: "README.md",                 icon: BookOpen },
 ];
 
 export default function DocsPage() {

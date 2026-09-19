@@ -60,7 +60,7 @@ There is no firewall.
 
 | Class of attack | What other wallets see | What Baret does |
 |---|---|---|
-| **Blind sign**       | A contract ID and a button.                                            | Decodes the tx, simulates it, runs 25+ risk detectors, and renders a plain-language verdict *before* you sign. |
+| **Blind sign**       | A contract ID and a button.                                            | Decodes the tx, simulates it, runs the risk detectors (26 active finding codes), and renders a plain-language verdict *before* you sign. |
 | **Approval drainer** | "Approve unlimited spend" is one click; revocation lives elsewhere.    | Stateful allowance ledger, rolling caps, one-tap pause / revoke per merchant. |
 | **Agentic x402**     | An AI agent silently re-signs micro-payments — no spend cap, no audit. | Per-merchant cap, hourly/daily limits, facilitator allowlist, anomaly detection — enforced at sign time **and** on-chain via MerchantSpendPolicy. |
 
@@ -124,10 +124,13 @@ Chrome MV3 + Firefox MV3. The wallet itself.
   and Settings (keys, mnemonic export, network switcher, lock).
 - **x402 fetch interceptor** — when the inpage script sees an HTTP 402 on any
   outgoing `fetch()`, the extension decodes the PaymentRequirements, runs them
-  through the policy engine, and either **auto-signs in the background**
-  (within your caps, no popup) or surfaces the spec for you to decide. The same
-  auto-approve logic now also covers wallets that sign the Soroban auth entry
-  directly (the x402 exact scheme), so agentic micropayments settle silently.
+  through your policy, and either **auto-signs in the background** or surfaces
+  the payment for you to decide. Silent signing happens only against a **live
+  mandate**: a merchant you approved by hand, still within its expiry and
+  per-tx / hourly / daily caps. A first payment to a new merchant always opens
+  the popup with the caps and the amount decoded from the signed auth entry.
+  The same rules cover dApps that ask the wallet to sign the Soroban auth entry
+  directly (the x402 exact scheme).
 - **Freighter-compatible provider** — injects a Stellar wallet provider on
   every page, auto-discovered by dApps using the Stellar Wallets Kit or the
   Freighter API. Exposes connect / requestAccess / getAddress / getNetwork /
@@ -146,12 +149,15 @@ A standalone landing site + interactive demo. Every page is real React.
 - **`/developers`** — the public **API portal**: get a free key, try `/v1/analyze` on real (and
   attack) transactions, copy the code in cURL / JS / Python / Go, browse the reference, and copy
   a ready-made **prompt that wires Baret into an AI agent's own wallet** (block unsafe signatures, warn on risky ones).
+- **`/agents`** — the agent guard control page: SDK/CLI snippets and a live playground against `/v1/analyze`.
 - **`/docs`** — index of the design documents in `docs/`.
-- **Demo dApps** — each looks production-built and has a **Danger Mode** toggle
-  that swaps the payload for the matching attack scenario. Every action opens a
-  **RiskPreview** that calls Baret's analyze server live — verdict + reasons +
-  balance deltas + a side-by-side *"Without Baret / With Baret"* comparison —
-  before the wallet popup ever opens.
+- **Demo dApps** (NovaSwap, PixelDrop, OrbitYield, ClaimHub, LaunchPad) — each looks
+  production-built and has a **Danger Mode** toggle that swaps the payload for the
+  matching real testnet attack transaction. The site does **not** grade the
+  transaction: the verdict appears only in the wallet's own popup, so it looks
+  the same whether or not Baret is installed.
+- **`/cortex`** — the x402 attack console: agent drift, a swapped payment asset,
+  and a page that lies about the price, against real settlement.
 - **`/scrybe`** — a pay-per-question oracle on the **real x402 protocol**. It
   asks the server, gets HTTP 402 + PaymentRequirements, builds the USDC Soroban
   transfer, signs the auth entry via the wallet, replays with the
@@ -208,12 +214,12 @@ pnpm --filter @stellar-thorn/server x402-setup
 
 | Package | Role |
 |---|---|
-| `@stellar-thorn/swig-guard`     | Policy DSL + analyzer: pre-sign rules, x402 rules, allowance rules, behavioral alerts. The off-chain twin of the on-chain MerchantSpendPolicy. |
-| `@stellar-thorn/agent-guard`    | Pre-sign firewall for **agent & program wallets** — `AgentWallet` SDK + `baret` CLI (analyze / sign / submit). Control page at `/agents`. |
+| `@stellar-thorn/swig-guard`     | Guard SDK (no Stellar SDK dependency): `GuardPolicy` type + Strict/Balanced/Permissive templates + the `/v1/analyze` client (`TransactionGuard`). |
+| `@stellar-thorn/agent-guard`    | Pre-sign firewall for **agent & program wallets**: `AgentWallet` SDK + `baret` CLI (analyze / sign / submit), optional verdict-attestation check. Control page at `/agents`. |
 | `@stellar-thorn/ext-protocol`   | Type-safe message envelope shared by every extension surface. |
-| `@stellar-thorn/wallet-adapter` | Wallet Standard adapter the showcase consumes. |
-| `@stellar-thorn/ui`             | Design tokens — single source of truth for the palette. |
-| `@stellar-thorn/showcase-ui`    | Shared chrome for the showcase landing + sites. |
+| `@stellar-thorn/wallet-adapter` | `postMessage` popup bridge between a dApp and the standalone web wallet (`apps/wallet`). The extension does not use it. |
+| `@stellar-thorn/ui`             | Design system: tokens (palette, type), primitives, shadcn layer, brand mark. |
+| `@stellar-thorn/showcase-ui`    | Small parts shared by the demo sites (currently the Danger Mode toggle). |
 
 ---
 
@@ -239,7 +245,7 @@ pnpm --filter @stellar-thorn/server x402-setup
 pnpm dev:server                # http://localhost:8080
 
 # 4. Start the showcase (in another terminal)
-pnpm dev:showcase              # http://localhost:5174
+pnpm dev:showcase              # http://localhost:5175
 ```
 
 If the testnet airdrop is rate-limited, the script prints the merchant
@@ -247,7 +253,7 @@ address; send ~0.05 testnet XLM there from any wallet, then rerun.
 
 ### Install the extension
 
-Open <http://localhost:5174/install> for a one-click download with the right
+Open <http://localhost:5175/install> for a one-click download with the right
 "load unpacked" steps, or build it manually:
 
 ```bash
@@ -264,14 +270,13 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
 1. Click the Baret icon → **Create wallet** → save the mnemonic.
 2. Hit **Airdrop** to fund the authority on testnet. For the x402 demo, grab
    USDC from <https://faucet.circle.com> (Stellar / testnet).
-3. Open <http://localhost:5174/> and pick a demo site.
+3. Open <http://localhost:5175/> and pick a demo site.
 4. **Connect Wallet** → Baret appears at the top of the picker and prompts you
    to allow the origin (Freighter-style).
-5. Try a transaction — the site shows the **RiskPreview** verdict + reasons +
-   with/without comparison; the extension popup then runs the authoritative
-   analysis before you sign.
+5. Try a transaction — the extension popup opens, runs the analysis and shows the
+   verdict (Safe / Caution / Blocked), what changes and why, before you sign.
 6. Flip **Danger Mode** and try again — see what your policy blocks.
-7. Visit <http://localhost:5174/scrybe>, ask a question, pay ≈ $0.001 USDC, and
+7. Visit <http://localhost:5175/scrybe>, ask a question, pay ≈ $0.001 USDC, and
    watch the on-chain settlement land.
 8. Open **Options → Policies**, switch to the Strict template, save, and
    revisit the showcase — even "safe" scenarios now warn or block.
@@ -283,7 +288,7 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
 ```
 ┌────────────────────────────────────────────────────────────┐
 │ 1. PRE-SIGN GUARD                                          │
-│    Pre-sign simulation + 25+ risk detectors,               │
+│    Pre-sign simulation + risk detectors (26 active finding codes),│
 │    rendered to the user as plain-language verdicts.        │
 ├────────────────────────────────────────────────────────────┤
 │ 2. STATEFUL ALLOWANCE LEDGER                               │
@@ -302,7 +307,7 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
 
 ```
    dApp page (any showcase site, or any real dApp)
-   ─ Wallet Standard register ──► Baret inpage script
+   ─ window.baretStellar (Freighter-compatible) ──► Baret inpage script
                                       │
                                       ▼  window.postMessage
                               content-script bridge
@@ -310,8 +315,8 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
                                       ▼  chrome.runtime
                               background service worker
                               ├── analyze-client → apps/server /v1/analyze
-                              ├── swig-guard policy engine
-                              ├── IndexedDB: keystore, allowances,
+                              ├── x402 mandates + caps (GuardPolicy from swig-guard)
+                              ├── IndexedDB: keystore, allowances, sub_keys,
                               │                history, alerts, site_permissions
                               └── sign-queue ──► popup UI (SignRequest /
                                                   ConnectApproval)
@@ -325,7 +330,10 @@ plus the analyze server, and on-chain spending is bounded by
 MerchantSpendPolicy — installed directly on the user's own smart wallet, not
 a separate contract holding their funds. No keys ever leave the extension.
 
-Full design notes live in [`docs/`](./docs) and [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+Full design notes: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (system map, in Turkish),
+[`docs/README.md`](./docs/README.md) (documentation index and what to trust),
+[`docs/implementation-status.md`](./docs/implementation-status.md) (built vs. planned).
+Working on the code (human or AI)? Start with [`AGENTS.md`](./AGENTS.md).
 
 ---
 
@@ -333,10 +341,12 @@ Full design notes live in [`docs/`](./docs) and [`ARCHITECTURE.md`](./ARCHITECTU
 
 ```bash
 pnpm dev:server          # Fastify analyze + x402 paywall on :8080
-pnpm dev:showcase        # showcase landing + /install + demos + Scrybe on :5174
+pnpm dev:showcase        # showcase landing + /install + demos + Scrybe on :5175
 pnpm build:extension     # Chrome + Firefox dist + auto-zip for /install download
 pnpm typecheck           # tsc across every workspace
-pnpm test                # vitest in @stellar-thorn/server
+pnpm test                # vitest in @stellar-thorn/server (CI runs every workspace: pnpm -r --if-present test)
+pnpm docs:check          # documentation consistency (links, paths, env vars, packages)
+(cd baret_docs && npm run build)   # public API docs site (Next.js + MDX; outside the pnpm workspace)
 pnpm --filter @stellar-thorn/server x402-setup   # bootstrap merchant on testnet
 
 # Smart contract (in ./contracts)
@@ -354,9 +364,11 @@ stellar contract build --package merchant-spend-policy
 The MerchantSpendPolicy contract is deployed on testnet (address above); a
 wallet installs it as a signer the first time it approves a merchant. The
 extension installs as an unpacked / temporary add-on — not yet on the Chrome
-Web Store or AMO. The merchant + analyze server run on localhost; production
-would deploy them behind a real edge. Known limits and follow-on work are
-tracked in [`LIMITATIONS.md`](./LIMITATIONS.md).
+Web Store or AMO. The analyze + merchant server runs locally or on a free
+Render instance (testnet, sleeps when idle) and the showcase on Vercel; see
+[`DEPLOY.md`](./DEPLOY.md). Known limits and follow-on work are tracked in
+[`LIMITATIONS.md`](./LIMITATIONS.md); the spec-versus-code ledger is
+[`docs/implementation-status.md`](./docs/implementation-status.md).
 
 ---
 

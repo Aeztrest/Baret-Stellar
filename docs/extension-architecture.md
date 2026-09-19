@@ -1,573 +1,254 @@
-# BARET — Extension Architecture
+# Baret: Extension Architecture
 
-> The technical contract for the browser extension. How the four surfaces talk
-> to each other, where the keys live, what runs in the page, what runs in the
-> service worker, and how Chrome and Firefox stay in sync.
+> How the browser extension is put together: the surfaces, who talks to whom, where keys live, what is persisted and
+> how Chrome and Firefox builds differ. **Verified against the source on 2026-09-19.** Where a feature was designed but
+> not built, this document says so and links [`implementation-status.md`](./implementation-status.md) (Turkish) instead of describing it as real.
+> The system-wide picture is in [`../ARCHITECTURE.md`](../ARCHITECTURE.md) (Turkish); the x402/sub-key behaviour is in [`x402-defense.md`](./x402-defense.md).
 
-This file is binding. Any deviation from the message bus or IndexedDB schema
-requires a PR that updates it here first.
+Rule: a change to the message bus, the storage schema or the manifest updates this file in the same PR.
 
 ---
 
 ## 1. Bird's-eye
 
 ```
-   ┌─ User-facing surfaces ──────────────────┐
-   │                                         │
-   │  Popup           Options page           │
-   │  (toolbar)       (chrome:// route)      │
-   │     │                  │                │
-   │     │  chrome.runtime  │                │
-   │     │     .connect     │                │
-   │     ▼                  ▼                │
-   │  ┌──────────────────────────────┐       │
-   │  │  Background Service Worker   │       │
-   │  │  · WalletState machine       │       │
-   │  │  · IndexedDB                 │       │
-   │  │  · WebSocket monitor         │       │
-   │  │  · Encrypted key custody     │       │
-   │  │  · BARET analyzer client│       │
-   │  └─────────┬────────────────────┘       │
-   │            │ chrome.runtime              │
-   │            ▼                             │
-   │  Content script (injected into page)    │
-   │            │ window.postMessage          │
-   │            ▼                             │
-   │  Inpage provider (window.stellar,       │
-   │  Wallet Standard registered)            │
-   │            │                             │
-   └────────────┼─────────────────────────────┘
-                ▼
-        dApp / page JS
+ dApp / showcase page (untrusted JS)
+   │  window.baretStellar.*     window.fetch (patched: 402 interceptor)
+   ▼
+ inpage/index.js   ── page MAIN world ──────────────────────────────────────────────
+   │  window.postMessage  { __bx_ws: 1, kind: req|rsp|err, id, method, payload }
+   ▼
+ content/index.ts  ── ISOLATED world; overwrites payload.origin with the real window.location.origin
+   │  browser.runtime.connect({ name: "bx-wallet-standard" })   Envelope { __bx: 1 }
+   ▼
+ background service worker  (src/background/index.ts)
+   ├─ messaging/router.ts        dispatches by port name; rejects ports whose sender.id isn't this extension
+   ├─ wallet-standard/handlers   ws.* + x402.review  (dApp facing)
+   ├─ messaging/handlers.ts      wallet.* tx.* ledger.* policy.* history.* alerts.* sitePermissions.* network.set
+   ├─ state/{machine,store}      in-memory wallet phase + listeners
+   ├─ crypto/*                   kdf, session (decrypted seed), hd, attempt-limiter, sub-key-cache
+   ├─ db/*                       IndexedDB "baret" v4
+   ├─ x402/*  swig/*             payment build/sign, smart wallet + sub-key on-chain calls
+   ├─ rpc/{connection,monitor}   Horizon/Soroban clients, post-sign drift monitor
+   └─ baret/analyze-client       POST /v1/analyze
+   ▲
+   │  browser.runtime.connect({ name: "bx-popup" | "bx-options" })
+ popup (toolbar 360x600, or a popup-type window with ?window=1)     options page (full tab, HashRouter)
 ```
 
-Four security domains:
-1. **Service worker** — isolated, persistent, holds decrypted authority in memory only.
-2. **Popup / options** — extension-context React apps; can talk to service worker freely.
-3. **Content script** — runs in *page* context but isolated world; cannot see page JS state.
-4. **Inpage provider** — runs in page world; communicates with content script via `window.postMessage`.
-
-The keypair never leaves domain (1). Every domain transition is a structured
-message with origin checks.
+Security domains: (1) the service worker holds the decrypted seed **in memory only**; (2) popup/options are extension pages that talk to (1) over ports; (3) the content script lives in an isolated world;
+(4) the inpage script shares the page's JS realm and is therefore untrusted input. Every domain crossing is a structured message; the secret never crosses (1).
 
 ---
 
-## 2. Manifest layout (Chrome MV3)
+## 2. Manifest and build
 
-```json
-{
-  "manifest_version": 3,
-  "name": "BARET — Smart Wallet",
-  "short_name": "BARET",
-  "version": "0.1.0",
-  "description": "The Stellar wallet that watches what happens after you sign.",
-  "icons": {
-    "16":  "icons/16.png",
-    "32":  "icons/32.png",
-    "48":  "icons/48.png",
-    "128": "icons/128.png"
-  },
-  "action": {
-    "default_popup": "popup/index.html",
-    "default_icon": "icons/32.png"
-  },
-  "options_page": "options/index.html",
-  "background": {
-    "service_worker": "background/index.js",
-    "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content/index.js"],
-      "run_at": "document_start",
-      "all_frames": false,
-      "world": "ISOLATED"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["inpage/index.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
-  "permissions": [
-    "storage",
-    "alarms",
-    "notifications"
-  ],
-  "host_permissions": [
-    "https://horizon-testnet.stellar.org/*",
-    "https://soroban-testnet.stellar.org/*",
-    "https://horizon.stellar.org/*",
-    "https://facilitator.payai.network/*"
-  ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
-  }
-}
+Source of truth: `apps/extension/manifest.config.ts` (crxjs `defineManifest`, one source, `mode === "firefox"` switches the differing fields). There are no hand-written `manifest.*.json` files.
+
+| Field | Value |
+|---|---|
+| Name / version | `Baret Smart Wallet`, version from `package.json` |
+| Action / options | popup `src/popup/index.html`; Chrome `options_page`, Firefox `options_ui` (`open_in_tab`) |
+| Background | Chrome `service_worker` (module); Firefox `background.scripts` (module, needs Firefox ≥ 128) |
+| Content script | `src/content/index.ts`, `<all_urls>`, `document_start`, `all_frames: false` (default isolated world) |
+| Web-accessible | `inpage.js`, `assets/*` (the inpage entry has a **stable filename** so the content script can inject it; hashed chunks need the wildcard) |
+| Permissions | `storage`, `alarms` (declared, currently **unused**), `notifications`, `windows` (opens the sign popup window) |
+| Host permissions | Horizon + Soroban RPC (testnet and pubnet), friendbot, `x402.org`, `http://localhost:8080/*` |
+| CSP (extension pages) | `script-src 'self'; object-src 'self';` |
+| Firefox extra | `browser_specific_settings.gecko.id = baret@baret.dev`, `strict_min_version 128.0` |
+
+Note: the hosted analyze server (`https://baret-stellar.onrender.com`) is **not** in `host_permissions`; the packaged build reaches it through the server's CORS headers (`apps/server/src/api/cors.ts`).
+
+Build (`apps/extension/vite.config.ts`): React plugin + `vite-plugin-node-polyfills` (`buffer`, `crypto`) + `@crxjs/vite-plugin`. Extra rollup entry `inpage` → `inpage.js`. Output `dist/` (Chrome) and `dist-firefox/`.
+
+```bash
+pnpm --filter @stellar-thorn/extension dev            # vite, port 5181 (HMR 5182)
+pnpm build:extension                                  # build:chrome + build:firefox + pack:downloads
+pnpm --filter @stellar-thorn/extension test           # vitest (node env, fake-indexeddb)
 ```
 
-### Notes per field
-
-- **`service_worker.type: "module"`** — required for ESM imports of our shared `packages/swig-guard` bundle.
-- **`content_scripts[].world: "ISOLATED"`** — keeps content script invisible to the page. The inpage provider runs in `MAIN` world via dynamic injection (see §6).
-- **`web_accessible_resources`** — the inpage script must be reachable by URL so the content script can inject it as a `<script src=...>` tag.
-- **`host_permissions`** — listed explicitly per Stellar endpoint (testnet Horizon + Soroban RPC, pubnet Horizon) and facilitator. Adding a custom RPC requires the user to grant a new origin via `chrome.permissions.request` (handled in advanced settings).
-- **`permissions`**:
-  - `storage` — `chrome.storage.local` for non-sensitive prefs (the encrypted secret lives in IndexedDB, not here).
-  - `alarms` — periodic reconciliation with the chain (every 30 s when active).
-  - `notifications` — drift / verify-orphan / large-tx push.
-- We deliberately **do not** request `tabs`, `cookies`, `webRequest`, or `<all_urls>` host permissions. Content script `<all_urls>` is enough; we never read page DOM beyond the postMessage channel.
-
-### Firefox variant
-
-Firefox MV3 is mostly Chrome-compatible but has known divergences. We ship
-two manifests, generated from a single source:
-
-- `manifest.chrome.json` — as above.
-- `manifest.firefox.json` — adds `browser_specific_settings.gecko.id` (`"baret@baret.dev"`), uses `scripts` array (not `service_worker`) for the background page (Firefox falls back to event pages), and explicit `browser` namespace via `webextension-polyfill` at runtime.
-
-Build pipeline (`@crxjs/vite-plugin` for Chrome; `web-ext` + manual copy for Firefox)
-swaps the manifest at bundle time. Source code is one tree; only the manifest
-differs.
+`pack:downloads` (`scripts/pack-downloads.mjs`, dependency-free zip writer) writes `apps/showcase/public/baret-chrome.zip` and `baret-firefox.zip` for the `/install` page (git-ignored). Sideload `dist/` via `chrome://extensions` → Load unpacked;
+Firefox: `about:debugging` → Load Temporary Add-on → `dist-firefox/manifest.json`. The browser API is always imported through `webextension-polyfill` (`import browser from "webextension-polyfill"`), never the `chrome` global.
 
 ---
 
 ## 3. Background service worker
 
-The service worker is the single source of truth for state and the only place
-the decrypted authority secret ever exists in memory.
-
-### 3.1 Top-level structure
+### 3.1 Layout (actual)
 
 ```
-background/
-├── index.ts            // entry — registers everything below
-├── state/
-│   ├── machine.ts      // WalletState reducer
-│   ├── store.ts        // mutex around the reducer + listeners
-│   └── persist.ts      // saves non-sensitive state to chrome.storage.local
-├── crypto/
-│   ├── keystore.ts     // load/decrypt/encrypt the authority
-│   ├── session.ts      // in-memory session keypair + idle timeout
-│   └── kdf.ts          // PBKDF2 + AES-GCM helpers
-├── db/
-│   ├── ledger.ts       // IndexedDB allowance ledger
-│   ├── history.ts      // signed-tx history
-│   └── alerts.ts       // drift / orphan / revoke incidents
-├── rpc/
-│   ├── connection.ts   // pooled Horizon + Soroban RPC clients with retry
-│   ├── ws-monitor.ts   // Horizon event-stream subscriptions per address
-│   └── reconcile.ts    // matches on-chain events with ledger
-├── policy/
-│   └── eval.ts         // re-exports @stellar-thorn/swig-guard evaluator
-├── x402/
-│   ├── interceptor.ts  // receives 402 events from content script
-│   ├── builder.ts      // builds the payment tx
-│   └── settle-watch.ts // monitors verify→settle→deliver lifecycle
-├── messaging/
-│   ├── router.ts       // dispatches incoming runtime messages
-│   ├── handlers.ts     // one handler per protocol method
-│   └── port-tracker.ts // tracks open ports from popup / content scripts
-└── alarms/
-    └── periodic.ts     // chrome.alarms callbacks (reconciliation tick)
+src/background/
+├── index.ts                       bootstrap: read keystore → phase "locked"|"uninitialized"; startRouter; startMonitorLifecycle;
+│                                  opens the popup window when the phase becomes "signing"
+├── state/{machine,store}.ts       WalletState reducer + subscribe()
+├── messaging/{router,handlers}.ts port router + one handler per ExtRpc method
+├── wallet-standard/{handlers,sign-queue}.ts   dApp-facing handlers, pending sign queue
+├── popup-window.ts                browser.windows.create({type:"popup"}) (one window; refocus if open)
+├── crypto/{kdf,session,hd,attempt-limiter,sub-key-cache}.ts
+├── db/{index,keystore,allowances,history,alerts,sub-keys,site-permissions}.ts
+├── rpc/{connection,monitor}.ts
+├── x402/{parse,build,handlers}.ts
+├── swig/{provision,sub-keys,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
+└── baret/analyze-client.ts
 ```
 
-Total budget for the service worker JS bundle: **≤ 350 KB minified**. Aggressive
-tree-shaking; `@stellar/stellar-sdk` is pruned to only the imports we actually use.
+### 3.2 Service-worker lifecycle (MV3)
 
-### 3.2 Service worker lifecycle constraints
+The worker is not persistent. Module-level state (decrypted seed, sub-key cache, cached passphrase, pending sign queue, attempt-limiter counters, the 8-second monitor loop) **dies with the worker**. On the next wake `bootstrap()` rehydrates only
+non-secret state from the keystore and sets the phase to `locked`, so a suspended worker means the user must unlock again. This is deliberate: key material must not be persisted just to survive worker restarts. There is no keep-alive alarm (`alarms` is declared but unused).
 
-MV3 service workers are *not* persistent — Chrome shuts them down after ~30 s
-of idle. We design around this:
+### 3.3 State machine
 
-- **No long-running timers** — replaced by `chrome.alarms` (which wakes the worker).
-- **WebSocket subscriptions** — Chrome keeps the worker alive while there's an open WS connection, but only up to ~5 min default. We use `chrome.alarms.create('keepalive', { periodInMinutes: 0.4 })` to refresh the heartbeat *while* a sub-key has unhealed delta or the wallet was used in the last 30 min. After 30 min idle, monitoring pauses; on next user action, we replay missed ledgers from Horizon's payments/transactions endpoints for the address.
-- **Ephemeral state** in module-level `let` rebuilds on wake from `chrome.storage.local` + IndexedDB.
-- **The decrypted authority is never persisted.** On worker restart, the wallet drops to `locked` state and the user re-enters their passphrase.
-
-This is deliberate: a wallet that always-on-decrypts is a wallet whose key
-material lives in disk-backed memory. Freighter does this, we won't.
-
-### 3.3 Idle timeout
-
-User-configurable; default 15 min. `crypto/session.ts` zeroes the in-memory
-keypair after that many minutes since the last sign, balance-fetch, or
-unlock event. After expiry, every operation needing the secret prompts the
-unlock screen.
+`WalletPhase`: `uninitialized` → `locked` → `ready` ⇄ `signing`. (`alert` exists in the type but is never dispatched.) `WalletState` also holds `network`, `walletAddress` (smart wallet, else authority), `authorityAddress`,
+`alertsUnread`, `watchedAddresses`, `idleTimeoutMs` (fixed 15 min, not user-configurable), `accounts[]`, `activeAccountIndex`. Actions are the only mutation path (`wallet.created|unlocked|locked|reset`, `account.switched|updated`, `network.set`,
+`sign.start|end`, `alerts.set|increment`, `watch.add|remove`, `activity.touch`). Only `state.changed` is pushed to surfaces.
 
 ---
 
-## 4. Surfaces (popup, options) ↔ background message bus
+## 4. Message bus
 
-### 4.1 Transport
+### 4.1 Ports
 
-Long-lived `chrome.runtime.connect` ports, one per surface tab. Messages are
-JSON, structurally typed end-to-end via shared TypeScript in `packages/ext-protocol`.
+`router.ts` maps a port name to a handler table. Surface ports also receive `state.changed` pushes.
 
-### 4.2 Message envelope
+| Port name | From | Handlers |
+|---|---|---|
+| `bx-popup`, `bx-options` | popup / options pages (`shared/rpc.ts` `ExtRpcClient`, 15 s request timeout) | `messaging/handlers.ts` (`ExtRpc`) |
+| `bx-wallet-standard` | content script (also the page overlay) | `wallet-standard/handlers.ts`: `ws.*` and `x402.review` |
+
+There is no separate `bx-x402` port (an early design); the interceptor uses `bx-wallet-standard` with method `x402.review`. Ports opened by a context whose `sender.id` differs from `browser.runtime.id` are disconnected.
+
+### 4.2 Envelope
 
 ```ts
-type Envelope<T> = {
-  __bx: 1;             // protocol tag
-  id: string;          // correlation id
-  kind: "req" | "rsp" | "evt";
-  method: string;      // see §4.3
-  payload: T;
-};
+type Envelope<M, P> = { __bx: 1; id: string; kind: "req" | "rsp" | "evt"; method: M; payload: P };
 ```
 
-Each request gets a single response. Events flow background → surface for
-state pushes (alerts, ledger updates, settle confirmations).
+Errors are returned as `payload: { error: string }` on the `rsp`. Types live in `packages/ext-protocol/src/index.ts`; a new RPC starts there, and the `handlers` object is typed `{[M in ExtRpcMethod]: Handler<M>}`, so a missing handler does not compile.
 
-### 4.3 Methods (RPC-style)
+### 4.3 RPC methods (popup/options ↔ background)
 
-| Method | Request | Response | Notes |
-|---|---|---|---|
-| `wallet.getState` | — | `WalletState` | Full snapshot. Surface caches; subscribes for diffs. |
-| `wallet.unlock` | `{ passphrase }` | `{ ok: true }` or `{ error }` | Decrypts the stored secret into session memory. |
-| `wallet.lock` | — | `{ ok: true }` | Zeroes session secret. |
-| `wallet.create` | `{ passphrase, network }` | `{ identity }` | Onboarding only; throws if wallet already exists. |
-| `wallet.reset` | `{ confirmation }` | `{ ok: true }` | Wipes everything. |
-| `wallet.exportSecret` | `{ passphrase, format }` | `{ secret }` | Format = `mnemonic` \| `secretSeed` \| `hex`. |
-| `wallet.airdrop` | — | `{ hash, amountXlm }` | Friendbot (testnet only). |
-| `tx.simulateWithGuard` | `{ envelopeXdr, mode }` | `GuardEvaluation` | Internal; called by sign flow. |
-| `tx.sign` | `{ requestId, accept: boolean }` | `{ signed?, signature?, rejection? }` | Resolves the pending sign request. |
-| `tx.send` | `{ tx }` | `{ signature }` | Wallet-initiated sends only. |
-| `ledger.list` | `{ filter? }` | `Allowance[]` | Active grants. |
-| `ledger.revoke` | `{ merchantOrigin }` | `{ requestId }` — opens sign for the on-chain rotation | |
-| `ledger.pause` / `unpause` | `{ merchantOrigin }` | `{ ok }` | Local-only freeze. |
-| `policy.read` | — | `GuardPolicy` | Current saved policy. |
-| `policy.write` | `{ policy }` | `{ ok }` | After validation. |
-| `history.list` | `{ filter? }` | `HistoryEntry[]` | |
-| `history.detail` | `{ id }` | `HistoryEntry & analysis` | |
-| `alerts.list` | — | `Alert[]` | Open alerts only by default. |
-| `alerts.dismiss` | `{ id }` | `{ ok }` | |
-| `network.set` | `{ network }` | `{ ok }` | `testnet` \| `pubnet`. |
-| `monitor.subscribe` | `{ address }` | `{ ok }` | Background-managed; surfaces don't usually call this. |
-
-Events (background → surface):
-
-| Event | Payload |
+| Group | Methods |
 |---|---|
-| `state.changed` | partial WalletState diff |
-| `alert.new` | `Alert` |
-| `ledger.tick` | `{ merchantOrigin, hits, capRemaining }` (live counter updates) |
-| `tx.signRequest` | `{ requestId, kind, summary }` (popup re-renders to Sign Request) |
-| `tx.signed` | `{ id, signature }` (history append) |
+| Lifecycle | `wallet.getState` `wallet.create` `wallet.import` `wallet.unlock` `wallet.lock` `wallet.reset` (needs token `"I-UNDERSTAND"`) `wallet.exportSecret` (`mnemonic`\|`base58`\|`hex`) `wallet.backupStatus` `wallet.acknowledgeBackup` |
+| Funds | `wallet.balance` `wallet.airdrop` (Friendbot, testnet) `wallet.transferXlm` `wallet.addUsdcTrustline` `wallet.provisionSmartWallet` |
+| Accounts | `wallet.listAccounts` `wallet.addAccount` `wallet.switchAccount` `wallet.renameAccount` |
+| Signing | `tx.peekRequest` `tx.analyzeRequest` `tx.sign` (`tx.send` is **not implemented**) |
+| Ledger | `ledger.list` `ledger.pause` `ledger.unpause` `ledger.revoke` |
+| Policy | `policy.read` `policy.write` (validated by `swig-guard`'s `validatePolicy`; stored in `storage.local` `baret.policy.v1`; default `BALANCED_POLICY`) |
+| History / alerts / sites | `history.list` `history.detail` `alerts.list` `alerts.dismiss` `sitePermissions.list` `sitePermissions.revoke` |
+| Network | `network.set` (`testnet` \| `pubnet`) |
 
-### 4.4 Origin checks
+`ExtEvents` also defines `alert.new`, `ledger.tick`, `tx.signRequest`, `tx.signed`, but **nothing emits them today**; surfaces poll (`usePolling`) instead.
 
-Every incoming message's `sender.origin` is verified against the extension's
-own origin (popup/options) or `null` for service worker self-tests. Content
-script messages are dispatched through a separate channel (§5.2) and never
-appear on the popup-options bus.
+### 4.4 dApp-facing methods (`ws.*`)
 
----
+`ws.connect` `ws.disconnect` `ws.isConnected` `ws.getAddress` `ws.getNetwork` `ws.signTransaction` `ws.signAndSendTransaction` `ws.signAuthEntry` `ws.signMessage`, plus `x402.review`. `ws.connect` waits for unlock (opening the popup), checks the per-origin permission
+(`site_permissions`), otherwise queues a `connect` request for the popup. Sign methods enqueue a `SignRequest` (`kind`: `message | transaction | transactionAndSend | authEntry | x402Payment | connect`) and resolve when the popup calls `tx.sign`.
+`ws.signAuthEntry` first tries the silent x402 path (`tryAutoApproveX402AuthEntry`); see [`x402-defense.md`](./x402-defense.md) §4.
 
-## 5. Content script
+### 4.5 Origin handling
 
-Runs in every page (configurable allowlist in advanced settings — by default
-`<all_urls>`). Lives in an isolated world — cannot see the page's JS but
-shares the DOM.
-
-### 5.1 Responsibilities
-
-1. **Inject the inpage provider** — `<script src="${chrome.runtime.getURL('inpage/index.js')}">` appended to `document.documentElement` at `document_start`. Removed from DOM after load.
-2. **Forward Wallet Standard / Stellar provider calls** between page (via `window.postMessage`) and background (via `chrome.runtime.connect`).
-3. **Intercept HTTP 402 responses** by patching `window.fetch` and `XMLHttpRequest.prototype.send` *in the inpage script* (the content script can't reach the page's fetch). Forward parsed `PaymentRequirements` to background for analysis + signing.
-
-### 5.2 Channel
-
-Two ports per page:
-
-- `bx-wallet-standard` — Wallet Standard / Stellar provider calls (connect, signTransaction, etc.)
-- `bx-x402` — payment intercepts
-
-Each gets its own `chrome.runtime.connect` so the background can route them
-to separate handlers without ambiguity.
-
-### 5.3 Origin handling
-
-The content script tags every outbound message with the page's origin
-(`window.location.origin`). The background trusts this *only* because
-content scripts run in an isolated world that the page JS cannot reach;
-the page cannot forge a content-script message.
-
-The inpage provider tags messages with the same origin via `window.location`
-inside `MAIN` world; the content script verifies these match before forwarding.
+The inpage script can claim any `origin`. The content script **overwrites** `payload.origin` with the real `window.location.origin` (`content/trusted-origin.ts`, unit-tested) before forwarding, and everything downstream (site permissions, x402 merchant origin,
+allowance keys) trusts only that value. The background never accepts a page-supplied origin.
 
 ---
 
-## 6. Inpage provider
+## 5. Content script and inpage
 
-Runs in the page's main world (loaded via `web_accessible_resources`).
-
-### 6.1 Wallet Standard registration
-
-```ts
-import { registerWallet, type Wallet } from "@wallet-standard/wallet";
-import { createBaretWallet } from "./baret-wallet";
-
-const wallet: Wallet = createBaretWallet({
-  name: "BARET",
-  icon: BRAND_ICON_DATA_URL,
-  chains: ["stellar:testnet", "stellar:pubnet"],
-  features: {
-    "standard:connect":           { connect },
-    "standard:disconnect":        { disconnect },
-    "standard:events":            { on },
-    "stellar:signTransaction":    { signTransaction },
-    "stellar:signAndSendTransaction": { signAndSendTransaction },
-    "stellar:signMessage":        { signMessage },
-  },
-});
-
-registerWallet(wallet);
-```
-
-Wallet Standard is the convention every modern Stellar dApp expects. dApps
-using the Stellar Wallet Standard will see "BARET" in the picker the
-moment our extension is installed — no integration on the dApp side.
-
-### 6.2 Provider calls
-
-Each feature method is a thin wrapper:
-
-```ts
-async function signTransaction(input: SignTransactionInput): Promise<SignTransactionOutput> {
-  const reqId = newRequestId();
-  window.postMessage(
-    { __bx: 1, ch: "wallet-standard", id: reqId, method: "signTransaction", payload: serializeInput(input) },
-    window.location.origin,
-  );
-  return await awaitResponse(reqId);
-}
-```
-
-Responses arrive via `window.message` events posted by the content script.
-Origin and `__bx` checked on every event.
-
-### 6.3 x402 interceptor (also in inpage)
-
-```ts
-const origFetch = window.fetch;
-window.fetch = async function baretFetch(input, init) {
-  const res = await origFetch(input, init);
-  if (res.status === 402) return await maybeHandle402(input, init, res);
-  return res;
-};
-
-async function maybeHandle402(input, init, res) {
-  const reqs = await parsePaymentRequirements(res);
-  if (!reqs) return res;
-  const decision = await postToContentScript({
-    method: "x402.review",
-    payload: { input, init, requirements: reqs },
-  });
-  if (decision.action === "decline") return res; // bubble 402 up
-  // Inject the signed header and retry
-  const headers = new Headers(init?.headers ?? {});
-  headers.set("PAYMENT-SIGNATURE", decision.headerValue);
-  return await origFetch(input, { ...init, headers });
-}
-```
-
-The intercept is opt-in per-merchant on first encounter (we never silently
-auto-pay an unfamiliar origin). After the first allowance is granted, the
-flow can be configured for one-tap repeats up to the cap.
+- `content/index.ts` mounts a small Shadow-DOM overlay badge (`content/ui/*`, hideable per origin in `storage.local` `baret.overlayHidden.v1`), injects `inpage.js` as a `<script type="module">` and bridges the page to the background.
+- `inpage/wallet-standard.ts` installs **`window.baretStellar`** (non-writable), a Freighter-compatible provider with `isConnected`, `requestAccess`, `getAddress`, `getNetwork`, `signTransaction`, `signAuthEntry`, `signMessage`, and fires `baret:walletReady`.
+  Despite the file name it does **not** call Wallet Standard's `registerWallet`, and it does not expose `signAndSendTransaction`. dApps discover it by name (the showcase's `wallet/standard-bridge.ts`).
+- `inpage/x402-interceptor.ts` patches `window.fetch`. On an HTTP 402 it reads `PaymentRequirements` from the `PAYMENT-REQUIRED` header (base64 JSON) or the JSON body (`accepts[0]` / `accepted`), asks the background (`x402.review`) and, on `approve`, replays the request with a `PAYMENT-SIGNATURE` header.
+  On decline or error it returns the original 402. Requests made with `XMLHttpRequest` are **not** intercepted.
+- Page ↔ content messages use the tag `__bx_ws` and the page's own origin as `postMessage` target; the bridge times out after 5 minutes.
 
 ---
 
-## 7. IndexedDB schema
+## 6. Storage
 
-Database name: `baret`. Version: 1. Owned by the background script.
+### 6.1 IndexedDB `baret`, version 4 (`db/index.ts`)
 
-```
-ObjectStores
-────────────
-keystore     pk=id (single row "primary")
-  { id, ciphertext, salt, iv, kdf: { name, iterations, hash }, createdAt }
+| Store | Key | Notes |
+|---|---|---|
+| `keystore` | `id="primary"` | `{ blob (PBKDF2+AES-GCM), authorityPubkey, smartWalletAddress, accounts[], activeIndex, createdAt }`, mirrored to `storage.local` (`baret.keystore.backup.v1`) because Firefox temporary add-ons may wipe IDB on reload |
+| `allowances` | `"<account>::<origin>::<asset>"` | indexes `merchantOrigin`, `status`, `accountPubkey`; `spendLog` drives the sliding-window caps |
+| `history` | id | indexes `origin`, `createdAt`, `accountPubkey`; trimmed to 500 rows |
+| `alerts` | id | indexes `createdAt`, `dismissedAt` (currently only `drift` alerts are created) |
+| `sub_keys` | sub-key pubkey | encrypted sub-key secret, `status`, provisioning/revoke tx hashes; index `accountPubkey` |
+| `site_permissions` | `"<account>::<origin>"` | `trusted\|denied`, `remembered` |
+| `monitor`, `prefs` | - | created by migration v1, **unused** |
 
-allowances   pk=id
-  { id, merchantOrigin, asset, capPerTx, capPerHour, capPerDay,
-    spentTx, spentHourTs, spentHour, spentDayTs, spentDay,
-    hits, lastHitAt, expiresAt, status: 'active'|'paused'|'revoked',
-    subKeyAddress, createdAt, updatedAt }
-  index by merchantOrigin
-  index by status
+Migrations (`runMigrations`) are the only place an upgrade may happen. v4 scoped `allowances/history/sub_keys/site_permissions` per account; legacy allowances were forced back to `pending` and legacy site trust to `remembered:false` so an upgrade never grants
+silent trust it can't attribute. Never call `indexedDB.open()` with another version elsewhere (deadlocks the cached connection).
 
-history      pk=id
-  { id, type, hash, origin, summary, decision, reasons,
-    findingsJson, estimatedChangesJson, broadcast, createdAt }
-  index by origin
-  index by createdAt
+### 6.2 `browser.storage.local`
 
-alerts       pk=id
-  { id, severity, kind, merchantOrigin, hash?, body, createdAt, dismissedAt }
-  index by createdAt
-  index by dismissedAt
-
-monitor      pk=address
-  { address, lastLedger, lastHash, lastReconcileAt, watchUntil }
-
-prefs        pk=key
-  { key, value }   // network, idleTimeout, notifs, telemetry, customRpc, ...
-```
-
-### Migration policy
-
-Every schema change ships with a `versionchange` upgrade in `db/migrations.ts`.
-Old rows are migrated, never dropped. We never break existing wallets.
+`baret.policy.v1` (GuardPolicy), `baret.keystore.backup.v1`, `baret.backupAck.v1`, `baret.monitor.lastSeen.v1` (Horizon paging cursors), `baret.overlayHidden.v1`.
 
 ---
 
-## 8. Key custody
+## 7. Key custody
 
-### 8.1 Encryption
-
-```
-secretBytes = Keypair.random().rawSecretKey()    // 32-byte ed25519 seed
-salt        = randomBytes(16)
-iv          = randomBytes(12)
-key         = PBKDF2(passphrase, salt, 100_000, SHA-256, 256-bit)
-ciphertext  = AES-GCM(secretBytes, key, iv)
-keystore.put({ id: 'primary', ciphertext, salt, iv,
-               kdf: { name: 'PBKDF2', iterations: 100_000, hash: 'SHA-256' },
-               createdAt: Date.now() })
-```
-
-### 8.2 In-memory session
-
-When unlocked, the decrypted `secretBytes` lives in `crypto/session.ts` as a
-module-level `Uint8Array`. Two events zero it (overwrite with zeros, drop the
-reference):
-
-- Idle timeout fires
-- `wallet.lock` RPC called
-
-The session never persists. The service worker waking up from sleep means
-re-unlock.
-
-### 8.3 Sub-keys (Soroban per-merchant)
-
-Each merchant the user authorizes gets its own derived sub-key:
-
-- For the primary authority, we generate a child signer and register it on
-  the smart wallet via `add_signer`.
-- The sub-key's secret is itself encrypted under the same passphrase + a
-  per-sub-key salt.
-- Revoking a sub-key submits a `remove_signer` transaction; the local
-  encrypted record is then deleted.
-
-**This is the intended design, not the current implementation.** The
-allowance passed to `add_signer` is scoped by a Soroban allowance *in
-theory* — today the deployed smart-wallet contract has no per-signer cap
-enforcement at all, so `buildAddSubKeyTransaction` registers each sub-key
-with `{ unlimited: true }`. Per-tx/hour/day caps are enforced only by this
-extension's own bookkeeping (`db/allowances.ts`), not on-chain. See the
-SECURITY NOTE in `apps/extension/src/background/swig/sub-keys.ts` and the
-roadmap in `docs/x402-defense.md` §10 for the plan to close this gap. Until
-then, "per-merchant blast-radius isolation" holds only as long as the
-sub-key secret itself is never exfiltrated — it is not a chain-enforced
-guarantee.
+- **Encryption:** Web Crypto only. `PBKDF2-SHA256`, **600,000** iterations (older blobs carry their own count and are re-encrypted at the current count on the next successful unlock), random 16-byte salt, `AES-GCM` with a 12-byte IV. The blob is self-describing (`EncryptedBlob`).
+- **What is stored:** the 32-byte root seed. Account 0 is `Keypair.fromRawEd25519Seed(seed)` (byte-for-byte unchanged since before multi-account); accounts ≥ 1 use SEP-0005 paths `m/44'/148'/i'` derived from the seed's BIP-39 mnemonic (`crypto/hd.ts`). Exported mnemonic reproduces the same accounts in other wallets.
+- **Session:** `crypto/session.ts` keeps the decrypted seed and derived keypairs in module memory. `useAuthority()` renews the idle timer; the unattended x402 path calls `useAuthority({ isAutomatic: true })`, which does **not**, so a page that keeps triggering auto-approved payments cannot keep a wallet unlocked forever. Locking zeroes the seed.
+- **Brute-force limiter:** `crypto/attempt-limiter.ts` (unlock and export share the mechanism): 5 free failures, then exponential backoff capped at 5 minutes; in memory, per worker lifetime.
+- **Sub-keys:** each merchant sub-key is a fresh Ed25519 keypair whose secret is encrypted under the **same passphrase** and stored in `sub_keys`. To use one later the worker needs the passphrase, so `crypto/sub-key-cache.ts` keeps it for **5 minutes** after unlock (strings can't be zeroed, so the TTL is the only mitigation); after that, sub-keys not already in the in-memory cache require an unlock. Sub-key provisioning is skipped (with a warning) when the passphrase is no longer cached.
+- **Export / reset:** `wallet.exportSecret` re-asks the passphrase; `wallet.reset` requires the token and wipes the keystore and its mirror.
 
 ---
 
-## 9. Build pipeline
+## 8. Smart wallet and sub-keys
 
-### 9.1 Chrome
-
-```
-apps/extension/
-├── manifest.chrome.json
-├── manifest.firefox.json
-├── public/icons/
-├── src/
-│   ├── popup/
-│   ├── options/
-│   ├── background/
-│   ├── content/
-│   ├── inpage/
-│   └── shared/         // imports from packages/swig-guard, packages/ui
-├── vite.config.ts      // @crxjs/vite-plugin + 5 entries
-└── package.json
-```
-
-Vite produces:
-- `dist/popup/index.html` + chunks
-- `dist/options/index.html` + chunks
-- `dist/background/index.js`
-- `dist/content/index.js`
-- `dist/inpage/index.js`
-- `dist/manifest.json` (one of the two source manifests)
-- `dist/icons/*`
-
-`pnpm dev:extension` runs Vite in watch mode and writes to `dist/`. The user
-sideloads `dist/` via `chrome://extensions` (Developer mode → Load unpacked).
-
-### 9.2 Firefox
-
-`pnpm build:extension --target=firefox` swaps the manifest, runs the same
-Vite build (Firefox-compatible since we already use the polyfill), and writes
-to `dist-firefox/`. `web-ext run --source-dir=dist-firefox/` launches a
-sandboxed Firefox with the extension auto-installed.
-
-### 9.3 Polyfill
-
-`webextension-polyfill` is imported as `browser` in every entry. We never use
-the `chrome` global directly; that lets the same code run on both browsers.
-
-```ts
-import browser from "webextension-polyfill";
-const port = browser.runtime.connect({ name: "popup" });
-```
-
-### 9.4 Bundle splitting
-
-Two bundles are large by nature: `@stellar/stellar-sdk` and the design
-system. We extract them into a shared chunk that the service
-worker, popup, and options page all import via dynamic `import()` so each
-surface only pays for what it needs.
+- **Smart wallet** (`swig/provision.ts`): `wallet.provisionSmartWallet` deploys a real [passkey-kit](https://github.com/stellar/passkey-kit) smart-wallet instance from the canonical WASM hash in `swig/smart-wallet-config.ts`, with the account's existing Ed25519 authority as the first (unlimited, permanent) admin signer. No WebAuthn ceremony. The authority pays for the deploy (needs ≥ 5 XLM). The address is stored per account (`AccountEntry.smartWalletAddress`); provisioning is idempotent.
+- **x402 payments come from the smart wallet** (`C…`), so it must hold the token (USDC SAC) balance. Classic sends from the UI (`wallet.transferXlm`) come from the authority `G…` account.
+- **Merchant sub-keys** (`swig/sub-keys.ts`): on the first manual approval of a merchant, `provisionRealSubKey` (a) installs `MerchantSpendPolicy` on the wallet as a `Policy` signer with an **empty** limits map (idempotent), (b) calls `MerchantSpendPolicy.set_allowance(wallet, merchant=payTo, signer=<new sub-key>, caps, mandate_seconds)`,
+  (c) adds the sub-key as an `Ed25519` signer with `SignerLimits { token: [Policy(MerchantSpendPolicy)] }` in temporary storage with the mandate's expiry. From then on auto-approved payments to that merchant are signed by the sub-key through the wallet's own `__check_auth`, which calls the policy on-chain.
+  `ledger.revoke` sends `remove_signer`. Failure of provisioning never blocks the payment (best-effort; the merchant then uses the admin key). Details, guarantees and the **known mandate-renewal gap**: [`x402-defense.md`](./x402-defense.md) §11 and [`implementation-status.md`](./implementation-status.md) §4.
+- Contract addresses/hashes are constants in `swig/smart-wallet-config.ts` (must match `contracts/**/DEPLOYMENT.md`).
 
 ---
 
-## 10. Testing strategy
+## 9. Analyze client and policy
 
-- **Unit tests** for the policy evaluator, x402 validator, and crypto helpers (Vitest in `packages/swig-guard` + `packages/ext-protocol`).
-- **Service-worker tests** via `@vitest/web-worker` (mocked `browser.runtime`).
-- **Popup component tests** via React Testing Library against a mocked port.
-- **End-to-end** via Playwright with a sideloaded extension build, against a local/testnet Horizon + Soroban RPC and a fake-x402 mock server (in `apps/showcase` x402 site).
-- **Manual matrix** before each release: Chrome stable + Chrome canary + Firefox stable + Firefox developer edition.
+`baret/analyze-client.ts` posts `{ network, transactionXdr, userWallet: authority G…, policy }` to `<base>/v1/analyze` (base: `https://baret-stellar.onrender.com` in packaged builds, `http://localhost:8080` in dev), 25 s timeout (Render free cold start ≈ 30 s), and normalises the
+response to `allow | advisory | block`. It never throws: an unreachable server yields an `offline` advisory with the finding `ANALYZE_UNREACHABLE` ("sign only if you trust this dApp"). The API key is hard-coded to the public demo key in `messaging/handlers.ts`. The server's `attestation` field is ignored (no client-side verification yet).
 
----
-
-## 11. Security checklist
-
-Each PR that touches the extension must confirm:
-
-- [ ] No `eval`, no `new Function`, no inline scripts (CSP enforced)
-- [ ] No external script loads from untrusted origins
-- [ ] No `<all_urls>` host permissions added
-- [ ] No new chrome.* permission added without rationale in PR description
-- [ ] Encrypted secret never written to `chrome.storage.local` or `localStorage`
-- [ ] Decrypted secret never logged, never sent over message bus, never crossed into popup/content/inpage contexts
-- [ ] Origin checked on every postMessage / runtime message
-- [ ] No third-party SDK that registers its own service worker / content script
+The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); the server evaluates its pre-sign subset and ignores the rest. The x402 rules (caps, allow-lists, mandate) are enforced **only here**. Which fields are actually enforced: [`policy-dsl.md`](./policy-dsl.md).
 
 ---
 
-## 12. Updates and store distribution
+## 10. Post-sign monitor
 
-For v1 hackathon delivery: unpacked dist + zip archive + `web-ext build`
-output. Public store submission (Chrome Web Store, Firefox Add-ons) is a
-post-v1 task — submission requires a production privacy policy, hosted
-support page, and updated icons.
-
-Self-update via store auto-update is the only delivery mechanism we plan to
-support; we never fetch and run code at runtime from a remote URL.
+`rpc/monitor.ts` polls Horizon every 8 s for new transactions on the authority and the smart wallet (paging cursors in `storage.local`), started/stopped from the wallet phase (and restarted on account switch). A successful transaction with no matching `history.signature` in the last 200 entries raises a
+`drift` alert (IndexedDB + OS notification + unread badge). A failed transaction is recorded as an `alert` history row. It is polling, not a WebSocket stream, and there are no `verify_orphan`/`no_delivery` alerts.
 
 ---
 
-*Last updated: 2026-05-09 · This document is the authoritative architecture for the BARET extension. Every PR that adds a new surface, message, or storage entity updates this file first.*
+## 11. Surfaces
+
+- **Popup** (`src/popup`): `PopupApp` switches on the phase: `UninitializedScreen` (opens onboarding in a tab), `LockedScreen`, `SignRequest` or `ConnectApproval` (chosen by polling `tx.peekRequest` every 600 ms), otherwise the tabbed shell (Home / Activity / Allowances / Settings). When opened as a window for a request the background appends `?window=1`.
+  `SignRequest` renders the verdict (Safe / Caution / Blocked; overriding a Blocked verdict needs a 1.5 s press-and-hold) and the mandate terms for x402 approvals.
+- **Options** (`src/options`, `HashRouter`): `/onboarding` (8 steps: welcome, passphrase, generate/import, backup + quiz, fund, provision smart wallet, policy template, done), `/` Home, `/activity`, `/sites`, `/sites/:b64`, `/policies` (presets, toggles, raw JSON), `/x402` (console), `/settings` (network, export, reset). There is no standalone Allowances page in options.
+- Both load the Google Fonts stylesheet from `fonts.googleapis.com` in their HTML (styles only; CSP restricts scripts).
+
+---
+
+## 12. Tests
+
+`vitest` (node environment, `fake-indexeddb`), `src/**/*.test.ts`: crypto (kdf, hd, session, attempt-limiter, sub-key-cache), db (index/migrations, keystore, allowances, history), messaging (handlers, auth-entry analysis), wallet-standard handlers, x402 handlers, swig sub-keys, content trusted-origin.
+There are no automated tests for popup/options React components or the inpage/content bridge; verify UI changes in a real browser build.
+
+---
+
+## 13. Security checklist (every PR that touches the extension)
+
+- [ ] No `eval`, `new Function`, inline scripts (CSP), and no external script loads.
+- [ ] No new host permission or `chrome.*` permission without a rationale in the PR.
+- [ ] The decrypted seed / sub-key secrets are never logged, never sent over a port, never given to popup/content/inpage.
+- [ ] Any new RPC that signs or moves funds requires an unlocked session and, where automatic, uses `useAuthority({ isAutomatic: true })`.
+- [ ] Origins come from the content script's real origin, never from the page payload.
+- [ ] Passphrase-checking RPCs go through the attempt limiter.
+
+Store distribution (Chrome Web Store / AMO) is not done; the extension ships as an unpacked build and the `/install` zips. Code is never fetched and executed from a remote URL.

@@ -5,24 +5,26 @@ const guides = [
   {
     href: '/quickstart',
     name: 'Quickstart',
-    description: 'Analyze your first Stellar transaction in under 2 minutes.',
+    description:
+      'Create a free key and analyze your first Stellar transaction in a few minutes.',
   },
   {
     href: '/authentication',
     name: 'Authentication',
-    description: 'Learn how to authenticate API requests with your API key.',
+    description:
+      'How to get an API key, send it, and what the rate limits and x402 pay-per-call mode mean.',
   },
   {
     href: '/detectors',
     name: 'Risk Detectors',
     description:
-      'Understand the 7 independent detectors that power Baret\'s analysis.',
+      'Every finding code Baret can report, its severity, and the policy option that makes it blocking.',
   },
   {
     href: '/policies',
-    name: 'Policy Engine',
+    name: 'Policy',
     description:
-      'Configure block rules and DSL policies to match your risk tolerance.',
+      'Turn findings into blocks: every option, how blocking works, and ready-made presets.',
   },
 ]
 

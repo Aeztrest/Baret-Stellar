@@ -1,64 +1,63 @@
 export const metadata = {
   title: 'Analyze Transaction',
   description:
-    'Submit a Stellar transaction for pre-signature security analysis. Returns a safe/unsafe verdict with full findings.',
+    'Submit a Stellar transaction for pre-signature analysis. Returns a safe or blocked verdict, the estimated balance changes and the risk findings.',
 }
 
 export const sections = [
-  { title: 'The analysis object', id: 'the-analysis-object' },
+  { title: 'The decision object', id: 'the-decision-object' },
   { title: 'Analyze a transaction', id: 'analyze-a-transaction' },
 ]
 
 # Analyze Transaction
 
-The core of Baret. Submit a base64-encoded Stellar transaction and receive a comprehensive security analysis before it's signed or broadcast. {{ className: 'lead' }}
+The core call. Send a base64 `TransactionEnvelope` and get back what it would do, what is risky about it, and whether your policy blocks it, before anyone signs. {{ className: 'lead' }}
 
 ---
 
-## The analysis object {{ id: 'the-analysis-object' }}
+## The decision object {{ id: 'the-decision-object' }}
 
-Every call to `/v1/analyze` returns an analysis object with the following structure.
-
-### Properties
+`POST /v1/analyze` returns this object. (`/v1/analyze/batch` and `/v1/analyze/stream` return the same object per transaction.)
 
 <Properties>
   <Property name="safe" type="boolean">
-    The final policy verdict. `false` means the policy engine blocked this transaction.
+    `false` means your policy blocks the transaction. It is also `false` when the Soroban simulation failed (unless you turned `requireSuccessfulSimulation` off) or the analysis had incomplete data (unless `allowWarnings` is true).
   </Property>
-  <Property name="riskLevel" type="string">
-    Aggregate risk level: `none`, `low`, `medium`, `high`, or `critical`.
+  <Property name="reasons" type="string[]">
+    Plain-English sentences behind the verdict. They are for people and may change; branch on `riskFindings[].code` instead.
   </Property>
-  <Property name="confidence" type="string">
-    Analysis confidence: `high`, `medium`, or `low`. Lower confidence means simulation data was incomplete (e.g., account state could not be fetched).
+  <Property name="riskFindings" type="array">
+    Each finding has a `code`, a `severity` (`low`, `medium` or `high`), a `message` and optional `details`. A finding is advisory unless the matching policy option is on. See [Risk detectors](/detectors).
   </Property>
-  <Property name="verdict" type="string">
-    Human-readable explanation of the block decision, or a summary if no block was triggered.
+  <Property name="estimatedChanges" type="object">
+    `native`: XLM per account (`preStroops`, `postStroops`, `deltaStroops`, all strings, 1 XLM = 10,000,000 stroops). `assets`: issued-asset and Soroban token balance changes. `trustlines`: opened, changed or removed. `allowances`: Soroban `approve` grants (`spender`, `amount`, `expirationLedger`).
   </Property>
-  <Property name="interpretation" type="string">
-    Plain-language description of what the transaction does: "DEX swap of 1.5 XLM to USDC", "Token approval to unknown program", etc.
+  <Property name="simulationWarnings" type="string[]">
+    Reserved for human-readable simulation warnings. Currently always empty.
   </Property>
-  <Property name="balanceChanges" type="array">
-    Simulated XLM and token balance changes per account, derived from pre/post simulation state.
+  <Property name="annotation" type="object">
+    `summary`: the operations in plain language (`operations`, `humanReadable`, `primaryAction`, `involvedContracts`, `involvedAssets`). `cpiTrace`: the Soroban authorization tree (`roots`, `allContractAddresses`, `maxDepth`, `totalInvocations`).
   </Property>
-  <Property name="detectors" type="object">
-    Per-detector results. Each key is a detector name with its findings and metadata.
+  <Property name="suggestions" type="array">
+    Optional advice such as a high fee or an unlimited approval. Never blocks. Each has `id`, `severity` (`info`, `warning`, `critical`), `category`, `title`, `description`.
   </Property>
-  <Property name="policy" type="object">
-    The policy evaluation result: which rule matched, the triggered action (`block` or `warn`), and the reason string.
+  <Property name="meta" type="object">
+    `analysisVersion`, `network`, `simulatedAt`, `confidence` and your `integratorRequestId`. `confidence` is `high` when Soroban preflight ran, `medium` for classic-only transactions (there is nothing to preflight), and `low` when data was incomplete or the simulation failed.
   </Property>
-  <Property name="programs" type="array">
-    All program IDs called in the transaction, including CPI-invoked programs.
-  </Property>
-  <Property name="cpiTree" type="object">
-    The full cross-program invocation tree showing call depth and relationships.
-  </Property>
-  <Property name="durationMs" type="number">
-    Total analysis duration in milliseconds.
-  </Property>
-  <Property name="analyzedAt" type="timestamp">
-    ISO 8601 timestamp of when the analysis was performed.
+  <Property name="attestation" type="object">
+    Present only when the server signs its verdicts: `signature`, `signerPublicKey`, `signedAt`, `nonce`. See below.
   </Property>
 </Properties>
+
+<Note>
+  The result is a **simulation against current chain state**, not a promise about
+  what will happen on-chain: fees, sequence numbers, time bounds and ledger state
+  can change between analysis and execution.
+</Note>
+
+### Verifying a signed verdict
+
+If `GET /v1/meta` shows `attestation.enabled`, every response carries an Ed25519 signature over the transaction hash, `safe`, a digest of `riskFindings`, `signedAt` and `nonce`. The transaction hash is **not** in the response: compute it yourself from the XDR you sent (the hash of the inner transaction for a fee-bump), so a compromised server cannot sign a verdict for a different transaction. Pin the server's public key, obtained out of band. The `@stellar-thorn/agent-guard` SDK does this for you (see [SDKs](/sdks)).
 
 ---
 
@@ -67,16 +66,16 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
 <Row>
   <Col>
 
-    Submit a Stellar transaction for analysis. The transaction must be base64-encoded and in TransactionEnvelope XDR format.
+    Analyze one transaction. Signed or unsigned envelopes both work.
 
     ### Required attributes
 
     <Properties>
-      <Property name="transaction" type="string">
-        Base64-encoded serialized Stellar `TransactionEnvelope XDR`.
-      </Property>
       <Property name="network" type="string">
-        Stellar network to analyze against: `pubnet` or `testnet`.
+        `testnet` or `pubnet`. Must match the server's network, otherwise `400 WRONG_NETWORK` (the error tells you which network the server runs).
+      </Property>
+      <Property name="transactionXdr" type="string">
+        Base64 `TransactionEnvelope` XDR. A fee-bump envelope is analysed through its inner transaction.
       </Property>
     </Properties>
 
@@ -84,15 +83,20 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
 
     <Properties>
       <Property name="policy" type="object">
-        Inline policy rules for this request. Overrides any global policy settings. See [Policy Engine](/policies).
+        Your rules. Every option is optional, and the default is `{}`. See [Policy](/policies).
       </Property>
-      <Property name="policyProfile" type="string">
-        Pre-configured policy profile: `strict`, `defi-permissive`, or `monitor-only`.
+      <Property name="userWallet" type="string">
+        A Stellar `G…` address: the account whose balances to evaluate. Required for `maxLossPercent` and `minPostUsdcBalance`; without it those rules block (fail-closed) and the response is marked low confidence.
       </Property>
-      <Property name="walletAddress" type="string">
-        The user's wallet address. Used for audit trail attribution (optional).
+      <Property name="integratorRequestId" type="string">
+        Your own correlation id, up to 256 characters. Echoed in `meta`.
+      </Property>
+      <Property name="paymentRequirements" type="object">
+        For x402 payments: the merchant's published requirements (`scheme`, `network`, `asset`, `amount`, `payTo`, `maxTimeoutSeconds`, `extra`). Baret checks that the payee and asset appear in the transaction.
       </Property>
     </Properties>
+
+    Errors: `400 BAD_REQUEST` (invalid body or XDR), `400 WRONG_NETWORK`, `401`, `429`, `502 RPC_ERROR` and `504 RPC_ERROR` when Horizon or Soroban RPC fails or times out. See [Errors](/errors).
 
   </Col>
   <Col sticky>
@@ -100,97 +104,78 @@ Every call to `/v1/analyze` returns an analysis object with the following struct
     <CodeGroup tag="POST" label="/v1/analyze">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://api.baret.io/v1/analyze \
-      -H "X-API-Key: {your-api-key}" \
+    curl -X POST https://baret-stellar.onrender.com/v1/analyze \
+      -H "Authorization: Bearer $BARET_KEY" \
       -H "Content-Type: application/json" \
       -d '{
-        "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-        "network": "pubnet",
-        "policyProfile": "strict"
+        "network": "testnet",
+        "transactionXdr": "AAAAAgAAAACd…",
+        "userWallet": "GAT3XUNP…",
+        "policy": {
+          "maxLossPercent": 50,
+          "blockAccountMerge": true,
+          "blockSignerChanges": true,
+          "blockMasterKeyRemoval": true
+        }
       }'
     ```
 
-    ```js
-    const result = await fetch('https://api.baret.io/v1/analyze', {
+    ```js {{ title: 'JavaScript' }}
+    const verdict = await fetch('https://baret-stellar.onrender.com/v1/analyze', {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.BARET_API_KEY,
+        Authorization: `Bearer ${process.env.BARET_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        transaction: serializedTxBase64,
-        network: 'pubnet',
-        policyProfile: 'strict',
+        network: 'testnet',
+        transactionXdr,
+        userWallet,
+        policy: { blockAccountMerge: true, maxLossPercent: 50 },
       }),
-    }).then(r => r.json())
+    }).then((r) => r.json())
 
-    if (!result.safe) {
-      throw new Error(result.verdict)
+    if (!verdict.safe) {
+      throw new Error(verdict.reasons.join('; '))
     }
-    ```
-
-    ```python
-    import httpx
-
-    result = httpx.post(
-        'https://api.baret.io/v1/analyze',
-        headers={'X-API-Key': API_KEY},
-        json={
-            'transaction': serialized_tx_base64,
-            'network': 'pubnet',
-            'policyProfile': 'strict',
-        }
-    ).json()
-
-    if not result['safe']:
-        raise Exception(result['verdict'])
     ```
 
     </CodeGroup>
 
-    ```json {{ title: 'Response' }}
+    <CodeGroup>
+
+    ```json {{ title: 'Response (abridged)' }}
     {
       "safe": false,
-      "riskLevel": "high",
-      "confidence": "high",
-      "verdict": "Transaction blocked: unlimited token approval to unverified program.",
-      "interpretation": "Token approval granting unlimited USDC spending authority.",
-      "balanceChanges": [
+      "reasons": [
+        "Signer / threshold change detected and blocked by policy",
+        "Master-key removal detected and blocked by policy"
+      ],
+      "estimatedChanges": { "native": [], "assets": [], "trustlines": [], "allowances": [] },
+      "riskFindings": [
         {
-          "account": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-          "xlmDelta": -0.000005,
-          "tokens": []
-        }
-      ],
-      "detectors": {
-        "simulation": { "status": "success", "findings": [] },
-        "program": { "findings": [] },
-        "cpi": { "depth": 1, "findings": [] },
-        "reputation": { "findings": [] },
-        "compute": { "units": 12000, "findings": [] },
-        "delta": {
-          "findings": [
-            {
-              "code": "UNLIMITED_APPROVAL",
-              "severity": "high",
-              "message": "Token approval grants unlimited spending authority to TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA."
-            }
-          ]
+          "code": "MASTER_KEY_REMOVED",
+          "severity": "high",
+          "message": "Sets the master key weight of GAT3XUNP… to 0: the account's own key can no longer sign for it.",
+          "details": { "operationIndex": 0, "account": "GAT3XUNP…" }
         },
-        "token2022": { "findings": [] }
-      },
-      "policy": {
-        "blocked": true,
-        "rule": "blockApprovalChanges",
-        "reason": "Unlimited token approval detected"
-      },
-      "programs": [
-        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        { "code": "SIGNER_CHANGE_DETECTED", "severity": "high", "message": "Adds or updates a signer on GAT3XUNP… with weight 255 …" }
       ],
-      "durationMs": 287,
-      "analyzedAt": "2025-05-04T14:23:01.000Z"
+      "simulationWarnings": [],
+      "annotation": {
+        "summary": { "humanReadable": "setOptions(master=0, signer±)", "primaryAction": "set_options", "involvedContracts": [], "involvedAssets": [] },
+        "cpiTrace": { "roots": [], "allContractAddresses": [], "maxDepth": 0, "totalInvocations": 0, "truncated": false }
+      },
+      "meta": {
+        "analysisVersion": "v1",
+        "network": "testnet",
+        "simulatedAt": "2026-09-19T18:07:57.765Z",
+        "confidence": "medium"
+      }
     }
     ```
+
+    </CodeGroup>
 
   </Col>
 </Row>
