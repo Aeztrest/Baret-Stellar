@@ -76,9 +76,12 @@ Görsel varlık kataloğu: [`apps/showcase/ASSET_PROMPTS.md`](../../apps/showcas
 
 ## 2. Geliştirici portalı (`/developers`)
 
-Dosyalar: `pages/developers/{DevelopersPage,KeyPanel,Playground,Reference,Detectors}.tsx`, `endpoints.ts` (elle yazılmış referans kataloğu),
+Dosyalar: `pages/developers/{DevelopersPage,KeyPanel,Playground,Reference,Detectors,AgentPrompt}.tsx`, `endpoints.ts` (elle yazılmış referans kataloğu),
 `samples.ts` (Playground için hazır işlemler: normal ödeme + saldırılar; **yalnız analiz edilir, asla imzalanmaz/gönderilmez**),
 `snippets.ts` (cURL/JS/Python/Go), `hooks.ts`, `api.ts` (`callApi`, `PUBLIC_API_URL`).
+`AgentPrompt.tsx` + `agentPrompt.ts` + `agent-prompt.md`: bir AI ajanına yapıştırılan, ajanın **kendi cüzdanının** imza yoluna Baret'i bağlatan hazır prompt
+(`{{API_URL}}`, `{{NETWORK}}`, `{{API_KEY_SECTION}}` yer tutucuları doldurulur). Metin `agent-prompt.md`'dedir; `apps/server/test/api/portal-catalog.test.ts`
+prompt'un andığı her endpoint'in var olduğunu ve içine gerçek anahtar gömülmediğini denetler.
 
 Akış: **anahtar al** (`POST /v1/keys`; anahtar tarayıcıda `localStorage`'da tutulur) → **dene** (Playground gerçek `/v1/analyze` çağırır; hazır işlemler için
 Friendbot'la fonlanmış geçici testnet hesabının yalnız açık adresi kullanılır) → **kodu kopyala** → **referans** (`/v1/detectors`, `/v1/policy/schema`, `/v1/meta` canlı çekilir).

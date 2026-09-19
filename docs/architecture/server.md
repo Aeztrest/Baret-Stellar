@@ -187,7 +187,7 @@ Not: audit kayıtları **süreç geneldir**, anahtar bazlı ayrılmaz. Herhangi 
 | 3 | `userWallet` doğrula | - | Verilmişse geçerli `G…` olmalı |
 | 4 | Hesap/kontrat/varlık topla | `simulation/account-keys.ts` | `MAX_SIMULATION_OPERATIONS`'a kırpılırsa `truncatedAccounts` → düşük güven |
 | 5 | Simüle et | `simulation/stellar-simulator.ts` | Horizon `loadAccount`'lar **paralel** + (Soroban op'u varsa) `simulateTransaction`. Preflight'tan önce auth girdileri temizlenir |
-| 6 | Delta çıkar | `analysis/extract-deltas.ts` | native/asset/trustline/allowance; `approve` op gövdesinden doğrudan da okunur |
+| 6 | Delta çıkar | `analysis/extract-deltas.ts` | native/asset/trustline/allowance; `approve` op gövdesinden doğrudan da okunur. `changeTrust` hedefi SDK'da `line` alanındadır (`account-keys.ts` `changeTrustAsset`); likidite havuzu payı trustline'ı tek varlık taşımadığı için trustline dedektörlerine düşmez |
 | 7 | Auth ağacı + özet | `simulation/cpi-parser.ts`, `analysis/instruction-decoder.ts` | Ağaç derinlik 64 / düğüm 5.000'de kesilir (`truncated`) |
 | 8 | Dedektörler | `risk/index.ts` | §8 |
 | 9 | Policy | `policy/engine.ts` | §9 |

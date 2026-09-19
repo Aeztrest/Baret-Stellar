@@ -147,7 +147,8 @@ A standalone landing site + interactive demo. Every page is real React.
 - **`/install`** — one-click extension installer with browser auto-detect
   (Chrome / Brave / Edge / Firefox) and step-by-step "load unpacked" guidance.
 - **`/developers`** — the public **API portal**: get a free key, try `/v1/analyze` on real (and
-  attack) transactions, copy the code in cURL / JS / Python / Go, and browse the reference.
+  attack) transactions, copy the code in cURL / JS / Python / Go, browse the reference, and copy
+  a ready-made **prompt that wires Baret into an AI agent's own wallet** (block unsafe signatures, warn on risky ones).
 - **`/agents`** — the agent guard control page: SDK/CLI snippets and a live playground against `/v1/analyze`.
 - **`/docs`** — index of the design documents in `docs/`.
 - **Demo dApps** (NovaSwap, PixelDrop, OrbitYield, ClaimHub, LaunchPad) — each looks
