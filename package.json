@@ -21,6 +21,7 @@
     "typecheck": "pnpm -r --parallel typecheck",
     "test": "pnpm --filter @stellar-thorn/server test",
     "lint": "pnpm --filter @stellar-thorn/server lint",
+    "docs:check": "node scripts/check-docs.mjs",
 
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",

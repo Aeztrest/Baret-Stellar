@@ -1,0 +1,116 @@
+export const metadata = {
+  title: 'Discovery',
+  description:
+    'The public, keyless endpoints that describe a Baret server: capabilities, limits, the finding catalog, the policy schema and the OpenAPI document.',
+}
+
+export const sections = [
+  { title: 'Server capabilities', id: 'meta' },
+  { title: 'Finding catalog', id: 'detectors' },
+  { title: 'Policy schema', id: 'policy-schema' },
+  { title: 'OpenAPI and health', id: 'openapi' },
+]
+
+# Discovery
+
+A few endpoints describe the server itself and need **no API key**. Read them first when you integrate: they tell you which network the server runs, how to authenticate, what the limits are, and what every finding code means. {{ className: 'lead' }}
+
+---
+
+## Server capabilities {{ tag: 'GET', label: '/v1/meta', id: 'meta' }}
+
+<Row>
+  <Col>
+
+    Returns the server's name and version, its **network** (name and passphrase), the network's USDC, authentication modes, whether self-service keys are on, the request limits, x402 pricing (when enabled) and the attestation public key (when the server signs verdicts).
+
+    <Properties>
+      <Property name="network" type="object">
+        `name` (`testnet` or `pubnet`) and the network `passphrase`. A request for the other network gets `WRONG_NETWORK`.
+      </Property>
+      <Property name="auth" type="object">
+        `modes` (`api_key`, `x402`), the header format, and `keyIssuance` (`enabled`, `endpoint`, `persistent`).
+      </Property>
+      <Property name="limits" type="object">
+        `maxBodyBytes`, `maxBatchSize`, `maxSimulationOperations`, `requestTimeoutMs` and `rateLimit` (`perKeyPerMinute`, `perIp`).
+      </Property>
+      <Property name="x402" type="object">
+        `{ "enabled": false }`, or `enabled`, `network`, `price`, `payTo`, `facilitatorUrl` and the routes it applies to.
+      </Property>
+      <Property name="attestation" type="object">
+        `enabled` and `signerPublicKey` (or `null`).
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="GET" label="/v1/meta">
+
+    ```bash {{ title: 'cURL' }}
+    curl https://baret-stellar.onrender.com/v1/meta
+    ```
+
+    </CodeGroup>
+
+    <CodeGroup>
+
+    ```json {{ title: 'Response (abridged)' }}
+    {
+      "name": "Baret API",
+      "version": "1.0.0",
+      "network": { "name": "testnet", "passphrase": "Test SDF Network ; September 2015" },
+      "auth": {
+        "modes": ["api_key"],
+        "header": "Authorization: Bearer <key>  (or  X-API-Key: <key>)",
+        "keyIssuance": { "enabled": true, "endpoint": "POST /v1/keys", "persistent": true }
+      },
+      "limits": {
+        "maxBodyBytes": 1048576,
+        "maxBatchSize": 25,
+        "maxSimulationOperations": 20,
+        "requestTimeoutMs": 15000,
+        "rateLimit": { "perKeyPerMinute": 60, "perIp": { "max": 200, "windowMs": 60000 } }
+      },
+      "x402": { "enabled": false },
+      "attestation": { "enabled": false, "signerPublicKey": null }
+    }
+    ```
+
+    </CodeGroup>
+
+  </Col>
+</Row>
+
+`keyIssuance.persistent` only says the key file could be written; it does not promise the disk survives a restart.
+
+---
+
+## Finding catalog {{ tag: 'GET', label: '/v1/detectors', id: 'detectors' }}
+
+Every finding code with its category, the severities it can have, a description, its status (`active` or `reserved`) and the policy option that makes it blocking. Filter with `?status=active`, `?status=reserved` or `?category=` (`account`, `allowance`, `auth-tree`, `balance`, `contracts`, `fees`, `simulation`, `trustline`, `x402`). Cached for five minutes. The human-readable version is [Risk detectors](/detectors).
+
+---
+
+## Policy schema {{ tag: 'GET', label: '/v1/policy/schema', id: 'policy-schema' }}
+
+Every option the `policy` object understands, with descriptions, related finding codes and caveats, plus the Strict, Balanced and Permissive presets. See [Policy](/policies).
+
+---
+
+## OpenAPI and health {{ id: 'openapi' }}
+
+<Properties>
+  <Property name="GET /openapi.json" type="spec">
+    The OpenAPI 3.0 description of this server, generated live (it reflects the server's own URL, network and settings). Cached for a minute.
+  </Property>
+  <Property name="GET /health" type="liveness">
+    `{ "status": "ok" }` as long as the process is up.
+  </Property>
+  <Property name="GET /health/ready" type="readiness">
+    Checks the Soroban RPC (and the x402 facilitator when enabled). `200` with `status: "ready"`, or `503` with `status: "degraded"` and per-check results.
+  </Property>
+  <Property name="GET /" type="index">
+    A small JSON index with links to the above.
+  </Property>
+</Properties>

@@ -1,18 +1,26 @@
 export const metadata = {
   title: 'Audit',
   description:
-    'Query recent transaction analysis records and aggregate statistics. All analyses are automatically logged.',
+    'Read the server\'s recent analysis records and aggregate statistics. Records are in memory, process-wide and not per key.',
 }
 
 export const sections = [
   { title: 'Recent records', id: 'recent-records' },
   { title: 'Aggregate statistics', id: 'aggregate-statistics' },
-  { title: 'Program audit', id: 'program-audit' },
+  { title: 'Contract audit', id: 'contract-audit' },
 ]
 
 # Audit
 
-Every transaction analyzed by Baret is automatically logged to the audit trail. Use the audit endpoints to review recent decisions, monitor trends, and investigate specific programs. {{ className: 'lead' }}
+The server keeps a short log of what it analysed. The audit endpoints read that log. {{ className: 'lead' }}
+
+<Note>
+  **Read this before you rely on it.** The log is held **in memory** (the last
+  10,000 analyses) and is lost when the server restarts. It is **not separated by
+  API key**: any valid key can read entries produced by every caller, including
+  the `userWallet` and `integratorRequestId` values they sent. Treat it as
+  operational telemetry for one server process, not a private per-customer history.
+</Note>
 
 ---
 
@@ -21,21 +29,17 @@ Every transaction analyzed by Baret is automatically logged to the audit trail. 
 <Row>
   <Col>
 
-    Returns the most recent analysis records, ordered by analysis time descending.
+    Returns the most recent analyses, newest first.
 
     ### Optional attributes
 
     <Properties>
       <Property name="limit" type="integer">
-        Number of records to return. Default `20`, maximum `100`.
-      </Property>
-      <Property name="network" type="string">
-        Filter by network: `pubnet` or `testnet`.
-      </Property>
-      <Property name="safe" type="boolean">
-        Filter by verdict: `true` for safe transactions, `false` for blocked.
+        How many entries to return. Default `50`, maximum `200`.
       </Property>
     </Properties>
+
+    Each entry has `id`, `timestamp`, `network`, `safe`, `confidence`, `riskCodes` (the finding codes), `contractAddresses`, `primaryAction`, `userWallet` (or `null`), `integratorRequestId` and `durationMs`.
 
   </Col>
   <Col sticky>
@@ -43,37 +47,34 @@ Every transaction analyzed by Baret is automatically logged to the audit trail. 
     <CodeGroup tag="GET" label="/v1/audit/recent">
 
     ```bash {{ title: 'cURL' }}
-    curl https://api.baret.io/v1/audit/recent?limit=10&safe=false \
-      -H "X-API-Key: {your-api-key}"
-    ```
-
-    ```js
-    const records = await fetch(
-      'https://api.baret.io/v1/audit/recent?limit=10&safe=false',
-      { headers: { 'X-API-Key': process.env.BARET_API_KEY } }
-    ).then(r => r.json())
+    curl "https://baret-stellar.onrender.com/v1/audit/recent?limit=10" \
+      -H "Authorization: Bearer $BARET_KEY"
     ```
 
     </CodeGroup>
 
-    ```json {{ title: 'Response' }}
+    <CodeGroup>
+
+    ```json {{ title: 'Response (abridged)' }}
     {
-      "records": [
+      "entries": [
         {
-          "id": "anl_01HZXYZ...",
+          "id": "0d6f3b3e-…",
+          "timestamp": "2026-09-19T18:07:57.765Z",
+          "network": "testnet",
           "safe": false,
-          "riskLevel": "high",
-          "riskCodes": ["UNLIMITED_APPROVAL"],
-          "programs": ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"],
-          "network": "pubnet",
-          "durationMs": 287,
-          "analyzedAt": "2025-05-04T14:23:01.000Z"
+          "confidence": "medium",
+          "riskCodes": ["MASTER_KEY_REMOVED", "SIGNER_CHANGE_DETECTED"],
+          "contractAddresses": [],
+          "primaryAction": "set_options",
+          "userWallet": "GAT3XUNP…",
+          "durationMs": 412
         }
-      ],
-      "total": 1,
-      "hasMore": false
+      ]
     }
     ```
+
+    </CodeGroup>
 
   </Col>
 </Row>
@@ -85,7 +86,15 @@ Every transaction analyzed by Baret is automatically logged to the audit trail. 
 <Row>
   <Col>
 
-    Returns rolled-up statistics across all analyzed transactions: total count, safe rate, most common risk codes, and average analysis duration.
+    Totals over the retained entries: how many were safe or blocked, the most common finding codes, and the contracts that appear most in blocked analyses.
+
+    ### Optional attributes
+
+    <Properties>
+      <Property name="since" type="string">
+        An ISO 8601 time. Only entries at or after it are counted.
+      </Property>
+    </Properties>
 
   </Col>
   <Col sticky>
@@ -93,76 +102,87 @@ Every transaction analyzed by Baret is automatically logged to the audit trail. 
     <CodeGroup tag="GET" label="/v1/audit/aggregate">
 
     ```bash {{ title: 'cURL' }}
-    curl https://api.baret.io/v1/audit/aggregate \
-      -H "X-API-Key: {your-api-key}"
+    curl "https://baret-stellar.onrender.com/v1/audit/aggregate?since=2026-09-19T00:00:00Z" \
+      -H "Authorization: Bearer $BARET_KEY"
     ```
 
     </CodeGroup>
 
+    <CodeGroup>
+
     ```json {{ title: 'Response' }}
     {
-      "total": 14823,
-      "safe": 13102,
-      "blocked": 1721,
-      "safeRate": 0.884,
-      "avgDurationMs": 298,
+      "totalAnalyses": 128,
+      "safeCount": 101,
+      "blockedCount": 27,
       "topRiskCodes": [
-        { "code": "UNKNOWN_PROGRAM", "count": 842 },
-        { "code": "UNLIMITED_APPROVAL", "count": 634 },
-        { "code": "SIMULATION_FAILED", "count": 201 }
+        { "code": "SOROBAN_ALLOWANCE_GRANTED", "count": 19 },
+        { "code": "TRUSTLINE_CHANGE_DETECTED", "count": 11 }
       ],
-      "networkBreakdown": {
-        "pubnet": 14102,
-        "testnet": 721
-      }
+      "topBlockedContracts": [
+        { "contractAddress": "CBIELTK6…", "count": 8 }
+      ],
+      "timeRange": { "from": "2026-09-19T08:01:12.000Z", "to": "2026-09-19T18:07:57.765Z" }
     }
     ```
+
+    </CodeGroup>
 
   </Col>
 </Row>
 
 ---
 
-## Program audit {{ tag: 'GET', label: '/v1/audit/program/:programId', id: 'program-audit' }}
+## Contract audit {{ tag: 'GET', label: '/v1/audit/contract/:contractAddress', id: 'contract-audit' }}
 
 <Row>
   <Col>
 
-    Returns analysis statistics for a specific program address. Use this to understand how often a program appears in analyzed transactions and its associated risk profile.
+    Statistics for one Soroban contract address (`C…`): how often it appeared, how often those analyses were blocked, which finding codes came with it, and the latest entries.
+    Contract addresses come from the transactions callers submit, so a contract that never existed on-chain can still appear here.
 
-    ### Path parameters
+    ### Path and query parameters
 
     <Properties>
-      <Property name="programId" type="string">
-        The Stellar contract address (C…).
+      <Property name="contractAddress" type="string">
+        The contract address.
+      </Property>
+      <Property name="limit" type="integer">
+        How many recent entries to include. Default `50`, maximum `200`.
       </Property>
     </Properties>
+
+    `stats` is `null` when the contract has not been seen.
 
   </Col>
   <Col sticky>
 
-    <CodeGroup tag="GET" label="/v1/audit/program/:programId">
+    <CodeGroup tag="GET" label="/v1/audit/contract/:contractAddress">
 
     ```bash {{ title: 'cURL' }}
-    curl https://api.baret.io/v1/audit/program/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA \
-      -H "X-API-Key: {your-api-key}"
+    curl https://baret-stellar.onrender.com/v1/audit/contract/CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA \
+      -H "Authorization: Bearer $BARET_KEY"
     ```
 
     </CodeGroup>
 
-    ```json {{ title: 'Response' }}
+    <CodeGroup>
+
+    ```json {{ title: 'Response (abridged)' }}
     {
-      "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "label": "Stellar Asset",
-      "knownSafe": true,
-      "appearances": 9841,
-      "blockedCount": 412,
-      "topRiskCodes": [
-        { "code": "UNLIMITED_APPROVAL", "count": 389 },
-        { "code": "DELEGATE_CHANGE", "count": 23 }
-      ]
+      "contractAddress": "CBIELTK6…",
+      "stats": {
+        "contractAddress": "CBIELTK6…",
+        "totalSeen": 42,
+        "blockedCount": 8,
+        "riskCodes": { "SOROBAN_ALLOWANCE_GRANTED": 8 },
+        "lastSeen": "2026-09-19T18:07:57.765Z"
+      },
+      "recentEntries": []
     }
     ```
+
+    </CodeGroup>
 
   </Col>
 </Row>

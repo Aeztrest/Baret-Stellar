@@ -1,150 +1,186 @@
 export const metadata = {
   title: 'Quickstart',
   description:
-    'Analyze your first Stellar transaction with Baret in under 2 minutes.',
+    'Get a free API key and analyze your first Stellar transaction with Baret in a few minutes.',
 }
 
 # Quickstart
 
-This guide takes you from zero to your first transaction analysis in under 2 minutes. All you need is an API key and a base64-encoded Stellar transaction. {{ className: 'lead' }}
+This guide takes you from nothing to your first analysis: create a key, build a transaction, send it to Baret, read the verdict. You do not need to sign or submit anything. {{ className: 'lead' }}
 
 <Note>
-  Before making requests, grab your API key from the Baret dashboard under
-  **Settings → API Keys**. Pass it as the `X-API-Key` header on every request.
+  The examples use the hosted demo server, `https://baret-stellar.onrender.com`,
+  which analyses **Stellar testnet** and sleeps when idle (the first request can
+  take about 30 seconds). Running your own? Use `http://localhost:8080`.
 </Note>
 
-## Analyze a transaction
+## 1. Create a free API key
 
-Send a `POST` request to `/v1/analyze` with your transaction encoded as base64. Baret will simulate it, run 7 risk detectors, and return a verdict.
+Keys are self-service and instant. The key is shown **once**; only its SHA-256 hash is stored.
 
-<CodeGroup tag="POST" label="/v1/analyze">
+<CodeGroup>
 
-```bash {{ title: 'cURL' }}
-curl -X POST https://api.baret.io/v1/analyze \
-  -H "X-API-Key: {your-api-key}" \
+```bash {{ title: 'Create a key' }}
+curl -X POST https://baret-stellar.onrender.com/v1/keys \
   -H "Content-Type: application/json" \
-  -d '{
-    "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-    "network": "pubnet"
-  }'
-```
-
-```js
-const response = await fetch('https://api.baret.io/v1/analyze', {
-  method: 'POST',
-  headers: {
-    'X-API-Key': process.env.BARET_API_KEY,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    transaction: serializedTxBase64,
-    network: 'pubnet',
-  }),
-})
-
-const result = await response.json()
-console.log(result.safe) // true or false
-```
-
-```python
-import httpx
-
-response = httpx.post(
-    'https://api.baret.io/v1/analyze',
-    headers={'X-API-Key': API_KEY},
-    json={
-        'transaction': serialized_tx_base64,
-        'network': 'pubnet',
-    }
-)
-
-result = response.json()
-print(result['safe'])  # True or False
+  -d '{ "name": "my-first-key" }'
 ```
 
 </CodeGroup>
 
-## Understanding the response
+<CodeGroup>
 
-A successful analysis returns a JSON object with the verdict and full findings.
-
-```json {{ title: 'Example response' }}
+```json {{ title: 'Response (201)' }}
 {
-  "safe": false,
-  "riskLevel": "high",
-  "confidence": "high",
-  "verdict": "Transaction blocked by policy: unlimited token approval detected.",
-  "interpretation": "Token approval granting unlimited spending authority to an unverified program.",
-  "balanceChanges": [
-    { "account": "7xKX...", "xlmDelta": -0.000005, "tokens": [] }
-  ],
-  "detectors": {
-    "simulation": { "status": "success", "findings": [] },
-    "program": { "findings": [] },
-    "cpi": { "depth": 2, "findings": [] },
-    "reputation": { "findings": [] },
-    "compute": { "units": 45000, "findings": [] },
-    "delta": {
-      "findings": [
-        {
-          "code": "UNLIMITED_APPROVAL",
-          "severity": "high",
-          "message": "Token approval grants unlimited spending authority."
-        }
-      ]
-    },
-    "token2022": { "findings": [] }
-  },
-  "policy": {
-    "blocked": true,
-    "rule": "blockApprovalChanges",
-    "reason": "Unlimited token approval detected"
-  },
-  "durationMs": 312
+  "key": "baret_k3J9x…",
+  "id": "key_4d8a8dd069b28546",
+  "prefix": "baret_k3J9",
+  "name": "my-first-key",
+  "createdAt": "2026-09-19T17:57:34.218Z",
+  "rateLimitPerMin": 60,
+  "message": "Store this key now — it cannot be shown again."
 }
 ```
 
-## Key response fields
+</CodeGroup>
+
+Save it as `BARET_KEY`. More on keys and limits in [Authentication](/authentication).
+
+## 2. Build a transaction
+
+Baret takes a base64 `TransactionEnvelope` XDR. It may be signed or unsigned; for a pre-sign check you send it unsigned. With `@stellar/stellar-sdk`:
+
+<CodeGroup>
+
+```js {{ title: 'Build an unsigned payment' }}
+import { Asset, BASE_FEE, Horizon, Networks, Operation, TransactionBuilder } from '@stellar/stellar-sdk'
+
+const horizon = new Horizon.Server('https://horizon-testnet.stellar.org')
+const source = await horizon.loadAccount(SOURCE_ADDRESS)
+
+const tx = new TransactionBuilder(source, { fee: BASE_FEE, networkPassphrase: Networks.TESTNET })
+  .addOperation(Operation.payment({ destination: DESTINATION, asset: Asset.native(), amount: '25' }))
+  .setTimeout(300)
+  .build()
+
+const transactionXdr = tx.toXDR()
+```
+
+</CodeGroup>
+
+## 3. Analyze it
+
+<CodeGroup tag="POST" label="/v1/analyze">
+
+```bash {{ title: 'cURL' }}
+curl -X POST https://baret-stellar.onrender.com/v1/analyze \
+  -H "Authorization: Bearer $BARET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "network": "testnet",
+    "transactionXdr": "AAAAAgAAAACd…",
+    "userWallet": "GAT3XUNP…",
+    "policy": { "maxLossPercent": 50, "blockAccountMerge": true }
+  }'
+```
+
+```js {{ title: 'JavaScript' }}
+const res = await fetch('https://baret-stellar.onrender.com/v1/analyze', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${process.env.BARET_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    network: 'testnet',
+    transactionXdr,
+    userWallet: SOURCE_ADDRESS,
+    policy: { maxLossPercent: 50, blockAccountMerge: true },
+  }),
+})
+
+const verdict = await res.json()
+if (!verdict.safe) console.warn(verdict.reasons)
+```
+
+```python {{ title: 'Python' }}
+import os, requests
+
+verdict = requests.post(
+    'https://baret-stellar.onrender.com/v1/analyze',
+    headers={'Authorization': f"Bearer {os.environ['BARET_KEY']}"},
+    json={
+        'network': 'testnet',
+        'transactionXdr': transaction_xdr,
+        'userWallet': source_address,
+        'policy': {'maxLossPercent': 50, 'blockAccountMerge': True},
+    },
+    timeout=30,
+).json()
+
+print(verdict['safe'], verdict['reasons'])
+```
+
+</CodeGroup>
+
+## 4. Read the verdict
+
+The response is a decision object. This one is for a transaction that gives another key signing weight and removes the account's own key:
+
+<CodeGroup>
+
+```json {{ title: 'Example response (abridged)' }}
+{
+  "safe": false,
+  "reasons": [
+    "Signer / threshold change detected and blocked by policy",
+    "Master-key removal detected and blocked by policy"
+  ],
+  "estimatedChanges": { "native": [], "assets": [], "trustlines": [], "allowances": [] },
+  "riskFindings": [
+    {
+      "code": "MASTER_KEY_REMOVED",
+      "severity": "high",
+      "message": "Sets the master key weight of GAT3XUNP… to 0: the account's own key can no longer sign for it."
+    },
+    { "code": "SIGNER_CHANGE_DETECTED", "severity": "high", "message": "Adds or updates a signer on GAT3XUNP… with weight 255 …" }
+  ],
+  "simulationWarnings": [],
+  "annotation": {
+    "summary": { "humanReadable": "setOptions(master=0, signer±)", "primaryAction": "set_options", "involvedContracts": [], "involvedAssets": [] },
+    "cpiTrace": { "roots": [], "allContractAddresses": [], "maxDepth": 0, "totalInvocations": 0, "truncated": false }
+  },
+  "meta": { "analysisVersion": "v1", "network": "testnet", "simulatedAt": "2026-09-19T18:07:57.765Z", "confidence": "medium" }
+}
+```
+
+</CodeGroup>
 
 <Properties>
   <Property name="safe" type="boolean">
-    The final verdict. `false` means the policy engine blocked the transaction.
+    The verdict. `false` means your policy blocks the transaction (or the simulation failed, or the data was incomplete).
   </Property>
-  <Property name="riskLevel" type="string">
-    Overall risk level: `none`, `low`, `medium`, `high`, or `critical`.
+  <Property name="reasons" type="string[]">
+    Plain-English sentences explaining a block (or an informational note). Meant for humans; switch on `riskFindings[].code` in code.
   </Property>
-  <Property name="confidence" type="string">
-    Analysis confidence: `high`, `medium`, or `low`. Low confidence means simulation data was incomplete.
+  <Property name="riskFindings" type="array">
+    Everything the detectors found: `code`, `severity` (`low`, `medium`, `high`), `message`, optional `details`. See [Risk detectors](/detectors).
   </Property>
-  <Property name="verdict" type="string">
-    Human-readable explanation of the decision.
+  <Property name="estimatedChanges" type="object">
+    What the transaction would change: `native` (XLM, in stroops), `assets`, `trustlines`, `allowances`.
   </Property>
-  <Property name="interpretation" type="string">
-    Plain-language description of what the transaction does.
+  <Property name="annotation" type="object">
+    A readable summary of the operations and the Soroban authorization tree.
   </Property>
-  <Property name="balanceChanges" type="array">
-    Simulated XLM and token balance changes per account.
-  </Property>
-  <Property name="detectors" type="object">
-    Per-detector findings. Each detector runs independently.
-  </Property>
-  <Property name="policy" type="object">
-    Which policy rule triggered the block decision, if any.
-  </Property>
-  <Property name="durationMs" type="number">
-    Total analysis time in milliseconds.
+  <Property name="meta" type="object">
+    `analysisVersion`, `network`, `simulatedAt`, `confidence` (`high`, `medium`, `low`) and your `integratorRequestId` if you sent one.
   </Property>
 </Properties>
 
 ## What's next?
 
-<div className="not-prose">
-  <Button href="/authentication" variant="text" arrow="right">
-    <>Learn about authentication</>
-  </Button>
-</div>
-
-- [Analyze multiple transactions at once](/batch)
-- [Stream results in real time](/messages)
-- [Configure your policy rules](/policies)
-- [Understand the 7 risk detectors](/detectors)
+- [Everything about the analyze call](/analyze)
+- [Analyze many transactions at once](/batch) or [stream the results](/stream)
+- [Configure your policy](/policies)
+- [Understand the risk detectors](/detectors)
+- [Handle errors](/errors)

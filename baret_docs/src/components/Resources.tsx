@@ -31,7 +31,7 @@ const resources: Array<Resource> = [
     href: '/analyze',
     name: 'Analyze Transaction',
     description:
-      'Submit a base64-encoded Stellar transaction and receive a safe/unsafe verdict with detailed risk findings.',
+      'Submit a base64 Stellar transaction envelope and get a verdict, the balance changes and the risk findings, before anyone signs.',
     icon: BoltIcon,
     pattern: {
       y: 16,
@@ -45,7 +45,7 @@ const resources: Array<Resource> = [
     href: '/batch',
     name: 'Batch Analysis',
     description:
-      'Analyze up to 25 transactions in a single request. Each transaction is evaluated independently.',
+      'Analyze up to 25 transactions in one request. Each is evaluated independently and reported with its own status.',
     icon: ListIcon,
     pattern: {
       y: -6,
@@ -59,7 +59,7 @@ const resources: Array<Resource> = [
     href: '/stream',
     name: 'Stream Analysis',
     description:
-      'Receive analysis results as a real-time Server-Sent Events stream as each detector completes.',
+      'Receive batch results as Server-Sent Events, one event per transaction, as each one finishes.',
     icon: PaperAirplaneIcon,
     pattern: {
       y: 32,
@@ -73,7 +73,7 @@ const resources: Array<Resource> = [
     href: '/audit',
     name: 'Audit',
     description:
-      'Query recent analysis records and aggregate statistics across all transactions analyzed.',
+      'Read the server\'s recent analysis records and aggregate statistics (in memory, process-wide, not per key).',
     icon: ClipboardIcon,
     pattern: {
       y: 22,

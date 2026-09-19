@@ -1,327 +1,211 @@
-# BARET — x402 Defense Spec
+# Baret: x402 Defense Spec
 
-> The byte-level technical reference for intercepting, parsing, validating, and policing every x402 payment that flows through the wallet. Each section pairs the *protocol mechanic* with the *BARET response* — what we do at each layer that nothing else does.
+> The technical reference for intercepting, validating and policing x402 payments in the Baret wallet, and for how the on-chain
+> spending policy backs it. Each section pairs the *protocol mechanic* with *what Baret actually does*.
+> **Verified against the source on 2026-09-19.** Rows and claims are marked ✅ implemented, 🟡 partial, ⏳ not implemented; the full feature ledger is
+> [`implementation-status.md`](./implementation-status.md) (Turkish). Companion docs: [`vision.md`](./vision.md), [`extension-architecture.md`](./extension-architecture.md), [`../contracts/README.md`](../contracts/README.md).
 
-This is the technical companion to `docs/vision.md`. The wedge is here: x402 is, by design, a stateless one-shot payment protocol. We are the stateful layer above it.
+x402 is a stateless one-shot payment protocol: no allowance object, no revoke endpoint, no spend cap. Baret is the stateful layer above it. It is a layer on top of x402, not a replacement for it.
 
 ---
 
-## 1. PaymentRequirements — what we receive, what we trust
+## 1. PaymentRequirements: what we receive, what we trust
 
-### 1.1 The schema (Stellar, exact scheme — v2 canonical)
+### 1.1 Shape (Stellar, `exact` scheme, x402 v2)
 
 ```ts
 type PaymentRequirements = {
   scheme: "exact";
-  network: "stellar:pubnet"   // mainnet network string
-         | "stellar:testnet"; // testnet network string
-  asset: string;             // USDC on Stellar — classic "USDC:<issuer G…>" or Soroban SAC contract (C…)
-  amount: string;            // atomic units (7 decimals on Stellar SAC), decimal string
-  payTo: string;             // recipient Stellar address (G…)
-  maxTimeoutSeconds: number; // wall-clock SLA budget
+  network: "stellar:testnet" | "stellar:pubnet";   // CAIP-2
+  asset: string;             // Soroban Asset Contract (SAC) address, C…  (Circle USDC on the active network)
+  amount: string;            // atomic units, 7 decimals, decimal string
+  payTo: string;             // recipient G… or C…
+  maxTimeoutSeconds: number; // validity budget
   extra: {
-    sponsorBy: string;       // facilitator's sponsor Stellar address (G…)
-    memo?: string;           // optional canonical invoice id
-    [key: string]: unknown;  // facilitator-specific UX hints; ignore unknown keys
+    areFeesSponsored?: true; // exact scheme: the facilitator sponsors the fee
+    sponsorBy?: string;      // facilitator fee signer (some implementations send `feePayer`; both are accepted)
+    [k: string]: unknown;
   };
 };
 ```
 
-### 1.2 What BARET validates before signing
+The 402 carries it as base64 JSON in the `PAYMENT-REQUIRED` header (`{ x402Version: 2, accepts: [ … ] }`) and/or the JSON body. Soroban transactions cannot carry a memo, so `extra.memo` is ignored by the exact scheme.
 
-For every incoming `PaymentRequirements`:
+### 1.2 Checks before anything is signed (`extension/src/background/x402/parse.ts` + `x402/handlers.ts`)
 
-| Field | Validation | Action on fail |
+| Check | Action on failure | Status |
 |---|---|---|
-| `scheme` | Must equal `"exact"`. | Refuse. |
-| `network` | Must match the user's active network (`stellar:testnet` / `stellar:pubnet`). | Refuse if mismatched (cross-network attack). |
-| `asset` | Must appear on the user's asset allow-list **OR** match `network_canonical_USDC`. | Warn + require explicit user override. |
-| `amount` | `<=` user's per-tx cap **AND** `<=` remaining hourly/daily allowance for this `(merchant, asset)` pair. | Refuse if cap exceeded. Surface the rule that fired. |
-| `payTo` | Valid Stellar address (`G…`) — strkey decode succeeds and checksum verifies. | Refuse on malformed. |
-| `maxTimeoutSeconds` | `<=` 300. | Refuse if longer (excessive transaction-validity exposure window). |
-| `extra.sponsorBy` | Decode + cross-check against `facilitator.GET /supported` `signers["stellar:*"]`. | Refuse if `sponsorBy` is not a published facilitator signer. |
-| `extra.memo` | If present, ≤ 256 bytes UTF-8. | Refuse if larger. |
-| Origin (HTTP) | `Origin` header on the 402 response present + matches user's `allowedMerchantOrigins[]` policy when set. | Refuse if domain not on allow-list. |
+| `scheme === "exact"` | decline | ✅ |
+| `network` is one of `stellar:testnet`, `stellar:pubnet`, `stellar:mainnet` and equals the wallet's active network | decline (cross-network) | ✅ |
+| `asset`, `payTo`, sponsor are valid Stellar addresses (`asset` must be a `C…` contract to build the transfer) | decline | ✅ |
+| `amount` is an integer string | decline | ✅ |
+| `maxTimeoutSeconds` in 1…**600** | decline | ✅ (an earlier draft said ≤ 300; the code allows 600) |
+| `extra.sponsorBy` (or `feePayer`) present and a Stellar address | decline | ✅ |
+| `asset` on `policy.allowedAssets` (when set) | decline | ✅ (default Strict/Balanced templates seed the canonical USDC SAC addresses; Permissive sets none) |
+| merchant origin vs `allowedMerchantOrigins` / `blockedMerchantOrigins` | decline | ✅ |
+| sponsor vs `policy.allowedFacilitators` (when set) | decline | ✅ (static list) |
+| sponsor cross-checked against the facilitator's live `GET /supported` signers | refuse | ⏳ (`requireFeePayerSupportedCheck` exists in the schema/UI, is not enforced) |
+| amount vs global `maxX402PerTx` and the merchant's `capPerTx`/hour/day caps | decline | ✅ |
 
-**The `sponsorBy` sanity-check is the single most under-implemented defense in the wild today.** Most wallets just trust the value the resource server hands them; we cross-check live.
+The sponsor cross-check remains the most under-implemented defence in the wild; it is on the roadmap here too.
 
 ---
 
-## 2. The payment header — two-layer base64
+## 2. The payment header
 
-### 2.1 The envelope (v2)
-
-The wallet emits the **`PAYMENT-SIGNATURE`** request header (or `X-PAYMENT` for v1 fallback).
+The wallet emits the **`PAYMENT-SIGNATURE`** request header (`X-PAYMENT` is accepted by the server as an alias).
 
 ```
 PAYMENT-SIGNATURE: base64( JSON.stringify(PaymentPayload) )
 
-where PaymentPayload =
-{
+PaymentPayload = {
   "x402Version": 2,
-  "resource": {
-    "url": "https://merchant.example/api/weather",
-    "description": "Access to protected content",
-    "mimeType": "application/json"
-  },
+  "resource": { "url": "<the paid URL>", "mimeType": "application/json" },
   "accepted": { /* echo of the merchant's PaymentRequirements */ },
-  "payload": {
-    "transaction": "AAAA...AAAA="  // base64 of the signed Stellar transaction XDR
-  }
+  "payload":  { "transaction": "<base64 TransactionEnvelope XDR, payer auth entry signed>" }
 }
 ```
 
-### 2.2 What BARET does
+Two entry points produce it, both under the same rules:
 
-1. Decode header → JSON.
-2. Decode `payload.transaction` → Stellar transaction (XDR via stellar-sdk).
-3. Hash `(merchant_origin, accepted_requirements_json)` → entry key for the **request log**. Logged whether or not we sign. Visible in the wallet's *Activity → x402* tab.
-4. Validate the inner tx against the rules in §3 below.
-5. Apply policy gate (`docs/policy-dsl.md`).
-6. If gate passes, sign. Otherwise, surface `BLOCKED` to the dApp via the `sign-rejected` channel of our wallet bridge, with a structured reason.
+1. **fetch interceptor** (`inpage/x402-interceptor.ts` → `x402.review` → `x402Review`): the wallet builds the transfer itself and returns the header value; the page replays the request.
+2. **`signAuthEntry`** (`ws.signAuthEntry` → `tryAutoApproveX402AuthEntry`): a dApp that already speaks x402 (the showcase's Scrybe uses `@x402/stellar`) builds the payload itself and asks the wallet to sign only the Soroban auth entry.
 
-The wallet auto-signs only against a **live mandate** — a merchant the user manually authorized before (via the popup, which shows the merchant, per-tx/hourly/daily caps, and expiry) and whose mandate hasn't since lapsed. A brand-new merchant, or one whose mandate expired, always surfaces the popup with those terms for explicit approval, regardless of the `x402AutoApprove` policy flag — the cap alone is never treated as authorization. Every auto-approved payment additionally fires an OS-level notification naming the merchant and amount, so silent settlement is still visible after the fact. There is no separate "headless mode" toggle; auto-approval is scoped entirely by mandate state. This is the antithesis of "blind permission."
+Every auto-approved payment writes an `x402` history row and fires an OS notification naming the merchant and amount.
+
+### 2.1 Mandates: the cap alone is never authorization
+
+A payment auto-signs **only** against a live mandate: a merchant the user manually approved before (`status: "active"`) whose mandate has not expired (`mandateMaxAgeDays`, default 30) and only if `policy.x402AutoApprove !== false`.
+A brand-new merchant (allowance auto-created as `pending`), an expired mandate, a Strict policy, or any request the auto path can't classify always opens the popup with the mandate terms (caps, expiry, the **real** amount decoded from the auth entry). Manual approval promotes the allowance to a live mandate
+(`promoteAllowance`, guarded by a `nonce` so a stale popup can't extend a mandate that changed underneath it).
 
 ---
 
-## 3. Operation layout — what an x402 tx must look like
+## 3. What an x402 payment looks like on Stellar
 
-### 3.1 Canonical layout (1–2 operations, plus memo)
+The exact scheme is **auth-entry based**, not full-transaction signing:
 
-| Idx | Operation | Required | Notes |
-|----:|---|---|---|
-| 0 | Payment (classic `USDC:<issuer G…>`) *or* Soroban `transfer` invocation (SAC contract `C…`) | MUST | the single value-moving operation |
-| — | Transaction memo | optional | required when policy `requireMemo` is set; carries the canonical invoice id |
+1. The client builds a Soroban SAC `transfer(from, to, amount)` with the SDK's **null source account**, so the payer's `require_auth` resolves to an **address-credential** authorization entry (source-account credentials are rejected by the facilitator as `unsupported_credential_type`).
+2. The payer signs **only that auth entry**, with a short `signatureExpirationLedger` (`latestLedger + ceil(maxTimeoutSeconds / 5)`). The wallet honours an expiry already baked into an entry rather than imposing its own.
+3. The facilitator rebuilds the transaction, wraps it in a **fee-bump** it pays, and submits it. No compute-unit preamble, no memo.
 
-Fees on Stellar are flat (base fee per operation, in stroops) rather than a compute-unit market, and the sponsoring account is named at the transaction level via `sponsorBy` — so there is no separate compute-budget preamble.
+In Baret the **payer is the user's smart wallet contract** (`C…`), not the classic authority account (`x402/build.ts`). The auth entry is signed by an authorized wallet signer, either the merchant's scoped **sub-key** or the admin authority, through the wallet's own `__check_auth`
+(passkey-kit `signAuthEntry`), so the wallet needs a provisioned smart wallet and a token balance.
 
-### 3.2 Spec rules BARET enforces
+### 3.1 Ground truth over the page's word
 
-For every candidate tx, all of the following are mandatory before we surface a Sign UI:
-
-1. **Exactly one value-moving operation** — a classic Payment or a Soroban `transfer` invocation. Multiple transfers in a single x402 payment are out of spec.
-2. **Per-operation base fee ≤ `maxBaseFeeStroops`** and resource fee (Soroban) ≤ `maxResourceFeeStroops`. Refuse on excess; over-paying fees is a common abuse vector.
-3. **Transfer destination = `payTo`.** Compared locally against the Stellar address (`G…`); refuse on mismatch (`X402_DESTINATION_MISMATCH`).
-4. **Transfer asset = `asset`** field — classic `USDC:<issuer G…>` or the named Soroban SAC contract (`C…`). Refuse on mismatch (`X402_ASSET_MISMATCH`); look-alike-asset defense.
-5. **Asset is canonical** — issuer / SAC contract must match the network-canonical USDC on the user's allow-list, else `X402_NON_CANONICAL_ASSET`.
-6. **Transfer amount = `amount`** exactly, in atomic units (7 decimals). Refuse on mismatch.
-7. **`sponsorBy` is the transaction source / fee-sponsoring account** and **does not appear** as the destination of the value-moving operation — the sponsor pays fees, it does not receive the payment. Refuse on violation.
-8. **Memo present** with the canonical invoice from `extra.memo` if specified, else any UTF-8 nonce ≥ 16 bytes, whenever policy `requireMemo` is set. Refuse on absence (`X402_MEMO_MISSING`).
-9. **Trustline / Soroban token authorization tolerated** — a payer establishing the USDC trustline or authorizing the SAC token in the same envelope is not treated as an anomaly.
-10. **Transaction `timeBounds` window < 30 s of slack.** Refuse stale or excessively long-lived txs; the ledger gives the user a safety window but the facilitator round-trip eats most of it. We add our own conservative ceiling.
-
-Each refusal returns a structured reason from this list; the Sign UI renders it in plain language: `"This payment's amount doesn't match what the merchant published — we won't sign it."`
+The popup and the auto path decode the entry's own invocation tree (`parseTransferAuthEntry`): contract, from, to, amount. That is what signing actually authorizes, independent of whatever price the calling page displays.
+A look-alike asset not on the allow-list becomes a **Blocked** verdict (`X402_ASSET_NOT_ALLOWED`, client-side code); an amount above the user's per-payment cap is a Caution; an unparseable entry is "unverified". This is what defeats a compromised frontend (the Cortex "Blind signing" demo).
 
 ---
 
 ## 4. Signing semantics
 
-The transaction is a Stellar transaction whose fee-sponsoring source is `sponsorBy`. The signatures (`DecoratedSignature[]`) are partially populated:
-
-- **Facilitator slot (`sponsorBy`):** left unsigned when we hand the tx back. The facilitator adds its signature at settle time.
-- **Authority slot:** our signature over the transaction hash, written by `tx.sign(authorityKeypair)`.
-
-The transaction XDR carries partial signatures and base64-roundtrips them lossless.
-
-### BARET signing rules
-
-- The **authority** is *not* the user's main keypair when the merchant has a per-merchant scoped sub-key (see §6 — attack matrix). Each merchant gets its own scoped signer; the extension enforces `dailyCap` of `asset` for it, AND the `MerchantSpendPolicy` Soroban contract enforces the same cap on-chain, bound to that specific sub-key (see §10). The extension's own bookkeeping is checked first (cheaper, no round-trip), the contract is the backstop that holds even if the extension's checks are ever bypassed.
-- Signing happens in the background service worker, never in the popup or content script. The encrypted authority is unlocked only with the user's session passphrase, kept in service-worker memory only, zeroed on session timeout.
-- Every signature emits a `signed` event into the local audit log with: `(timestamp, origin, requestHash, txSignature, ledgerEntryId)`. Available in *Activity → x402* and exportable as JSON.
+- Signing runs in the background service worker only, never in the popup or content script. The decrypted seed lives in worker memory and is zeroed on lock; unattended (auto-approve) signing never renews the idle timer (`useAuthority({ isAutomatic: true })`).
+- Key choice for auto-approved payments (`resolvePaymentSigner`): the merchant's active on-chain **scoped sub-key** when one exists (§11), else the admin authority.
+- Caps are checked and **reserved atomically before signing** (`tryReserveSpend`, one IndexedDB transaction), released if signing fails, so concurrent requests can't add up to N× the cap. The hourly/daily windows are true sliding windows over a per-merchant `spendLog`, mirroring `MerchantSpendPolicy::prune_and_sum` on-chain.
 
 ---
 
-## 5. Verify / settle — the dance after we sign
+## 5. Verify / settle, and the post-sign monitor
 
 ```
-                ┌────────────────────┐
-                │  Resource server   │
-                └─────────┬──────────┘
-                          │ 1. POST /verify { paymentPayload, paymentRequirements }
-                          ▼
-                ┌────────────────────┐
-                │   Facilitator      │  validates layout (rules in §3.2)
-                │  (X402_FACILITATOR │  returns { isValid, payer, invalidReason? }
-                │        _URL)       │
-                └─────────┬──────────┘
-                          │ 2. POST /settle { paymentPayload, paymentRequirements }
-                          ▼
-                ┌────────────────────┐
-                │  Stellar network   │  facilitator adds sponsor sig, submits
-                │  (submitTransaction)│  returns { success, transaction, payer }
-                └────────────────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │  BARET monitor│  Horizon/RPC stream on authority
-                │  (background)      │  reconciles new tx with ledger
-                └────────────────────┘
+ Merchant server ── POST /verify {paymentPayload, paymentRequirements} ──► Facilitator ── { isValid, payer } 
+                 ── POST /settle ─────────────────────────────────────►   fee-bump + submit ── { success, transaction }
 ```
 
-### What our background monitor does after settle
+The **merchant server** talks to the facilitator (`X402_FACILITATOR_URL`), never the wallet. Baret's own demo merchant and the paid `/v1/analyze` route implement this ([`architecture/server.md`](./architecture/server.md) §10).
 
-1. Streams from Horizon/RPC for the user's wallet address + each active scoped sub-key.
-2. On every confirmed transaction involving those accounts:
-   - Cross-reference with the local ledger by `(origin, requestHash)`.
-   - **Match found:** mark the entry `settled`, increment `hits`, decrement remaining cap, surface a small "+1 ✓" pulse in the popup.
-   - **No match:** raise `DRIFT_ALERT` — a payment moved from our wallet that BARET didn't authorize. Push browser notification, mark all sub-keys for that merchant as suspect, surface a banner in the popup. (This catches verify-multiple-times-before-confirm races and out-of-band signing if the authority key was ever exposed.)
-3. After `maxTimeoutSeconds × 2` without a settle event, mark the entry `verify_orphan` and prompt the user — *"Did the merchant actually deliver?"*
+Post-sign monitor (`rpc/monitor.ts`) ✅🟡: polls Horizon every 8 s for the authority and the smart wallet; a successful transaction with no matching local history signature raises a **drift** alert (badge + OS notification). It does **not** reconcile by `(origin, requestHash)`, has no
+`verify_orphan` / "settled but no delivery" watchdog, and is polling rather than a stream. Those are ⏳.
 
 ---
 
-## 6. Attack matrix — what x402 alone leaves open, what BARET closes
+## 6. Attack matrix
 
-| Attack | x402 alone | BARET response |
-|---|---|---|
-| **Silent agent drift.** Agent re-signs N micro-payments per minute; user has no aggregate view. | No allowance object exists in the protocol. | **Allowance ledger** with rolling caps (per-tx / hour / day). Every signature decrements; cap exhausted → block. Live counter in popup. |
-| **Look-alike asset swap.** Merchant publishes `asset` = a fake USDC with the same symbol but a different issuer / SAC contract. | Spec validates `asset == transfer.asset` only — the spec doesn't know which issuer is "the real" USDC. | **Wallet-side asset allow-list**, seeded with network-canonical USDC. Unknown issuers / contracts require explicit user override per-merchant (`X402_NON_CANONICAL_ASSET`). |
-| **Verify-not-settle race / double-settle.** Facilitator returns `success: true` to multiple parallel `/settle` calls; chain debits once, server unlocks N resources. | Spec only *recommends* a 120 s settlement cache; not enforced. | **Facilitator reputation list** — known-good facilitators carry a `dedupes_settles: true` flag in our seed list, cross-referenced against `allowedFacilitators`. Unknown facilitators trip a soft warning + lower trust threshold. |
-| **Post-access price escalation.** First call cheap, follow-ups 5x more expensive. | Each 402 is independent; no rate or price tracking. | **Per-merchant amount-stddev ledger** — flag when a payment's `amount` deviates more than σ × N from this merchant's running mean. |
-| **Facilitator signer impersonation.** Resource server names a `sponsorBy` that's not actually authorized by the named facilitator. | No cross-check; clients trust whatever's published. | **`/supported` endpoint cross-check** at sign time. Stale-cached for 1 h; refresh on miss. |
-| **Authority key compromise.** Agent's keypair leaks; attacker signs payments out-of-band. | No detection; no per-merchant scope. | **Per-merchant scoped sub-key**, revocable on-chain with one tap. The per-tx/day caps are enforced on-chain by `MerchantSpendPolicy`, bound to that specific sub-key — a leaked, decrypted sub-key secret is capped to that one merchant's remaining allowance, not the wallet. ⚠️ Built and unit-tested, but not yet confirmed end-to-end against a live wallet — see [§10](#10-on-chain-sub-key-spend-caps--merchantspendpolicy) and `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`'s verification checklist. |
-| **Validity-window replay.** Facilitator delays settle to near the end of the transaction's `timeBounds`, gambles on parallel resource servers. | Stellar ledger dedupe is keyed on the tx hash / source-account sequence, not on the merchant. | **30-second validity-window freshness ceiling** at sign time. We refuse stale txs. |
-| **Memo collision.** Merchant uses the same `extra.memo` twice to confuse invoice tracking. | Spec doesn't forbid memo reuse globally. | **Local memo dedupe per merchant.** Reuse → soft warning + visible audit log entry. |
-| **"It worked, but did the merchant deliver?"** — a perpetual UX hole in any pay-per-API protocol. | x402 has no notion of resource delivery. | **Settle-but-no-200 watchdog.** If the corresponding HTTP request never returns 200 within `maxTimeoutSeconds`, we surface a *Receipt without delivery* alert and offer the dispute audit log. |
-
----
-
-## 7. What we expose to other tools
-
-The wallet's defense engine is also available as a server-side API for non-extension users:
-
-- **`POST /v1/x402-analyze`** — accepts a base64 `PaymentPayload`, returns the same structured verdict the wallet shows. Useful for backend agents that want a second opinion. Rate-limited; x402-paywalled.
-- **`GET /demo/scrybe`** — a public demo of the analyze + policy path against a live x402-paywalled resource.
-- **`GET /v1/facilitator-status`** — returns BARET's reputation row for a facilitator's Stellar address. Lightweight, public.
-- **Programmatic sub-key issuance** (Phase 3) — agents can request a new scoped sub-key from the wallet via the wallet bridge for a specific merchant. Requires user approval the first time.
+| Attack | x402 alone | Baret | Status |
+|---|---|---|---|
+| **Silent agent drift.** An agent re-signs many micro-payments; no aggregate view. | No allowance object exists. | Per-merchant allowance ledger with per-tx / hourly / daily sliding-window caps and expiring mandates; live progress in Allowances; pause / revoke. | ✅ |
+| **Look-alike asset swap.** Merchant publishes a fake USDC. | Spec only checks `asset == transfer.asset`. | Asset allow-list (canonical USDC SACs seeded in Strict/Balanced); mismatch is declined (fetch path) or a Blocked verdict (auth-entry path). | ✅ |
+| **Page lies about the price.** Compromised frontend shows a low price. | Wallets sign what they are handed. | Amount/destination decoded from the auth entry itself; oversize is a Caution, look-alike a Block. | ✅ |
+| **Authority/sub-key compromise.** A leaked key signs out-of-band. | No per-merchant scope. | Per-merchant on-chain sub-key bounded by `MerchantSpendPolicy` (per-tx, rolling 24 h, expiry, single merchant, single token); revocable with `remove_signer`. | ✅ (best-effort provisioning; §11) |
+| **Facilitator signer impersonation.** | Clients trust whatever is published. | Static `allowedFacilitators` list. Live `/supported` cross-check is planned. | 🟡 |
+| **Post-access price escalation.** | Each 402 is independent. | Per-tx and rolling caps bound it; a payment above the per-payment cap is flagged. No statistical anomaly detector yet. | 🟡 |
+| **Validity-window replay.** | Ledger dedupes by tx hash only. | The auth entry expires within `maxTimeoutSeconds` worth of ledgers; no extra wallet-side ceiling. | 🟡 |
+| **Verify-not-settle race / double settle.** | Spec only recommends a settlement cache. | No facilitator reputation list or dedupe check. | ⏳ |
+| **"It worked, but did the merchant deliver?"** | x402 has no delivery notion. | No settle-but-no-200 watchdog. | ⏳ |
+| **Memo collision.** | n/a | Soroban transactions cannot carry a memo; this attack does not apply on Stellar. | n/a |
 
 ---
 
-## 8. What we do *not* do
+## 7. What Baret exposes to other tools
 
-- We don't operate a facilitator. We point at one via `X402_FACILITATOR_URL` and sit above it.
-- We don't proxy payments. The wallet signs and hands the tx back to the caller, never submits on its own (except for non-x402 user-initiated transfers from the wallet UI).
-- We don't impose a global rate limit. Caps are per-`(merchant, asset)` and configurable per-merchant. Power users can lift them.
-- We don't fight asset representations. We support both classic `USDC:<issuer G…>` and Soroban SAC (`C…`) tokens; the spec is representation-agnostic. We *do* warn when an asset's transfer would short-deliver vs the published `amount`.
-
----
-
-## 9. Open questions / Phase 2
-
-These are deliberate gaps in v1 — listed here so they're not silently lost.
-
-- **Settled-but-undelivered dispute resolution.** Today we just log it. A fairer Phase 2 would publish a signed *non-delivery receipt* the user can present off-chain (Discord, Twitter, customer-support).
-- **Cross-device authority sync.** A single user with the wallet on two browsers needs allowance-ledger consistency. v1: per-device. v2: optional encrypted cloud-sync (E2EE) or a user-owned relay.
-- **Programmable allowances** (e.g. "let agent X spend up to 1 USDC, but only from 9–17 GMT"). Today it's per-merchant + global window. v2: a small DSL on top of the ledger.
-- **Merchant-side BARET endpoint.** A small reverse SDK so merchants can *display* "This site honors BARET policies" badges and pre-validate payments before issuing 402s.
+- **`POST /v1/analyze`** accepts optional `paymentRequirements` and returns the same structured verdict plus x402-specific findings: `X402_DESTINATION_MISMATCH`, `X402_ASSET_MISMATCH` (when requirements are supplied and the transaction does not match them), `X402_MEMO_MISSING`, `X402_NON_CANONICAL_ASSET` (policy-driven). Reserved and not emitted: `X402_SHAPE_INVALID`, `X402_AMOUNT_MISMATCH`, `X402_FACILITATOR_MISMATCH`.
+- **`GET /demo/scrybe`**, **`GET /demo/cortex`**: real x402 merchants on testnet (facilitator verify + settle) used by the showcase.
+- Optionally the paid mode of `/v1/analyze` itself (`X402_ENABLED`): the API sells its own answers over x402.
+- Planned but **not built**: a dedicated `POST /v1/x402-analyze`, `GET /v1/facilitator-status`, and programmatic sub-key issuance for agents.
 
 ---
 
-## 10. On-chain sub-key spend caps — MerchantSpendPolicy
+## 8. What Baret does not do
 
-> **Status: implemented and deployed to testnet. Not yet confirmed
-> end-to-end against a live wallet.** Filed in response to a repo review
-> that (correctly) flagged the attack-matrix row above as overclaiming —
-> see the SECURITY NOTE in `apps/extension/src/background/swig/sub-keys.ts`.
-> This section used to describe two unbuilt options (route through
-> `PaymentGuard`, or extend the smart-wallet contract itself); neither is
-> what shipped. Keep this in sync with
-> `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`, which is the
-> source of truth for the current deploy address.
+- It does not operate a facilitator; it points at one (`X402_FACILITATOR_URL`).
+- It does not proxy payments. The wallet returns a signed header/entry to the caller; non-x402 sends come from the wallet UI.
+- It does not impose a global rate limit. Caps are per `(account, merchant origin, asset)` and configurable.
+- It supports SAC (`C…`) tokens for x402; classic `USDC:<issuer>` transfers are a different path.
 
-**What it closes.** `buildAddSubKeyTransaction` used to register a sub-key
-via `add_signer(signer, { unlimited: true })`, so a leaked, decrypted
-sub-key secret could sign an arbitrary `transfer` against the smart wallet
-with no on-chain ceiling — the caps described elsewhere in this doc were
-extension-side bookkeeping only (`tryReserveSpend` in
-`apps/extension/src/background/db/allowances.ts`).
+## 9. Open questions / later
 
-**What actually shipped.** A new, purpose-built Soroban contract,
-`MerchantSpendPolicy` (`contracts/contracts/merchant-spend-policy`) —
-non-custodial: funds never leave the user's own smart wallet, unlike a
-`PaymentGuard`-style deposit vault. It plugs into passkey-kit's existing
-`PolicyInterface` extension point (the same mechanism any co-signing policy
-uses), so no changes to the smart-wallet contract itself were needed:
-
-- `swig/sub-keys.ts#ensurePolicyInstalled` registers `MerchantSpendPolicy`
-  as a `Policy` signer on the wallet (idempotent, empty limits map so it
-  has no independent authority — see that function's doc comment), the
-  first time any merchant is approved.
-- `swig/sub-keys.ts#provisionMerchantSubKey` mints a sub-key, calls
-  `set_allowance(wallet, merchant, signer, cap_per_tx, cap_per_day,
-  mandate_seconds)` binding that merchant's allowance to THAT specific
-  sub-key, then registers the sub-key as an `Ed25519` signer whose
-  `SignerLimits` require `MerchantSpendPolicy` as a co-signer for the
-  token contract.
-- On every spend, the wallet's own `__check_auth` invokes the policy's
-  `policy__`, which checks the invoking signer against the merchant's
-  bound allowance — a different merchant's sub-key, or the wrong signer
-  entirely, is rejected (`WrongSigner`), not just an over-cap amount
-  (`ExceedsPerTx` / `ExceedsDailyCap`).
-
-A leaked sub-key can now only drain up to what's left of the ONE merchant's
-cap it was actually granted for — not the wallet, and not any other
-merchant the wallet also approved.
-
-**Remaining gap.** The contract has its own unit test suite (14 passing
-tests) and the extension's wiring to it has unit coverage (mocked, no
-network calls), but nobody has yet run the real flow — provision a live
-smart wallet, approve a merchant, and confirm on-chain that an over-cap or
-wrong-signer payment is actually rejected — against the currently deployed
-instance. `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`'s
-"End-to-end verification" section is that checklist.
+- Signed *non-delivery receipts* for settled-but-undelivered payments.
+- Cross-device allowance-ledger sync (v1 is per-device).
+- Programmable allowances (time windows).
+- A merchant-side "honors Baret policies" reverse SDK.
 
 ---
 
-## 11. Verdict attestation (optional, opt-in)
+## 10. Verdict attestation (optional, opt-in)
 
-Filed in response to a repo review: `/v1/analyze`'s integrity previously
-rested entirely on TLS + trusting the server — a compromised server (or a
-bad proxy) could return a forged `{safe:true}` with nothing client-side able
-to tell the difference, beyond the SDK's non-loopback `http://` rejection
-(`assertSecureBaseUrl` in `packages/swig-guard/src/analyze.ts`, which stops
-a *plaintext* MITM but not a compromised server itself).
+`/v1/analyze`'s integrity used to rest on TLS and trusting the server: a compromised server or bad proxy could return a forged `{safe:true}`.
 
-**How it works.** When the server operator sets `BARET_SIGNING_SECRET` (a
-Stellar seed, see `apps/server/src/attestation/signing-key.ts`), every
-`/v1/analyze` response gets an `attestation` field: an Ed25519 signature
-over `(txHash, safe, findingsDigest, signedAt, nonce)` — see
-`apps/server/src/attestation/sign-verdict.ts` for the exact canonical
-payload. `txHash` is deliberately **not** part of the response; a verifier
-derives it themselves from the same `transactionXdr` they sent, so a
-malicious server can't sign a real verdict for a different transaction than
-the one actually analyzed. Unset `BARET_SIGNING_SECRET` and the field is
-simply omitted — fully backward compatible.
+**How it works.** When the operator sets `BARET_SIGNING_SECRET` (a Stellar `S…` seed, `apps/server/src/attestation/signing-key.ts`), every `/v1/analyze` response gets `attestation: { signature, signerPublicKey, signedAt, nonce }`: an Ed25519 signature over
+`txHash | safe | sha256(stableStringify(riskFindings)) | signedAt | nonce` (`sign-verdict.ts`). `txHash` is **not** part of the response: a verifier derives it from the same `transactionXdr` it sent, so a malicious server cannot sign a real verdict for a different transaction. Unset the secret and the field is omitted.
+The server publishes its public key at `GET /v1/meta` → `attestation.signerPublicKey`.
 
-**Who verifies today.** `packages/agent-guard` (`AgentWalletOptions.pinnedServerPublicKey`
-/ `BARET_PINNED_SERVER_PUBLIC_KEY`) — pin the server's public key and
-`AgentWallet.evaluate()` throws `AttestationError` (fail-closed) on a
-missing, wrong-signer, or invalid-signature attestation. Verification
-intentionally lives in agent-guard, not swig-guard: swig-guard is bundled
-into the browser extension and is kept SDK-free on purpose (`packages/swig-guard/src/types.ts`'s
-header comment), while verification needs `@stellar/stellar-sdk` to parse
-XDR and check the signature.
+**Who verifies today.** `packages/agent-guard` (`pinnedServerPublicKey` / `BARET_PINNED_SERVER_PUBLIC_KEY`): a missing, wrong-signer or invalid attestation makes `AgentWallet.evaluate()` throw `AttestationError` (fail-closed). Verification lives in agent-guard, not swig-guard, because swig-guard is bundled into the browser and kept SDK-free while
+verification needs `@stellar/stellar-sdk`. The canonical payload is **duplicated** in `packages/agent-guard/src/attestation.ts`; any change to `sign-verdict.ts` must be mirrored there.
 
-**Known gap.** The extension itself
-(`apps/extension/src/background/baret/analyze-client.ts`) and the showcase
-demo (`apps/showcase/src/baret/analyze.ts`) still consume `/v1/analyze`
-unverified — same as before this change. Not hidden, just not done: wiring
-either of those up means importing `@stellar/stellar-sdk`-based verification
-into a browser bundle, which is exactly the constraint that pushed
-verification into agent-guard in the first place. A real fix there needs
-either a Web Crypto–only (no SDK) reimplementation of the signature check,
-or a build-config change to how the extension bundles workspace packages —
-tracked here, not attempted in this pass.
+**Known gap.** The extension (`background/baret/analyze-client.ts`) and the showcase (`baret/analyze.ts`) consume `/v1/analyze` **unverified**. Closing it needs either a Web-Crypto-only reimplementation of the check or a build change to bundle SDK-based verification into the browser. ⏳
+
+---
+
+## 11. On-chain sub-key enforcement (MerchantSpendPolicy)
+
+The extension registers a per-merchant **sub-key** on the user's passkey-kit smart wallet, and the wallet consults the `MerchantSpendPolicy` Soroban contract (`contracts/contracts/merchant-spend-policy`) every time that sub-key signs. This replaced an earlier design where sub-keys were `unlimited` signers and caps were bookkeeping only.
+(The earlier `PaymentGuard` vault, which held deposited funds, is kept in the repo but is **not** part of the product; see [`../contracts/README.md`](../contracts/README.md).)
+
+**Provisioning** (first manual approval of a merchant, `messaging/handlers.ts#provisionRealSubKey` → `swig/sub-keys.ts#provisionMerchantSubKey`):
+1. `ensurePolicyInstalled`: register the policy on the wallet as a `Policy` signer with an empty limits map (fires the policy's `install(wallet)` hook; the empty map means the policy can never act alone).
+2. Mint a fresh Ed25519 sub-key.
+3. `set_allowance(wallet, merchant = payTo, signer = sub-key, cap_per_tx, cap_per_day, mandate_seconds)` on the policy (needs `wallet.require_auth()`, satisfied by the admin authority).
+4. `add_signer`: the sub-key as an `Ed25519` signer with `SignerLimits { <token contract>: [ Policy(MerchantSpendPolicy) ] }`, temporary storage, expiry = mandate expiry.
+
+**What the chain then guarantees** for a leaked sub-key secret: it can authorize only a single `transfer` **from the wallet** on **that one token**, only to **that one merchant** (`policy__` rejects any other recipient or a different signer with `WrongSigner`), up to `cap_per_tx` and a true sliding-window `cap_per_day`, only until the mandate expires, and only while the merchant is `Active`.
+Any other contract, the wallet's own admin surface, or more than one context is denied by default. The sub-key's own signature is still required alongside the policy (the policy is a required co-signer, never the sole `Signature::Policy` for a value transfer).
+
+**Limits to keep honest:**
+- Provisioning is best-effort and runs after the first approval; if it fails (RPC error, passphrase no longer cached) that merchant keeps using the admin key and has **no** on-chain cap until a later manual approval retries.
+- Caps and expiry are fixed at provisioning time. Editing a cap in the extension does not update the on-chain allowance.
+- `ledger.pause` is local only; `ledger.revoke` removes the signer on-chain.
+- **Known gap (mandate renewal):** renewing an expired mandate updates only the local row; the on-chain allowance and the sub-key's signer expiry are not renewed, so payments signed by the old sub-key are rejected on-chain afterwards. See [`implementation-status.md`](./implementation-status.md) §4.
+- The deployed contract and the smart-wallet WASM hash are pinned in `swig/smart-wallet-config.ts`; deploy record and the live end-to-end verification checklist: `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`. The code path and the contract's 14 unit tests exist; the live checklist was **not** re-run while writing this document.
 
 ---
 
 ## Sources
 
-- Coinbase x402 canonical spec — `https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md`
-- Coinbase TS reference — `https://github.com/coinbase/x402/tree/main/typescript/packages/core`
-- `@x402/stellar` exact-scheme SDK — the Stellar implementation of the exact scheme
-- Stellar SDK docs — `https://developers.stellar.org`
-- Stellar Asset Contract (SAC) / Soroban token reference — `https://developers.stellar.org/docs/build/guides/tokens` *(note: the Stellar exact scheme names the sponsor as `sponsorBy` — follow the canonical spec.)*
+- Coinbase x402 specification v2: `https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md`
+- `@x402/core`, `@x402/stellar` (the Stellar `exact` scheme SDK)
+- passkey-kit (`stellar/passkey-kit`): smart wallet, `SignerLimits`, `PolicyInterface`
+- Stellar docs: `https://developers.stellar.org` (Asset Contract / SEP-41 tokens, Soroban authorization)
 
----
-
-*Last updated: 2026-06-19 · This file is the single source of truth for x402 protocol mechanics + BARET's defense layer per attack.*
+*Last verified: 2026-09-19. This file is the reference for x402 mechanics and Baret's defence layer; update it when an x402 behaviour or a row's status changes.*

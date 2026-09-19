@@ -3,10 +3,28 @@
 > Every surface, every state, every flow. The implementation contract for the
 > extension popup, options page, sign-request view, and onboarding wizard.
 
-This document is binding. Adding a new screen requires a PR that updates this
-file *first*, then implements. Color/type tokens come from `docs/brand.md`.
-Policy mechanics come from `docs/policy-dsl.md`. x402 mechanics come from
-`docs/x402-defense.md`.
+Adding a new screen requires a PR that updates this file. Color/type tokens
+come from `docs/brand.md`. Policy mechanics come from `docs/policy-dsl.md`. x402
+mechanics come from `docs/x402-defense.md`.
+
+> **Read this first: spec vs. what is built (verified 2026-09-19).**
+> This is a *design specification*. Most of it is implemented; some parts were
+> never built and a few statements below were written before the code changed.
+> The authoritative feature ledger is [`implementation-status.md`](./implementation-status.md)
+> (Turkish). Deviations, in short:
+>
+> | Spec says | Reality |
+> |---|---|
+> | Swap chip / USD subline on the hero (§3.2) | **Not built.** Quick actions are Send, Receive, Airdrop (testnet). No fiat price |
+> | Popup "Revoke all", "Add allowance manually" (§5) | **Not built.** Pause / Revoke are per merchant. "Revoke all" exists only per site (Options → Sites → site) |
+> | Options sidebar with *Allowances* (§7.1) | Sidebar is Home · Sites · Activity · Policies · x402 Console · Settings. No standalone Allowances page |
+> | News strip, sparkline, CSV export, date/amount filters, bulk re-analyze, telemetry/notification settings, custom RPC (§7) | **Not built** |
+> | x402 dashboard "By facilitator" reputation, drift-orphan inbox (§7.6) | **Not built** (x402 Console = payment ticker + per-merchant ledger) |
+> | Provisioning returns the authority as a *placeholder* smart wallet (§9.6) | **Wrong for the extension**: it deploys a real passkey-kit smart wallet. The placeholder is only in `apps/wallet` |
+> | Secret stored in `localStorage` (§9.3) | **Wrong**: the extension keeps an AES-GCM/PBKDF2-encrypted blob in IndexedDB; `apps/wallet` an encrypted blob in `localStorage` |
+> | Alerts: drift, verify-orphan, no-delivery, cap-hit | Only **drift** is produced |
+> | Auto-cancel timer on the sign screen (§8) | Not verified in the popup; x402 requests are bounded by the auth entry's ledger expiry |
+> | Adjustable auto-lock | The 15-minute timeout is fixed; the Settings row only displays it |
 
 ---
 
@@ -66,7 +84,7 @@ onboarding; `locked` shows a minimal unlock screen.
 │                                      │
 │  HERO BALANCE                        │  168px
 │  display-xl number · USD subline     │
-│  [ Send ] [ Receive ] [ Swap ]      │
+│  [ Send ] [ Receive ] [ Airdrop ]   │
 ├──────────────────────────────────────┤
 │  ALERT BANNER (conditional)          │  56px (when present)
 ├──────────────────────────────────────┤
@@ -86,10 +104,10 @@ onboarding; `locked` shows a minimal unlock screen.
 
 ### 3.2 Hero balance
 
-- Single number, `--display-xl`, tabular figures. The displayed unit follows the active network's native asset (XLM on both testnet and pubnet); the balance comes from the Horizon `native` balance, converted from stroops. USD subline uses CoinGecko price (cached 60 s).
+- Single number, `--display-xl`, tabular figures. The displayed unit follows the active network's native asset (XLM on both testnet and pubnet); the balance comes from the Horizon `native` balance, converted from stroops. A USD subline is **not** implemented; the hero shows XLM (and the USDC balance when a USDC trustline exists).
 - On price load, the number does a 600 ms count-up from 0; never on subsequent updates (animations only on first paint of a value).
-- Three quick-action chips below: **Send**, **Receive**, **Swap**. Each opens the corresponding view as a full-bleed sheet (not a separate route — popup nav state preserves).
-- The "Swap" chip in v1 is a placeholder that opens an in-popup confirmation: *"Swap is coming. Use a Stellar DEX aggregator directly for now → [link]"* — we do not ship a half-baked swap.
+- Quick-action chips below: **Send**, **Receive** and (testnet) **Airdrop**. Send/Receive open the corresponding view as a full-bleed overlay (popup nav state is preserved). *(Spec listed a Swap chip; it is not built.)*
+- There is no Swap chip (the spec once proposed a placeholder). We do not ship a half-baked swap.
 
 ### 3.3 Alert banner (conditional)
 
@@ -227,21 +245,19 @@ tabs as popup but expanded.
 
 ### 7.1 Sidebar
 
+Actual (`options/components/SidebarOpt.tsx`): Home · Sites · Activity · Policies · x402 Console · Settings, with the account chip/switcher and a lock action.
+*(The spec's Allowances entry is not built; per-merchant allowances live in Sites → site detail and the x402 Console.)*
+
 ```
 ┌──────────────────────┐  bg-elevated
-│  ▲ BARET        │
-│  ─────               │
-│  Account picker      │  same as popup top strip
+│  ▲ BARET             │
 │  ─────               │
 │  Home                │
+│  Sites               │  ← per-origin overview + allowances + site policy
 │  Activity            │
-│  Allowances          │
 │  Policies            │  ← only on options, not popup
-│  x402                │  ← only on options, not popup
+│  x402 Console        │  ← only on options, not popup
 │  Settings            │
-│  ─────               │
-│  Lock wallet         │
-│  Help / Docs         │
 └──────────────────────┘
 ```
 
@@ -415,12 +431,12 @@ route, not the popup.
 
 - Animation: 3-second "generating" state with a thorn glyph that draws itself in. (This animation is the *only* delight moment in onboarding — everything else is calm.)
 - On completion: shows the new account's `G…` address (truncated) + "Created" timestamp. CTA: **Continue**.
-- Behind the scenes: a Stellar `Keypair.random()` (ed25519); the `S…` secret seed is persisted to `localStorage` on this domain. (The extension build instead writes the keystore to IndexedDB; passphrase-derived encryption is the planned hardening.)
+- Behind the scenes (extension): a Stellar `Keypair.random()` (ed25519) whose 32-byte seed is encrypted with the passphrase (PBKDF2-SHA256 600k iterations + AES-GCM) and stored in IndexedDB (mirrored in `storage.local`). Further accounts are HD-derived from the same seed. `apps/wallet` stores the same kind of encrypted blob in `localStorage`.
 
 ### 9.4 Backup secret
 
 - "Save this **once**. There's no recovery if you lose it." (no fearmongering, just plain.)
-- The backed-up value is the Stellar **secret seed** (`S…` StrKey, 56 chars) returned by `keypair.secret()` — not a raw byte dump. It restores the wallet via `Keypair.fromSecret()`.
+- The backed-up value in the extension is a **24-word BIP-39 mnemonic** encoding the root seed (`wallet.exportSecret` also offers base58 and hex). Restore accepts a mnemonic, an `S…` Stellar secret, hex or base58 (`wallet.import`). A short quiz confirms the backup before it counts.
 - "Reveal" button (icon: `EyeOff` → `Eye`). Once revealed, an "I've saved it" checkbox unlocks the **Continue** button.
 - Optional "Skip backup" link (small, muted) leads to a confirmation sheet that explicitly says: "If this device is wiped you lose access to this wallet. Continue without backup?" Two-tap.
 - v2: passkey enrollment as an alternative to the seed phrase.
@@ -434,7 +450,7 @@ route, not the popup.
 ### 9.6 Provision smart wallet
 
 - Auto-fires on entry. Animation: thorn glyph "growing" while we resolve the smart wallet. Progress text streams the underlying state ("Checking authority…", "Resolving…", "Resolved").
-- The eventual model is a per-user Soroban smart-wallet contract (`C…`) deployed at provision time. **Currently** provisioning verifies the authority is funded on-chain (≥ 5 XLM rent budget) and returns the funded **authority `G…` address as a placeholder smart wallet** — the Soroban contract integration is a TODO. Downstream flows (balances, send, history, connect) all resolve against this address.
+- The extension deploys a **real per-account passkey-kit smart-wallet contract** (`C…`) from the canonical WASM hash, with the funded authority as its first admin signer (≥ 5 XLM needed; see `swig/provision.ts`). Only the standalone `apps/wallet` still returns the authority `G…` address as a placeholder.
 - On success: shows the smart-wallet address + a one-line "This is where your funds live now." CTA: **Continue**.
 - On failure (authority unfunded, RPC unreachable, etc.): clear error, retry button, "Skip and try later" link (defers provisioning to first send/receive).
 
@@ -457,91 +473,75 @@ route, not the popup.
 
 ## 10. Critical flows (interaction sequences)
 
-### 10.1 Connect to dApp (Wallet Standard)
+### 10.1 Connect to dApp
+
+The provider is `window.baretStellar` (Freighter-compatible), discovered by name; it is not a registered Wallet Standard wallet.
 
 ```
-dApp                    Content script         Background           Popup UI
- │ getProvider()        │                      │                    │
- │──────────────────────>│ window.baret   │                    │
- │ register(wallet)     │<──────────────────── │                    │
- │ <pick wallet UI>     │                      │                    │
- │ adapter.connect()    │                      │                    │
- │──────────────────────>│ runtime.connect      │                    │
- │                      │─────────────────────>│ openConnectPopup() │
- │                      │                      │───────────────────>│
- │                      │                      │                    │ render Connect
- │                      │                      │                    │ user clicks Approve
- │                      │                      │<───────────────────│ approve(account)
- │                      │<─────────────────────│ resolve            │
- │ {account}             │                      │                    │
- │<──────────────────────│                      │                    │
+dApp                inpage              Content script        Background                 Popup
+ │ requestAccess()    │                     │                     │                         │
+ │───────────────────>│ postMessage ws.connect                    │                         │
+ │                    │────────────────────>│ port bx-wallet-standard (origin overwritten)  │
+ │                    │                     │───────────────────>│ locked? open popup, wait │
+ │                    │                     │                     │ permission for origin?  │
+ │                    │                     │                     │ none → queue "connect" ─>│ ConnectApproval
+ │                    │                     │                     │<── tx.sign accept+remember
+ │                    │                     │<── { addresses } ───│  (history row on 1st connect)
+ │<── { address } ────│                     │                     │                         │
 ```
 
 ### 10.2 Sign a transaction
 
 ```
-1. dApp calls adapter.signTransaction(tx)
-2. Content script forwards the base64 `TransactionEnvelope` XDR to background via runtime.connect
-3. Background:
-   a. parses the XDR envelope, decodes its operations
-   b. runs `TransactionGuard.evaluate({ transactionXdr, userWallet, policy })`, which ships the XDR to the baret analyzer (server /v1/analyze)
-   c. reads the returned decision (allow/block) + estimatedChanges
-   d. opens popup in Sign-Request mode with full evaluation
-4. Popup renders Sign Request (§8)
-5. User picks Decline or Sign
-6. Background:
-   a. on Sign: `TransactionBuilder.fromXDR(...)`, signs with the authority `keypair.sign()`, submits via Horizon `submitTransaction` if mode=signAndSend, posts back the signed XDR to the dApp
-   b. on Decline: posts sign-rejected with reason
-   c. logs to history regardless
-7. Popup fades back to last viewed tab
+1. dApp calls window.baretStellar.signTransaction(xdr)          (signAndSend exists in the background, not in the inpage provider)
+2. inpage → content script (origin overwritten) → background ws.signTransaction → queued SignRequest, phase "signing", popup window opens
+3. Popup SignRequest:
+   a. tx.peekRequest → head of the queue
+   b. tx.analyzeRequest → background analyze-client → POST /v1/analyze { network, transactionXdr, userWallet: authority G…, policy }
+      (server unreachable → "offline" advisory, "sign only if you trust this dApp")
+   c. renders verdict Safe / Caution / Blocked + what changes + findings (a Blocked verdict needs a 1.5 s press-and-hold to override)
+4. User picks Decline or Sign → tx.sign
+5. Background: performSign (authority key of the active account) → resolves the dApp's promise; logs history either way
 ```
 
-### 10.3 x402 payment intercept
+### 10.3 x402 payment
 
-Content script monitors `fetch` and `XMLHttpRequest`. When a response comes
-back with status 402 + `PAYMENT-REQUIRED` header (or v1 body):
+Two entry points, one rule set ([`x402-defense.md`](./x402-defense.md) §2): the inpage `fetch` interceptor (`x402.review`) and a dApp calling `signAuthEntry` directly.
 
 ```
-1. Content script extracts PaymentRequirements
-2. Forwards to background
-3. Background:
-   a. validates against §1.2 of x402-defense
-   b. checks allowance ledger for (origin, asset)
-   c. if cap allows: builds the exact-scheme payment — a Soroban token `transfer(from, to, amount)` with a **null source account** so the payer authorizes via an address-credential auth entry (the facilitator rebuilds + fee-bumps + submits)
-   d. invokes analyzer, evaluates policy
-   e. opens Sign Request (special variant: "x402 payment" header chip)
-4. User approves or declines
-5. On approve: signs only the payer's auth entry via `authorizeEntry` (NOT the envelope), returns to content script, content script auto-injects PAYMENT-SIGNATURE header + retries the request
-6. Background subscribes monitor for the resulting on-chain settle
-7. Ledger updated on settle confirmation
+1. Requirements parsed from the 402 (PAYMENT-REQUIRED header or JSON body) and validated (x402-defense §1.2)
+2. Allowance row for (account, origin, asset): created as "pending" if new
+3. Live mandate (manually approved, not expired) and x402AutoApprove !== false?
+     yes → caps reserved atomically → signed in the background with the merchant's sub-key (else the admin key) → OS notification
+     no  → popup shows the mandate terms + the REAL amount decoded from the auth entry; approve = mandate becomes live
+           (first approval also provisions the on-chain sub-key, best-effort)
+4. The payer is the smart wallet contract; only its address-credential auth entry is signed (never the envelope)
+5. inpage adds PAYMENT-SIGNATURE and replays the request; the merchant server verifies + settles with the facilitator
 ```
 
-The whole flow is invisible to the dApp until step 5; the dApp just sees a
-delayed-then-200 response. From the user's perspective: a single popup,
-single tap, one row added to the x402 dashboard.
+The dApp sees a delayed-then-200 response. There is no wallet-side settle reconciliation (the drift monitor only flags transactions the wallet did not sign).
 
 ### 10.4 Drift alert
 
 ```
-Background monitor polls Horizon's transactions endpoint for the authority + smart-wallet addresses and sees an outgoing tx that didn't originate from us.
-1. Tx touches the authority `G…` OR the smart-wallet address
-2. Tx hash not in our local request log
-3. Push browser notification: "Unexpected payment from your wallet"
-4. Add ALERT entry to state, popup badge counter +=1
-5. User opens popup → sees alert banner → taps → full incident view
-6. Incident view offers: Investigate (open in stellar.expert), Pause sub-key, Revoke sub-key, Mark as known (whitelist)
+Monitor (Horizon polling, 8 s) sees a successful tx on the authority or smart wallet whose hash is not in the last 200 history rows
+→ alert row (kind "drift") + OS notification "Unexpected payment from your wallet" + unread badge
+→ Activity shows it; the user can dismiss it
 ```
 
-### 10.5 Revoke sub-key
+Spec ideas not built: an incident view with "Pause sub-key / Revoke sub-key / Mark as known".
+
+### 10.5 Revoke a merchant
 
 ```
-1. User taps Revoke on an allowance card
-2. Confirmation sheet: "merchant.example will not be able to sign payments from your wallet again. This drops the on-chain sub-key. Continue?"
-3. On confirm: background builds a `remove_signer` smart-wallet contract call (preflighted via Soroban RPC), opens Sign Request
-4. User signs (this is a privileged op, requires the main authority not the sub-key)
-5. On confirm: ledger marks merchant `revoked`, sub-key is gone, all future payment attempts from that merchant fail at the wallet
-6. A signed revocation receipt JSON is stored locally and downloadable for audit
+1. User taps Revoke on an allowance (popup Allowances, or Options → Sites → site)
+2. Confirmation sheet
+3. Background (no popup review, the wallet is already unlocked): if a sub-key exists, removes it on-chain (smart-wallet remove_signer, signed by the admin authority),
+   marks the sub-key and the allowance "revoked", and writes a history row with the tx hash; with no sub-key it is a local-only revoke
+4. Later payments to that merchant are declined by the wallet
 ```
+
+The spec's "signed revocation receipt JSON" is not built. **Pause** is local only (no on-chain change).
 
 ---
 
@@ -598,4 +598,4 @@ If a screen exceeds these, it gets a code-split task before merge.
 
 ---
 
-*Last updated: 2026-06-19 · This document is the implementation contract. Every wallet PR cites the section it implements.*
+*Last updated: 2026-09-19 · Status banner, §7.1, §9.3/9.4/9.6 and §10 reconciled with the code. The remaining sections are design intent; check `implementation-status.md` before assuming a screen or control exists. Every wallet PR cites the section it implements.*

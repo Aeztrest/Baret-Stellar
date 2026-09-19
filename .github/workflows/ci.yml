@@ -74,3 +74,15 @@ jobs:
       - run: npm run lint
 
       - run: npm run build
+
+  docs-consistency:
+    name: Docs consistency (links, paths, env, packages)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: node scripts/check-docs.mjs

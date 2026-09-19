@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'Replay',
   description:
-    'Re-simulate a Stellar transaction at a specific historical slot to see what the analysis would have returned at that point in time.',
+    'Re-run the raw simulation of a Stellar transaction against current chain state, without the risk assessment.',
 }
 
 export const sections = [
@@ -10,7 +10,14 @@ export const sections = [
 
 # Replay
 
-The replay endpoint re-runs a transaction simulation at a specific historical slot. Use it to audit past analysis decisions, reproduce incidents, or test how your policy configuration would have evaluated historical transactions. {{ className: 'lead' }}
+`POST /v1/replay` runs the raw simulation again and returns it, with no risk detectors and no policy. It is useful for debugging a simulation, or for re-checking a transaction after chain state changed. {{ className: 'lead' }}
+
+<Note>
+  **It is not historical.** Stellar cannot simulate a transaction against a past
+  ledger, so replay always runs against **current** state. `isHistorical` is
+  always `false`, and the optional `ledger` field is only echoed back as
+  `replayLedger`. To get a verdict and findings, use [`POST /v1/analyze`](/analyze).
+</Note>
 
 ---
 
@@ -22,35 +29,38 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
     ### Required attributes
 
     <Properties>
-      <Property name="transaction" type="string">
-        Base64-encoded serialized Stellar `TransactionEnvelope XDR`.
-      </Property>
       <Property name="network" type="string">
-        Stellar network: `pubnet` or `testnet`.
+        `testnet` or `pubnet`. Must match the server's network, otherwise `400 WRONG_NETWORK`.
       </Property>
-      <Property name="slot" type="number">
-        The slot number at which to replay the simulation. Must be recent enough that the RPC node still has state for it (typically within the last few epochs).
+      <Property name="transactionXdr" type="string">
+        Base64 `TransactionEnvelope` XDR.
       </Property>
     </Properties>
 
     ### Optional attributes
 
     <Properties>
-      <Property name="policy" type="object">
-        Inline policy rules to evaluate against the replayed analysis. Useful for testing what a new policy configuration would have done.
-      </Property>
-      <Property name="policyProfile" type="string">
-        Pre-configured policy profile: `strict`, `defi-permissive`, or `monitor-only`.
+      <Property name="ledger" type="integer">
+        Informational only. Returned as `replayLedger`.
       </Property>
     </Properties>
 
-    The response structure is identical to a standard `/v1/analyze` response, with an additional `slot` field indicating which slot was used for simulation.
+    ### The response
 
-    <Note>
-      Replay uses the Stellar RPC `simulateTransaction` with the `minContextSlot`
-      parameter set to your requested slot. If the RPC node no longer has state
-      for that slot, the request will fail with a `SLOT_NOT_AVAILABLE` error.
-    </Note>
+    <Properties>
+      <Property name="simulation" type="object">
+        The normalized simulation: `status` (`success` or `failed`), `err`, `preflighted` (whether Soroban preflight ran; `false` for classic-only transactions), `accounts` (the pre-state of the accounts the transaction touches), `events`, `feeStroops`, `minResourceFeeStroops`, `authEntries` and `hostFnResultsXdr`.
+      </Property>
+      <Property name="replayLedger" type="integer | null">
+        The `ledger` you sent, or `null`.
+      </Property>
+      <Property name="replayedAt" type="string">
+        ISO 8601 time of the run.
+      </Property>
+      <Property name="isHistorical" type="boolean">
+        Always `false`.
+      </Property>
+    </Properties>
 
   </Col>
   <Col sticky>
@@ -58,57 +68,42 @@ The replay endpoint re-runs a transaction simulation at a specific historical sl
     <CodeGroup tag="POST" label="/v1/replay">
 
     ```bash {{ title: 'cURL' }}
-    curl -X POST https://api.baret.io/v1/replay \
-      -H "X-API-Key: {your-api-key}" \
+    curl -X POST https://baret-stellar.onrender.com/v1/replay \
+      -H "Authorization: Bearer $BARET_KEY" \
       -H "Content-Type: application/json" \
-      -d '{
-        "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-        "network": "pubnet",
-        "slot": 285741234
-      }'
+      -d '{ "network": "testnet", "transactionXdr": "AAAAAgAAAACd…" }'
     ```
 
-    ```js
-    const result = await fetch('https://api.baret.io/v1/replay', {
+    ```js {{ title: 'JavaScript' }}
+    const { simulation } = await fetch('https://baret-stellar.onrender.com/v1/replay', {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.BARET_API_KEY,
+        Authorization: `Bearer ${process.env.BARET_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        transaction: serializedTxBase64,
-        network: 'pubnet',
-        slot: 285741234,
-      }),
-    }).then(r => r.json())
+      body: JSON.stringify({ network: 'testnet', transactionXdr }),
+    }).then((r) => r.json())
     ```
 
     </CodeGroup>
 
-    ```json {{ title: 'Response' }}
+    <CodeGroup>
+
+    ```json {{ title: 'Response (abridged)' }}
     {
-      "safe": false,
-      "riskLevel": "high",
-      "verdict": "Transaction blocked: reputation match on program address.",
-      "interpretation": "Token transfer to a program associated with a known wallet drainer.",
-      "slot": 285741234,
-      "detectors": {
-        "reputation": {
-          "findings": [
-            {
-              "code": "KNOWN_BAD_ACTOR",
-              "severity": "critical",
-              "address": "DrainerXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-              "category": "wallet-drainer",
-              "label": "Notorious Drainer v4"
-            }
-          ]
-        }
+      "simulation": {
+        "status": "success",
+        "err": null,
+        "preflighted": false,
+        "…": "accounts, authEntries, events, fees"
       },
-      "durationMs": 445,
-      "analyzedAt": "2025-05-04T14:30:00.000Z"
+      "replayLedger": null,
+      "replayedAt": "2026-09-19T18:08:01.120Z",
+      "isHistorical": false
     }
     ```
+
+    </CodeGroup>
 
   </Col>
 </Row>

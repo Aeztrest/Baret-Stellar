@@ -1,74 +1,49 @@
 export const metadata = {
   title: 'Errors',
   description:
-    'HTTP status codes and error response formats returned by the Baret API.',
+    'The single error envelope every Baret endpoint returns, the error codes and the HTTP statuses they map to.',
 }
 
 # Errors
 
-The Baret API uses standard HTTP status codes. When a request fails, the response body contains a JSON error object with a machine-readable code and a human-readable message. {{ className: 'lead' }}
-
----
-
-## Status codes
-
-<Properties>
-  <Property name="200">
-    Request succeeded. The analysis completed — even if `safe: false`, a `200` means the API itself worked correctly.
-  </Property>
-  <Property name="400 Bad Request">
-    The request body was malformed or missing required fields. Check your JSON and parameter names.
-  </Property>
-  <Property name="401 Unauthorized">
-    Missing or invalid API key. Check your `X-API-Key` header.
-  </Property>
-  <Property name="402 Payment Required">
-    Keyless request with x402 payment required. The response includes payment instructions.
-  </Property>
-  <Property name="429 Too Many Requests">
-    Rate limit exceeded. Wait for the window to reset, or upgrade your plan.
-  </Property>
-  <Property name="500 Internal Server Error">
-    Something went wrong on the Baret side. These are rare. If they persist, check the status page.
-  </Property>
-  <Property name="503 Service Unavailable">
-    The RPC node is unreachable or the service is temporarily unavailable.
-  </Property>
-</Properties>
-
----
-
-## Error response format
+Every error comes in the same envelope, with a stable machine-readable `code` and a human `message`. Switch on `code`; the message may change. {{ className: 'lead' }}
 
 <Row>
   <Col>
 
-    Every error response returns a JSON object with a consistent structure.
-
     <Properties>
-      <Property name="error" type="string">
-        Machine-readable error code.
+      <Property name="error.code" type="string">
+        One of the codes below.
       </Property>
-      <Property name="message" type="string">
-        Human-readable description of what went wrong.
+      <Property name="error.message" type="string">
+        A description for humans. Written so it does not expose upstream URLs or server internals.
       </Property>
-      <Property name="details" type="object">
-        Optional additional context, such as which field failed validation.
+      <Property name="error.details" type="object">
+        Optional context: validation `issues`, the server's and requested network, `retryAfterSeconds`, and so on.
       </Property>
     </Properties>
+
+    Every response, success or error, carries an `X-Request-Id` header. Include it when you report a problem.
 
   </Col>
   <Col>
 
+    <CodeGroup>
+
     ```json {{ title: 'Error response' }}
     {
-      "error": "INVALID_TRANSACTION",
-      "message": "Could not decode transaction: invalid base64 encoding.",
-      "details": {
-        "field": "transaction"
+      "error": {
+        "code": "WRONG_NETWORK",
+        "message": "Server is configured for testnet, request asked for pubnet",
+        "details": {
+          "serverNetwork": "testnet",
+          "requestedNetwork": "pubnet"
+        }
       }
     }
     ```
+
+    </CodeGroup>
 
   </Col>
 </Row>
@@ -78,28 +53,62 @@ The Baret API uses standard HTTP status codes. When a request fails, the respons
 ## Error codes
 
 <Properties>
-  <Property name="INVALID_TRANSACTION">
-    The `transaction` field could not be decoded or deserialized. Ensure it is a valid base64-encoded `TransactionEnvelope XDR`.
+  <Property name="BAD_REQUEST" type="400">
+    The body is malformed, a field is missing or invalid, or the transaction XDR cannot be decoded. `details.issues` lists the failing fields for validation errors. Also used for other client errors, such as invalid JSON.
   </Property>
-  <Property name="UNSUPPORTED_FORMAT">
-    Legacy transaction format is not supported. Only `TransactionEnvelope XDR` is accepted.
+  <Property name="UNAUTHORIZED" type="401">
+    No API key, or an invalid or revoked one. Create a key with `POST /v1/keys`. The response includes `WWW-Authenticate: Bearer realm="baret"`.
   </Property>
-  <Property name="NETWORK_UNAVAILABLE">
-    The specified network's RPC endpoint is unreachable. Try again or switch to a backup RPC.
+  <Property name="FORBIDDEN" type="403">
+    Not allowed here. Today: `POST /v1/keys` when the operator turned self-service keys off.
   </Property>
-  <Property name="SLOT_NOT_AVAILABLE">
-    The requested replay slot is no longer available on the RPC node.
+  <Property name="NOT_FOUND" type="404">
+    No route for that method and path.
   </Property>
-  <Property name="BATCH_LIMIT_EXCEEDED">
-    Batch request contains more than 25 transactions.
+  <Property name="PAYLOAD_TOO_LARGE" type="413">
+    The body exceeds the server's limit (1 MiB by default; `details.maxBodyBytes`).
   </Property>
-  <Property name="MISSING_FIELD">
-    A required field is absent from the request body.
+  <Property name="RATE_LIMITED" type="429">
+    You exceeded your key's per-minute budget, the per-IP limit, or the per-IP key-creation throttle. Wait `Retry-After` seconds (also `details.retryAfterSeconds`).
   </Property>
-  <Property name="RATE_LIMIT_EXCEEDED">
-    Too many requests. Check the `X-RateLimit-Reset` header for when the window resets.
+  <Property name="WRONG_NETWORK" type="400">
+    The request's `network` is not the network this server runs. `details` holds `serverNetwork` and `requestedNetwork`.
   </Property>
-  <Property name="INVALID_API_KEY">
-    The provided API key does not exist or has been revoked.
+  <Property name="RPC_ERROR" type="502 / 504">
+    Horizon or Soroban RPC failed or did not answer in time (`504` for a timeout, `502` otherwise; `details.rpcCode` says which). Not retried by the server; retry it yourself.
+  </Property>
+  <Property name="FACILITATOR_ERROR" type="502">
+    The x402 facilitator failed while verifying or settling a paid `POST /v1/analyze`. Distinct from a policy verdict.
+  </Property>
+  <Property name="UNAVAILABLE" type="503">
+    The server cannot do this right now. Today: the key store is full and no new keys are being issued.
+  </Property>
+  <Property name="INTERNAL_ERROR" type="500">
+    Something unexpected went wrong on the server. Report it with the `X-Request-Id`.
   </Property>
 </Properties>
+
+## Other statuses
+
+<Properties>
+  <Property name="200" type="OK">
+    The API worked. `safe: false` in the body is still a `200`: the verdict is data, not an error.
+  </Property>
+  <Property name="402" type="Payment Required">
+    Only on `POST /v1/analyze` of a server with x402 enabled, when you sent neither a valid key nor a payment. The `PAYMENT-REQUIRED` header describes what to pay.
+  </Property>
+  <Property name="422" type="Unprocessable">
+    `POST /mcp/call` when the tool call itself failed (the body has `isError: true`).
+  </Property>
+</Properties>
+
+<Note>
+  Inside a **batch** or a **stream**, a failing item does not fail the request.
+  It appears as a result with `status: "error"` and an `error` object holding a
+  `code` and `message` from the list above.
+</Note>
+
+<Note>
+  The `/demo/scrybe` and `/demo/cortex` routes (the x402 demo merchants) predate
+  this envelope and reply with a plain `{ "error": "…" }` object.
+</Note>

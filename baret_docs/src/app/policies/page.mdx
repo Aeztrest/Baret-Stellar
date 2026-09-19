@@ -1,151 +1,181 @@
 export const metadata = {
-  title: 'Policy Engine',
+  title: 'Policy',
   description:
-    'Configure block rules and DSL-based policies to control which transactions Baret blocks.',
+    'The policy object turns Baret findings into a block or allow decision. Every option, how blocking works, and the ready-made presets.',
 }
 
 export const sections = [
-  { title: 'Built-in rules', id: 'builtin-rules' },
-  { title: 'DSL rules', id: 'dsl-rules' },
-  { title: 'Ready-made profiles', id: 'profiles' },
+  { title: 'How a policy decides', id: 'how-it-decides' },
+  { title: 'Options', id: 'options' },
+  { title: 'Presets', id: 'presets' },
 ]
 
-# Policy Engine
+# Policy
 
-The policy engine is what turns risk detector findings into decisions. After all 7 detectors have run, the policy engine evaluates your configured rules against the findings and returns a final `safe: true/false` verdict. {{ className: 'lead' }}
+A policy is a plain JSON object you send in the `policy` field of an analyze request. It tells Baret which findings should make a transaction unsafe. **Every option is optional**, and the default is `{}`. {{ className: 'lead' }}
 
-Policy rules can be set per-request (inline in the API call) or configured globally in the Baret dashboard.
+The current option list, with caveats, is always available without a key at `GET /v1/policy/schema`. Unknown keys are accepted and ignored, so you can send a policy that was written for a wallet (which has extra, wallet-only rules) unchanged.
 
 ---
 
-## Built-in rules {{ id: 'builtin-rules' }}
+## How a policy decides {{ id: 'how-it-decides' }}
 
-Boolean flags that cover the most common scenarios. Set any to `true` to activate.
+- A **finding is advisory** unless the matching option is on. It shows up in `riskFindings`, but `safe` does not change. The [detector reference](/detectors) names the option for each finding.
+- Some checks are **fail-closed**: if you turn on `maxLossPercent` or `minPostUsdcBalance` but the server cannot evaluate them (no `userWallet`, or no balance to project), the transaction is blocked rather than waved through.
+- Even the empty policy `{}` blocks two things: a **failed Soroban simulation** (`requireSuccessfulSimulation` defaults to true) and **incomplete data** (the `LOW_CONFIDENCE_INCOMPLETE_DATA` finding, unless `allowWarnings` is true).
+- Fee, memo and asset options (`requireMemo`, `maxResourceFeeStroops`, `maxBaseFeeStroops`, `allowedAssets`) only add findings; they never block by themselves.
+
+---
+
+## Options {{ id: 'options' }}
+
+### Loss and balance
 
 <Properties>
-  <Property name="blockRiskyPrograms" type="boolean">
-    Block any transaction that calls a program on the known-malicious list.
-  </Property>
-  <Property name="blockApprovalChanges" type="boolean">
-    Block any transaction that creates or modifies a token approval (delegate authority).
-  </Property>
-  <Property name="blockDelegateChanges" type="boolean">
-    Block any transaction that sets a token delegate.
-  </Property>
-  <Property name="blockUnknownProgramExposure" type="boolean">
-    Block any transaction that calls a program not on the known-safe allowlist.
-  </Property>
-  <Property name="requireSuccessfulSimulation" type="boolean">
-    Block any transaction whose simulation fails.
-  </Property>
   <Property name="maxLossPercent" type="number">
-    Block if the simulated XLM loss exceeds this percentage of the account's balance (0–100).
+    Block if the account's **native XLM** balance would fall by more than this percentage (0 to 100). Needs `userWallet`. It measures XLM only; use `minPostUsdcBalance` for tokens.
   </Property>
   <Property name="minPostUsdcBalance" type="number">
-    Block if the simulated USDC balance after the transaction falls below this threshold (in USDC).
+    Block if the account's balance of `minPostAsset` would end below this amount, in whole asset units (5 means 5 USDC). Needs `userWallet`; blocks if the balance cannot be projected.
+  </Property>
+  <Property name="minPostAsset" type="string">
+    The asset for `minPostUsdcBalance`: `CODE:ISSUER` or a `C…` contract. Defaults to the network's USDC.
   </Property>
 </Properties>
 
-Pass inline policy rules in the `policy` field of any analyze request:
+### Trustlines and allowances
 
-```json {{ title: 'Inline policy rules' }}
-{
-  "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHCw...",
-  "network": "pubnet",
-  "policy": {
-    "blockRiskyPrograms": true,
-    "blockApprovalChanges": true,
-    "requireSuccessfulSimulation": true,
-    "maxLossPercent": 20
-  }
-}
-```
+<Properties>
+  <Property name="blockTrustlineChanges" type="boolean">
+    Block opening, changing or removing a classic trustline.
+  </Property>
+  <Property name="blockUnlimitedTrustlines" type="boolean">
+    Block trustlines opened at the maximum limit.
+  </Property>
+  <Property name="blockSorobanAllowanceGrants" type="boolean">
+    Block Soroban token `approve` grants, including effectively unlimited ones.
+  </Property>
+</Properties>
 
----
+### Contracts
 
-## DSL rules {{ id: 'dsl-rules' }}
+<Properties>
+  <Property name="blockRiskyContracts" type="boolean">
+    Block contracts on the server operator's risky-contract list.
+  </Property>
+  <Property name="blockUnknownContractExposure" type="boolean">
+    Block contracts that are not on the operator's known-safe list. Only does anything when the operator configured such a list. `allowWarnings: true` turns it back into an advisory.
+  </Property>
+</Properties>
 
-For advanced logic, the policy engine supports a rule DSL. Rules are evaluated in priority order — the first matching rule that triggers a block stops evaluation.
+### Account takeover
 
-```json {{ title: 'DSL rule example' }}
-{
-  "rules": [
+<Properties>
+  <Property name="blockAccountMerge" type="boolean">
+    Block `AccountMerge`, which moves an account's whole XLM balance and closes it.
+  </Property>
+  <Property name="blockSignerChanges" type="boolean">
+    Block adding, changing or removing signers, and changing signing thresholds.
+  </Property>
+  <Property name="blockMasterKeyRemoval" type="boolean">
+    Block setting the master key weight to 0.
+  </Property>
+</Properties>
+
+### Simulation and data
+
+<Properties>
+  <Property name="requireSuccessfulSimulation" type="boolean (default true)">
+    Block Soroban transactions whose preflight fails. Set `false` to only report it.
+  </Property>
+  <Property name="allowWarnings" type="boolean (default false)">
+    Tolerate incomplete-data and unknown-contract warnings. When false, `LOW_CONFIDENCE_INCOMPLETE_DATA` blocks.
+  </Property>
+</Properties>
+
+### Advisory options
+
+<Properties>
+  <Property name="requireMemo" type="boolean">
+    Report `X402_MEMO_MISSING` when the transaction has no memo.
+  </Property>
+  <Property name="maxResourceFeeStroops" type="number">
+    Soroban resource-fee ceiling in stroops (default 50,000,000, which is 5 XLM). Exceeding it reports `EXCESSIVE_RESOURCE_FEE`.
+  </Property>
+  <Property name="maxBaseFeeStroops" type="number">
+    Total transaction fee ceiling in stroops (default 1,000,000, which is 0.1 XLM). Exceeding it reports `EXCESSIVE_BASE_FEE`.
+  </Property>
+  <Property name="allowedAssets" type="string[]">
+    Assets a transaction may touch (`CODE:ISSUER`, `native`, or `C…`). Anything else reports `X402_NON_CANONICAL_ASSET`.
+  </Property>
+</Properties>
+
+<Note>
+  Wallets have more rules than these (spend caps, facilitator lists, alert
+  toggles). Those run inside the wallet and are ignored by the API, which is why
+  unknown keys are accepted.
+</Note>
+
+<Row>
+  <Col>
+
+    ### Example
+
+    A conservative policy for a wallet that should never lose control of an account or grant open-ended spending:
+
+    Send it in the `policy` field of [`POST /v1/analyze`](/analyze).
+
+  </Col>
+  <Col>
+
+    <CodeGroup>
+
+    ```json {{ title: 'A policy' }}
     {
-      "condition": {
-        "field": "simulation.status",
-        "op": "eq",
-        "value": "failed"
-      },
-      "action": "block",
-      "reason": "Simulation failed",
-      "priority": 100
-    },
-    {
-      "condition": {
-        "field": "detectors.delta.findings",
-        "op": "contains",
-        "value": "UNLIMITED_APPROVAL"
-      },
-      "action": "block",
-      "reason": "Unlimited token approval detected",
-      "priority": 90
-    },
-    {
-      "condition": {
-        "field": "balanceChanges.xlmDelta",
-        "op": "lt",
-        "value": -5.0
-      },
-      "action": "warn",
-      "reason": "Large XLM outflow",
-      "priority": 50
+      "maxLossPercent": 25,
+      "blockAccountMerge": true,
+      "blockSignerChanges": true,
+      "blockMasterKeyRemoval": true,
+      "blockSorobanAllowanceGrants": true,
+      "blockUnlimitedTrustlines": true,
+      "requireSuccessfulSimulation": true
     }
-  ]
-}
-```
+    ```
 
-### Supported operators
+    </CodeGroup>
 
-<Properties>
-  <Property name="eq / neq" type="operator">
-    Exact equality / inequality check.
-  </Property>
-  <Property name="gt / lt / gte / lte" type="operator">
-    Numeric comparisons.
-  </Property>
-  <Property name="in" type="operator">
-    Field value is in a provided list.
-  </Property>
-  <Property name="contains" type="operator">
-    Array field contains the specified value.
-  </Property>
-  <Property name="exists" type="operator">
-    Field is present and non-null.
-  </Property>
-</Properties>
+  </Col>
+</Row>
 
 ---
 
-## Ready-made profiles {{ id: 'profiles' }}
+## Presets {{ id: 'presets' }}
 
-Three pre-configured policy profiles are available for quick integration. Pass the profile name in the `policyProfile` field.
+`GET /v1/policy/schema` also returns three presets you can send as-is. They are the server-side part of the templates used by the Baret wallet.
 
 <Properties>
-  <Property name="strict" type="profile">
-    Blocks on any failed simulation or any high-severity finding. Recommended for wallets and consumer applications.
+  <Property name="strict" type="preset">
+    Blocks anything suspicious, including unknown contracts and any trustline change. `maxLossPercent: 25`, all trustline, allowance, contract and account-takeover blocks on, `allowWarnings: false`, tight fee ceilings.
   </Property>
-  <Property name="defi-permissive" type="profile">
-    Only blocks on known bad actors. Warns — but does not block — on large XLM loss (&gt;50%). Designed for DeFi power users who understand the risks.
+  <Property name="balanced" type="preset">
+    The production default. `maxLossPercent: 50`. Blocks unlimited trustlines, allowance grants, risky contracts and account takeover; permits unknown contracts and ordinary trustline changes; `allowWarnings: true`.
   </Property>
-  <Property name="monitor-only" type="profile">
-    Never blocks. All findings are reported but no transaction is stopped. Use for monitoring and audit logging without disrupting the user flow.
+  <Property name="permissive" type="preset">
+    Only fatal outcomes. `maxLossPercent: 90`, blocks risky contracts, account merge and master-key removal, `allowWarnings: true`.
   </Property>
 </Properties>
 
-```json {{ title: 'Using a profile' }}
-{
-  "transaction": "...",
-  "network": "pubnet",
-  "policyProfile": "strict"
-}
+<CodeGroup>
+
+```bash {{ title: 'Fetch the presets' }}
+curl https://baret-stellar.onrender.com/v1/policy/schema
 ```
+
+</CodeGroup>
+
+<Note>
+  There are no named rule profiles or a rule DSL in the API. The MCP tool
+  `baret_list_profiles` lists some profile names and `baret_analyze` accepts a
+  `policyProfile` argument, but the server does not apply profiles to
+  analysis. Use the `policy` object.
+</Note>

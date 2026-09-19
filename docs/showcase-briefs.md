@@ -1,11 +1,30 @@
 # BARET — Showcase Product Briefs
 
-> Six Stellar products. None of them call themselves a demo. Each one is the
+> Seven Stellar products. None of them call themselves a demo. Each one is the
 > kind of product a real user would land on, ship a transaction on, and form
 > an opinion about — with one detail that makes them perfect for showing what
 > BARET catches that nothing else does.
 
-This document is binding for the showcase apps under `apps/showcase-*`. Each
+> **Status (verified 2026-09-19): these are the original design briefs; the sites were built differently.**
+> Read the briefs below as *intent* (voice, target user, the single attack each site hides). What actually exists:
+>
+> | Brief | Built as | Route | Code |
+> |---|---|---|---|
+> | Vela (DEX aggregator) | **NovaSwap** | `/novaswap` | `apps/showcase/src/sites/novaswap/` |
+> | Riven (NFT mint) | **PixelDrop** ("Cyber Phantoms") | `/pixeldrop` | `.../sites/pixeldrop/` |
+> | Lattice (liquid staking) | **OrbitYield** | `/orbityield` | `.../sites/orbityield/` |
+> | Aurora (airdrop) | **ClaimHub** | `/claimhub` | `.../sites/claimhub/` |
+> | Apogee (launchpad) | **LaunchPad** | `/launchpad` | `.../sites/launchpad/` |
+> | Cortex (x402 agent console) | **Scrybe** (honest x402 oracle) + **Cortex** (attack console: drift, asset swap, blind signing) | `/scrybe`, `/cortex` | `.../sites/scrybe/`, `.../sites/cortex/` |
+> | Portal | **Hub** (`/showcase`) + landing (`/`) | `/showcase`, `/` | `.../components/Hub.tsx`, `.../pages/HomePage.tsx` |
+>
+> Differences from the briefs: everything is **one Vite app** (`apps/showcase`, dev port **5175**), not `apps/showcase-*`; the sites are routes, not separate bundles/subdomains;
+> the transactions are real testnet transactions built in `src/baret/transactions.ts` (scenario copy in `src/baret/scenarios.ts`), not the mocks the "Real on-chain" subsections describe.
+> The rule names in the tables below (`loss.exceeds_max`, `contract.unknown`…) were never implemented as such; the real finding codes are in
+> [`architecture/server.md`](./architecture/server.md) §8 and the per-site mapping is in [`architecture/clients.md`](./architecture/clients.md) §1.3.
+> Extra pages that were not in the briefs: `/developers` (API portal), `/agents`, `/install`, `/docs`.
+
+This document originally declared itself binding for the showcase apps under `apps/showcase-*`. Each
 site below is rendered as if it were a separate company shipping a real
 product on testnet. Copy is not aspirational — it's what the page would say in
 production.
@@ -41,18 +60,8 @@ identity is per-site; structural plumbing is shared.
 
 ### 0.4 Naming
 
-| File path | Brand | Category |
-|---|---|---|
-| `apps/showcase-vela` | **Vela** | DEX aggregator |
-| `apps/showcase-riven` | **Riven** | NFT mint |
-| `apps/showcase-lattice` | **Lattice** | Liquid staking |
-| `apps/showcase-aurora` | **Aurora** | Airdrop / rewards |
-| `apps/showcase-apogee` | **Apogee** | Token launchpad |
-| `apps/showcase-cortex` | **Cortex** | x402 AI agent console |
-| `apps/showcase-portal` | **BARET Showcase** | Landing portal that links to all six |
-
-All six sites run on different ports during dev (5174-5179) and as different
-subdomain bundles in production builds.
+See the status table at the top of this file for the brief → built mapping (the original `apps/showcase-*` layout and the "different ports 5174-5179" plan were not followed;
+all sites are routes of `apps/showcase` on port 5175).
 
 ---
 
@@ -563,7 +572,7 @@ language — the differences live entirely on-chain.
 
 ### 6.7 Real on-chain
 
-- Safe scenario: real x402-paywalled mock backend (running in `apps/showcase-cortex/server/`) issues 402 with valid `PaymentRequirements`; BARET intercepts, signs, settles via a real x402 testnet facilitator over Stellar.
+- Safe scenario: real x402-paywalled backend (built as `/demo/cortex` and `/demo/scrybe` on `apps/server`, not a separate showcase server) issues 402 with valid `PaymentRequirements`; BARET intercepts, signs, settles via a real x402 testnet facilitator over Stellar.
 - Attack 1: same flow but one query triggers an out-of-cap payment.
 - Attack 2: `PaymentRequirements.asset` swapped to a fictional asset of our own creation.
 - Attack 3: a fake facilitator endpoint that returns `verify=ok` but `settle` 500s — running inside our same backend for full control.
@@ -605,7 +614,7 @@ blind and BARET is uniquely watchful.
 
 ### 7.1 Purpose
 
-A single landing page (`apps/showcase-portal`) that lists the six sites with
+A single landing page (built as the Hub at `/showcase`; originally planned as a separate showcase-portal app) that lists the sites with
 honest framing: this is a guided tour, you'll experience six real-feeling
 products, and BARET will catch a different attack on each.
 
@@ -664,4 +673,4 @@ Each site is a separate Vite app under `apps/showcase-*`. Shared UI lives in
 
 ---
 
-*Last updated: 2026-05-09 · Each site brief is binding for its app. Updates to product copy or attack scenarios go through this file first.*
+*Last updated: 2026-05-09, status table added 2026-09-19 · The briefs are design history; the site code and `architecture/clients.md` are the truth for what ships.*

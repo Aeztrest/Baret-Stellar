@@ -112,7 +112,7 @@ before you sign it." The subhead names the mechanism in one breath: decode,
 simulate, block. Keep it to two short lines.
 
 ### Hub and demos
-These prove the claim. The frame is simple. Six apps that look real, each hiding
+These prove the claim. The frame is simple. Seven apps that look real, each hiding
 a different attack. Connect, click, watch Baret catch it. No adjectives, just
 the scenario and what it catches.
 
@@ -134,7 +134,7 @@ matters. Errors say what happened and what to do next. Never blame the user.
 ### Demo dApp sites
 These are pretend third-party apps, so they should sound like real products in
 their own category, not like Baret. Confident startup copy for a DEX, an NFT
-mint, a staking app, an airdrop, a launchpad, an oracle. The point is that they
+mint, a staking app, an airdrop, a launchpad, an oracle, an agent console. The point is that they
 look trustworthy right up until Baret reads the transaction.
 
 ---

@@ -1,0 +1,96 @@
+export const metadata = {
+  title: 'Decode',
+  description:
+    'Explain a Stellar transaction in plain language without simulating it: no network calls, no risk assessment.',
+}
+
+export const sections = [
+  { title: 'Decode a transaction', id: 'decode-a-transaction' },
+]
+
+# Decode
+
+`POST /v1/decode` reads a transaction and explains it: the operations in plain language, memo, time bounds, hash and the Soroban authorization tree. It makes **no network calls** and does **no risk assessment**, so it is fast. Use it to render a transaction, or to decide whether a full [analysis](/analyze) is worth running. {{ className: 'lead' }}
+
+---
+
+## Decode a transaction {{ tag: 'POST', label: '/v1/decode', id: 'decode-a-transaction' }}
+
+<Row>
+  <Col>
+
+    ### Required attributes
+
+    <Properties>
+      <Property name="network" type="string">
+        `testnet` or `pubnet`. Must match the server's network, otherwise `400 WRONG_NETWORK`.
+      </Property>
+      <Property name="transactionXdr" type="string">
+        Base64 `TransactionEnvelope` XDR. An invalid envelope returns `400 BAD_REQUEST`.
+      </Property>
+    </Properties>
+
+    ### The response
+
+    <Properties>
+      <Property name="hash" type="string">
+        Hex hash of the (inner) transaction. This is the hash a verdict attestation binds to.
+      </Property>
+      <Property name="kind" type="string">
+        `transaction` or `fee_bump`. For a fee-bump, a `feeBump` object carries the outer `hash`, `feeSource` and `fee`.
+      </Property>
+      <Property name="source, fee, sequence, memo, timeBounds, signatureCount" type="fields">
+        Header fields of the (inner) transaction. `memo` is `{ type, value }`; `timeBounds` is `{ minTime, maxTime }` or `null`.
+      </Property>
+      <Property name="summary" type="object">
+        `operations` (each with `index`, `type`, `action`, `description`, `details`), `humanReadable`, `primaryAction`, `involvedContracts`, `involvedAssets`.
+      </Property>
+      <Property name="cpiTrace" type="object">
+        The Soroban authorization tree: `roots`, `allContractAddresses`, `maxDepth`, `totalInvocations`, `truncated`.
+      </Property>
+    </Properties>
+
+  </Col>
+  <Col sticky>
+
+    <CodeGroup tag="POST" label="/v1/decode">
+
+    ```bash {{ title: 'cURL' }}
+    curl -X POST https://baret-stellar.onrender.com/v1/decode \
+      -H "Authorization: Bearer $BARET_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "network": "testnet", "transactionXdr": "AAAAAgAAAACd…" }'
+    ```
+
+    </CodeGroup>
+
+    <CodeGroup>
+
+    ```json {{ title: 'Response (abridged)' }}
+    {
+      "hash": "74ed908832bbd23100c2ea12e0a2b122254b6632026d2df7a0f8eabd39d53b1e",
+      "network": "testnet",
+      "kind": "transaction",
+      "source": "GAT3XUNP…",
+      "fee": "100",
+      "sequence": "1",
+      "memo": { "type": "none", "value": null },
+      "timeBounds": { "minTime": "0", "maxTime": "1789839000" },
+      "signatureCount": 0,
+      "summary": {
+        "operations": [
+          { "index": 0, "type": "payment", "source": null, "action": "payment", "description": "Payment 25.0000000 XLM → GD3ZQS…53FX" }
+        ],
+        "humanReadable": "Payment 25.0000000 XLM → GD3ZQS…53FX",
+        "primaryAction": "payment",
+        "involvedContracts": [],
+        "involvedAssets": ["native"]
+      },
+      "cpiTrace": { "roots": [], "allContractAddresses": [], "maxDepth": 0, "totalInvocations": 0, "truncated": false }
+    }
+    ```
+
+    </CodeGroup>
+
+  </Col>
+</Row>

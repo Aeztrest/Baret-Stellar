@@ -2,6 +2,12 @@
 
 > The Stellar wallet that doesn't trust the dApp on your behalf.
 
+> **Status note (2026-09-19).** This is the product vision; it describes where Baret is going, not only what ships today.
+> For what is actually implemented, read [`implementation-status.md`](./implementation-status.md) (Turkish) and [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+> Highlights: layers 1 and 2 ship (pre-sign guard; stateful allowance ledger with on-chain caps). Layer 3 ships partially: the monitor
+> flags unknown outgoing transactions ("drift") by polling Horizon, and revoke removes the merchant's on-chain sub-key; the verify-orphan and
+> settle-without-delivery watchdogs are not built.
+
 ---
 
 ## Mission
@@ -61,7 +67,7 @@ A **browser extension** (Chrome MV3 + Firefox) — a Stellar smart wallet built 
 
 A **web fallback** (`localhost:5180`) for users who can't install extensions or want to test in CI.
 
-A **showcase** of six dApps — five real-product clones (DEX, NFT mint, liquid staking, airdrop check, token launchpad) and one new x402-paywalled "Agent Console" — each demonstrating a distinct attack scenario blocked by BARET.
+A **showcase** of seven dApps (a DEX, an NFT mint, a liquid-staking site, an airdrop, a token launchpad, and two x402 sites: Scrybe, a pay-per-question oracle, and Cortex, the x402 attack console), each demonstrating a distinct attack that BARET catches.
 
 A **public analyze server** (`apps/server`) that exposes the simulation engine over HTTP, x402-paywalled, so other wallets and agents can integrate the engine without running their own.
 
@@ -76,7 +82,7 @@ Runs agents that talk to dApps, pays per-call APIs over x402, holds non-trivial 
 Used Freighter, doesn't fully trust dApps, has ignored the "approve unlimited" warnings until it cost them. The pre-sign clarity layer alone is enough reason to switch.
 
 **Tertiary — the developer integrator.**
-Wants the analyze API in their own product. We expose `/v1/analyze` (and `/v1/x402-analyze`) under x402 micropayments — eat our own dog food.
+Wants the analyze API in their own product. `/v1/analyze` is available with a free API key (`POST /v1/keys`) and can also be sold per call over x402 (`X402_ENABLED`); the developer portal at `/developers` on the showcase is the front door. (An earlier plan for a separate `/v1/x402-analyze` endpoint was dropped: `/v1/analyze` accepts `paymentRequirements` instead.)
 
 ---
 
@@ -150,4 +156,4 @@ The window is open. We close it.
 
 ---
 
-*Last updated: 2026-05-09 · Source of truth for all subsequent design and engineering decisions in this repo.*
+*Last updated: 2026-05-09, status note added 2026-09-19 · Source of truth for product intent. For implementation truth see `implementation-status.md`.*
