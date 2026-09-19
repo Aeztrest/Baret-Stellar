@@ -87,11 +87,22 @@ describe("agent prompt", () => {
 
   it("uses only the placeholders the portal fills in", () => {
     const used = new Set([...prompt.matchAll(/\{\{([A-Z_]+)\}\}/g)].map((m) => m[1]));
-    expect([...used].sort()).toEqual(["API_KEY_SECTION", "API_URL", "NETWORK"]);
+    expect([...used].sort()).toEqual(["API_URL", "NETWORK"]);
   });
 
   it("bakes in no real API key", () => {
     expect(prompt).not.toMatch(/baret_[A-Za-z0-9_-]{16,}/);
+  });
+
+  it("keeps the key in the environment and out of the chat", () => {
+    expect(prompt).toMatch(/environment variable `BARET_API_KEY`/);
+    expect(prompt).toMatch(/Never ask the human to paste the key into this chat/);
+    // the agent stops and asks instead of quietly minting a key…
+    expect(prompt).toMatch(/If it is not set, stop and tell the human/);
+    expect(prompt).toMatch(/only if the human explicitly tells you to/);
+    // …and a dead key is a block, not a reason to create another one
+    expect(prompt).toMatch(/Do not create a new one on your own/);
+    expect(prompt).not.toMatch(/create one new key/i);
   });
 
   it("states the fail-closed and wallet-only rules an agent must follow", () => {

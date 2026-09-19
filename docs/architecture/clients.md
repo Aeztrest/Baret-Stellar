@@ -80,8 +80,11 @@ Dosyalar: `pages/developers/{DevelopersPage,KeyPanel,Playground,Reference,Detect
 `samples.ts` (Playground için hazır işlemler: normal ödeme + saldırılar; **yalnız analiz edilir, asla imzalanmaz/gönderilmez**),
 `snippets.ts` (cURL/JS/Python/Go), `hooks.ts`, `api.ts` (`callApi`, `PUBLIC_API_URL`).
 `AgentPrompt.tsx` + `agentPrompt.ts` + `agent-prompt.md`: bir AI ajanına yapıştırılan, ajanın **kendi cüzdanının** imza yoluna Baret'i bağlatan hazır prompt
-(`{{API_URL}}`, `{{NETWORK}}`, `{{API_KEY_SECTION}}` yer tutucuları doldurulur). Metin `agent-prompt.md`'dedir; `apps/server/test/api/portal-catalog.test.ts`
-prompt'un andığı her endpoint'in var olduğunu ve içine gerçek anahtar gömülmediğini denetler.
+(`{{API_URL}}`, `{{NETWORK}}` yer tutucuları doldurulur). **Anahtar prompt'a hiç gömülmez**: prompt ajana anahtarı `BARET_API_KEY` ortam değişkeninden okumasını söyler,
+anahtarı sohbete yapıştırtmaz, ayarlı değilse durup insana nasıl üreteceğini anlatır ve anahtarı yalnız insan açıkça isterse kendisi üretir; ölü anahtar (`401`) BLOCK'tur, ajan
+kendi başına yenisini üretmez. Portal, anahtarı ortama koyacak satırı (`export`, `.env`, PowerShell) ekranda maskeli gösterir, **Copy** tam anahtarı kopyalar.
+Metin `agent-prompt.md`'dedir; `apps/server/test/api/portal-catalog.test.ts` prompt'un andığı her endpoint'in var olduğunu, içine gerçek anahtar gömülmediğini ve anahtar
+kurallarının yerinde durduğunu denetler.
 
 Akış: **anahtar al** (`POST /v1/keys`; anahtar tarayıcıda `localStorage`'da tutulur) → **dene** (Playground gerçek `/v1/analyze` çağırır; hazır işlemler için
 Friendbot'la fonlanmış geçici testnet hesabının yalnız açık adresi kullanılır) → **kodu kopyala** → **referans** (`/v1/detectors`, `/v1/policy/schema`, `/v1/meta` canlı çekilir).
