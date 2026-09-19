@@ -43,6 +43,18 @@ const envSchema = z.object({
   /** 1/true: X-Forwarded-For ile gerçek istemci IP (reverse proxy / Docker arkası) */
   DELTAG_TRUST_PROXY: z.string().optional(),
 
+  // ── Public developer API ───────────────────────────────────────────────
+  /** `open`: anyone can mint a key via POST /v1/keys. `closed`: env keys only. */
+  BARET_KEY_ISSUANCE: z.enum(["open", "closed"]).optional(),
+  BARET_KEY_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(60),
+  /** Keys one IP may mint per hour. Keeps a script from filling the key store. */
+  BARET_KEY_ISSUE_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(5),
+  BARET_MAX_ISSUED_KEYS: z.coerce.number().int().positive().default(10_000),
+  /** Where issued keys are stored (`keys.json`). Unset: ./data (in-memory under NODE_ENV=test). */
+  BARET_DATA_DIR: z.string().optional(),
+  /** `*` (default) or a comma-separated list of allowed browser origins. */
+  BARET_CORS_ORIGINS: z.string().default("*"),
+
   X402_ENABLED: z.string().optional(),
   X402_FACILITATOR_URL: z.string().url().optional(),
   X402_PAY_TO: z.string().optional(),
@@ -76,12 +88,24 @@ export type StellarNetworkConfig = {
   usdcContractAddress: string;
 };
 
+export type DeveloperConfig = {
+  keyIssuance: boolean;
+  keyRateLimitPerMin: number;
+  keyIssuePerIpPerHour: number;
+  maxIssuedKeys: number;
+  /** `null` keeps issued keys in memory only. */
+  dataDir: string | null;
+  /** `"*"` or an explicit allowlist of origins. */
+  corsOrigins: "*" | string[];
+};
+
 export type AppConfig = {
   nodeEnv: "development" | "test" | "production";
   port: number;
   logLevel: z.infer<typeof envSchema>["LOG_LEVEL"];
   apiKeys: string[];
   authMode: AuthMode;
+  developer: DeveloperConfig;
   x402: X402Config;
   stellar: StellarNetworkConfig;
   riskyContractIds: Set<string>;
@@ -184,6 +208,27 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     trustProxyRaw === "true" ||
     trustProxyRaw === "yes";
 
+  // Free keys make sense wherever keys are a valid way in. A deployment that
+  // chose pure pay-per-call x402 has deliberately closed every other door, so
+  // key issuance stays off there unless the operator opts in explicitly.
+  const keyIssuance = e.BARET_KEY_ISSUANCE
+    ? e.BARET_KEY_ISSUANCE === "open"
+    : authMode !== "x402";
+  const corsRaw = e.BARET_CORS_ORIGINS.trim();
+  const developer: DeveloperConfig = {
+    keyIssuance,
+    keyRateLimitPerMin: e.BARET_KEY_RATE_LIMIT_PER_MIN,
+    keyIssuePerIpPerHour: e.BARET_KEY_ISSUE_PER_IP_PER_HOUR,
+    maxIssuedKeys: e.BARET_MAX_ISSUED_KEYS,
+    dataDir:
+      e.BARET_DATA_DIR?.trim() ||
+      (e.NODE_ENV === "test" ? null : "./data"),
+    corsOrigins:
+      corsRaw === "*" || corsRaw === ""
+        ? "*"
+        : corsRaw.split(",").map((o) => o.trim()).filter(Boolean),
+  };
+
   const network = e.STELLAR_NETWORK;
   const stellar: StellarNetworkConfig = {
     network,
@@ -210,6 +255,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: e.LOG_LEVEL,
     apiKeys,
     authMode,
+    developer,
     x402,
     stellar,
     riskyContractIds: splitIds(e.RISKY_CONTRACT_IDS),

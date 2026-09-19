@@ -143,6 +143,8 @@ A standalone landing site + interactive demo. Every page is real React.
   threat-model tag.
 - **`/install`** — one-click extension installer with browser auto-detect
   (Chrome / Brave / Edge / Firefox) and step-by-step "load unpacked" guidance.
+- **`/developers`** — the public **API portal**: get a free key, try `/v1/analyze` on real (and
+  attack) transactions, copy the code in cURL / JS / Python / Go, and browse the reference.
 - **`/docs`** — index of the design documents in `docs/`.
 - **Demo dApps** — each looks production-built and has a **Danger Mode** toggle
   that swaps the payload for the matching attack scenario. Every action opens a
@@ -167,6 +169,32 @@ Fastify, testnet by default. Two surfaces in one process:
   spec-compliant PaymentRequirements; on PAYMENT-SIGNATURE it calls the
   facilitator's `/verify` then `/settle` and replies with the answer +
   on-chain proof.
+
+#### Using the API from your own project
+
+The analyzer is a plain HTTP API anyone can integrate. Open `/developers` on the showcase, or:
+
+```bash
+# 1. a free key (shown once; only a hash is stored)
+curl -X POST http://localhost:8080/v1/keys -H 'content-type: application/json' -d '{"name":"my-app"}'
+
+# 2. ask Baret before anyone signs
+curl -X POST http://localhost:8080/v1/analyze \
+  -H "Authorization: Bearer $BARET_KEY" -H 'content-type: application/json' \
+  -d '{"network":"testnet","transactionXdr":"AAAA…","userWallet":"G…","policy":{"blockAccountMerge":true}}'
+```
+
+| | |
+|---|---|
+| Spec | `GET /openapi.json` (OpenAPI 3.0, served live) |
+| Discovery (no key) | `/v1/meta`, `/v1/detectors`, `/v1/policy/schema` |
+| Analysis | `/v1/analyze`, `/v1/analyze/batch`, `/v1/analyze/stream`, `/v1/decode`, `/v1/replay` |
+| Keys | `POST /v1/keys`, `GET`/`DELETE /v1/keys/me` |
+| Errors | always `{ "error": { "code", "message", "details?" } }` |
+| Browsers | CORS enabled (`BARET_CORS_ORIGINS` to restrict) |
+
+Operator settings (`BARET_KEY_ISSUANCE`, `BARET_KEY_RATE_LIMIT_PER_MIN`, `BARET_DATA_DIR`, …) are in
+[`apps/server/.env.example`](./apps/server/.env.example).
 
 A one-time CLI generates the merchant keypair, requests a testnet airdrop, and
 adds its USDC trustline:

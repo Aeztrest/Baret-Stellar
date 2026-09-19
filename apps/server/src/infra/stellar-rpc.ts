@@ -26,6 +26,24 @@ export class StellarRpcError extends Error {
     this.code = code;
     this.cause = cause;
   }
+
+  /**
+   * Message that is safe to return to an API caller. `message` itself can
+   * carry the raw transport error — including the upstream RPC URL, which
+   * operators sometimes embed a provider token in — so anything that came
+   * from the network layer is replaced. Log `message`/`cause` server-side.
+   */
+  get publicMessage(): string {
+    switch (this.code) {
+      case "RPC_TIMEOUT":
+      case "ACCOUNT_NOT_FOUND":
+        return this.message;
+      case "RPC_BAD_RESPONSE":
+        return "Stellar RPC returned an unexpected response";
+      default:
+        return "Stellar RPC is unavailable";
+    }
+  }
 }
 
 /**

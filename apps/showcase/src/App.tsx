@@ -18,6 +18,7 @@ const ROUTE_META: Record<string, { title: string; description: string }> = {
   "/": { title: "Baret | Read the transaction before you sign it", description: "Baret reads every Stellar transaction before your keys move. It decodes it, simulates what it does, and blocks the dangerous ones." },
   "/showcase": { title: "Baret Showcase | Six live attack demos", description: "Connect a wallet and watch Baret catch a wallet drainer, a rug pull, or agent drift, live on Stellar testnet." },
   "/docs": { title: "Baret Docs", description: "Design notes, architecture, and the policy DSL behind Baret's transaction firewall." },
+  "/developers": { title: "Baret API | Analyze a Stellar transaction before anyone signs it", description: "A free, key-based HTTP API that tells you what a Stellar transaction does, which balances move and what is risky about it. Get a key, try it live, copy the code." },
   "/agents": { title: "Baret Agents | A firewall in front of every agent signature", description: "The AgentWallet SDK and CLI. Analyze, sign, and submit with a firewall that checks every transaction before the key signs." },
   "/install": { title: "Install Baret", description: "One-click install for Chrome, Brave, Edge, and Firefox, with step-by-step load-unpacked guidance." },
   "/scrybe": { title: "Scrybe | Pay-per-question oracle on x402", description: "A real x402 paywall on Stellar testnet. Ask a question, pay about $0.001 USDC, and watch it settle on-chain." },
@@ -100,6 +101,7 @@ const InstallPage  = lazy(() => import("./pages/InstallPage"));
 const HomePage     = lazy(() => import("./pages/HomePage"));
 const DocsPage     = lazy(() => import("./pages/DocsPage"));
 const AgentsPage   = lazy(() => import("./pages/AgentsPage"));
+const DevelopersPage = lazy(() => import("./pages/developers/DevelopersPage"));
 
 function RouteShell({ children }: { children: React.ReactNode }) {
   return (
@@ -133,6 +135,7 @@ export default function App() {
             <Route path="/home"      element={<Navigate to="/" replace />} />
             <Route path="/docs"      element={<RouteShell><DocsPage /></RouteShell>} />
             <Route path="/agents"    element={<RouteShell><AgentsPage /></RouteShell>} />
+            <Route path="/developers" element={<RouteShell><DevelopersPage /></RouteShell>} />
             <Route path="/novaswap"  element={<RouteShell><NovaSwap /></RouteShell>} />
             <Route path="/pixeldrop" element={<RouteShell><PixelDrop /></RouteShell>} />
             <Route path="/orbityield" element={<RouteShell><OrbitYield /></RouteShell>} />

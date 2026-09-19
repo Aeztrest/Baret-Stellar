@@ -13,6 +13,7 @@ import { detectCpiFindings } from "./detectors/cpi.js";
 import { detectReputationFindings } from "./detectors/reputation.js";
 import { detectResourceFindings } from "./detectors/compute.js";
 import { detectX402Findings } from "./detectors/x402.js";
+import { detectAccountFindings } from "./detectors/account.js";
 import { detectIncompleteDataFinding } from "./detectors/deltas.js";
 
 export type RiskDetectionInput = {
@@ -55,6 +56,7 @@ export function runRiskDetection(input: RiskDetectionInput): RiskFinding[] {
     (op) => op.type === "invokeHostFunction",
   );
   findings.push(...detectSimulationFindings(simulation, hasSorobanOp));
+  findings.push(...detectAccountFindings(tx));
   findings.push(
     ...detectContractFindings({
       contractAddresses: txAccounts.contractAddresses,

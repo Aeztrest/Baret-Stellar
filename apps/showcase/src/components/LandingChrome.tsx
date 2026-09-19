@@ -26,6 +26,7 @@ export const SOCIAL_X = "https://x.com/baretxyz";
 const NAV_LINKS = [
   { label: "Home", to: "/" },
   { label: "Showcase", to: "/showcase" },
+  { label: "API", to: "/developers" },
   { label: "Agents", to: "/agents" },
   { label: "Docs", to: "/docs" },
   { label: "Install", to: "/install" },
@@ -144,7 +145,7 @@ export function LandingHeader({ cta }: { cta?: { label: string; to: string } | n
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
         scrolled
-          ? "border-b border-border bg-background/80 backdrop-blur-xl"
+          ? "border-b border-border glass-bg backdrop-blur-xl"
           : "border-b border-transparent bg-transparent",
       )}
     >

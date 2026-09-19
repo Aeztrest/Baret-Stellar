@@ -9,8 +9,11 @@ COPY apps/server/package.json apps/server/
 RUN pnpm install --frozen-lockfile
 
 COPY apps/server apps/server
-RUN pnpm --filter @deltag/server build
+RUN pnpm --filter @stellar-thorn/server build
 
 ENV NODE_ENV=production
+# Issued API keys live here; mount a volume on it to keep them across restarts.
+ENV BARET_DATA_DIR=/data
+VOLUME /data
 EXPOSE 8080
 CMD ["node", "apps/server/dist/index.js"]
