@@ -42,19 +42,28 @@ This section describes what the HTTP API does **not** guarantee and how to inter
 
 ## Wallet sub-keys (extension)
 
-- **Per-merchant sub-key spend caps are not enforced on-chain.** The extension
-  registers each per-merchant sub-key on the smart-wallet contract via
-  `add_signer(signer, { unlimited: true })` — the deployed contract has no
-  per-signer spending-cap enforcement today. The per-tx/hour/day caps you see
-  in the UI are enforced entirely by this extension's own bookkeeping
-  (`apps/extension/src/background/db/allowances.ts`).
-- **Practical consequence:** if a sub-key's encrypted secret is ever
-  exfiltrated and decrypted outside the extension, the attacker can sign an
-  arbitrary transfer against the smart wallet with no on-chain ceiling — not
-  capped to "this merchant's remaining allowance." Revoking a sub-key
-  on-chain (`remove_signer`) still works and is the correct incident
-  response, but the cap itself is not chain-enforced in normal operation.
-- See the SECURITY NOTE in `apps/extension/src/background/swig/sub-keys.ts`
-  and the integration roadmap in `docs/x402-defense.md` §10 for the plan to
-  close this gap by routing sub-key spend through the already-deployed
-  `PaymentGuard` contract.
+- **Per-merchant sub-key spend caps are enforced on-chain**, by the
+  `MerchantSpendPolicy` Soroban contract
+  (`contracts/contracts/merchant-spend-policy`, deployed to testnet — see
+  its `DEPLOYMENT.md` for the current address). Each sub-key is registered
+  as an `Ed25519` signer `SignerLimits`-scoped to one token contract,
+  requiring `MerchantSpendPolicy`'s approval on every use; the policy binds
+  each merchant's allowance to the ONE sub-key it was granted to, so a
+  leaked sub-key cannot spend against a *different* merchant's cap on the
+  same wallet. This replaced an earlier design that registered sub-keys via
+  `add_signer(signer, { unlimited: true })` with no on-chain ceiling at all.
+  The extension's own bookkeeping
+  (`apps/extension/src/background/db/allowances.ts`) is still checked first
+  (cheaper, no round-trip); the contract is the backstop that holds even if
+  that bookkeeping is ever bypassed.
+- **Not yet verified end-to-end in a live wallet.** The contract has its own
+  unit test suite and the extension's wiring to it has unit coverage
+  (mocked, no network calls) as of PR #19, but nobody has yet provisioned a
+  real smart wallet, approved a merchant, and confirmed on-chain that an
+  over-cap or wrong-signer payment is actually rejected against the
+  currently deployed instance. Treat the guarantee as "built and tested in
+  isolation," not "proven live," until that check is done.
+- See the SECURITY NOTE in `apps/extension/src/background/swig/sub-keys.ts`,
+  `docs/x402-defense.md` §10, and
+  `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`'s
+  "End-to-end verification" checklist for what that live check involves.
