@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Ban, Bot, Check, ClipboardCopy, Download, ScanSearch, ShieldAlert, WifiOff } from "lucide-react";
+import { Ban, Bot, Check, ClipboardCopy, Download, KeyRound, ScanSearch, ShieldAlert, WifiOff } from "lucide-react";
 import { cn } from "@stellar-thorn/ui";
 import { PUBLIC_API_URL, type Meta } from "./api";
 import { buildAgentPrompt, estimateTokens } from "./agentPrompt";
-import { CodeBlock, ghostButton, primaryButton, useCopy } from "./ui";
+import { maskKey } from "./snippets";
+import { CodeBlock, CopyButton, ghostButton, primaryButton, Tabs, useCopy } from "./ui";
 
 const PROMISES = [
   { icon: Ban, title: "Unsafe? Blocked.", body: "Every signature from the agent's wallet is checked first. If Baret says no, nothing is signed." },
@@ -15,17 +16,15 @@ const PROMISES = [
 /** Copies the prompt, and says so. Shared by the hero button and the section. */
 export function CopyAgentPromptButton({
   meta,
-  apiKey,
   className,
   size = "md",
 }: {
   meta: Meta | null;
-  apiKey?: string | null;
   className?: string;
   size?: "md" | "lg";
 }) {
   const { copied, copy } = useCopy();
-  const prompt = () => buildAgentPrompt({ apiUrl: PUBLIC_API_URL, network: meta?.network.name ?? "testnet", apiKey });
+  const prompt = () => buildAgentPrompt({ apiUrl: PUBLIC_API_URL, network: meta?.network.name ?? "testnet" });
   return (
     <button
       type="button"
@@ -38,12 +37,61 @@ export function CopyAgentPromptButton({
   );
 }
 
+type Shell = "sh" | "env" | "ps";
+
+const SHELLS: Array<{ id: Shell; label: string }> = [
+  { id: "sh", label: "macOS / Linux" },
+  { id: "env", label: ".env file" },
+  { id: "ps", label: "PowerShell" },
+];
+
+const envLine = (shell: Shell, key: string) =>
+  shell === "sh"
+    ? `export BARET_API_KEY=${key}`
+    : shell === "env"
+      ? `BARET_API_KEY=${key}`
+      : `$env:BARET_API_KEY = "${key}"`;
+
+/**
+ * The key never goes into the prompt (and so never into a chat history). It
+ * goes into the environment the agent runs in; the prompt tells the agent to
+ * read it from there. This shows the line that sets it, masked on screen but
+ * complete when copied.
+ */
+function KeyInEnvironment({ apiKey }: { apiKey: string | null }) {
+  const [shell, setShell] = useState<Shell>("sh");
+  const shown = envLine(shell, apiKey ? maskKey(apiKey) : "baret_your_key");
+  const full = envLine(shell, apiKey ?? "baret_your_key");
+  return (
+    <div className="mt-5 rounded-xl border border-border bg-card p-3.5">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <KeyRound size={14} className="text-primary" /> Your key stays out of the chat
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        The prompt never contains it. Put it in the environment your agent runs in as{" "}
+        <code className="font-mono text-foreground">BARET_API_KEY</code>; the agent reads it from there.
+      </p>
+      <Tabs label="Where to set it" value={shell} onChange={setShell} tabs={SHELLS} className="mt-3" />
+      <div className="mt-2 flex items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded-lg border border-border bg-secondary px-3 py-2 font-mono text-xs">
+          {shown}
+        </code>
+        <CopyButton text={full} label="Copy" className="shrink-0 py-2" />
+      </div>
+      {!apiKey && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          <a href="#key" className="text-foreground underline underline-offset-4">Create a key above</a> and this
+          line fills in. Without one, the agent will tell you how to make it.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AgentPromptSection({ meta, apiKey }: { meta: Meta | null; apiKey: string | null }) {
-  const [includeKey, setIncludeKey] = useState(false);
-  const shownKey = includeKey ? apiKey : null;
   const text = useMemo(
-    () => buildAgentPrompt({ apiUrl: PUBLIC_API_URL, network: meta?.network.name ?? "testnet", apiKey: shownKey }),
-    [meta, shownKey],
+    () => buildAgentPrompt({ apiUrl: PUBLIC_API_URL, network: meta?.network.name ?? "testnet" }),
+    [meta],
   );
 
   function download() {
@@ -76,31 +124,15 @@ export function AgentPromptSection({ meta, apiKey }: { meta: Meta | null; apiKey
             <span className="font-mono text-[11px] uppercase tracking-[0.18em]">One prompt, one paste</span>
           </div>
           <ol className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted-foreground">
-            <li><strong className="text-foreground">1.</strong> Copy the prompt.</li>
-            <li><strong className="text-foreground">2.</strong> Paste it into your AI (Claude, ChatGPT, Cursor…) in the project of your agent's wallet.</li>
+            <li><strong className="text-foreground">1.</strong> Put your key in the agent's environment (below).</li>
+            <li><strong className="text-foreground">2.</strong> Copy the prompt and paste it into your AI (Claude, ChatGPT, Cursor…) in the project of your agent's wallet.</li>
             <li><strong className="text-foreground">3.</strong> Answer its questions: how strict to be, which limits.</li>
             <li><strong className="text-foreground">4.</strong> Read the report. Change the rules any time by telling it.</li>
           </ol>
 
-          <CopyAgentPromptButton meta={meta} apiKey={shownKey} size="lg" className="mt-5 w-full" />
+          <CopyAgentPromptButton meta={meta} size="lg" className="mt-5 w-full" />
 
-          <label className={cn("mt-4 flex items-start gap-2.5 text-sm", !apiKey && "opacity-60")}>
-            <input
-              type="checkbox"
-              checked={includeKey && !!apiKey}
-              disabled={!apiKey}
-              onChange={(e) => setIncludeKey(e.target.checked)}
-              className="mt-0.5 size-4 accent-[var(--primary)]"
-            />
-            <span>
-              Include my API key
-              <span className="block text-xs leading-relaxed text-muted-foreground">
-                {apiKey
-                  ? "Only if you trust that AI tool with it. Left off, the agent asks you for a key or creates its own (they're free)."
-                  : "Create a key above first, or leave this off: the agent can create its own."}
-              </span>
-            </span>
-          </label>
+          <KeyInEnvironment apiKey={apiKey} />
 
           <div className="mt-auto flex flex-wrap items-center gap-3 pt-5 text-xs text-muted-foreground">
             <button type="button" onClick={download} className={cn(ghostButton, "px-3 py-1.5 text-xs")}>

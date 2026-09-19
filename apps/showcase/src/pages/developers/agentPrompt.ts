@@ -15,32 +15,16 @@ export type AgentPromptOptions = {
   apiUrl: string;
   /** The network that server analyzes. */
   network: string;
-  /** Include this key in the prompt. Omit to make the agent ask for one or create its own. */
-  apiKey?: string | null;
 };
 
-function keySection(apiKey?: string | null): string {
-  if (apiKey) {
-    return [
-      "## Your Baret key",
-      "",
-      `The human gave you this key: \`${apiKey}\``,
-      "",
-      "Store it in the wallet's secret store or in the environment variable `BARET_API_KEY` right away. Do not put it in source code, and do not repeat it in your replies or logs.",
-    ].join("\n");
-  }
-  return [
-    "## Your Baret key",
-    "",
-    "You were not given a key. Ask the human whether they already have one (it goes in the environment variable `BARET_API_KEY`). If they have none, create one yourself as described in the facts above.",
-  ].join("\n");
-}
-
-export function buildAgentPrompt({ apiUrl, network, apiKey }: AgentPromptOptions): string {
+/**
+ * The prompt never contains a key. It tells the agent to read `BARET_API_KEY`
+ * from its environment, so a key does not end up in a chat history.
+ */
+export function buildAgentPrompt({ apiUrl, network }: AgentPromptOptions): string {
   // split/join rather than replaceAll: this package's TS lib predates ES2021.
   const fill = (text: string, name: string, value: string) => text.split(`{{${name}}}`).join(value);
-  let out = fill(template, "API_KEY_SECTION", keySection(apiKey));
-  out = fill(out, "API_URL", apiUrl.replace(/\/$/, ""));
+  let out = fill(template, "API_URL", apiUrl.replace(/\/$/, ""));
   out = fill(out, "NETWORK", network);
   return out.trim();
 }

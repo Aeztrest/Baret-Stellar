@@ -16,7 +16,7 @@ Baret takes an unsigned Stellar transaction, simulates it, runs risk detectors a
   - `GET {{API_URL}}/v1/meta` returns `network.name`, `network.passphrase` and `limits`.
   - `GET {{API_URL}}/v1/policy/schema` returns every policy option and the presets `strict`, `balanced`, `permissive`.
   - `GET {{API_URL}}/openapi.json` is the full machine-readable spec.
-- Keys are free. If you have none: `POST {{API_URL}}/v1/keys` with body `{"name":"<this agent's name>"}`. The response field `key` is shown once. Store it in the wallet's secret store or in the environment variable `BARET_API_KEY`. Never put it in source code, logs or replies. If a key stops working (`401 UNAUTHORIZED`), create one new key, store it and retry once. If that fails too, fail closed (see below).
+- Keys are free and are handled as described in "Your Baret key" below.
 - The check: `POST {{API_URL}}/v1/analyze`
   - Request: `{ "network": "{{NETWORK}}", "transactionXdr": "<base64 envelope you are about to sign>", "userWallet": "<this wallet's G… address>", "policy": { … } }`
   - Response: `{ "safe": boolean, "reasons": string[], "riskFindings": [{ "code", "severity": "low"|"medium"|"high", "message" }], "estimatedChanges": {…}, "annotation": { "summary": { "humanReadable": string } }, "meta": { "confidence" } }`
@@ -26,7 +26,14 @@ Baret takes an unsigned Stellar transaction, simulates it, runs risk detectors a
 - Limits: see `limits.rateLimit.perKeyPerMinute` in `/v1/meta` (60 requests per minute per key by default). `POST {{API_URL}}/v1/analyze/batch` checks up to 25 transactions in one call.
 - The result is a simulation of the current chain state. It is strong evidence, not a guarantee of what happens on-chain.
 
-{{API_KEY_SECTION}}
+## Your Baret key
+
+The human keeps the key in the environment variable `BARET_API_KEY` (or in the wallet's secret store). Read it from there. **Never ask the human to paste the key into this chat**, never write it into source code, and never print or log it.
+
+- If `BARET_API_KEY` is set, use it.
+- If it is not set, stop and tell the human, in one message: create a free key with `curl -X POST {{API_URL}}/v1/keys -H "Content-Type: application/json" -d '{"name":"<this agent's name>"}'` (the `key` in the answer is shown only once), set it in the environment where this agent runs (`export BARET_API_KEY=...`, or a line in the wallet's `.env` file that is not committed), and tell you when that is done. Then continue.
+- Create a key yourself with `POST {{API_URL}}/v1/keys` only if the human explicitly tells you to. Store it straight into the environment file or the secret store, never in your reply.
+- If the key stops working (`401 UNAUTHORIZED`: it was revoked, or the server was reset), that is a BLOCK. Tell the human to replace the key. Do not create a new one on your own.
 
 ## The one rule
 
@@ -210,12 +217,12 @@ def guarded_sign(xdr, wallet, network, policy, key, sign, ask_human=lambda v: Fa
 
 1. Read the wallet code. Find the language and the single place where it signs. If that is ambiguous, ask the human **one** question before editing anything.
 2. Agree the policy with the human (see "The policy" above) and save it.
-3. Add configuration, with no secrets in source: `BARET_API_URL`, `BARET_API_KEY`, the network (`{{NETWORK}}`) and the path of the saved policy.
+3. Add configuration, with no secrets in source: `BARET_API_URL`, `BARET_API_KEY` (read from the environment, see "Your Baret key"), the network (`{{NETWORK}}`) and the path of the saved policy.
 4. Implement `guardedSign` from the reference above, in this project's style.
 5. Replace every signing call with `guardedSign`, then do the bypass audit described above.
 6. Read the wallet's facts. Derive its public address (`G…`) from its key and **never print the secret**. Read its balance on the network: use the wallet's own balance function if it has one, otherwise `GET https://horizon-testnet.stellar.org/accounts/<address>` for testnet or `GET https://horizon.stellar.org/accounts/<address>` for pubnet, and read `balances` (`asset_type` `native` is XLM). A `404` means the account does not exist yet (not funded).
 7. Self-test. **Never sign or submit any of these transactions.**
-   - Call `GET /v1/meta` and confirm the network matches the wallet's.
+   - Confirm `BARET_API_KEY` is set, without printing it. Call `GET /v1/meta` and confirm the network matches the wallet's.
    - Build (unsigned) a harmless payment from this wallet's real address and check it. Expect ALLOW. If the wallet is not funded on the network, expect BLOCK because balance rules cannot be evaluated. That is correct behaviour, so tell the human to fund it.
    - Build (unsigned) an account merge from this wallet into some other address and check it. Expect BLOCK.
    - Point the code at a wrong URL or a wrong key. Expect BLOCK (fail closed).
