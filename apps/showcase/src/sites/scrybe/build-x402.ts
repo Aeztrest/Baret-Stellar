@@ -84,11 +84,17 @@ function passphraseFor(network: string): NetworksType {
  *
  * We bridge to the wallet through a custom `authorizeEntry` callback rather
  * than passing `signAuthEntry` to the SDK directly: the SDK's `signAuthEntry`
- * path hands the wallet a `HashIdPreimage` and expects a raw signature back,
- * but Freighter-style wallets (incl. BARET) take a full
- * `SorobanAuthorizationEntry` and return a signed entry. Passing the preimage
- * to such a wallet fails with `unknown SorobanCredentialsType member for value
- * 9`. The callback hands the wallet the full entry. its native convention.
+ * path hands the wallet a `HashIdPreimage` and expects a raw signature back
+ * — which is actually Freighter's own documented convention (see
+ * developers.stellar.org/docs/build/guides/freighter/sign-auth-entries), NOT
+ * something specific to "Freighter-style wallets" as this comment used to
+ * claim. BARET takes the OTHER convention: a full `SorobanAuthorizationEntry`
+ * in, a signed entry back. Passing a bare preimage to Baret fails with
+ * `unknown SorobanCredentialsType member for value 9`. The callback here
+ * hands the wallet the full entry — Baret's native convention. Freighter
+ * connections are bridged back to ITS convention transparently inside
+ * `../../wallet/standard-bridge.ts`'s Freighter adapter, so this function
+ * never needs to know which wallet is on the other end.
  *
  * The entry's `signatureExpirationLedger` is set to a short window the
  * facilitator enforces; the wallet must honor it.

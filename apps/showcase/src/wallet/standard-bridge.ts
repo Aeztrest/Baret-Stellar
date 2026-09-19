@@ -8,7 +8,8 @@
  * existing site code expects.
  */
 
-import { Networks } from "@stellar/stellar-sdk";
+import { Address, Networks, authorizeEntry, xdr } from "@stellar/stellar-sdk";
+import { Buffer } from "buffer";
 import { submitSignedTransaction } from "../baret/transactions";
 
 // The showcase is testnet-only, end to end. Wallets that support multiple
@@ -309,14 +310,55 @@ const freighterAdapter: StellarWalletProvider = {
     }
   },
   async signAuthEntry(entryXdr, opts) {
+    // Freighter's OWN documented `signAuthEntry` contract is not the
+    // full-entry-in/full-entry-out convention this bridge's generic
+    // passthrough (and Baret) use: it expects a
+    // `HashIdPreimageSorobanAuthorization` and returns a raw signed hash,
+    // not a signed entry — https://developers.stellar.org/docs/build/guides/freighter/sign-auth-entries.
+    // Handing it our full entry XDR fails with "Invalid Authorization
+    // Entry ... could not be parsed" — not a Freighter bug, just a second,
+    // equally real convention neither side documents as "the" standard yet.
+    // stellar-sdk's own `authorizeEntry()` helper builds that preimage,
+    // hands it to a signing callback, and re-assembles a fully signed
+    // entry itself — bridge Freighter through it so every caller here
+    // still gets the same {signedAuthEntry, signerAddress} shape,
+    // regardless of which convention the connected wallet actually speaks.
     try {
       const mod = await import("@stellar/freighter-api");
-      const r = await mod.signAuthEntry(entryXdr, opts);
-      const obj = r as { signedAuthEntry?: string | null; signerAddress?: string; error?: string };
+      const entry = xdr.SorobanAuthorizationEntry.fromXDR(entryXdr, "base64");
+      // The caller (createX402PaymentHeader) already set this on the
+      // entry's credentials before handing it to us; read it back rather
+      // than re-deriving it, so both wallets sign the identical deadline.
+      const validUntilLedgerSeq = entry
+        .credentials()
+        .address()
+        .signatureExpirationLedger();
+
+      let signerAddress = "";
+      const signed = await authorizeEntry(
+        entry,
+        async (preimage) => {
+          const r = await mod.signAuthEntry(preimage.toXDR("base64"), opts);
+          const obj = r as { signedAuthEntry?: string | null; signerAddress?: string; error?: string };
+          if (obj.error || !obj.signedAuthEntry) {
+            throw new Error(obj.error || "Freighter did not return a signed hash");
+          }
+          signerAddress = obj.signerAddress ?? "";
+          return {
+            signature: Buffer.from(obj.signedAuthEntry, "base64"),
+            publicKey:
+              signerAddress ||
+              Address.fromScAddress(entry.credentials().address().address()).toString(),
+          };
+        },
+        validUntilLedgerSeq,
+        opts?.networkPassphrase,
+      );
+
       return {
-        signedAuthEntry: obj.signedAuthEntry ?? "",
-        signerAddress: obj.signerAddress ?? "",
-        error: obj.error,
+        signedAuthEntry: signed.toXDR("base64"),
+        signerAddress,
+        error: undefined,
       };
     } catch (err) {
       return {
