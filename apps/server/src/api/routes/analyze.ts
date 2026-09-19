@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   analyzeTransaction,
   AnalyzeValidationError,
+  WrongNetworkError,
   type AnalyzeDeps,
   type AnalyzeTimings,
 } from "../../application/analyze-transaction.js";
@@ -126,6 +127,14 @@ export function registerAnalyzeRoute(
         if (x402) {
           logX402SettlementOutcome(req.log, req.id, x402Pay, settled, e);
         }
+        if (e instanceof WrongNetworkError) {
+          return reply.status(400).send(
+            apiError("WRONG_NETWORK", e.message, {
+              serverNetwork: e.serverNetwork,
+              requestedNetwork: e.requestedNetwork,
+            }),
+          );
+        }
         if (e instanceof AnalyzeValidationError) {
           return reply.status(400).send(apiError("BAD_REQUEST", e.message));
         }
@@ -133,7 +142,7 @@ export function registerAnalyzeRoute(
           req.log.warn({ err: e }, "RPC error during analyze");
           const status = e.code === "RPC_TIMEOUT" ? 504 : 502;
           return reply.status(status).send(
-            apiError("RPC_ERROR", e.message, { rpcCode: e.code }),
+            apiError("RPC_ERROR", e.publicMessage, { rpcCode: e.code }),
           );
         }
         req.log.error({ err: e }, "Unexpected error during analyze");

@@ -17,6 +17,8 @@ services:
       context: .
       dockerfile: apps/server/Dockerfile
     restart: unless-stopped
+    volumes:
+      - baret-data:/data
     ports:
       - "0.0.0.0:${DELTAG_HOST_API_PORT:-18080}:8080"
     environment:
@@ -42,3 +44,6 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+
+volumes:
+  baret-data:

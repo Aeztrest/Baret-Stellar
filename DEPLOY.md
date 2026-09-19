@@ -71,6 +71,35 @@ Sonra tarayıcıda `chrome://extensions` → Developer mode → **Load unpacked*
 
 ---
 
+## 5) Herkese açık geliştirici API'si (anahtarlar)
+
+Sunucu artık dışarıdan geliştiricilere açılabilir: `https://<SUNUCU>/openapi.json` (spec) ve showcase'teki
+`/developers` sayfası (anahtar al, dene, kodu kopyala). Herkes `POST /v1/keys` ile ücretsiz anahtar üretir.
+
+| Env | Ne yapar |
+|---|---|
+| `BARET_KEY_ISSUANCE` | `open` (varsayılan) / `closed`. Saf x402 modunda varsayılan `closed`. |
+| `BARET_KEY_RATE_LIMIT_PER_MIN` | Üretilen anahtar başına dakikalık limit (60) |
+| `BARET_KEY_ISSUE_PER_IP_PER_HOUR` | Aynı IP'den saatte kaç anahtar (5) |
+| `BARET_DATA_DIR` | Anahtarların (yalnız SHA-256 özeti) yazıldığı klasör |
+| `BARET_CORS_ORIGINS` | `*` ya da izinli origin listesi |
+
+> **Önemli — üretilen anahtarlar kalıcı olmayabilir.** Render **free** planında disk geçicidir: servis uyuyup
+> yeniden başladığında ya da yeniden deploy edildiğinde `keys.json` silinir ve verilen tüm anahtarlar geçersiz olur.
+> Kalıcı disk (Render ücretli plan) ya da Docker'da volume (`docker-compose.yml` zaten `/data` bağlar) kullan.
+> Geçici çözüm: kalıcı olması gereken anahtarları Render panelinde `DELTAG_API_KEYS` env'ine virgülle ekle
+> (`dev-key-change-me,baret_…`); env'den okunan anahtarlar restart'tan etkilenmez ama anahtar başına limit/kullanım
+> sayacı yoktur. Portal, sunucunun tanımadığı anahtarı "çalışmıyor" diye gösterir ve yenisini üretmeyi önerir.
+
+Demo için showcase'in kullandığı paylaşımlı `dev-key-change-me` anahtarı (`DELTAG_API_KEYS`) çalışmaya devam eder;
+gerçek kullanıma açarken onu değiştir (frontend'deki `DEMO_API_KEY`, eklenti ve `render.yaml` ile birlikte).
+
+Portal, API adresini `apps/showcase/src/pages/developers/api.ts` içindeki `PUBLIC_API_URL`'den gösterir
+(varsayılan `https://baret-stellar.onrender.com`, `vercel.json` rewrite'ıyla aynı). Farklıysa
+`VITE_BARET_API_URL` ver.
+
+---
+
 ## Özet komutlar (lokal doğrulama)
 
 ```bash

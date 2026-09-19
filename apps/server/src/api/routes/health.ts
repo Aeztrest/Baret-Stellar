@@ -24,7 +24,9 @@ export function registerHealthRoutes(
       await adapter.pingRpc();
       checks[config.stellar.network] = { ok: true };
     } catch (e) {
-      const msg = e instanceof StellarRpcError ? e.message : String(e);
+      // Unauthenticated endpoint: never echo the raw upstream error (it can
+      // contain the RPC URL). The full error is in the server log.
+      const msg = e instanceof StellarRpcError ? e.publicMessage : "Stellar RPC check failed";
       req.log.warn({ network: config.stellar.network, err: e }, "readiness check failed");
       checks[config.stellar.network] = { ok: false, error: msg };
     }
@@ -34,9 +36,8 @@ export function registerHealthRoutes(
         await healthDeps.checkX402Facilitator();
         checks.x402_facilitator = { ok: true };
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
         req.log.warn({ err: e }, "x402 facilitator readiness check failed");
-        checks.x402_facilitator = { ok: false, error: msg };
+        checks.x402_facilitator = { ok: false, error: "x402 facilitator check failed" };
       }
     }
 

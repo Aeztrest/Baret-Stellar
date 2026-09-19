@@ -36,6 +36,21 @@ This section describes what the HTTP API does **not** guarantee and how to inter
 
 - Transient **timeouts** may trigger **one automatic retry** per RPC read/simulate/ping call. Repeated failures surface as `RPC_ERROR` / `RPC_TIMEOUT` (HTTP 502 / 504).
 
+### Developer API keys
+
+- Keys created with `POST /v1/keys` are stored as SHA-256 hashes in `keys.json` under `BARET_DATA_DIR`. **On hosts with an ephemeral disk (Render's free plan, containers without a volume) that file is wiped on every restart or spin-down**, so issued keys stop working and developers must create new ones. Mount a persistent disk/volume on `BARET_DATA_DIR` to keep them. `GET /v1/meta` reports `auth.keyIssuance.persistent`, but that only says the directory was writable, not that the disk survives restarts. Keys set in `DELTAG_API_KEYS` are read from the environment and are not affected.
+- Per-key and per-IP limits are counted in process memory. With several instances each keeps its own counters, so enforce the real limit at the edge.
+- The per-IP throttle on key creation (and the per-IP rate limit) trusts `X-Forwarded-For` when `DELTAG_TRUST_PROXY` is on. If the platform in front of the server passes through a client-supplied header, callers can spoof their IP and dodge those throttles. Per-key limits are not affected.
+- Key creation is open by default so anyone can try the API, and there is no email or captcha. That is a deliberate trade-off; set `BARET_KEY_ISSUANCE=closed` for a private deployment (the `/developers` playground then needs a key from `DELTAG_API_KEYS`, which it cannot take yet).
+- Keys from `DELTAG_API_KEYS` are limited per IP only: no per-key limit, no usage counters, no revocation through the API.
+- `GET /v1/audit/*` reflects only the current process (in memory, reset on restart) and is visible to every valid key.
+
+### Analysis coverage
+
+- `KNOWN_MALICIOUS_ADDRESS` uses a small seed reputation list; it never blocks by itself (no policy option gates it), so absence of the finding is not evidence of safety.
+- Several finding codes exist in the response type but are not emitted yet; `GET /v1/detectors?status=reserved` lists them.
+- The MCP `baret_list_profiles` tool and the `policyProfile` argument describe policy profiles that are not applied to `/v1/analyze`; use the `policy` object instead.
+
 ### Auth modes
 
 - **API key**, **x402**, or **both** may be configured. In **x402** or **both** modes, `/v1/analyze` may skip API key when x402 verification is used; exact rules follow server `DELTAG_AUTH_MODE` and `X402_*` environment variables.

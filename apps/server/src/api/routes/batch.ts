@@ -1,73 +1,84 @@
+import type { OutgoingHttpHeaders } from "node:http";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   analyzeTransaction,
   AnalyzeValidationError,
+  WrongNetworkError,
   type AnalyzeDeps,
 } from "../../application/analyze-transaction.js";
 import { analyzeRequestBodySchema } from "../../domain/policy.js";
 import { StellarRpcError } from "../../infra/stellar-rpc.js";
 import type { Decision } from "../../domain/decision.js";
+import { apiError } from "../errors.js";
+import { rateLimitedReply } from "../auth.js";
 
-const MAX_BATCH_SIZE = 25;
+export const MAX_BATCH_SIZE = 25;
 
 const batchRequestSchema = z.object({
   transactions: z.array(analyzeRequestBodySchema).min(1).max(MAX_BATCH_SIZE),
 });
 
+export type BatchItemError = { code: string; message: string };
+
 export type BatchResultItem = {
   index: number;
   status: "success" | "error";
   decision?: Decision;
-  error?: { code: string; message: string };
+  error?: BatchItemError;
 };
 
-export function registerBatchRoute(
-  app: FastifyInstance,
-  deps: AnalyzeDeps,
-) {
+/**
+ * Maps a per-item failure to the same `{code, message}` an equivalent single
+ * `/v1/analyze` call would have produced. Unrecognized errors may carry RPC
+ * URLs or library internals, so they are logged and replaced with a generic
+ * message.
+ */
+function toItemError(
+  e: unknown,
+  log: FastifyRequest["log"],
+  index: number,
+): BatchItemError {
+  if (e instanceof WrongNetworkError) return { code: "WRONG_NETWORK", message: e.message };
+  if (e instanceof AnalyzeValidationError) return { code: "BAD_REQUEST", message: e.message };
+  if (e instanceof StellarRpcError) return { code: "RPC_ERROR", message: e.publicMessage };
+  log.error({ err: e, index }, "Unexpected error during batch item");
+  return { code: "INTERNAL_ERROR", message: "Unexpected server error" };
+}
+
+/**
+ * One HTTP call is many analyses, so it must spend many requests' worth of the
+ * key's per-minute budget — otherwise a batch of 25 would be a 25x bypass of
+ * the limit. The auth hook already charged 1.
+ */
+function chargeBatch(req: FastifyRequest, reply: FastifyReply, size: number) {
+  const result = req.apiKey?.consume?.(size - 1);
+  return result && !result.allowed ? rateLimitedReply(reply, result) : null;
+}
+
+export function registerBatchRoute(app: FastifyInstance, deps: AnalyzeDeps) {
   app.post("/v1/analyze/batch", async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = batchRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      return reply.status(400).send({
-        error: "BAD_REQUEST",
-        message: "Invalid batch request",
-        details: parsed.error.flatten(),
-      });
+      return reply.status(400).send(
+        apiError("BAD_REQUEST", "Invalid batch request", {
+          issues: parsed.error.flatten(),
+        }),
+      );
     }
+    const limited = chargeBatch(req, reply, parsed.data.transactions.length);
+    if (limited) return limited;
 
-    const results: BatchResultItem[] = [];
-
-    const promises = parsed.data.transactions.map(async (txBody, index) => {
-      try {
-        const decision = await analyzeTransaction(txBody, deps);
-        return { index, status: "success" as const, decision };
-      } catch (e) {
-        if (e instanceof AnalyzeValidationError) {
-          return { index, status: "error" as const, error: { code: "VALIDATION_ERROR", message: e.message } };
+    const results: BatchResultItem[] = await Promise.all(
+      parsed.data.transactions.map(async (txBody, index): Promise<BatchResultItem> => {
+        try {
+          const decision = await analyzeTransaction(txBody, deps);
+          return { index, status: "success", decision };
+        } catch (e) {
+          return { index, status: "error", error: toItemError(e, req.log, index) };
         }
-        if (e instanceof StellarRpcError) {
-          return { index, status: "error" as const, error: { code: "RPC_ERROR", message: e.message } };
-        }
-        // Unrecognized errors may carry RPC URLs or library internals — log
-        // the real thing server-side, return only a generic message.
-        req.log.error({ err: e, index }, "Unexpected error during batch analyze item");
-        return {
-          index,
-          status: "error" as const,
-          error: { code: "INTERNAL_ERROR", message: "Unexpected server error" },
-        };
-      }
-    });
-
-    const settled = await Promise.allSettled(promises);
-    for (const result of settled) {
-      if (result.status === "fulfilled") {
-        results.push(result.value);
-      }
-    }
-
-    results.sort((a, b) => a.index - b.index);
+      }),
+    );
 
     return reply.send({
       count: results.length,
@@ -80,72 +91,75 @@ export function registerBatchRoute(
     });
   });
 
-  app.get("/v1/analyze/stream", async (req: FastifyRequest, reply: FastifyReply) => {
+  /**
+   * SSE responses are written straight to the socket, which skips Fastify's
+   * header pipeline. Carry over what earlier hooks already set (CORS,
+   * rate-limit budget) and the request id, or browser clients would be
+   * blocked from reading the stream at all.
+   */
+  const startSse = (req: FastifyRequest, reply: FastifyReply) => {
+    reply.hijack();
     reply.raw.writeHead(200, {
+      ...(reply.getHeaders() as OutgoingHttpHeaders),
+      "x-request-id": req.id,
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
     });
-
-    const sendEvent = (event: string, data: unknown) => {
+    return (event: string, data: unknown) => {
       reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
+  };
 
-    sendEvent("connected", { message: "SSE stream ready", maxBatchSize: MAX_BATCH_SIZE });
-
-    req.raw.on("close", () => {
-      reply.raw.end();
+  // Kept for backwards compatibility. Streaming needs a request body, which a
+  // GET cannot carry, so this only tells the caller where to POST instead.
+  app.get("/v1/analyze/stream", async (req: FastifyRequest, reply: FastifyReply) => {
+    const send = startSse(req, reply);
+    send("connected", { message: "SSE stream ready", maxBatchSize: MAX_BATCH_SIZE });
+    send("error", {
+      code: "BAD_REQUEST",
+      message: "Send transactions as a POST body to /v1/analyze/stream.",
     });
-
-    const body = req.query as { transactions?: string };
-    if (!body.transactions) {
-      sendEvent("error", { message: "Provide transactions as POST body for streaming. This SSE endpoint is for receiving results." });
-      return;
-    }
+    reply.raw.end();
   });
 
   app.post("/v1/analyze/stream", async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = batchRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      return reply.status(400).send({
-        error: "BAD_REQUEST",
-        message: "Invalid stream request",
-        details: parsed.error.flatten(),
-      });
+      return reply.status(400).send(
+        apiError("BAD_REQUEST", "Invalid stream request", {
+          issues: parsed.error.flatten(),
+        }),
+      );
     }
+    const limited = chargeBatch(req, reply, parsed.data.transactions.length);
+    if (limited) return limited;
 
-    reply.raw.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+    const send = startSse(req, reply);
+    // The RESPONSE's close, not the request's: `req.raw` emits "close" as soon
+    // as the request body has been read, long before the client goes away. We
+    // only end the response ourselves at the very end, so a close before that
+    // means the client disconnected.
+    let clientGone = false;
+    reply.raw.once("close", () => {
+      clientGone = true;
     });
 
-    const sendEvent = (event: string, data: unknown) => {
-      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    };
+    const total = parsed.data.transactions.length;
+    send("start", { total });
 
-    sendEvent("start", { total: parsed.data.transactions.length });
-
-    for (let i = 0; i < parsed.data.transactions.length; i++) {
-      const txBody = parsed.data.transactions[i]!;
+    for (const [index, txBody] of parsed.data.transactions.entries()) {
+      // Nobody is listening any more: don't spend RPC calls on the rest.
+      if (clientGone) return;
       try {
         const decision = await analyzeTransaction(txBody, deps);
-        sendEvent("result", { index: i, status: "success", decision });
+        send("result", { index, status: "success", decision });
       } catch (e) {
-        if (e instanceof AnalyzeValidationError) {
-          sendEvent("result", { index: i, status: "error", error: e.message });
-          continue;
-        }
-        if (e instanceof StellarRpcError) {
-          sendEvent("result", { index: i, status: "error", error: e.message });
-          continue;
-        }
-        req.log.error({ err: e, index: i }, "Unexpected error during stream analyze item");
-        sendEvent("result", { index: i, status: "error", error: "Unexpected server error" });
+        send("result", { index, status: "error", error: toItemError(e, req.log, index) });
       }
     }
 
-    sendEvent("complete", { total: parsed.data.transactions.length });
+    send("complete", { total });
     reply.raw.end();
   });
 }

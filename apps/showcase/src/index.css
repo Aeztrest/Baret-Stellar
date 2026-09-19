@@ -58,6 +58,18 @@
 }
 
 @layer utilities {
+  /* Tailwind doesn't emit `/opacity` modifiers for our var()-based colour
+   * tokens (e.g. `bg-primary/10` compiles to nothing), so translucent tints
+   * are spelled out here with color-mix. */
+  .tint-primary { background-color: color-mix(in oklab, var(--primary) 8%, transparent); }
+  .tint-primary-md { background-color: color-mix(in oklab, var(--primary) 14%, transparent); }
+  .fill-primary-soft { background-color: color-mix(in oklab, var(--primary) 70%, transparent); }
+  .glass-bg { background-color: color-mix(in oklab, var(--background) 85%, transparent); }
+  .hover-tint-secondary:hover { background-color: color-mix(in oklab, var(--secondary) 60%, transparent); }
+  .hover-border-strong:hover { border-color: color-mix(in oklab, var(--foreground) 30%, transparent); }
+  .border-ok-soft { border-color: color-mix(in oklab, var(--ok) 40%, transparent); }
+  .border-bad-soft { border-color: color-mix(in oklab, var(--bad) 40%, transparent); }
+
   /* ── signature motif: hazard stripe (orange/ink diagonals) ── */
   .hazard {
     background: repeating-linear-gradient(

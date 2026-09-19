@@ -28,6 +28,9 @@ yarn-error.log*
 pnpm-debug.log*
 .pnpm-store/
 
+# ─── API key store written by the server at runtime (hashed keys + usage) ───
+apps/server/data/
+
 # ─── Environments / secrets ───
 .env
 .env.local

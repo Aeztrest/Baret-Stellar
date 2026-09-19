@@ -48,9 +48,7 @@ export async function analyzeTransaction(
   const t0 = performance.now();
 
   if (body.network !== config.stellar.network) {
-    throw new AnalyzeValidationError(
-      `Server is configured for ${config.stellar.network}, request asked for ${body.network}`,
-    );
+    throw new WrongNetworkError(config.stellar.network, body.network);
   }
 
   let envelope;
@@ -193,5 +191,18 @@ export class AnalyzeValidationError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
     this.name = "AnalyzeValidationError";
+  }
+}
+
+/** The request targeted a different Stellar network than this server runs on. */
+export class WrongNetworkError extends AnalyzeValidationError {
+  constructor(
+    readonly serverNetwork: string,
+    readonly requestedNetwork: string,
+  ) {
+    super(
+      `Server is configured for ${serverNetwork}, request asked for ${requestedNetwork}`,
+    );
+    this.name = "WrongNetworkError";
   }
 }

@@ -28,5 +28,14 @@ if (config.nodeEnv === "production") {
 
 const app = await buildApp(config);
 
+// Hosts stop a deploy with SIGTERM. Closing the app flushes the API key store,
+// so request counters from the last few seconds are not lost on every deploy.
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    app.log.info({ signal }, "shutting down");
+    app.close().finally(() => process.exit(0));
+  });
+}
+
 await app.listen({ port: config.port, host: "0.0.0.0" });
 app.log.info({ port: config.port }, "DeltaG server listening");

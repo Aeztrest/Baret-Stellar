@@ -13,7 +13,7 @@ import type {
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import type { AppConfig } from "../config/index.js";
 import { apiError } from "../api/errors.js";
-import { extractApiKeyFromAdapter, timingSafeApiKeyMatch } from "../api/extract-api-key.js";
+import { extractApiKeyFromAdapter } from "../api/extract-api-key.js";
 import { FastifyX402HttpAdapter } from "./x402-fastify-adapter.js";
 
 export type X402PaymentState = {
@@ -45,7 +45,15 @@ export type BaretX402 = {
 
 const ANALYZE_ROUTE_PATTERN = "POST /v1/analyze";
 
-export function createDeltagX402(config: AppConfig): BaretX402 {
+/**
+ * `isValidApiKey` decides whether a presented key may skip payment in `both`
+ * mode. It is a callback (rather than reading `config.apiKeys` here) so keys
+ * created through `POST /v1/keys` count too, not only the operator's keys.
+ */
+export function createDeltagX402(
+  config: AppConfig,
+  isValidApiKey: (key: string) => boolean = () => false,
+): BaretX402 {
   if (!config.x402.enabled) {
     throw new Error("createDeltagX402 called with x402 disabled");
   }
@@ -75,10 +83,10 @@ export function createDeltagX402(config: AppConfig): BaretX402 {
     },
   });
 
-  if (config.authMode === "both" && config.apiKeys.length > 0) {
+  if (config.authMode === "both") {
     httpResourceServer.onProtectedRequest(async (ctx) => {
       const key = extractApiKeyFromAdapter(ctx.adapter);
-      if (key && timingSafeApiKeyMatch(key, config.apiKeys)) {
+      if (key && isValidApiKey(key)) {
         return { grantAccess: true };
       }
       return undefined;

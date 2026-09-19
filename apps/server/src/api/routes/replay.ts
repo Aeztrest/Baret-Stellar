@@ -9,6 +9,8 @@ import {
 import { collectTxAccounts } from "../../simulation/account-keys.js";
 import { pickAccountsForSimulation } from "../../simulation/stellar-simulator.js";
 import { SimulationReplayEngine } from "../../simulation/replay.js";
+import { StellarRpcError } from "../../infra/stellar-rpc.js";
+import { apiError } from "../errors.js";
 
 const replayRequestSchema = z.object({
   network: networkSchema,
@@ -24,25 +26,38 @@ export function registerReplayRoute(
   app.post("/v1/replay", async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = replayRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      return reply.status(400).send({
-        error: "BAD_REQUEST",
-        message: "Invalid replay request",
-        details: parsed.error.flatten(),
-      });
+      return reply.status(400).send(
+        apiError("BAD_REQUEST", "Invalid replay request", {
+          issues: parsed.error.flatten(),
+        }),
+      );
     }
     if (parsed.data.network !== deps.config.stellar.network) {
-      return reply.status(400).send({
-        error: "WRONG_NETWORK",
-        message: `Server is on ${deps.config.stellar.network}; request asked for ${parsed.data.network}`,
-      });
+      return reply.status(400).send(
+        apiError(
+          "WRONG_NETWORK",
+          `Server is on ${deps.config.stellar.network}; request asked for ${parsed.data.network}`,
+          {
+            serverNetwork: deps.config.stellar.network,
+            requestedNetwork: parsed.data.network,
+          },
+        ),
+      );
+    }
+
+    let tx;
+    try {
+      tx = unwrapInnerTransaction(
+        decodeStellarTransactionXdr(
+          parsed.data.transactionXdr,
+          deps.config.stellar.networkPassphrase,
+        ),
+      );
+    } catch {
+      return reply.status(400).send(apiError("BAD_REQUEST", "Invalid transaction XDR"));
     }
 
     try {
-      const envelope = decodeStellarTransactionXdr(
-        parsed.data.transactionXdr,
-        deps.config.stellar.networkPassphrase,
-      );
-      const tx = unwrapInnerTransaction(envelope);
       const txAccounts = collectTxAccounts(tx);
       const accountIds = pickAccountsForSimulation(
         txAccounts.classicAccountIds,
@@ -57,12 +72,18 @@ export function registerReplayRoute(
       });
       return reply.send(result);
     } catch (e) {
+      if (e instanceof StellarRpcError) {
+        req.log.warn({ err: e }, "RPC error during replay");
+        return reply
+          .status(e.code === "RPC_TIMEOUT" ? 504 : 502)
+          .send(apiError("RPC_ERROR", e.publicMessage, { rpcCode: e.code }));
+      }
       // Log the real error server-side only — it can carry RPC URLs or SDK
       // internals that shouldn't be echoed back to the caller.
       req.log.error({ err: e }, "Replay error");
       return reply
         .status(500)
-        .send({ error: "REPLAY_ERROR", message: "Unexpected server error during replay" });
+        .send(apiError("INTERNAL_ERROR", "Unexpected server error during replay"));
     }
   });
 }
