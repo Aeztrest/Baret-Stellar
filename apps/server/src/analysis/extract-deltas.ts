@@ -6,6 +6,7 @@ import {
   Transaction,
   xdr,
 } from "@stellar/stellar-sdk";
+import { changeTrustAsset } from "../simulation/account-keys.js";
 import type {
   AssetBalanceChange,
   EstimatedChanges,
@@ -175,8 +176,9 @@ function applyClassicOperationEffects(
     }
     case "changeTrust": {
       const o = op as Operation.ChangeTrust;
-      if (!("asset" in o) || !o.asset) break;
-      const asset = canonicalAssetFromSdk(o.asset as Asset);
+      const line = changeTrustAsset(o);
+      if (!line) break;
+      const asset = canonicalAssetFromSdk(line);
       const limit = o.limit ?? "0";
       const limitStroops = decimalToStroops(limit).toString();
       trustlines.push({
@@ -184,7 +186,8 @@ function applyClassicOperationEffects(
         accountId: opSource,
         asset,
         newLimit: limitStroops,
-        direction: limit === "0" ? "removed" : "added",
+        // The SDK renders a zero limit as "0.0000000", not "0".
+        direction: limitStroops === "0" ? "removed" : "added",
         message: `Trustline for ${asset}, limit ${formatUnlimitedAwareAmount(BigInt(limitStroops), UNLIMITED_TRUSTLINE_LIMIT)}`,
       });
       break;

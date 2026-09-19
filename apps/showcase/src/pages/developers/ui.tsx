@@ -99,10 +99,13 @@ export function CodeBlock({
   language = "text",
   title,
   maxHeight,
+  wrap,
   className,
 }: {
   code: string;
   language?: "json" | "text";
+  /** Wrap long lines instead of scrolling sideways (for prose, not code). */
+  wrap?: boolean;
   title?: string;
   /** Tailwind max-height class, e.g. `max-h-96`. */
   maxHeight?: string;
@@ -121,6 +124,7 @@ export function CodeBlock({
         tabIndex={0}
         className={cn(
           "overflow-auto p-4 font-mono text-[12.5px] leading-relaxed text-foreground",
+          wrap && "whitespace-pre-wrap [overflow-wrap:anywhere]",
           maxHeight,
         )}
       >
