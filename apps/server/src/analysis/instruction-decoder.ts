@@ -5,6 +5,7 @@ import {
   Transaction,
   xdr,
 } from "@stellar/stellar-sdk";
+import { changeTrustAsset } from "../simulation/account-keys.js";
 import type {
   DecodedOperation,
   OperationAction,
@@ -99,12 +100,11 @@ function decodeOperation(
     }
     case "changeTrust": {
       const o = op as Operation.ChangeTrust;
-      const assetStr =
-        "asset" in o && o.asset
-          ? assetIdentifier(o.asset as Asset)
-          : "unknown";
+      const line = changeTrustAsset(o);
+      const assetStr = line ? assetIdentifier(line) : "liquidity pool share";
       assetSet.add(assetStr);
-      const isRemoval = o.limit === "0";
+      // The SDK renders a zero limit as "0.0000000", not "0".
+      const isRemoval = /^0(\.0+)?$/.test(o.limit ?? "");
       return {
         index,
         type: op.type,

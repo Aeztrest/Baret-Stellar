@@ -25,6 +25,20 @@ export type TxAccountSet = {
 };
 
 /**
+ * The asset a `changeTrust` operation targets.
+ *
+ * A decoded operation carries it as `line` (an `Asset`, or a
+ * `LiquidityPoolAsset` for pool shares), never as `asset`. Code that looked
+ * for `asset` never matched, so trustline changes, unlimited trustlines and
+ * removals went undetected on real transactions. Pool-share trustlines have
+ * no single asset and return null.
+ */
+export function changeTrustAsset(op: Operation.ChangeTrust): Asset | null {
+  const line = (op as { line?: unknown }).line;
+  return line instanceof Asset ? line : null;
+}
+
+/**
  * Walks the tx's operations and harvests every distinct account / contract /
  * asset identifier. The result drives detector + delta extraction without
  * forcing those modules to re-parse the SDK operation tree.
@@ -88,7 +102,8 @@ function walkOperation(
     }
     case "changeTrust": {
       const o = op as Operation.ChangeTrust;
-      if ("asset" in o && o.asset) addAssetIdentifier(o.asset as Asset, assets);
+      const line = changeTrustAsset(o);
+      if (line) addAssetIdentifier(line, assets);
       break;
     }
     case "createAccount": {

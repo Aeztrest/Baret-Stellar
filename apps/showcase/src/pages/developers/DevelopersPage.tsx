@@ -18,6 +18,7 @@ import { useApiKey, useDetectors, usePolicySchema, useServer, type ServerState }
 import { KeyPanel } from "./KeyPanel";
 import { Playground } from "./Playground";
 import { DetectorExplorer } from "./Detectors";
+import { AgentPromptSection, CopyAgentPromptButton } from "./AgentPrompt";
 import { EndpointReference, ErrorTable, LimitsPanel } from "./Reference";
 import { buildSnippet, LANGS, maskKey, type Lang } from "./snippets";
 import { CodeBlock, CopyButton, ghostButton, SectionHeading, Tabs } from "./ui";
@@ -26,6 +27,7 @@ const SECTIONS = [
   { id: "key", label: "Get a key" },
   { id: "try", label: "Try it" },
   { id: "use", label: "Use it" },
+  { id: "agents", label: "For AI agents" },
   { id: "reference", label: "Reference" },
   { id: "detectors", label: "Risk codes" },
   { id: "limits", label: "Limits & errors" },
@@ -44,7 +46,7 @@ export default function DevelopersPage() {
       <LandingHeader cta={{ label: "Try the wallet demo", to: "/showcase" }} />
 
       <main className="relative">
-        <Hero state={state} retry={retry} />
+        <Hero state={state} retry={retry} meta={meta} />
         <SectionNav />
 
         <div className="mx-auto max-w-6xl space-y-24 px-5 pb-28 pt-14 sm:px-8">
@@ -82,10 +84,20 @@ export default function DevelopersPage() {
             <UseIt keyState={keyState} meta={meta} />
           </section>
 
+          <section aria-labelledby="agents">
+            <SectionHeading
+              id="agents"
+              index="04"
+              title="For AI agents"
+              lead="Give your agent one prompt and it puts Baret in front of its own wallet: it blocks unsafe transactions, warns on risky ones, and flags anything that skips the wallet."
+            />
+            <AgentPromptSection meta={meta} apiKey={keyState.key} />
+          </section>
+
           <section aria-labelledby="reference">
             <SectionHeading
               id="reference"
-              index="04"
+              index="05"
               title="Endpoint reference"
               lead={
                 <>
@@ -104,7 +116,7 @@ export default function DevelopersPage() {
           <section aria-labelledby="detectors">
             <SectionHeading
               id="detectors"
-              index="05"
+              index="06"
               title="Risk codes"
               lead="Everything Baret can flag, straight from the live catalog. Each code tells you which policy option turns it into a block."
             />
@@ -114,7 +126,7 @@ export default function DevelopersPage() {
           <section aria-labelledby="limits">
             <SectionHeading
               id="limits"
-              index="06"
+              index="07"
               title="Limits & errors"
               lead="What to expect from the server, and what to do when it says no."
             />
@@ -135,7 +147,7 @@ export default function DevelopersPage() {
 
 /* ═══════════════════════ hero ═══════════════════════ */
 
-function Hero({ state, retry }: { state: ServerState; retry: () => void }) {
+function Hero({ state, retry, meta }: { state: ServerState; retry: () => void; meta: Meta | null }) {
   return (
     <div className="mx-auto max-w-6xl px-5 pt-36 sm:px-8">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -162,6 +174,7 @@ function Hero({ state, retry }: { state: ServerState; retry: () => void }) {
             <code className="min-w-0 truncate font-mono text-sm">{PUBLIC_API_URL}</code>
             <CopyButton text={PUBLIC_API_URL} className="border-transparent bg-secondary" />
           </div>
+          <CopyAgentPromptButton meta={meta} />
           <a
             href="/api/openapi.json"
             target="_blank"

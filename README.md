@@ -144,7 +144,8 @@ A standalone landing site + interactive demo. Every page is real React.
 - **`/install`** — one-click extension installer with browser auto-detect
   (Chrome / Brave / Edge / Firefox) and step-by-step "load unpacked" guidance.
 - **`/developers`** — the public **API portal**: get a free key, try `/v1/analyze` on real (and
-  attack) transactions, copy the code in cURL / JS / Python / Go, and browse the reference.
+  attack) transactions, copy the code in cURL / JS / Python / Go, browse the reference, and copy
+  a ready-made **prompt that wires Baret into an AI agent's own wallet** (block unsafe signatures, warn on risky ones).
 - **`/docs`** — index of the design documents in `docs/`.
 - **Demo dApps** — each looks production-built and has a **Danger Mode** toggle
   that swaps the payload for the matching attack scenario. Every action opens a
