@@ -2,7 +2,7 @@
 
 > **Canlı takip dosyası.** Oturumlar arası süreklilik için tek kaynak: neyin yapıldığı, neyin kaldığı, alınan kararlar ve her görevin nasıl yapılacağı.
 > **Her oturumun başında oku, her iş bitince güncelle.**
-> Son güncelleme: 2026-09-20 · Taban: origin/main @ 89395f5 (PR #43). Çalışma dizini: ayrı worktree BaretStellar-main (dal main), bkz. S0.
+> Son güncelleme: 2026-09-20 · Taban: origin/main @ 1d60367 (PR'lar merge sonrası) + yerel, push edilmemiş görev commit'leri. Çalışma dizini: ayrı worktree BaretStellar-main (dal main), bkz. S0.
 
 ## 0. Bu dosyayı nasıl kullanırım
 
@@ -66,7 +66,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | PR #39 (Freighter x402), #21 (eski dokümanlar) | ✅ merge | |
 | CI (`main`) | ✅ yeşil | son 4 koşu başarılı |
 | Dockerfile filtresi, eski `openapi.yaml` kalıntısı | ✅ düzeldi | Dockerfile `@stellar-thorn/server` filtresini kullanıyor; eski `openapi.yaml` silinmiş |
-| Sahte sayaçlar (Scrybe `ORACLE_STATS` "48,210", `RECENT_QUESTIONS`) | ⏳ hâlâ var | `apps/showcase/src/sites/scrybe/Scrybe.tsx` |
+| Sahte sayaçlar (Scrybe `ORACLE_STATS` "48,210", `RECENT_QUESTIONS`) | ✅ silindi (T1.1) | `apps/showcase/src/sites/scrybe/Scrybe.tsx` |
 | Eklenti analiz timeout'u 25 sn (Render cold start ≈ 30 sn) | ⏳ | `apps/extension/src/background/baret/analyze-client.ts` |
 | Attestation eklentide/showcase'te doğrulanmıyor; canlıda kapalı | ⏳ | `docs/implementation-status.md` §1 |
 | Stellar SDK sürümleri | 🚫 ertelendi (T0.4) | eklenti `^16.0.1`, diğerleri `^15.1.0`; ihtiyacımız olan API iki majörde de aynı |
