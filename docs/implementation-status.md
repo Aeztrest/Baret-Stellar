@@ -129,6 +129,7 @@ Bu dokümanı yazarken **yapılmayan**: canlı testnet'te uçtan uca doğrulama 
 | `apps/wallet` ağ seçimi | ⏳ | `ACTIVE_NETWORK="testnet"` sabit |
 | Showcase pubnet | ⏳ | Testnet-only |
 | Showcase'te sayfa içi analiz kutusu | ⏳ (kaldırıldı) | Bilerek: verdict yalnızca cüzdan popup'ında |
+| Kurmaca dApp rakamları etiketli, Scrybe'de sahte sayaç/akış yok | ✅ | `apps/showcase/src/components/SiteShell.tsx` ("Fictional demo dApp" rozeti), `apps/showcase/src/sites/scrybe/Scrybe.tsx` |
 
 ## 6. Kontratlar
 

@@ -18,7 +18,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, ExternalLink, ShieldCheck, AlertTriangle,
   Loader2, Zap, Lock, Copy, Check, Wallet, Terminal,
-  Clock, FileCheck, MessageSquare, ArrowRight, Cpu,
+  FileCheck, MessageSquare, Cpu,
 } from "lucide-react";
 import { ThemeToggle } from "@stellar-thorn/ui";
 import { useWallet } from "../../wallet/context";
@@ -64,22 +64,19 @@ const SUGGESTIONS = [
   "Explain USDC on Stellar",
 ];
 
-// Static marketing content for the landing view (no live calls).
-const EXAMPLES: { q: string; a: string; ms: number }[] = [
+// Illustrations for the landing view; none of these were settled on-chain.
+const EXAMPLES: { q: string; a: string }[] = [
   {
     q: "What is a Stellar path payment?",
     a: "A path payment sends one asset and delivers another, hopping through the built-in DEX order books in a single atomic operation. The sender picks the max to spend, the receiver the exact amount to get.",
-    ms: 820,
   },
   {
     q: "How does x402 settle a payment?",
     a: "The server answers HTTP 402 with PaymentRequirements. The client signs a SEP-43 auth entry for the exact USDC amount; a facilitator rebuilds, fee-bumps and lands the transfer, then returns the answer with the on-chain hash.",
-    ms: 940,
   },
   {
     q: "Why pay per question instead of a subscription?",
     a: "Machine clients can't sign up for plans. A $0.001 pay-per-call meters usage exactly, needs no accounts or API keys, and every request carries its own cryptographic proof of payment.",
-    ms: 760,
   },
 ];
 
@@ -88,20 +85,6 @@ const FLOW_STEPS: { n: string; icon: typeof Zap; t: string; b: string }[] = [
   { n: "02", icon: Lock, t: "402 Payment Required", b: "The oracle returns PaymentRequirements: $0.001 USDC." },
   { n: "03", icon: ShieldCheck, t: "Wallet signs", b: "Your wallet signs a SEP-43 auth entry under your caps." },
   { n: "04", icon: Zap, t: "Settle", b: "The facilitator lands the transfer and returns the proof." },
-];
-
-const ORACLE_STATS: { icon: typeof Zap; value: string; label: string }[] = [
-  { icon: MessageSquare, value: "48,210", label: "Questions answered" },
-  { icon: Clock, value: "0.9s", label: "Avg settle time" },
-  { icon: FileCheck, value: "100%", label: "On-chain proofs" },
-];
-
-const RECENT_QUESTIONS: { q: string; ago: string; ms: number }[] = [
-  { q: "What secures the Stellar Consensus Protocol?", ago: "just now", ms: 780 },
-  { q: "How do Soroban auth entries work?", ago: "12s ago", ms: 910 },
-  { q: "Difference between SEP-10 and SEP-43?", ago: "44s ago", ms: 850 },
-  { q: "What is a fee-bump transaction?", ago: "1m ago", ms: 690 },
-  { q: "How does USDC keep its peg?", ago: "2m ago", ms: 970 },
 ];
 
 export default function Scrybe() {
@@ -398,11 +381,6 @@ export default function Scrybe() {
             {/* Pricing + how it works */}
             <PricingFlow />
 
-            {/* Oracle stats */}
-            <OracleStats />
-
-            {/* Recent questions feed */}
-            <RecentFeed />
           </motion.section>
         )}
 
@@ -631,7 +609,8 @@ function ExampleShowcase() {
           <Sparkles size={12} className="text-indigo-400" /> Example answers
         </p>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Sample question → answer pairs. Every real answer arrives with an on-chain receipt.
+          Sample question → answer pairs. The demo oracle replies from a few prepared texts and echoes anything else back;
+          the $0.001 USDC payment and the on-chain receipt for your own question are real.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -656,8 +635,8 @@ function ExampleShowcase() {
               </span>
               <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">{ex.a}</p>
             </div>
-            <div className="mt-auto flex items-center gap-1.5 border-t border-slate-900/8 pt-2.5 text-[10px] text-emerald-600 dark:border-indigo-400/12 dark:text-emerald-300">
-              <ShieldCheck size={11} /> Settled in {(ex.ms / 1000).toFixed(1)}s · proof on-chain
+            <div className="mt-auto flex items-center gap-1.5 border-t border-slate-900/8 pt-2.5 text-[10px] text-slate-400 dark:border-indigo-400/12 dark:text-slate-500">
+              Illustration · not a live receipt
             </div>
           </motion.div>
         ))}
@@ -725,58 +704,6 @@ function PricingFlow() {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
-
-function OracleStats() {
-  return (
-    <div className="grid grid-cols-3 gap-3">
-      {ORACLE_STATS.map(({ icon: Icon, value, label }) => (
-        <motion.div
-          key={label}
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-40px" }}
-          className="rounded-2xl border border-slate-900/10 bg-white/70 p-4 text-center shadow-sm dark:border-indigo-400/12 dark:bg-white/[0.03]"
-        >
-          <Icon size={16} className="mx-auto text-indigo-500 dark:text-indigo-300" />
-          <p className="mt-2 font-display text-xl font-black tabular-nums sm:text-2xl">{value}</p>
-          <p className="mt-0.5 text-[11px] leading-tight text-slate-500 dark:text-slate-400">{label}</p>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-function RecentFeed() {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          <Clock size={12} className="text-indigo-400" /> Recent questions
-        </p>
-        <span className="rounded-full border border-slate-900/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:border-white/10 dark:text-slate-500">
-          Sample data
-        </span>
-      </div>
-      <div className="divide-y divide-slate-900/8 overflow-hidden rounded-2xl border border-slate-900/10 bg-white/70 shadow-sm dark:divide-indigo-400/10 dark:border-indigo-400/12 dark:bg-white/[0.03]">
-        {RECENT_QUESTIONS.map((r) => (
-          <div key={r.q} className="flex items-center gap-3 px-4 py-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/12">
-              <Check size={11} className="text-emerald-500" />
-            </span>
-            <p className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{r.q}</p>
-            <span className="hidden shrink-0 items-center gap-1 font-mono text-[10px] text-slate-400 dark:text-slate-500 sm:inline-flex">
-              <Zap size={9} className="text-indigo-400" /> {(r.ms / 1000).toFixed(1)}s
-            </span>
-            <span className="shrink-0 font-mono text-[10px] text-slate-400 dark:text-slate-500">{r.ago}</span>
-          </div>
-        ))}
-      </div>
-      <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-        Ask your own to see a live settlement receipt <ArrowRight size={11} className="text-indigo-400" />
-      </p>
     </div>
   );
 }

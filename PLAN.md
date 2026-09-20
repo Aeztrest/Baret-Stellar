@@ -156,13 +156,17 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 ### Faz 1: Güvenlik ve dürüstlük
 
-#### T1.1 Sahte/uydurma veriler ⏳
-- **Doğrulandı (main):** Scrybe `ORACLE_STATS` ("48,210 Questions answered", "0.9s", "100%") ve `RECENT_QUESTIONS` (sahte "just now/12s ago" akışı) hâlâ var.
-- **Önceki denetimden, koda bakarak yeniden doğrulanacak** (denetim eski ağaçtaydı): diğer 5 dApp'te "Sample data" etiketi eksik olabilir; Hub "14% APY" ↔ OrbitYield "7.4%" çelişkisi; `apps/showcase/index.html`'de eski "PaymentGuard" anahtar kelimesi; Scrybe cevapları hazır metin (ödeme gerçek, "oracle" değil) ve UI'da belirtilmemiş.
-- **Adımlar:** sayaçları sil ya da oturumun gerçek geçmişiyle değiştir; tüm kurmaca dApp'lere tek bir "Fictional demo dApp" bandı (paylaşılan `SiteShell`'de); çelişen sayıları düzelt; Scrybe'in cevaplarının hazır olduğunu UI/README'de söyle.
-- **Riskler → önlem:** Tailwind `/NN` opaklık sınıfları token renklerde üretilmez → `index.css` `tint-*` yardımcıları (AGENTS.md); light+dark ikisini de kontrol et.
-- **Kabul:** ekranda etiketsiz uydurma sayı yok; tarayıcıda elle doğrulandı.
-- **Doküman:** `docs/architecture/clients.md` §1, `docs/showcase-briefs.md`, `apps/showcase/README.md`.
+#### T1.1 Sahte/uydurma veriler ✅
+- **Yapıldı (2026-09-20):**
+  - Scrybe'den `ORACLE_STATS` ("48,210 Questions answered", "0.9s", "100%") ve `RECENT_QUESTIONS` (sahte "just now/12s ago" akışı) bileşenleriyle birlikte **silindi**. Gerçek bir sayaç yerine hiçbir şey konmadı: gerçek veri için kalıcı bir sunucu deposu yok, uydurma yerine yokluk daha dürüst. Oturumun gerçek konuşması zaten cevap kartlarında (makbuz ve işlem hash'iyle) görünüyor.
+  - "Example answers" kartları "Settled in 0.8s · proof on-chain" diyordu (gerçek yerleşim değil) → "Illustration · not a live receipt"; alt yazı, demo oracle'ın hazır metinlerle cevap verdiğini ("Echo" dahil), ödeme ve makbuzun gerçek olduğunu söylüyor (sunucu kodundan doğrulandı: 5 anahtar kelimeli hazır cevap, yoksa `Echo (n chars)`).
+  - `SiteShell`'e sağ altta **"Fictional demo dApp · its numbers are made up"** rozeti (5 kurmaca dApp'in hepsi bu çerçeveyi kullanıyor); `pointer-events-none`, mobilde kısa metin.
+  - Hub'daki "Liquid staking · 14% APY" → "Liquid staking": 14% hiçbir yerle örtüşmüyordu (güvenli havuz 7.x%, tuzak havuz 48%); kurmaca rakam kartta gereksizdi.
+  - `apps/showcase/index.html` anahtar kelimesi "PaymentGuard" → "MerchantSpendPolicy".
+- **Kanıt:** showcase typecheck ve production build yeşil; başsız Chromium ile ekran görüntüleri (Scrybe, OrbitYield masaüstü, NovaSwap 390 px) ve DOM dökümü: sahte metinler yok, rozet görünüyor ve mobilde "Showcase" düğmesiyle çakışmıyor. `docs:check`/`secrets:check` OK.
+- **Kanıt sınırı:** Scrybe'deki örnek kartlar `whileInView` animasyonu yüzünden başsız yakalamada `opacity:0` kalıyor (önceden de böyleydi); yeni metin DOM'da doğrulandı, kartın görsel hâli gerçek tarayıcıda **görülmedi**. Koyu tema ve diğer dört kurmaca site için rozet ayrıca ekran görüntüsüyle doğrulanmadı (aynı bileşen).
+- **Açık gözlem (kapsam dışı):** NovaSwap'ın grafik kartı 390 px genişlikte sağa taşıyor ("1H" kesiliyor); T1.1 ile ilgisiz, önceden var. İstenirse ayrı küçük bir düzeltme.
+- **Doküman:** `docs/architecture/clients.md` §1.3, `docs/implementation-status.md` §5. (`docs/showcase-briefs.md` ve `apps/showcase/README.md` bu rakamlardan söz etmiyor, değişmedi.)
 
 #### T1.2 Offline, cold-start ve kopyalar ⏳
 - **Bulgu:** eklenti timeout'u 25 sn, Render cold start ≈ 30 sn → uyuyan sunucuda ilk imza "korumasız" advisory'sine düşer; advisory'de Sign butonu açık; popup kopyası ("Sign stays locked…") ve showcase kopyası ("won't sign unchecked…") davranışla çelişiyor. Popup'ta "Retry analysis" var (LIMITATIONS).
@@ -340,6 +344,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 4) | T1.1 ✅: Scrybe sahte sayaç/akış silindi, örnek kartlar illüstrasyon olarak etiketlendi, kurmaca dApp rozeti, Hub ve index.html düzeltmeleri. Görsel doğrulama kısmen (bkz. T1.1 kanıt sınırı). |
 | 2026-09-20 (ilerleme 3) | S1 ✅: 7 yeşil PR merge edildi, 3 kırmızı bilerek açık. Görevler artık **görev başına commit** ediliyor (yerel `main`, henüz push edilmedi). Rebase sonrası düzeltmeler: workflow sürümleri hizalandı, `check-secrets.mjs` kendi PEM etiketini yakalıyordu (düzeltildi), `payment-guard` anlık görüntüleri yenilendi. |
 | 2026-09-20 (ilerleme 2) | T0.6 ✅: `chain-check` betiği + haftalık `testnet-health.yml`; canlı testnet'te kontrat/wasm/USDC canlı (kontrat simülasyonla doğrulandı). T0.7'nin "kontrat canlı mı" kısmı böylece kanıtlandı; uçtan uca ödeme akışı hâlâ ⏳. |
 | 2026-09-20 (ilerleme) | S0 ✅ (ayrı worktree `BaretStellar-main`, `main` @ `89395f5`; eski ağaç eşzamanlı oturumlar yüzünden bırakıldı). S1 değerlendirildi (7 PR yeşil, 3 kırmızı), merge kullanıcı onayında. T0.3 ✅ (`RISK_FINDING_CODES`/`CLIENT_FINDING_CODES` + drift testi, mutasyonla doğrulandı). T0.4 🚫 (transitif SDK kopyaları yüzünden tek sürüm imkânsız; iki majör aynı API'yi sunuyor). T0.5 ✅ kısmen (kontrat fmt/clippy/wasm CI, secret tarama betiği; ESLint ve showcase testi ertelendi). Hiçbir şey commit'lenmedi. |

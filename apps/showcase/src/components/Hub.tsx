@@ -77,7 +77,7 @@ const SHOWCASE: SiteSpec[] = [
   },
   {
     index: "04", path: "/orbityield", name: "OrbitYield", category: "Staking",
-    tagline: "Liquid staking · 14% APY",
+    tagline: "Liquid staking",
     description: "A liquid-staking landing page. The pool exists, but it's an anonymous fork with no on-chain unstake path. It's a one-way deposit.",
     catches: ["Pool contract unverified", "No discoverable unstake function", "TVL inflated by self-deposits"],
     threat: "Trust trap · No unstake path",

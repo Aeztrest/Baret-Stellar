@@ -57,6 +57,8 @@ Notlar:
 - NovaSwap ve LaunchPad "danger" sonrası `simulateDrainerSweep` ile saldırganın `transfer_from` ile bakiyeyi süpürmesi gösterilir.
 - Senaryo metinleri `baret/scenarios.ts`'te tek yerde tutulur (site metni ile işlem şekli ayrışmasın).
 - Sitelerin görsel kimliği kendindedir (`SiteShell`); Baret markası yoktur. `packages/showcase-ui` yalnızca `DangerModeToggle` sağlar.
+- **Kurmaca dApp'lerdeki bakiye, APY, TVL, sahip/cüzdan sayısı gibi rakamlar uydurmadır.** `SiteShell` bunu her sitede sağ altta "Fictional demo dApp" rozetiyle söyler (rozet tıklamayı engellemez, ClaimHub'ın kendi "Sample data" etiketi de durur). Rakamlar bilerek gerçek veri gibi sunulmaz.
+- **Scrybe'de ödeme ve makbuz gerçek, cevap değil:** sunucu (`demo-paywall.ts`) beş hazır metinden anahtar kelime eşleşmesiyle cevap verir, eşleşmezse `Echo (n chars)` döner. Landing'deki "Example answers" kartları illüstrasyondur ("Illustration · not a live receipt"); sahte sayaç ya da sahte "son sorular" akışı yoktur.
 
 ### 1.4 Sunucuyla konuşan yerler
 
