@@ -79,7 +79,7 @@ Sözlük: ✅ uygulanmış · 🟡 kısmen · ⏳ planlanmış/kodda yok · 🗃
 | Mandate modeli: ilk ödeme elle onay, canlı mandate ile oto-onay, süre sonu = yeniden onay | ✅ | `db/allowances.ts` `promoteAllowance`, `mandateMaxAgeDays` (varsayılan 30) |
 | Per-tx / saatlik / günlük **kayan pencere** tavan, atomik rezervasyon | ✅ | `tryReserveSpend` |
 | Oto-onayda OS bildirimi | ✅ | `notifyAutoApproved` |
-| **Zincir üstü** alt anahtar (MerchantSpendPolicy) | ✅ kodda · ⚠️ canlı doğrulama | Ayrıntı aşağıda §4. Best-effort: başarısızsa admin anahtarıyla imzalanır |
+| **Zincir üstü** alt anahtar (MerchantSpendPolicy) | ✅ kodda ve canlı testnet'te (ekip 2026-09-20'de kontrol listesinin geçtiğini bildirdi; tx hash'leri kayda geçmedi) · ⚠️ mandate yenileme adımı ayrıca kayıtlı değil | Ayrıntı aşağıda §4. Best-effort: başarısızsa admin anahtarıyla imzalanır |
 | Pause = yalnız yerel; Revoke = zincirde `remove_signer` | ✅ | `ledger.pause` zincire dokunmaz |
 | Facilitator `/supported` çapraz kontrolü (`requireFeePayerSupportedCheck`) | ⏳ | Alan şemada/UI'da var, **kodda uygulanmıyor** |
 | Tutar anomali tespiti (`blockAmountAnomalies`, `anomalyStdDev`) | ⏳ | Alan var, uygulanmıyor |
@@ -114,8 +114,7 @@ Ayrıntı ve şema: [`policy-dsl.md`](./policy-dsl.md).
 Kod tarafı **tam**: kontrat + 14 birim testi (`contracts/`), eklentide `swig/sub-keys.ts` (`ensurePolicyInstalled`, `provisionMerchantSubKey`), `swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval`,
 `x402/handlers.ts#resolvePaymentSigner`. Eski dokümanlardaki "tavan zincirde uygulanmıyor" ifadesi **artık yanlıştır** (bkz. `LIMITATIONS.md`, `docs/x402-defense.md` §11).
 
-Bu dokümanı yazarken **yapılmayan**: canlı testnet'te uçtan uca doğrulama (`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` "End-to-end verification" kontrol listesi) yeniden koşturulmadı. Bu yüzden garanti
-"kodda ve birim testlerinde var; canlı doğrulama için o listeyi çalıştır" olarak okunmalıdır. Sınırlar:
+Bu doküman yazılırken canlı testnet doğrulaması yapılmamıştı. **Sonradan ekip kontrol listesini (`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` "End-to-end verification") canlı testnet'te koşturdu ve 2026-09-20'de geçtiğini bildirdi**; cüzdan adresi, `set_allowance` / `add_signer` tx hash'leri ve aşırı-tavan ödemesinin sonucu kayda geçmedi, mandate yenileme adımı da ayrıca kayıtlı değil. Sınırlar:
 - Provisioning **best-effort ve elle onay sonrası** (ilk onay, süresi dolan mandate'in yenilenmesi, ya da alt anahtarı olmayan merchant için yeniden deneme); başarısızsa (RPC, parola önbelleği 5 dk TTL) o merchant admin anahtarıyla imzalanır, zincir tavanı yoktur ve Activity'de uyarı çıkar.
 - Alt anahtar `SignerLimits` ile **tek token kontratına** bağlıdır (mandate'in `asset`'i); token'ı farklı bir merchant/asset çifti yeni satır/yeni alt anahtar gerektirir.
 - Zincir tarafında `pause` çağrılmaz (yalnız yerel), `revoke` signer'ı kaldırır ama politikadaki `Allowance` satırı TTL ile kendiliğinden ölür.
