@@ -101,13 +101,12 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Sonuç:** tüm çalışma bu worktree'de yapılır; `PLAN.md` de burada. Eski ağaç (dal docs/render-x402-merchant-secret, 96 commit'lenmemiş dosya, 86'sı `origin/main` ile birebir aynı) **olduğu gibi** duruyor; kullanıcı isterse temizler. `main` dalı bu worktree'de çıkış yapılmış olduğu için eski ağaçta `git checkout main` "already checked out" verir (beklenen).
 - **Kabul:** ✅ `git worktree list` iki ağacı gösterir; `git status` temiz (PLAN.md hariç); temel çizgi: `pnpm typecheck` yeşil, testler yeşil (ext-protocol 3, baret-adapter 3, swig-guard 16, server 165, agent-guard 16, wallet 16, eklenti 89).
 
-#### S1. Bekleyen PR'lar 🟡
-- ✅ #39, #21, #40-#43 merge edildi.
-- **Değerlendirme (2026-09-20, salt-okunur; CI sonuçları PR'ların son güncellemesinden, `mergeable` GitHub'da henüz hesaplanmamış):**
-  - Tüm kontroller yeşil: **#22** (`soroban-sdk` 25→27.0.6), #17, #9, #8 (Actions sürümleri), #15, #14, #13 (`baret_docs`).
-  - Kırmızı: **#12** (next) ve **#11** (eslint 10): Docs CI başarısız. **#24** (43 paket): Node CI + Vercel başarısız.
-- ❓ **Kullanıcı onayı bekliyor:** GitHub'da merge etmek/kapatmak paylaşılan durumu değiştirir; yapılmadı. Öneri: yeşil 7'sini merge et (önce #22, kontrat v2'den önce gerekli), kırmızı 3'ünü kapat ya da beklet. Merge sonrası `main` worktree'sinde `git pull --ff-only` yeterli.
-- **Kabul:** açık PR listesi kısa ve her açık PR için gerekçe var.
+#### S1. Bekleyen PR'lar ✅ (üçü bilerek açık)
+- ✅ #39, #21, #40-#43 merge edilmişti.
+- ✅ **Merge edildi (2026-09-20, kullanıcı onayıyla, merge commit, sırayla):** #22 (`soroban-sdk` 25→27.0.6), #17, #9, #8 (Actions sürümleri), #15, #14, #13 (`baret_docs`). Hepsi `MERGEABLE/CLEAN` idi, `main` korumasız. Sonrasında `main`'in son CI koşusu **başarılı** (öncekiler eşzamanlılık yüzünden iptal edildi).
+- ⏳ **Bilerek açık bırakıldı (kırmızı):** **#12** (next 16.3) ve **#11** (eslint 10): Docs CI başarısız; **#24** (43 paket): Node CI + Vercel başarısız. Kapatma kararı kullanıcıda; gerekirse paket paket denenir.
+- **Yan etkiler (giderildi):** (1) Dependabot Action sürümlerini yalnız o anda var olan işlerde yükseltmişti; sonradan eklenen işler `@v4`'te kaldı → hizalandı. (2) #22 sonrası `payment-guard` test anlık görüntüleri yeniden üretildi (protocol_version 25→27) → commit'lendi. (3) `check-secrets.mjs` izlenen dosya olunca kendi PEM etiketini yakaladı → düzeltildi.
+- **Kanıt:** rebase sonrası kontrat komutları yeşil, wasm hash'i değişmedi (`9ba6094c…`), typecheck temiz, `docs:check`/`secrets:check` OK.
 
 ### Faz 0: Zemin
 
@@ -341,6 +340,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 3) | S1 ✅: 7 yeşil PR merge edildi, 3 kırmızı bilerek açık. Görevler artık **görev başına commit** ediliyor (yerel `main`, henüz push edilmedi). Rebase sonrası düzeltmeler: workflow sürümleri hizalandı, `check-secrets.mjs` kendi PEM etiketini yakalıyordu (düzeltildi), `payment-guard` anlık görüntüleri yenilendi. |
 | 2026-09-20 (ilerleme 2) | T0.6 ✅: `chain-check` betiği + haftalık `testnet-health.yml`; canlı testnet'te kontrat/wasm/USDC canlı (kontrat simülasyonla doğrulandı). T0.7'nin "kontrat canlı mı" kısmı böylece kanıtlandı; uçtan uca ödeme akışı hâlâ ⏳. |
 | 2026-09-20 (ilerleme) | S0 ✅ (ayrı worktree `BaretStellar-main`, `main` @ `89395f5`; eski ağaç eşzamanlı oturumlar yüzünden bırakıldı). S1 değerlendirildi (7 PR yeşil, 3 kırmızı), merge kullanıcı onayında. T0.3 ✅ (`RISK_FINDING_CODES`/`CLIENT_FINDING_CODES` + drift testi, mutasyonla doğrulandı). T0.4 🚫 (transitif SDK kopyaları yüzünden tek sürüm imkânsız; iki majör aynı API'yi sunuyor). T0.5 ✅ kısmen (kontrat fmt/clippy/wasm CI, secret tarama betiği; ESLint ve showcase testi ertelendi). Hiçbir şey commit'lenmedi. |
 | 2026-09-20 | İlk sürüm. `origin/main` @ `89395f5` üzerinden yeniden inceleme: PR #39-#43 merge, doküman seti yenilendi, canlı sunucu güncel. T0.1, T0.2 ✅; T0.5 kısmen ✅. Jüri kararı: tr-mock-anchor + SEP-1/10/6, SEP-24 yok. Yeni görevler: S0, T0.7, T1.5, T1.6, T2.8. T0.3 kapsamı "tek kaynak"tan "katalog + drift testi"ne daraltıldı (sunucu bağımsızlığı korunur; `critical` sapma değil). |
