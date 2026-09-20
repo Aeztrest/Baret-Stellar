@@ -189,10 +189,17 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Kabul:** yanlış/eksik imzada eklenti uyarır; sunucu imzasıyla vektör testi geçer; canlı meta `attestation.enabled=true`.
 - **Doküman:** `docs/x402-defense.md` §10, `docs/architecture/server.md` §13, `packages/agent-guard/README.md`, `docs/implementation-status.md` §1, `LIMITATIONS.md`.
 
-#### T1.4 Sunucu küçük kalanlar 🟡
-- ✅ Anahtarlar, anahtar başı limit, CORS, OpenAPI, portal.
-- ⏳ (her biri **önce koda bakılarak doğrulanacak**): 500 "response validation failed" cevabında Zod `issues`'ın istemciye sızması (`apps/server/src/api/routes/analyze.ts`); `demo-paywall.ts`'te `buildRequirements` hatası 500 mü 502 mi; batch içinde sınırsız `Promise.all`; `X402_MEMO_MISSING` yalnız `policy.requireMemo` açıkken üretilir (varsayılan kapalı) → **sorun değil, dokümanda belirt**.
-- **Kabul:** hata zarfı yükseltilmiş iç mesaj sızdırmaz (AGENTS.md kuralı); testler eklendi.
+#### T1.4 Sunucu küçük kalanlar ✅
+- ✅ Önceden: anahtarlar, anahtar başı limit, CORS, OpenAPI, portal.
+- **Her madde önce koda bakılarak değerlendirildi (2026-09-20):**
+  - **Düzeltildi:** analiz sonucu kendi cevap şemasını geçemeyince `500` cevabı Zod `issues`'ı istemciye yansıtıyordu (AGENTS.md "iç hata detayını yansıtma" kuralı). Artık genel `"Response validation failed"`; ayrıntı yalnız logda. İstek gövdesi hatasındaki (`400`) `details.issues` bilerek kaldı (çağıranın kendi girdisi).
+  - **Düzeltildi:** `/demo/cortex` facilitator'a ulaşılamayınca `502`'de `err.message`'ı `detail` olarak dönüyordu; o mesaj **facilitator URL'ini** içeriyor. Kaldırıldı (logda kalıyor).
+  - **Düzeltildi:** `/demo/scrybe`'de `buildRequirements` hatası yakalanmıyordu; global işleyici sızdırmıyordu ama yanlış durum veriyordu (`500`). Artık Cortex ile aynı `502 {error:"Couldn't build payment requirements"}`.
+  - **Sorun değil:** batch `Promise.all` en fazla 25 işlemle sınırlı ve limit bütçesinden 25 hak düşülüyor (`chargeBatch`); concurrency sınırı eklenmedi. `X402_MEMO_MISSING` yalnız `policy.requireMemo` açıkken üretilir (varsayılan kapalı).
+  - Bilerek bırakıldı: demo satıcılarda verify/settle `detail` alanı (facilitator sebebi), çünkü showcase kullanıcıya "Settle failed: …" olarak gösteriyor.
+- **Kanıt:** yeni `test/api/analyze-response-check.test.ts` (2) ve `test/api/demo-routes.test.ts` (3). **Üç düzeltme geri alınınca 3 test gerçekten kırıldı**, dosyalar yedekle birebir aynı geri yüklendi. Test loglarında URL'in yalnız sunucu logunda kaldığı görüldü.
+- **Yan bulgu (T1.6'nın kaçağı):** `docs/architecture/server.md`'de "drift: 0,5 USDC" eski kalmıştı (virgüllü yazım aramamı atlatmıştı); ayrı commit'te düzeltildi.
+- **Doküman:** `docs/architecture/server.md` §14 (sızıntı kuralları) ve §15 (test listesi).
 
 #### T1.5 Mandate yenileme hatası ✅ (canlı doğrulama T0.7'de)
 - **Kök neden (koddan doğrulandı):** süresi dolan mandate'in satırı `status:"active"` kalıyor (yalnız `expiresAt` geçmişte), `isFirstApproval` ise `status === "pending"`'e bakıyor → yenilemede `false`; eski `provisionRealSubKey` yalnız `isFirstApproval` iken çağrılıyordu. Zincirdeki `set_allowance` süresi ve alt anahtarın `Temporary` signer süresi mandate ile birlikte dolduğu için eklenti eski alt anahtarı kullanmaya devam ediyordu. Ek bulgu: `ext-protocol`'teki yorum "süresi dolan mandate `pending` olur" diyordu (yanlış, hatanın kaynağı) ve "sonraki elle onay yeniden dener" iddiası da yanlıştı: ilk kurulum başarısız olursa da yeniden denenmiyordu.
@@ -358,6 +365,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 8) | PR #44 merge edildi (yerel `main` `2960536`'ya eşit). T1.4 ✅: iç şema ayrıntısı ve facilitator URL'i yanıttan çıkarıldı, `/demo/scrybe` 502; 5 yeni test, 3 mutasyon doğrulaması; T1.6'dan kalan eski drift fiyatı düzeltildi. |
 | 2026-09-20 (ilerleme 7) | T1.5 ✅: mandate yenilemede yeni alt anahtar (`refreshSubKeyAfterApproval`), başarısızlıkta eski anahtar emekli + Activity uyarısı, ilk kurulum başarısızsa yeniden deneme; 11 yeni test, 2 mutasyon doğrulaması. Canlı testnet doğrulaması T0.7'ye kaldı. |
 | 2026-09-20 (ilerleme 6) | T1.6 ✅: varsayılan x402 tavanları 0.5 / 2 / 5 USDC, tek kaynak `DEFAULT_X402_CAPS`; Cortex drift çağrı başı 0.25 USDC'ye uyarlandı; 5 yeni test, 2 mutasyon doğrulaması. |
 | 2026-09-20 (ilerleme 5) | T1.2 ✅: analyze timeout 45 sn, `ws.connect`'te ısıtma, sunucu-uyanıyor ipucu, offline'da Retry + 1,5 sn basılı tutma; showcase zaman aşımı/kopya düzeltmeleri; 6 yeni test (mutasyonla doğrulandı); popup harness'la görsel doğrulama. |

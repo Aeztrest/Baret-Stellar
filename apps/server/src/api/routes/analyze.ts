@@ -87,11 +87,11 @@ export function registerAnalyzeRoute(
             { issues: responseCheck.error.flatten(), safe: decision.safe },
             "Analyze response failed schema validation",
           );
-          return reply.status(500).send(
-            apiError("INTERNAL_ERROR", "Response validation failed", {
-              issues: responseCheck.error.flatten(),
-            }),
-          );
+          // The schema issues stay in the log: they describe the server's
+          // own internals, not something the caller can act on.
+          return reply
+            .status(500)
+            .send(apiError("INTERNAL_ERROR", "Response validation failed"));
         }
 
         if (x402) {

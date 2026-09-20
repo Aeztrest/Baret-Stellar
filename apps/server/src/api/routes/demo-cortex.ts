@@ -105,10 +105,9 @@ export function registerDemoCortexRoute(app: FastifyInstance): void {
     try {
       requirements = await buildRequirements(facilitator, merchant, q, scenario);
     } catch (err) {
-      return reply.code(502).send({
-        error: "Couldn't build payment requirements",
-        detail: err instanceof Error ? err.message : String(err),
-      });
+      // The message names the facilitator URL, so it stays in the log.
+      req.log.warn({ err }, "cortex: couldn't build payment requirements");
+      return reply.code(502).send({ error: "Couldn't build payment requirements" });
     }
 
     if (!headerValue) {
