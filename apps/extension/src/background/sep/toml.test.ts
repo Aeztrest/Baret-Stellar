@@ -48,6 +48,7 @@ describe("parseAnchorToml", () => {
       webAuthEndpoint: "https://tr-mock-anchor.fly.dev/auth",
       transferServer: "https://tr-mock-anchor.fly.dev/sep6",
       networkPassphrase: "Test SDF Network ; September 2015",
+      accounts: ["GCLC", "GDXY"],
       currencies: [
         { code: "USDC", issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5" },
         { code: "EURC", issuer: "GEURCISSUER" },
@@ -58,6 +59,13 @@ describe("parseAnchorToml", () => {
   it("keeps only complete [[CURRENCIES]] entries and ignores other tables", () => {
     const { currencies } = parseAnchorToml(SAMPLE);
     expect(currencies?.map((c) => c.code)).toEqual(["USDC", "EURC"]);
+  });
+
+  it("reads the ACCOUNTS array, only at the top level and capped", () => {
+    expect(parseAnchorToml('ACCOUNTS=["GA", "GB"] # ours').accounts).toEqual(["GA", "GB"]);
+    expect(parseAnchorToml('[DOCUMENTATION]\nACCOUNTS=["GNESTED"]').accounts).toEqual([]);
+    const many = `ACCOUNTS=[${Array.from({ length: 80 }, (_, i) => `"G${i}"`).join(",")}]`;
+    expect(parseAnchorToml(many).accounts).toHaveLength(50);
   });
 
   it("caps how many currencies it keeps", () => {
@@ -77,6 +85,7 @@ describe("parseAnchorToml", () => {
       webAuthEndpoint: undefined,
       transferServer: undefined,
       networkPassphrase: undefined,
+      accounts: [],
       currencies: [],
     });
   });

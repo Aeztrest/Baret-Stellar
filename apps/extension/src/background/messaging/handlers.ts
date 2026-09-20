@@ -22,6 +22,7 @@ import { Buffer } from "buffer";
 import browser from "webextension-polyfill";
 import { entropyToMnemonic, mnemonicToEntropy, validateMnemonic } from "bip39";
 import type {
+  AnalyzeResponse,
   ExtRpcMethod,
   ExtRpcRequest,
   ExtRpcResponse,
@@ -66,6 +67,8 @@ import {
 import { analyzeTransaction } from "../baret/analyze-client";
 import { analyzeSep10Challenge } from "../sep/sep10-challenge";
 import { trustlineException } from "../sep/trustline-exception";
+import { verifyWithdrawal, type WithdrawVerdict } from "../sep/withdraw-verify";
+import { browserAnchorAccountsCache } from "../sep/anchor-accounts-storage";
 import { anchorInfo, anchorLogin, listAnchors } from "../sep/anchor-service";
 import {
   isMandateLive,
@@ -1083,6 +1086,16 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
   });
   if (challenge) return challenge;
 
+  // A payment to an account an anchor controls must be exactly the withdrawal
+  // the anchor asked for. A mismatch (or no way to check) never reaches the
+  // server; a match still gets the normal analysis, with a line saying so.
+  const withdrawal = await verifyWithdrawal(req.payloadBase64, {
+    passphrase: getNetworkPassphrase(snap.network),
+    authority: snap.authorityAddress,
+    accountsCache: browserAnchorAccountsCache,
+  });
+  if (withdrawal?.kind === "block") return withdrawal.response;
+
   const policy = await loadPolicy();
 
   // Strict policies block trustline changes, which would also block the
@@ -1109,8 +1122,23 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
     },
     { apiKey: "dev-key-change-me" },
   );
-  return exception ? { ...result, reasons: [...result.reasons, exception.note] } : result;
+  const withNote = exception ? { ...result, reasons: [...result.reasons, exception.note] } : result;
+  return annotateWithdrawal(withNote, withdrawal);
 };
+
+function annotateWithdrawal(
+  result: AnalyzeResponse,
+  verdict: WithdrawVerdict | null,
+): AnalyzeResponse {
+  if (verdict?.kind !== "annotate") return result;
+  return {
+    ...result,
+    decision: verdict.advisory && result.decision === "allow" ? "advisory" : result.decision,
+    reasons: [...result.reasons, verdict.note],
+    advisoryReasons: verdict.advisory ? [...result.advisoryReasons, verdict.note] : result.advisoryReasons,
+    riskFindings: [...result.riskFindings, ...verdict.findings],
+  };
+}
 
 /**
  * The active policy, falling back to `BALANCED_POLICY` — the documented

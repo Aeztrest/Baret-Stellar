@@ -21,6 +21,8 @@ export interface AnchorToml {
   webAuthEndpoint?: string;
   transferServer?: string;
   networkPassphrase?: string;
+  /** `ACCOUNTS`: Stellar accounts the anchor says it controls. */
+  accounts?: string[];
   currencies?: AnchorCurrency[];
 }
 
@@ -81,6 +83,9 @@ export async function fetchAnchorToml(
 
 const KEY_VALUE = /^([A-Za-z][A-Za-z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/;
 const MAX_CURRENCIES = 50;
+const MAX_ACCOUNTS = 50;
+const STRING_ARRAY = /^([A-Z][A-Z0-9_]*)\s*=\s*\[(.*)\]\s*(?:#.*)?$/;
+const QUOTED = /"((?:[^"\\]|\\.)*)"/g;
 
 /**
  * Top-level `KEY="value"` pairs and the `code` / `issuer` strings of each
@@ -89,6 +94,7 @@ const MAX_CURRENCIES = 50;
  */
 export function parseAnchorToml(text: string): AnchorToml {
   const top: Record<string, string> = {};
+  const accounts: string[] = [];
   const currencies: AnchorCurrency[] = [];
   let section: "top" | "currency" | "other" = "top";
   let current: Record<string, string> = {};
@@ -107,6 +113,16 @@ export function parseAnchorToml(text: string): AnchorToml {
       section = /^\[\[\s*CURRENCIES\s*\]\]/.test(line) ? "currency" : "other";
       continue;
     }
+    if (section === "top") {
+      // Only single-line arrays: `ACCOUNTS=["G…", "G…"]`.
+      const arr = STRING_ARRAY.exec(line);
+      if (arr && arr[1] === "ACCOUNTS") {
+        for (const q of arr[2]!.matchAll(QUOTED)) {
+          if (accounts.length < MAX_ACCOUNTS) accounts.push(q[1]!);
+        }
+        continue;
+      }
+    }
     const m = KEY_VALUE.exec(line);
     if (!m) continue;
     const value = m[2]!.replace(/\\(["\\])/g, "$1");
@@ -120,6 +136,7 @@ export function parseAnchorToml(text: string): AnchorToml {
     webAuthEndpoint: top.WEB_AUTH_ENDPOINT,
     transferServer: top.TRANSFER_SERVER,
     networkPassphrase: top.NETWORK_PASSPHRASE,
+    accounts,
     currencies,
   };
 }

@@ -27,6 +27,12 @@ export interface FakeAnchorOptions {
   /** Overrides the toml text entirely. */
   toml?: (serverKey: Keypair, domain: string) => string;
   infoBody?: unknown;
+  /** Accounts published as `ACCOUNTS` in the toml. */
+  accounts?: string[];
+  /** Records `/sep6/transactions` returns (raw SEP-6 shape). */
+  transactions?: unknown[];
+  /** Force a status on `/sep6/transactions` (after the auth check). */
+  transactionsStatus?: number;
   authPostStatus?: number;
   challengePassphrase?: string;
 }
@@ -62,6 +68,7 @@ export function makeFakeAnchor(opts: FakeAnchorOptions = {}) {
         `SIGNING_KEY="${serverKey.publicKey()}"`,
         `WEB_AUTH_ENDPOINT="https://${domain}/auth"`,
         `TRANSFER_SERVER="https://${domain}/sep6"`,
+        ...(opts.accounts ? [`ACCOUNTS=[${opts.accounts.map((a) => `"${a}"`).join(", ")}]`] : []),
         "",
       ].join("\n");
 
@@ -95,6 +102,11 @@ export function makeFakeAnchor(opts: FakeAnchorOptions = {}) {
       return json({ token });
     }
     if (url.pathname === "/sep6/info") return json(opts.infoBody ?? SAMPLE_INFO);
+    if (url.pathname === "/sep6/transactions") {
+      if (!headers.Authorization) return json({ type: "authentication_required" }, 403);
+      if (opts.transactionsStatus && opts.transactionsStatus !== 200) return json({ error: "boom" }, opts.transactionsStatus);
+      return json({ transactions: opts.transactions ?? [] });
+    }
     return new Response("not found", { status: 404 });
   }) as typeof fetch;
 

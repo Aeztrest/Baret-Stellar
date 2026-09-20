@@ -138,7 +138,7 @@ describe("tx.analyzeRequest — SEP-10 challenges", () => {
     expect(analyzeSpy).not.toHaveBeenCalled();
   });
 
-  it("leaves an ordinary transaction to the analyze server and touches no anchor", async () => {
+  it("leaves an ordinary transaction to the analyze server and starts no anchor flow", async () => {
     const { authority, signQueue, handlers } = await freshEnv();
     const payment = new TransactionBuilder(new Account(authority.publicKey(), "100"), {
       fee: BASE_FEE,
@@ -156,6 +156,8 @@ describe("tx.analyzeRequest — SEP-10 challenges", () => {
 
     expect(result).toBe(SERVER_VERDICT);
     expect(analyzeSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // At most the anchor's public toml (to learn which accounts are its own);
+    // never a login challenge or a SEP-6 call.
+    for (const [url] of fetchSpy.mock.calls) expect(String(url)).toContain("/.well-known/stellar.toml");
   });
 });
