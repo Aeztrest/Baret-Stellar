@@ -65,6 +65,7 @@ import {
 } from "../wallet-standard/sign-queue";
 import { analyzeTransaction } from "../baret/analyze-client";
 import { analyzeSep10Challenge } from "../sep/sep10-challenge";
+import { anchorInfo, anchorLogin, listAnchors } from "../sep/anchor-service";
 import {
   isMandateLive,
   listAllowances,
@@ -1247,6 +1248,10 @@ export const handlers: { [M in ExtRpcMethod]: Handler<M> } = {
   "wallet.addAccount": addAccountHandler,
   "wallet.switchAccount": switchAccountHandler,
   "wallet.renameAccount": renameAccountHandler,
+
+  "anchor.list": async () => listAnchors(),
+  "anchor.login": ({ domain }) => anchorLogin(domain),
+  "anchor.info": ({ domain }) => anchorInfo(domain),
 
   "network.set": networkSet,
 

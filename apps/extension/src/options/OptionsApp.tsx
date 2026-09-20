@@ -16,6 +16,7 @@ import { X402Page } from "./pages/X402Page";
 import { SitesPage } from "./pages/SitesPage";
 import { SiteDetailPage } from "./pages/SiteDetailPage";
 import { PoliciesPage } from "./pages/PoliciesPage";
+import { AnchorPage } from "./pages/AnchorPage";
 
 const POPUP_LIKE = new Set(["/onboarding"]);
 
@@ -83,6 +84,7 @@ export function OptionsApp() {
           <Route path="/sites/:b64" element={<SiteDetailPage />} />
           <Route path="/policies"  element={<PoliciesPage />} />
           <Route path="/x402"      element={<X402Page />} />
+          <Route path="/anchors"   element={<AnchorPage />} />
           <Route path="/settings"  element={<SettingsOpt />} />
         </Routes>
       </Guard>

@@ -8,6 +8,7 @@
  */
 
 import { normalizeAnchorDomain } from "./anchors.js";
+import { BodyTooLargeError, readTextCapped } from "./http.js";
 
 export interface AnchorToml {
   signingKey?: string;
@@ -59,47 +60,16 @@ export async function fetchAnchorToml(
       signal: controller.signal,
     });
     if (!res.ok) throw new TomlError(`stellar.toml answered HTTP ${res.status}.`);
-    const toml = parseAnchorToml(await readCapped(res, maxBytes));
+    const toml = parseAnchorToml(await readTextCapped(res, maxBytes));
     cache.set(host, { at: Date.now(), toml });
     return toml;
   } catch (err) {
     if (err instanceof TomlError) throw err;
+    if (err instanceof BodyTooLargeError) throw new TomlError("stellar.toml is too large.");
     throw new TomlError("Couldn't read the anchor's stellar.toml.");
   } finally {
     clearTimeout(timer);
   }
-}
-
-async function readCapped(res: Response, maxBytes: number): Promise<string> {
-  const declared = Number(res.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    throw new TomlError("stellar.toml is too large.");
-  }
-  const reader = res.body?.getReader();
-  if (!reader) {
-    const text = await res.text();
-    if (text.length > maxBytes) throw new TomlError("stellar.toml is too large.");
-    return text;
-  }
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBytes) {
-      await reader.cancel();
-      throw new TomlError("stellar.toml is too large.");
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    bytes.set(c, offset);
-    offset += c.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
 }
 
 const KEY_VALUE = /^([A-Z][A-Z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/;

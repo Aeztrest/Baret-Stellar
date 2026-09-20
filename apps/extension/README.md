@@ -11,7 +11,7 @@ The Baret browser wallet: Chrome MV3 and Firefox (≥ 128). It reads every trans
 |---|---|
 | `src/background/` | Service worker: state, IndexedDB, crypto, x402, smart wallet/sub-keys, monitor, message router |
 | `src/popup/` | Toolbar popup (360×600) and the sign/connect window: Home · Activity · Allowances · Settings, `SignRequest`, `ConnectApproval` |
-| `src/options/` | Full wallet (HashRouter): onboarding, Home, Sites, Activity, Policies, x402 Console, Settings |
+| `src/options/` | Full wallet (HashRouter): onboarding, Home, Sites, Activity, Policies, x402 Console, Anchors, Settings |
 | `src/content/` | Content script: injects the inpage script, bridges to the background, corner badge |
 | `src/inpage/` | Page-world provider `window.baretStellar` (Freighter-compatible) and the `fetch` 402 interceptor |
 | `src/shared/` | Typed RPC client and React context for popup/options |

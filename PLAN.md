@@ -70,7 +70,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | Eklenti analiz timeout'u 25 sn (Render cold start ≈ 30 sn) | ✅ 45 sn + ısıtma + Retry/basılı tutma (T1.2) | `apps/extension/src/background/baret/analyze-client.ts` |
 | Attestation eklentide/showcase'te doğrulanmıyor; canlıda kapalı | ⏳ | `docs/implementation-status.md` §1 |
 | Stellar SDK sürümleri | 🚫 ertelendi (T0.4) | eklenti `^16.0.1`, diğerleri `^15.1.0`; ihtiyacımız olan API iki majörde de aynı |
-| SEP-1/6/10 (anchor) kodu | 🟡 SEP-10 challenge tanıyıcı + SEP-1 toml okuyucu var (T2.1); SEP-6 istemcisi ve çekme koruması ⏳ | `apps/extension/src/background/sep/` |
+| SEP-1/6/10 (anchor) kodu | 🟡 SEP-10 tanıyıcı + giriş, SEP-1 toml, SEP-6 `/info`, Options → Anchors var (T2.1, T2.2); yatırma/çekme, kayıtlar, çekme koruması ⏳ | `apps/extension/src/background/sep/` |
 | `spend_log` sınırsız `Vec` (kontrat) | ⏳ | `contracts/contracts/merchant-spend-policy/src/lib.rs` |
 | Varsayılan tavan 1 / 5 / **25** USDC | ✅ 0.5 / 2 / 5 (T1.6) | `apps/extension/src/background/x402/handlers.ts` |
 | Mandate yenileme hatası (zincir tarafı yenilenmiyor) | ✅ düzeltildi, canlı doğrulama T0.7'de (T1.5) | `docs/implementation-status.md` §4, `LIMITATIONS.md` |
@@ -251,11 +251,23 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Kabul:** meşru challenge "X'e giriş, para hareketi yok" der; her saldırı fixture'ı bloklanır; testler.
 - **Doküman:** `docs/extension-architecture.md`, `docs/implementation-status.md` §2, `docs/x402-defense.md` (gerekirse), README (Faz F).
 
-#### T2.2 Ince SEP istemcisi (1/10/6) ⏳
-- **Kapsam:** toml okuma; SEP-10 (`GET /auth`, doğrula, imzala, `POST /auth` → JWT); SEP-6 (`/sep6/info`, `deposit`, `withdraw`, `transaction`); işlem kayıtları (IndexedDB v5); `alarms` ile poll.
-- **Riskler → önlem:** MV3 SW uyur → durum IndexedDB'de, poll alarmla; JWT süresi → yeniden giriş; anchor hataları (HTTP 4xx/5xx) → tipli hata + kullanıcı mesajı; ağ değişimi (yalnız testnet).
-- **Bağımlılık:** T2.1, T0.3, T1.2.
-- **Kabul:** birim testleri (fetch mock'u); Options'tan giriş + `info` çalışır.
+#### T2.2 Ince SEP istemcisi: SEP-10 girişi + SEP-6 `/info` + Options "Anchors" ✅
+- **Yapıldı (2026-09-20), dal `feat/anchor-sep-client` (T2.1 PR'ı #46'nın üstünde):**
+  - `sep/http.ts`: tüm anchor çağrıları için korumalı HTTP (yalnız https, `redirect: "error"`, 15 sn zaman aşımı, 256 KB sınırı, yalnız JSON); hatalar kullanıcıya yazılmış mesajlı `AnchorError` (`NOT_ALLOWED`, `TOML_UNAVAILABLE`, `CHALLENGE_REJECTED`, `AUTH_REQUIRED`, `REJECTED`, `NETWORK`, `BAD_RESPONSE`); anchor'ın kendi hata metni düzleştirilip 200 karaktere kesilir. `toml.ts` gövde sınırını buradan kullanıyor (tek kopya).
+  - `sep/sep10-login.ts`: toml (yalnız allowlist) → `WEB_AUTH_ENDPOINT`'ten challenge → **T2.1 tanıyıcısı "Allow" demezse imzalamaz** → imzalı challenge'ı POST → JWT. JWT yalnız `sub` bu hesapsa (`G…` ya da `G…:memo`) ve süresi dolmamışsa tutulur. İkinci bir kural listesi yok, tanıyıcı yeniden kullanılıyor (sapma riski yok).
+  - `sep/session.ts`: JWT yalnız bellekte, (hesap, domain) anahtarlı, süresine 30 sn kala "yok" sayılır; `crypto/session.ts` `lock()` hepsini siler.
+  - `sep/sep6-info.ts`: `/info` (spesifikasyonda giriş gerektirmez) → yalnız UI'ın gösterdiği alanlar; bozuk kayıtlar atılır.
+  - `sep/anchor-service.ts` + 3 yeni RPC (`anchor.list`, `anchor.login`, `anchor.info`, `ext-protocol` tipleriyle) + `options/pages/AnchorPage.tsx` (Options → Anchors: giriş durumu, "Sign in", "Offers").
+  - Eklentide Zod yok; sınırlar elle doğrulanıyor (bağımlılık eklenmedi).
+- **Plandan sapmalar (bilerek):**
+  1. **`alarms` ile poll yok.** Gerekçe: SEP-6 durum çağrıları JWT ister, JWT yalnız bellekte ve service worker askıya alınınca cüzdan kilitleniyor; alarm SW'yi uyandırsa bile JWT olmadan anchor'a soramaz. Poll, Options sayfası açıkken UI'dan yapılacak (T2.5); JWT kaybolursa "Sign in" bir tık. R6 bu yüzden güncellendi.
+  2. **Kapsam bölündü:** deposit/withdraw/transactions istemcisi ve IndexedDB v5 kayıt deposu bu görevde **yok**; çekme korumasının ihtiyaç duyduğu kayıtla (T2.4) ve yatırma arayüzüyle (T2.5) birlikte eklenecek. Şimdi eklemek kullanılmayan kod olurdu (AGENTS.md).
+  3. **`anchor.login` bilinçli kullanıcı jesti:** Options'ta tıklama; popup onayı yok. Challenge'ı yalnız doğrulanmışsa imzalıyor.
+- **Canlı anchor gözlemleri (throwaway testnet anahtarıyla, hiçbir kalıcı kayıt yok):** `/sep6/info` girişsiz 200; deposit yanıtı `id`, `how`, `instructions.{bank_name, bank_account_number (IBAN), external_transfer_memo}`; withdraw yanıtı `account_id`, `memo_type:"id"`, `memo`, `id`; `/sep6/transactions` kayıtlarında `withdraw_anchor_account`, `withdraw_memo`, `withdraw_memo_type`, `amount_in`; girişsiz `/sep6/deposit` **403** `authentication_required`; JWT ömrü 24 saat, `sub` = hesap. **T2.4 için:** beklenen ödeme withdraw yanıtından (ve kayıtlardan) alınabilir.
+- **Kanıt:** 47 yeni test (`http` 13, `session` 4, `sep10-login` 17, `sep6-info` 5, `anchor-service` 8; fixture'lar SDK `buildChallengeTx` tabanlı hermetik sahte anchor `fake-anchor.testutil.ts`). Saldırılar: allowlist dışı domain (istek atılmaz), okunamayan/eksik toml, gövdesinde payment olan sahte challenge, başka anahtarla imzalı, başka hesap için, farklı home domain, farklı ağ, bozuk yanıt, başkasına ait / süresi dolmuş / JWT olmayan token, anchor'ın 401'i. **14 mutasyon gerçekten test kırdı** (doğrulamayı atlamak, `sub`/süre kontrolü, ağ kontrolü, allowlist, süre payı, hesaplar arası paylaşım, `lock()` temizliği, redirect, 401/403, https, bearer, kilitliyken liste, info allowlist'i); dosyalar birebir geri yüklendi. Eklenti 191 test, typecheck 0 hata.
+- **Gerçek tarayıcı doğrulaması (Chromium 127, yüklü unpacked eklenti, canlı tr-mock-anchor):** throwaway testnet cüzdanı içe aktarıldı; Options → Anchors `/info`'yu service worker'dan okudu ("USDC · %0.5 · bank account"); **Sign in gerçek SEP-10'u tamamladı** ("Signed in until …"); `wallet.lock` sonrası `anchor.list` `loggedIn:false`; kilitliyken `anchor.login` "Wallet is locked" hatası verdi; konsol/SW hatası yok. Bu, toml'un service worker'dan (CORS `*`, `host_permissions` olmadan) okunabildiğini de doğruladı (T2.1'in kanıt sınırı kapandı). Bir görsel hata bulundu ve düzeltildi (buton ikonu etiketin üstüne kırılıyordu).
+- **Kanıt sınırı:** açık (light) tema ve dar pencere görülmedi; bir anchor hatası (ör. anchor kapalı) UI'da tarayıcıda denenmedi (birim testinde `NETWORK` var); imzalı challenge'ın gerçek ağdaki `signTransaction` yolundan (dApp) geçişi ayrı (T2.1).
+- **Doküman:** `docs/extension-architecture.md` (§3.1, §4 RPC tablosu, §9), `docs/implementation-status.md` §2.2, `docs/wallet-spec.md`, `apps/extension/README.md`, `packages/ext-protocol/README.md`, `LIMITATIONS.md`.
 
 #### T2.3 Hesap ön koşulları ve trustline ⏳
 - `G…` hesabı fonlu ve USDC trustline'ı olmalı (yoksa yatırma `pending_trust`). Options akışı bunu kontrol edip yönlendirir (Friendbot + `changeTrust`).
@@ -263,11 +275,13 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Kabul:** sıfır bakiyeli yeni hesapla yatırmaya kadar yönlendirilir.
 
 #### T2.4 Çekme koruması (ana değer) ⏳
+- **T2.2'den devralınan kapsam:** SEP-6 `withdraw` ve `transaction(s)` istemcisi + IndexedDB v5 işlem kayıt deposu (`sep_transactions`, hesap kapsamlı). Beklenen ödeme (`account_id`, `memo_type`, `memo`, tutar) kayda **bir kez** yazılır ve sonraki poll'larla **değiştirilmez** (anchor sonradan başka hedef bildirse bile korumanın referansı ilk yanıt olur).
 - **Akış:** `/sep6/withdraw` cevabındaki `account_id`, `memo_type`, `memo` ve tutar **beklenen ödeme** olarak kaydedilir; imza anında tek bir klasik `payment` op'u aranır: hedef = `account_id`, memo türü+değeri = beklenen, tutar tam eşit, varlık = `USDC:GBBD47IF…`. `account_merge`, `path_payment`, ek op, farklı hedef/memo/tutar/varlık **bloklanır** (`X402_DESTINATION_MISMATCH` mantığı).
 - **Riskler → önlem:** kilitli kur süresi dolar → uyarı ve yeni teklif; tutar ondalık kesinliği → `stroop` string karşılaştırması; kayıt yoksa (dApp'ten gelen bilinmeyen çekme) → **fail-closed** (blok/uyarı).
 - **Kabul:** doğru çekme geçer; her uyuşmazlık fixture'ı bloklanır (hedef, memo, tutar, varlık, ek op).
 
 #### T2.5 Yatırma arayüzü ⏳
+- **T2.2'den devralınan kapsam:** SEP-6 `deposit` istemcisi ve işlem listesi/poll'u. Poll Options açıkken UI'dan (JWT bellekte olduğu için `alarms` çalışmaz; bkz. T2.2 sapma 1).
 - Options'ta IBAN ve referans gösterilir; **sandbox** `simulate-bank-transfer` düğmesi açıkça "sandbox" etiketli; durum `completed` olana kadar izlenir.
 - **Risk:** yatırma USDC'yi `G…`'ye bırakır (`C…` değil) → T2.6.
 
@@ -367,7 +381,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | R3 | Render free uyur, diski geçici | F2; anahtarlar için kalıcı disk ya da statik anahtar |
 | R4 | passkey-kit pini eski, yeni wasm uyumsuz | D6: yükseltme yok |
 | R5 | Aynı çalışma ağacında eşzamanlı oturum | `AGENTS.md` "Eşzamanlı çalışma"; düzenlemeden önce yeniden oku |
-| R6 | MV3 service worker askıya alınır (bekleyen imzalar/kilit kaybolur) | poll'u `alarms` ile yap; durumu IndexedDB'de tut; tarayıcıda dene |
+| R6 | MV3 service worker askıya alınır (bekleyen imzalar/kilit/JWT kaybolur) | Durumu IndexedDB'de tut; anchor poll'u **`alarms` ile yapılamaz** (JWT bellekte, cüzdan kilitlenir) → Options açıkken UI'dan poll (T2.2 notu); tarayıcıda dene |
 | R7 | Doküman ↔ kod sapması (`docs:check` anlam doğrulamaz) | `AGENTS.md` protokolü; her görevde ilgili tablo satırı |
 | R8 | Herkese açık demo anahtarı (`dev-key-change-me`) kötüye kullanılır | Belgeli, bilinçli; anahtar başı/IP limit var; değiştirirsen üç yeri birlikte değiştir |
 
@@ -375,6 +389,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 10) | PR #45 merge edildi; T2.1 için PR #46 açıldı. T2.2 ✅ (dal `feat/anchor-sep-client`): korumalı anchor HTTP'si, doğrulamadan imzalamayan SEP-10 girişi, bellek-içi JWT (kilitte silinir), SEP-6 `/info`, Options → Anchors; 47 yeni test, 14 mutasyon, gerçek Chromium'da canlı anchor ile uçtan uca doğrulama. Plandan sapma: `alarms` poll'u yok (JWT bellekte), deposit/withdraw istemcisi ve kayıt deposu T2.4/T2.5'e kaydırıldı. |
 | 2026-09-20 (ilerleme 9) | T1.4 için PR #45 açıldı. Faz 2 başladı, dal `feat/anchor-sep10`. T2.1 ✅: eklentide `sep/` modülü (allowlist, toml okuyucu, SEP-10 tanıyıcı), `tx.analyzeRequest` sunucudan önce challenge'ı kendisi karara bağlıyor; sahte challenge bloklanır, bilinmeyen anchor uyarıdır; 36 yeni test, 12 mutasyon doğrulaması, canlı anchor duman testi. |
 | 2026-09-20 (ilerleme 8) | PR #44 merge edildi (yerel `main` `2960536`'ya eşit). T1.4 ✅: iç şema ayrıntısı ve facilitator URL'i yanıttan çıkarıldı, `/demo/scrybe` 502; 5 yeni test, 3 mutasyon doğrulaması; T1.6'dan kalan eski drift fiyatı düzeltildi. |
 | 2026-09-20 (ilerleme 7) | T1.5 ✅: mandate yenilemede yeni alt anahtar (`refreshSubKeyAfterApproval`), başarısızlıkta eski anahtar emekli + Activity uyarısı, ilk kurulum başarısızsa yeniden deneme; 11 yeni test, 2 mutasyon doğrulaması. Canlı testnet doğrulaması T0.7'ye kaldı. |

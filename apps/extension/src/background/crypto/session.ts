@@ -16,6 +16,7 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { secureZero } from "./kdf";
 import { dispatch, getState } from "../state/store";
 import { deriveAccountKeypair } from "./hd";
+import { clearAnchorSessions } from "../sep/session";
 
 let secretBytes: Uint8Array | null = null;
 let activeIndex = 0;
@@ -80,6 +81,8 @@ export function lock(): void {
   }
   activeIndex = 0;
   derivedCache.clear();
+  // Anchor login tokens are bearer credentials held in memory; locking ends them.
+  clearAnchorSessions();
   if (idleTimer) {
     clearTimeout(idleTimer);
     idleTimer = null;

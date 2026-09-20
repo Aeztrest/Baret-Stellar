@@ -99,7 +99,7 @@ The post-sign monitor flags only **unknown outgoing transactions** (drift), by p
 ### SEP-10 anchor logins
 
 - The wallet recognises SEP-10 login challenges and blocks look-alikes (real sequence number, extra spend operations, a signature that isn't the anchor's `SIGNING_KEY`, a login for another account). Only `tr-mock-anchor.fly.dev` is on the built-in allowlist; a valid challenge from any other domain is a Caution ("unverified anchor"), and Baret never contacts an unlisted domain. The allowlist is not user-editable yet.
-- This covers the login challenge only. Baret has no SEP-6 client and does not yet check a withdrawal's destination and memo against the anchor's instructions, so a withdrawal payment is judged by the normal analysis.
+- Options → Anchors signs in and lists what the anchor offers (SEP-6 `/info`). The login token is held in service-worker memory only: locking the wallet, or the worker restarting (Chrome suspends it after a short idle), signs you out, and you sign in again with one click. Deposits, withdrawals and transaction tracking are not built yet, and Baret does not yet check a withdrawal's destination and memo against the anchor's instructions, so a withdrawal payment is judged by the normal analysis.
 - A fee-bump envelope wrapping a challenge is not treated as a challenge; it goes to the normal analysis. The recognizer reads `stellar.toml` from the network, so a known anchor whose file is unreachable also shows the Caution.
 
 ### Analysis dependency

@@ -24,7 +24,7 @@ Rule: a change to the message bus, the storage schema or the manifest updates th
  background service worker  (src/background/index.ts)
    ├─ messaging/router.ts        dispatches by port name; rejects ports whose sender.id isn't this extension
    ├─ wallet-standard/handlers   ws.* + x402.review  (dApp facing)
-   ├─ messaging/handlers.ts      wallet.* tx.* ledger.* policy.* history.* alerts.* sitePermissions.* network.set
+   ├─ messaging/handlers.ts      wallet.* tx.* ledger.* policy.* history.* alerts.* sitePermissions.* anchor.* network.set
    ├─ state/{machine,store}      in-memory wallet phase + listeners
    ├─ crypto/*                   kdf, session (decrypted seed), hd, attempt-limiter, sub-key-cache
    ├─ db/*                       IndexedDB "baret" v4
@@ -89,7 +89,8 @@ src/background/
 ├── rpc/{connection,monitor}.ts
 ├── x402/{parse,build,handlers}.ts
 ├── swig/{provision,sub-keys,sub-key-lifecycle,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
-├── sep/{anchors,toml,sep10-challenge}.ts   anchor allowlist, stellar.toml reader, SEP-10 challenge recognizer
+├── sep/{anchors,toml,http,session,sep10-challenge,sep10-login,sep6-info,anchor-service}.ts   anchor allowlist, stellar.toml reader, guarded HTTP, in-memory login tokens,
+│                                  SEP-10 recognizer + login, SEP-6 /info, the `anchor.*` handlers' logic (`fake-anchor.testutil.ts` is test-only)
 └── baret/analyze-client.ts
 ```
 
@@ -138,6 +139,7 @@ Errors are returned as `payload: { error: string }` on the `rsp`. Types live in 
 | Ledger | `ledger.list` `ledger.pause` `ledger.unpause` `ledger.revoke` |
 | Policy | `policy.read` `policy.write` (validated by `swig-guard`'s `validatePolicy`; stored in `storage.local` `baret.policy.v1`; default `BALANCED_POLICY`) |
 | History / alerts / sites | `history.list` `history.detail` `alerts.list` `alerts.dismiss` `sitePermissions.list` `sitePermissions.revoke` |
+| Anchors | `anchor.list` (allow-listed anchors + whether the active account is signed in) `anchor.login` (`{domain}`; user-initiated) `anchor.info` (`{domain}`; SEP-6 `/info`, no login) |
 | Network | `network.set` (`testnet` \| `pubnet`) |
 
 `ExtEvents` also defines `alert.new`, `ledger.tick`, `tx.signRequest`, `tx.signed`, but **nothing emits them today**; surfaces poll (`usePolling`) instead.
@@ -224,6 +226,8 @@ response to `allow | advisory | block`. It never throws: an unreachable server y
 - **Allow**: valid and verified, with the text "signs you in, no funds move".
 
 The domain is attacker-controlled (it is inside the XDR), so only allow-listed domains are ever contacted, and only for `https://<host>/.well-known/stellar.toml`: 8 s timeout, 100 KB cap, redirects refused, 5-minute in-memory cache, hostnames only (no ports, IPs or `localhost`). A domain off the list is never fetched. Fee-bump envelopes are not treated as challenges and go to the normal analysis. The check runs only on transaction requests from a dApp; sign requests for SEP-6 withdrawals and Baret's own anchor flows are separate work (`PLAN.md` T2.2 to T2.4).
+
+**Signing in to an anchor (Options → Anchors).** `anchor.login` is a deliberate click, and it is the only place the wallet signs a challenge on its own. `sep/sep10-login.ts` reads the anchor's toml (allow-listed domain only), asks its `WEB_AUTH_ENDPOINT` for a challenge, runs the same recognizer as above and **refuses to sign unless the verdict is Allow** (so a forged, mis-keyed, wrong-account or wrong-network challenge is never signed). It then posts the signed challenge and keeps the returned JWT only if its `sub` is this account and it hasn't expired. The token lives in `sep/session.ts` (service-worker memory, keyed by account and domain), never in storage and never in a response to a surface; `lock()` clears it, and so does a worker restart. `anchor.info` reads the SEP-6 `/info` (public per the spec). Every anchor call goes through `sep/http.ts`: https only, no redirects, 15 s timeout, 256 KB cap, JSON only; the anchor's own error text is flattened and cut to 200 characters before it is shown. There is no polling and no `alarms` use: SEP-6 status calls need the token, and the token can't outlive the worker (see `PLAN.md` T2.2).
 
 The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); the server evaluates its pre-sign subset and ignores the rest. The x402 rules (caps, allow-lists, mandate) are enforced **only here**. Which fields are actually enforced: [`policy-dsl.md`](./policy-dsl.md).
 
