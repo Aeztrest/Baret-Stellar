@@ -23,7 +23,7 @@
 import browser from "webextension-polyfill";
 import { Keypair } from "@stellar/stellar-sdk";
 import type { GuardPolicy } from "@stellar-thorn/swig-guard";
-import { BALANCED_POLICY } from "@stellar-thorn/swig-guard";
+import { BALANCED_POLICY, DEFAULT_X402_CAPS } from "@stellar-thorn/swig-guard";
 import type { X402MandatePreview } from "@stellar-thorn/ext-protocol";
 
 import { useAuthority, isUnlocked } from "../crypto/session";
@@ -437,9 +437,9 @@ export async function createDefaultAllowance(
     merchantOrigin: origin,
     asset,
     payTo,
-    capPerTx: policy.maxX402PerTx ?? 1.0,
-    capPerHour: policy.x402HourlyCap ?? 5.0,
-    capPerDay: policy.x402DailyCap ?? 25.0,
+    capPerTx: policy.maxX402PerTx ?? DEFAULT_X402_CAPS.perTx,
+    capPerHour: policy.x402HourlyCap ?? DEFAULT_X402_CAPS.perHour,
+    capPerDay: policy.x402DailyCap ?? DEFAULT_X402_CAPS.perDay,
     spentTx: 0,
     spendLog: [],
     spentHour: 0,

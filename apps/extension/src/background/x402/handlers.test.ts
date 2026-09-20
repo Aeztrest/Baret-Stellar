@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
-import { BALANCED_POLICY, STRICT_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
+import { BALANCED_POLICY, DEFAULT_X402_CAPS, STRICT_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
 import type { PaymentRequirements } from "./parse";
 
 // x402Review must only ever auto-sign against a LIVE MANDATE — a merchant
@@ -61,7 +61,7 @@ function makeRequirements(overrides: Partial<PaymentRequirements> = {}): Payment
     scheme: "exact",
     network: "stellar:testnet",
     asset: ASSET,
-    amount: "5000000", // 0.5 UI units at 7-decimal precision
+    amount: "1000000", // 0.1 UI units at 7-decimal precision, clearly under Balanced's 0.5 per-tx cap
     payTo: Keypair.random().publicKey(),
     maxTimeoutSeconds: 60,
     extra: { sponsorBy: Keypair.random().publicKey() },
@@ -311,5 +311,47 @@ describe("x402Review — trust-on-first-use and mandate expiry", () => {
     const req = signQueue.take(queued.requestId)!;
     req.resolve({ kind: "x402Payment", signedTxXdr: "signed-xdr-stub", signerAddress: "GSTUB" });
     await expect(reviewPromise).resolves.toMatchObject({ action: "approve" });
+  });
+});
+
+describe("x402Review — caps seeded for a new merchant", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function firstApprovalMandate(policy: GuardPolicy) {
+    const { handlers, signQueue, browserMod } = await freshEnv();
+    await setPolicy(browserMod, policy);
+    const review = handlers.x402Review({
+      origin: MERCHANT_ORIGIN,
+      requestUrl: "https://merchant.example/paid",
+      requirements: makeRequirements(),
+    });
+    await vi.waitFor(() => expect(signQueue.size()).toBe(1));
+    const queued = signQueue.snapshot()!;
+    const mandate = queued.x402Mandate;
+    // Resolve the queued approval so the review promise does not dangle.
+    signQueue.take(queued.requestId)!.resolve({ kind: "x402Payment", signedTxXdr: "signed-xdr-stub", signerAddress: "GSTUB" });
+    await review;
+    return mandate;
+  }
+
+  it("falls back to the shared default caps when the saved policy leaves them unset", async () => {
+    const mandate = await firstApprovalMandate({ allowedAssets: [ASSET] });
+    expect(mandate?.capPerTx).toBe(DEFAULT_X402_CAPS.perTx);
+    expect(mandate?.capPerHour).toBe(DEFAULT_X402_CAPS.perHour);
+    expect(mandate?.capPerDay).toBe(DEFAULT_X402_CAPS.perDay);
+  });
+
+  it("uses the policy's own caps when they are set", async () => {
+    const mandate = await firstApprovalMandate({
+      allowedAssets: [ASSET],
+      maxX402PerTx: 0.2,
+      x402HourlyCap: 0.4,
+      x402DailyCap: 0.9,
+    });
+    expect(mandate?.capPerTx).toBe(0.2);
+    expect(mandate?.capPerHour).toBe(0.4);
+    expect(mandate?.capPerDay).toBe(0.9);
   });
 });

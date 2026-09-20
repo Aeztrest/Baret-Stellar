@@ -142,6 +142,14 @@ export interface GuardPolicy {
 /* ────── Templates ────── */
 
 /**
+ * Default per-merchant x402 caps in USDC: per payment, per rolling hour, per
+ * rolling day. Balanced uses them and the extension falls back to them when a
+ * saved policy leaves a cap unset, so the two cannot drift apart. Small on
+ * purpose: a leaked sub-key or a runaway agent should cost a few dollars.
+ */
+export const DEFAULT_X402_CAPS = { perTx: 0.5, perHour: 2, perDay: 5 } as const;
+
+/**
  * Canonical Circle USDC Soroban Asset Contract addresses — the same values
  * `apps/server/src/x402/merchant-config.ts` charges in. Seeded into every
  * default template except Permissive so a look-alike asset (same symbol,
@@ -207,9 +215,9 @@ export const BALANCED_POLICY: GuardPolicy = {
   requireSuccessfulSimulation: true,
   // x402. Balanced auto-approves micropayments under caps (no popup).
   x402AutoApprove: true,
-  maxX402PerTx: 1.00,
-  x402HourlyCap: 5.00,
-  x402DailyCap: 25.00,
+  maxX402PerTx: DEFAULT_X402_CAPS.perTx,
+  x402HourlyCap: DEFAULT_X402_CAPS.perHour,
+  x402DailyCap: DEFAULT_X402_CAPS.perDay,
   allowedAssets: CANONICAL_USDC_CONTRACTS,
   mandateMaxAgeDays: 30,
   requireMemo: false,

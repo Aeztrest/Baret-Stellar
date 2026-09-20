@@ -144,7 +144,7 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
     await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const merchant = Keypair.random().publicKey();
-    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 1_000_000n, ASSET);
 
     const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
     expect(decision.decision).toBe("manual");
@@ -196,7 +196,7 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
       updatedAt: now,
     });
 
-    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 1_000_000n, ASSET);
     const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
 
     expect(decision.decision).toBe("signed");
@@ -242,7 +242,7 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
       updatedAt: now - 1000,
     });
 
-    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 1_000_000n, ASSET);
     const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
 
     expect(decision.decision).toBe("manual");
@@ -262,16 +262,16 @@ describe("tryAutoApproveX402AuthEntry — trust-on-first-use and mandate expiry"
     await setPolicy(browserMod, { ...BALANCED_POLICY, allowedAssets: [ASSET] });
 
     const merchant = Keypair.random().publicKey();
-    // 0.5 units — under BALANCED_POLICY's global maxX402PerTx (1.0) so this
-    // exercises the mandate-preview path (not the global-cap defer), while
+    // 0.1 units — comfortably under BALANCED_POLICY's global maxX402PerTx (0.5)
+    // so this exercises the mandate-preview path (not the global-cap defer), while
     // still being a distinct, non-default value the preview must echo back
     // accurately rather than substituting some other number (e.g. capPerTx).
-    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 5_000_000n, ASSET);
+    const entryXdr = buildTransferAuthEntryXdr(SMART_WALLET_ADDRESS, merchant, 1_000_000n, ASSET);
 
     const decision = await handlers.tryAutoApproveX402AuthEntry(MERCHANT_ORIGIN, entryXdr);
     expect(decision.decision).toBe("manual");
     if (decision.decision === "manual") {
-      expect(decision.mandatePreview.requestedAmount).toBe(0.5);
+      expect(decision.mandatePreview.requestedAmount).toBe(0.1);
     }
   });
 

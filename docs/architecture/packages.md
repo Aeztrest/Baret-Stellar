@@ -30,7 +30,7 @@ Kural: **`swig-guard` Stellar SDK'sına bağlanmaz** (yalnızca `devDependency`)
 ## `@stellar-thorn/swig-guard` (`packages/swig-guard`)
 
 Guard SDK'sı. Ne yapar:
-- **`GuardPolicy`** tipi + `STRICT_POLICY` / `BALANCED_POLICY` / `PERMISSIVE_POLICY` + `POLICY_TEMPLATES` + `validatePolicy()` / `normalizePolicy()` (`src/policy.ts`).
+- **`GuardPolicy`** tipi + `STRICT_POLICY` / `BALANCED_POLICY` / `PERMISSIVE_POLICY` + `POLICY_TEMPLATES` + `validatePolicy()` / `normalizePolicy()` (`src/policy.ts`). `DEFAULT_X402_CAPS` (0.5 / 2 / 5 USDC) varsayılan merchant tavanlarının tek kaynağıdır: `BALANCED_POLICY` ve eklentideki geri dönüş ondan okur.
 - **`analyzeTransaction(cfg, req)`** (`src/analyze.ts`): `POST {baseUrl}/v1/analyze`, `Authorization: Bearer <apiKey>`. `assertSecureBaseUrl` düz `http://` adresini loopback dışında reddeder
   (`allowInsecureHttp` ile aşılır). Zaman aşımı 15 sn. Hata → `AnalyzeError`.
 - **`TransactionGuard`** (`src/guard.ts`): `evaluate()` **asla imzalamaz/göndermez**, `decision: "allow" | "block"` döner; `prepare()` blokta `GuardBlockedError` fırlatır.

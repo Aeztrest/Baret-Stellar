@@ -50,7 +50,7 @@ Tüm senaryolar **gerçek, gönderilebilir testnet işlemleridir** (`baret/trans
 | ClaimHub | LUMA airdrop (demo issuer) | `AccountMerge` → saldırgan | `ACCOUNT_MERGE_DETECTED` |
 | LaunchPad | NOVA satışına katkı | Sınırsız USDC `approve` | `SOROBAN_ALLOWANCE_UNLIMITED` |
 | Scrybe | `/demo/scrybe` gerçek x402 ödemesi | - | mandate/tavan mantığı |
-| Cortex | Normal | `drift` (12'lik ödeme patlaması), `asset-swap` (native XLM SAC'ta ücret), `blind` (sayfa fiyatı yalan söyler) | tavan aşımı, `allowedAssets`, gerçek auth-entry çözümü |
+| Cortex | Normal | `drift` (çağrı başı 0.25 USDC'lik, 12'ye kadar ödeme patlaması: varsayılan saatlik tavan 2.0'ı 9. çağrıda aşar), `asset-swap` (native XLM SAC'ta ücret), `blind` (sayfa fiyatı yalan söyler) | tavan aşımı, `allowedAssets`, gerçek auth-entry çözümü |
 
 Notlar:
 - 3 klasik-varlık "safe" senaryosu demo issuer'ın da imzasını ister; `DEMO_ISSUER` gömülü, **değersiz testnet** anahtarıdır (bilerek).

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BALANCED_POLICY,
+  DEFAULT_X402_CAPS,
   PERMISSIVE_POLICY,
   STRICT_POLICY,
   validatePolicy,
@@ -84,5 +85,29 @@ describe("validatePolicy — mandateMaxAgeDays", () => {
 
   it("accepts a positive number", () => {
     expect(() => validatePolicy({ mandateMaxAgeDays: 30 })).not.toThrow();
+  });
+});
+
+describe("default x402 caps", () => {
+  it("Balanced uses the shared defaults", () => {
+    expect(BALANCED_POLICY.maxX402PerTx).toBe(DEFAULT_X402_CAPS.perTx);
+    expect(BALANCED_POLICY.x402HourlyCap).toBe(DEFAULT_X402_CAPS.perHour);
+    expect(BALANCED_POLICY.x402DailyCap).toBe(DEFAULT_X402_CAPS.perDay);
+  });
+
+  it("keep a day's exposure small: well under the old 25 USDC/day default", () => {
+    expect(DEFAULT_X402_CAPS.perDay).toBeLessThan(25);
+    expect(DEFAULT_X402_CAPS.perTx).toBeLessThanOrEqual(DEFAULT_X402_CAPS.perHour);
+    expect(DEFAULT_X402_CAPS.perHour).toBeLessThanOrEqual(DEFAULT_X402_CAPS.perDay);
+  });
+
+  it("templates never get looser as they get stricter", () => {
+    for (const key of ["maxX402PerTx", "x402HourlyCap", "x402DailyCap"] as const) {
+      const strict = STRICT_POLICY[key]!;
+      const balanced = BALANCED_POLICY[key]!;
+      const permissive = PERMISSIVE_POLICY[key]!;
+      expect(strict).toBeLessThanOrEqual(balanced);
+      expect(balanced).toBeLessThanOrEqual(permissive);
+    }
   });
 });

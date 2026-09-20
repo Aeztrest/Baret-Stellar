@@ -40,7 +40,7 @@
 |---|---|---|
 | D1 | TRY anchor = tr-mock-anchor; SEP-24 yok; SEP-1/10/6 (+ SEP-38 isteğe bağlı) | 2026-09-20 |
 | D2 | x402 **otomatik imza** analiz sunucusu kapalıyken de devam eder (yerel politika + zincir üstü tavan korur). README'de dürüstçe yazılır | 2026-09-19 |
-| D3 | Varsayılan x402 tavanı 25 USDC/gün'ün altına iner. Önerilen: işlem başına 0.5, saatte 2, günde 5 USDC (kullanıcı "25 altına düşürebilirsin" dedi; sayılar T1.6'da onaylanır) | 2026-09-19 |
+| D3 | Varsayılan x402 tavanı 25 USDC/gün'ün altına iner. Önerilen: işlem başına 0.5, saatte 2, günde 5 USDC (kullanıcı "25 altına düşürebilirsin" dedi, sayıları 2026-09-20'de onayladı; uygulandı: T1.6) | 2026-09-19 |
 | D4 | Render erişimi kullanıcıda; Render paneli ve `BARET_SIGNING_SECRET` gibi env işlemlerini kullanıcı yapar | 2026-09-19 |
 | D5 | README, kaynaklar bölümü, demo ve sunucuyu ayık tutma **en sonda** (Faz F) | 2026-09-19 |
 | D6 | passkey-kit **yükseltilmez** (stranded cüzdan + MerchantSpendPolicy uyumu doğrulanmadı); passkey yalnız `apps/wallet`'ta, zaman kutulu spike sonrası go/no-go | 2026-09-19 |
@@ -72,7 +72,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | Stellar SDK sürümleri | 🚫 ertelendi (T0.4) | eklenti `^16.0.1`, diğerleri `^15.1.0`; ihtiyacımız olan API iki majörde de aynı |
 | SEP-1/6/10 (anchor) kodu | ⏳ hiç yok | |
 | `spend_log` sınırsız `Vec` (kontrat) | ⏳ | `contracts/contracts/merchant-spend-policy/src/lib.rs` |
-| Varsayılan tavan 1 / 5 / **25** USDC | ⏳ | `apps/extension/src/background/x402/handlers.ts` |
+| Varsayılan tavan 1 / 5 / **25** USDC | ✅ 0.5 / 2 / 5 (T1.6) | `apps/extension/src/background/x402/handlers.ts` |
 | Mandate yenileme hatası (zincir tarafı yenilenmiyor) | ⏳ bilinen hata | `docs/implementation-status.md` §4, `LIMITATIONS.md` |
 | Zincir üstü alt anahtarın canlı uçtan uca doğrulaması | ⏳ yeniden koşulmadı | `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` |
 | `baret_docs` (içerik güncel) deploy tanımı | ⏳ yok | `ARCHITECTURE.md` §7 |
@@ -201,11 +201,15 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Kabul:** birim testleri (mock'lu) + T0.7'de canlı doğrulama; `docs/implementation-status.md` §4 "Bilinen sorun" satırı kaldırılır.
 - **Doküman:** `docs/x402-defense.md` §11, `LIMITATIONS.md`, `docs/implementation-status.md`.
 
-#### T1.6 Varsayılan tavanları düşür ⏳ (D3)
-- **Yer:** eklentideki geri dönüş değerleri (1 / 5 / 25) ve `BALANCED_POLICY` şablonu (`packages/swig-guard/src/policy.ts`). Önerilen yeni varsayılan: 0.5 / 2 / 5 USDC (sayıları kullanıcıya doğrulat).
-- **Riskler → önlem:** mevcut allowance satırlarının tavanı provizyon anında sabitlenir (zincir + yerel) → yalnız **yeni** mandate'ler etkilenir, bunu dokümanda söyle; `swig-guard` şablonlarıyla sunucu `policy-schema.ts` preset'leri birbirine bir testle bağlı → ikisini birlikte güncelle.
-- **Kabul:** testler güncel; UI varsayılanları yeni değerleri gösterir.
-- **Doküman:** `docs/policy-dsl.md`, `docs/wallet-spec.md`, `README.md`.
+#### T1.6 Varsayılan tavanları düşür ✅ (D3)
+- **Yapıldı (2026-09-20, kullanıcı onayıyla 0.5 / 2 / 5 USDC):**
+  - Tek kaynak: `DEFAULT_X402_CAPS` (`{perTx: 0.5, perHour: 2, perDay: 5}`) swig-guard `policy.ts`'te. `BALANCED_POLICY` (önceden 1 / 5 / 25) ve eklentinin yeni merchant için geri dönüşü (`x402/handlers.ts`, önceden sabit `1.0 / 5.0 / 25.0`) artık ondan okuyor; iki kopyanın sapması imkânsız. STRICT (0.10 / 1 / 5) ve PERMISSIVE (10 / 50 / 250) değişmedi, sıralama korunuyor.
+  - **Cortex "drift" senaryosu eski tavanlara göre ayarlıydı** (çağrı başı 0.5 USDC, "~10 çağrıda saatlik 5.0'ı aşar"); yeni per-tx tavanıyla (0.5) tam sınıra otururdu. Çağrı başı **0.25 USDC** yapıldı (sunucu `demo-cortex.ts` + `Cortex.tsx` etiketi): per-tx tavanın yarısı, 9. çağrıda saatlik 2.0'ı aşıyor, deneme başına ~2 test USDC'si (önceden ~5). `blind` (2.5 USDC) değişmedi, artık tavanın 5 katı.
+  - Sınırda geçen eski testler (0.5 = yeni per-tx tavan) tavanın açıkça altına çekildi (0.1) ve yorumları düzeltildi.
+- **Etki sınırı (dokümanda yazıyor):** yalnız kayıtlı politikası olmayan (ya da bir tavanı boş bırakan) cüzdanlar ve bundan sonra onaylanan merchant'lar etkilenir; kayıtlı politika kendi sayılarını korur, mevcut allowance satırı oluşturulduğu tavanla kalır (zincirde de provizyon anında sabit). Sunucu preset'leri bu alanları içermediği için `openapi.test` etkilenmedi.
+- **Kanıt:** yeni testler: swig-guard 3 (Balanced = ortak varsayılan, günlük < 25, şablonlar sıralı) ve eklenti 2 (boş politikada varsayılana düşer, dolu politikada kendi değerini kullanır). **İki mutasyon gerçekten test kırdı** (varsayılanı 1/5/25'e çevirmek; eklenti geri dönüşünü sabit `1.0`'a çevirmek), dosyalar yedekle birebir aynı geri yüklendi. swig-guard 19, eklenti 97, server 176, agent-guard 16, wallet 16 test; typecheck 0 hata; showcase build, `docs:check`, `secrets:check` yeşil.
+- **Kanıt sınırı:** Cortex "9. çağrıda tavan aşılır" aritmetik (8 × 0.25 = 2.0; 9. = 2.25 > 2.0), gerçek testnet'te bir patlama koşturularak **doğrulanmadı**; Options → Policies ekranının yeni değerleri gösterdiği tarayıcıda görülmedi (değerler şablondan okunuyor).
+- **Doküman:** `docs/policy-dsl.md` (varsayılanlar, tablo, etki notu), `docs/architecture/packages.md`, `packages/swig-guard/README.md`, `docs/architecture/clients.md` (Cortex drift).
 
 ### Faz 2: Anchor (jüri için en ağır kalem)
 
@@ -350,6 +354,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 6) | T1.6 ✅: varsayılan x402 tavanları 0.5 / 2 / 5 USDC, tek kaynak `DEFAULT_X402_CAPS`; Cortex drift çağrı başı 0.25 USDC'ye uyarlandı; 5 yeni test, 2 mutasyon doğrulaması. |
 | 2026-09-20 (ilerleme 5) | T1.2 ✅: analyze timeout 45 sn, `ws.connect`'te ısıtma, sunucu-uyanıyor ipucu, offline'da Retry + 1,5 sn basılı tutma; showcase zaman aşımı/kopya düzeltmeleri; 6 yeni test (mutasyonla doğrulandı); popup harness'la görsel doğrulama. |
 | 2026-09-20 (ilerleme 4) | T1.1 ✅: Scrybe sahte sayaç/akış silindi, örnek kartlar illüstrasyon olarak etiketlendi, kurmaca dApp rozeti, Hub ve index.html düzeltmeleri. Görsel doğrulama kısmen (bkz. T1.1 kanıt sınırı). |
 | 2026-09-20 (ilerleme 3) | S1 ✅: 7 yeşil PR merge edildi, 3 kırmızı bilerek açık. Görevler artık **görev başına commit** ediliyor (yerel `main`, henüz push edilmedi). Rebase sonrası düzeltmeler: workflow sürümleri hizalandı, `check-secrets.mjs` kendi PEM etiketini yakalıyordu (düzeltildi), `payment-guard` anlık görüntüleri yenilendi. |

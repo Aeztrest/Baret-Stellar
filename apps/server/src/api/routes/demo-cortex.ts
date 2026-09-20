@@ -46,11 +46,12 @@ function normalizeScenario(raw: unknown): CortexScenario {
 /** Per-call price override, atomic (7-decimal) units. `null` = use the merchant's normal price. */
 const SCENARIO_PRICE_ATOMIC: Record<CortexScenario, string | null> = {
   safe: null,
-  // 0.5 USDC/call — under a typical 1.0 per-tx cap on its own, but a burst
-  // of ~10 rapid calls crosses a typical 5.0/hour rolling cap.
-  drift: "5000000",
+  // 0.25 USDC/call — half the default 0.5 per-tx cap on its own, but the
+  // ninth rapid call crosses the default 2.0/hour rolling cap (swig-guard's
+  // DEFAULT_X402_CAPS). Costs about 2 testnet USDC per burst.
+  drift: "2500000",
   "asset-swap": null,
-  // 2.5 USDC — comfortably over a typical 1.0 per-tx cap in a single call.
+  // 2.5 USDC — five times the default per-tx cap in a single call.
   blind: "25000000",
 };
 
