@@ -50,13 +50,15 @@ Tüm senaryolar **gerçek, gönderilebilir testnet işlemleridir** (`baret/trans
 | ClaimHub | LUMA airdrop (demo issuer) | `AccountMerge` → saldırgan | `ACCOUNT_MERGE_DETECTED` |
 | LaunchPad | NOVA satışına katkı | Sınırsız USDC `approve` | `SOROBAN_ALLOWANCE_UNLIMITED` |
 | Scrybe | `/demo/scrybe` gerçek x402 ödemesi | - | mandate/tavan mantığı |
-| Cortex | Normal | `drift` (12'lik ödeme patlaması), `asset-swap` (native XLM SAC'ta ücret), `blind` (sayfa fiyatı yalan söyler) | tavan aşımı, `allowedAssets`, gerçek auth-entry çözümü |
+| Cortex | Normal | `drift` (çağrı başı 0.25 USDC'lik, 12'ye kadar ödeme patlaması: varsayılan saatlik tavan 2.0'ı 9. çağrıda aşar), `asset-swap` (native XLM SAC'ta ücret), `blind` (sayfa fiyatı yalan söyler) | tavan aşımı, `allowedAssets`, gerçek auth-entry çözümü |
 
 Notlar:
 - 3 klasik-varlık "safe" senaryosu demo issuer'ın da imzasını ister; `DEMO_ISSUER` gömülü, **değersiz testnet** anahtarıdır (bilerek).
 - NovaSwap ve LaunchPad "danger" sonrası `simulateDrainerSweep` ile saldırganın `transfer_from` ile bakiyeyi süpürmesi gösterilir.
 - Senaryo metinleri `baret/scenarios.ts`'te tek yerde tutulur (site metni ile işlem şekli ayrışmasın).
 - Sitelerin görsel kimliği kendindedir (`SiteShell`); Baret markası yoktur. `packages/showcase-ui` yalnızca `DangerModeToggle` sağlar.
+- **Kurmaca dApp'lerdeki bakiye, APY, TVL, sahip/cüzdan sayısı gibi rakamlar uydurmadır.** `SiteShell` bunu her sitede sağ altta "Fictional demo dApp" rozetiyle söyler (rozet tıklamayı engellemez, ClaimHub'ın kendi "Sample data" etiketi de durur). Rakamlar bilerek gerçek veri gibi sunulmaz.
+- **Scrybe'de ödeme ve makbuz gerçek, cevap değil:** sunucu (`demo-paywall.ts`) beş hazır metinden anahtar kelime eşleşmesiyle cevap verir, eşleşmezse `Echo (n chars)` döner. Landing'deki "Example answers" kartları illüstrasyondur ("Illustration · not a live receipt"); sahte sayaç ya da sahte "son sorular" akışı yoktur.
 
 ### 1.4 Sunucuyla konuşan yerler
 
@@ -65,6 +67,8 @@ Notlar:
 | `baret/analyze.ts` → `/api/v1/analyze` (yalnız `AgentsPage` playground'u kullanır) | `POST` | Herkese açık demo anahtarı `dev-key-change-me` (kodda gömülü, `render.yaml`'la eşleşir) |
 | `Scrybe`, `Cortex` → `/api/demo/scrybe`, `/api/demo/cortex` | `GET` (+`PAYMENT-SIGNATURE`) | Yok |
 | `/developers` portalı → `/api/...` | tüm uçlar | Kullanıcının kendi anahtarı (`Authorization: Bearer`) |
+
+Sunucu Render free planında uyur; uyandıktan sonraki ilk istek yaklaşık 30 sn sürer. `baret/analyze.ts` bu yüzden 45 sn zaman aşımı kullanır (aşılırsa "no answer within 45 s (free hosting may still be waking up)" der) ve Scrybe ilk istek 6 sn'yi geçerse "The demo server is waking up" ipucunu gösterir. Cortex'te bu ipucu yoktur.
 
 ### 1.5 Build
 

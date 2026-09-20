@@ -362,7 +362,7 @@ no chrome. **All other UI is suspended.**
 | `ok` (safe) | `--ok` | "Safe to sign" + 1-line summary | Enabled, primary |
 | `advisory` (safe + warning) | `--warn` | "Sign with caution" + reason | Enabled, primary; "Sign anyway" |
 | `block` | `--bad` | "Blocked by your policy" + the rule | Disabled (or "Sign anyway" + double-confirm if user policy allows override) |
-| `error` (analyze unreachable) | `--warn` | "Can't reach BARET" + offline-mode hint | Enabled with explicit "Sign without protection" — never the styled primary |
+| `error` (analyze unreachable) | `--warn` | "Can't reach BARET" + offline-mode hint | Retry button; signing needs a 1.5 s press-and-hold ("Hold to sign anyway") — never the styled primary |
 
 ### What changes — visualization
 

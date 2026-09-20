@@ -60,7 +60,7 @@ Sözlük: ✅ uygulanmış · 🟡 kısmen · ⏳ planlanmış/kodda yok · 🗃
 | `signAndSendTransaction` sağlayıcıda | 🟡 | Background `ws.signAndSendTransaction` var; **inpage sağlayıcı bunu sunmuyor** (showcase `signTransaction` + kendi Horizon gönderimiyle düşer) |
 | Connect izni (per-origin, "her zaman güven") | ✅ | `db/site-permissions.ts` |
 | Pre-sign analiz popup'ı (Safe/Caution/Blocked, "1,5 sn basılı tut" override) | ✅ | `popup/SignRequest.tsx` |
-| Analiz sunucusuna ulaşılamayınca "korumasız imza" advisory | ✅ | `analyze-client.ts` `offline:true` |
+| Analiz sunucusuna ulaşılamayınca "korumasız imza" advisory: Retry düğmesi, imza için 1,5 sn basılı tutma, 45 sn zaman aşımı, 6 sn sonra "sunucu uyanıyor" ipucu, `ws.connect`'te ısıtma isteği | ✅ | `analyze-client.ts` (`offline:true`, `warmUpAnalyzer`), `popup/SignRequest.tsx` |
 | `tx.send` RPC | ⏳ | `notImplemented` |
 | Auth-entry ground-truth çözümü (sayfanın yalanına karşı) | ✅ | `parseTransferAuthEntry`; asset allow-list ihlali **bloklu** verdict |
 | Eklentinin sunucu API anahtarı | 🟡 | `dev-key-change-me` **koda gömülü** (`messaging/handlers.ts`); yapılandırılamaz |
@@ -107,18 +107,15 @@ Ayrıntı ve şema: [`policy-dsl.md`](./policy-dsl.md).
 
 ## 4. Zincir üstü alt anahtar (MerchantSpendPolicy)
 
-Kod tarafı **tam**: kontrat + 14 birim testi (`contracts/`), eklentide `swig/sub-keys.ts` (`ensurePolicyInstalled`, `provisionMerchantSubKey`), `messaging/handlers.ts#provisionRealSubKey`,
+Kod tarafı **tam**: kontrat + 14 birim testi (`contracts/`), eklentide `swig/sub-keys.ts` (`ensurePolicyInstalled`, `provisionMerchantSubKey`), `swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval`,
 `x402/handlers.ts#resolvePaymentSigner`. Eski dokümanlardaki "tavan zincirde uygulanmıyor" ifadesi **artık yanlıştır** (bkz. `LIMITATIONS.md`, `docs/x402-defense.md` §11).
 
 Bu dokümanı yazarken **yapılmayan**: canlı testnet'te uçtan uca doğrulama (`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` "End-to-end verification" kontrol listesi) yeniden koşturulmadı. Bu yüzden garanti
 "kodda ve birim testlerinde var; canlı doğrulama için o listeyi çalıştır" olarak okunmalıdır. Sınırlar:
-- Provisioning **best-effort ve ilk elle onay sonrası**; başarısızsa (RPC, parola önbelleği 5 dk TTL) o merchant admin anahtarıyla imzalanır ve zincir tavanı yoktur.
+- Provisioning **best-effort ve elle onay sonrası** (ilk onay, süresi dolan mandate'in yenilenmesi, ya da alt anahtarı olmayan merchant için yeniden deneme); başarısızsa (RPC, parola önbelleği 5 dk TTL) o merchant admin anahtarıyla imzalanır, zincir tavanı yoktur ve Activity'de uyarı çıkar.
 - Alt anahtar `SignerLimits` ile **tek token kontratına** bağlıdır (mandate'in `asset`'i); token'ı farklı bir merchant/asset çifti yeni satır/yeni alt anahtar gerektirir.
 - Zincir tarafında `pause` çağrılmaz (yalnız yerel), `revoke` signer'ı kaldırır ama politikadaki `Allowance` satırı TTL ile kendiliğinden ölür.
-- **Bilinen sorun (mandate yenileme):** Mandate süresi dolup kullanıcı **yeniden onayladığında** (`isFirstApproval=false`, çünkü satırın `status`'ü `"active"` kalır) yalnız yerel mandate uzar;
-  `provisionRealSubKey` **çağrılmaz**. Zincirdeki `set_allowance` süresi (`mandate_seconds`) ve alt anahtarın `Temporary` signer süresi aynı ilk süreye bağlıdır. Yenilemeden sonra eklenti
-  hâlâ o eski alt anahtarı seçer (`resolvePaymentSigner`) ve zincirde `MandateExpired`/süresi dolmuş signer ile ödeme reddedilir. Varsayılan süre 30 gündür. Düzeltme: yenilemede yeni alt anahtar
-  provizyonla (ya da `set_allowance`'ı yeniden çağır + signer'ı yenile). Kanıt: `messaging/handlers.ts` `txSignHandler`, `x402/handlers.ts` `buildMandatePreview`.
+- **Mandate yenileme (düzeltildi, 2026-09-20):** Zincirdeki `set_allowance` süresi ve alt anahtarın `Temporary` signer süresi mandate ile birlikte dolar; yerel satırın `status`'ü ise `"active"` kaldığı için eski kod yenilemede hiçbir şey kurmuyordu ve eklenti süresi dolmuş alt anahtarı kullanmaya devam ediyordu. Artık `txSignHandler` onaydan **önce** mandate'in canlı olup olmadığını okur ve `refreshSubKeyAfterApproval` mandate lapsed ise (ya da merchant'ın alt anahtarı yoksa) yeni bir alt anahtar kurar, eskisini yerelde `revoked` yapar. Kurulum başarısız olursa eski anahtar da emekliye ayrılır (ödemeler admin anahtarına düşer) ve Activity'de uyarı çıkar. Canlı yenileme yalnız birim testleriyle doğrulandı (`sub-key-lifecycle.test.ts`, `tx-sign-mandate.test.ts`), testnet'te **koşturulmadı**.
 
 ## 5. Bağımsız cüzdan, showcase
 
@@ -129,6 +126,7 @@ Bu dokümanı yazarken **yapılmayan**: canlı testnet'te uçtan uca doğrulama 
 | `apps/wallet` ağ seçimi | ⏳ | `ACTIVE_NETWORK="testnet"` sabit |
 | Showcase pubnet | ⏳ | Testnet-only |
 | Showcase'te sayfa içi analiz kutusu | ⏳ (kaldırıldı) | Bilerek: verdict yalnızca cüzdan popup'ında |
+| Kurmaca dApp rakamları etiketli, Scrybe'de sahte sayaç/akış yok | ✅ | `apps/showcase/src/components/SiteShell.tsx` ("Fictional demo dApp" rozeti), `apps/showcase/src/sites/scrybe/Scrybe.tsx` |
 
 ## 6. Kontratlar
 

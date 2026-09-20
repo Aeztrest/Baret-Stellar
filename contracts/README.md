@@ -29,7 +29,7 @@ It is **multi-tenant**: one deployment serves every wallet that installs it. Sto
 3. The sub-key is added as an `Ed25519` signer with `SignerLimits { <token>: [ Policy(this contract) ] }`, so the wallet's `__check_auth` calls this contract's `policy__` every time the sub-key signs.
 4. `policy__(source, signer, contexts)` is the gate; it is **deny-by-default**.
 
-Provisioning is done by the extension on the first manual approval of a merchant; see [`../docs/x402-defense.md`](../docs/x402-defense.md) §11 for the sequence and its limits.
+Provisioning is done by the extension on a manual approval of a merchant that has no live sub-key (the first approval, and again when a lapsed mandate is renewed); see [`../docs/x402-defense.md`](../docs/x402-defense.md) §11 for the sequence and its limits.
 
 ### Interface
 
@@ -78,6 +78,8 @@ Redeploy steps and the end-to-end verification checklist: [`contracts/merchant-s
 
 ```bash
 cargo test --manifest-path contracts/Cargo.toml -p merchant-spend-policy
+cargo fmt --manifest-path contracts/Cargo.toml --all -- --check
+cargo clippy --manifest-path contracts/Cargo.toml -p merchant-spend-policy --all-targets -- -D warnings
 cd contracts && stellar contract build          # → target/wasm32v1-none/release/merchant_spend_policy.wasm
 ```
 

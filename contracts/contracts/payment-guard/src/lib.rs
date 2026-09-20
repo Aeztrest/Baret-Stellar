@@ -335,7 +335,9 @@ impl PaymentGuard {
         let updated = Self::total_reserved(env)
             .checked_add(delta)
             .unwrap_or_else(|| panic_with_error!(env, Error::InvalidAmount));
-        env.storage().instance().set(&DataKey::TotalReserved, &updated);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalReserved, &updated);
     }
 
     /// Drop every log entry older than the trailing 24h window and return

@@ -88,7 +88,7 @@ src/background/
 ├── db/{index,keystore,allowances,history,alerts,sub-keys,site-permissions}.ts
 ├── rpc/{connection,monitor}.ts
 ├── x402/{parse,build,handlers}.ts
-├── swig/{provision,sub-keys,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
+├── swig/{provision,sub-keys,sub-key-lifecycle,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
 └── baret/analyze-client.ts
 ```
 
@@ -203,7 +203,7 @@ silent trust it can't attribute. Never call `indexedDB.open()` with another vers
 
 - **Smart wallet** (`swig/provision.ts`): `wallet.provisionSmartWallet` deploys a real [passkey-kit](https://github.com/stellar/passkey-kit) smart-wallet instance from the canonical WASM hash in `swig/smart-wallet-config.ts`, with the account's existing Ed25519 authority as the first (unlimited, permanent) admin signer. No WebAuthn ceremony. The authority pays for the deploy (needs ≥ 5 XLM). The address is stored per account (`AccountEntry.smartWalletAddress`); provisioning is idempotent.
 - **x402 payments come from the smart wallet** (`C…`), so it must hold the token (USDC SAC) balance. Classic sends from the UI (`wallet.transferXlm`) come from the authority `G…` account.
-- **Merchant sub-keys** (`swig/sub-keys.ts`): on the first manual approval of a merchant, `provisionRealSubKey` (a) installs `MerchantSpendPolicy` on the wallet as a `Policy` signer with an **empty** limits map (idempotent), (b) calls `MerchantSpendPolicy.set_allowance(wallet, merchant=payTo, signer=<new sub-key>, caps, mandate_seconds)`,
+- **Merchant sub-keys** (`swig/sub-keys.ts`): on a manual approval of a merchant that has no live sub-key (the first approval, a renewal after the mandate lapsed, or a retry after a failure), `refreshSubKeyAfterApproval` in `swig/sub-key-lifecycle.ts` (a) installs `MerchantSpendPolicy` on the wallet as a `Policy` signer with an **empty** limits map (idempotent), (b) calls `MerchantSpendPolicy.set_allowance(wallet, merchant=payTo, signer=<new sub-key>, caps, mandate_seconds)`,
   (c) adds the sub-key as an `Ed25519` signer with `SignerLimits { token: [Policy(MerchantSpendPolicy)] }` in temporary storage with the mandate's expiry. From then on auto-approved payments to that merchant are signed by the sub-key through the wallet's own `__check_auth`, which calls the policy on-chain.
   `ledger.revoke` sends `remove_signer`. Failure of provisioning never blocks the payment (best-effort; the merchant then uses the admin key). Details, guarantees and the **known mandate-renewal gap**: [`x402-defense.md`](./x402-defense.md) §11 and [`implementation-status.md`](./implementation-status.md) §4.
 - Contract addresses/hashes are constants in `swig/smart-wallet-config.ts` (must match `contracts/**/DEPLOYMENT.md`).
@@ -212,8 +212,8 @@ silent trust it can't attribute. Never call `indexedDB.open()` with another vers
 
 ## 9. Analyze client and policy
 
-`baret/analyze-client.ts` posts `{ network, transactionXdr, userWallet: authority G…, policy }` to `<base>/v1/analyze` (base: `https://baret-stellar.onrender.com` in packaged builds, `http://localhost:8080` in dev), 25 s timeout (Render free cold start ≈ 30 s), and normalises the
-response to `allow | advisory | block`. It never throws: an unreachable server yields an `offline` advisory with the finding `ANALYZE_UNREACHABLE` ("sign only if you trust this dApp"). The API key is hard-coded to the public demo key in `messaging/handlers.ts`. The server's `attestation` field is ignored (no client-side verification yet).
+`baret/analyze-client.ts` posts `{ network, transactionXdr, userWallet: authority G…, policy }` to `<base>/v1/analyze` (base: `https://baret-stellar.onrender.com` in packaged builds, `http://localhost:8080` in dev), 45 s timeout (Render free cold start ≈ 32 s when measured), and normalises the
+response to `allow | advisory | block`. It never throws: an unreachable server yields an `offline` advisory with the finding `ANALYZE_UNREACHABLE`. In that state the sign screen shows a **Retry** button and does not offer a one-click Sign: signing without a check needs the same 1.5 s press-and-hold as a Blocked override (`popup/SignRequest.tsx`). While the first analysis is slow the screen says the analyzer is waking up after 6 s. `ws.connect` also fires `warmUpAnalyzer()` (a `GET /health`, at most once per 5 minutes, failures ignored) so the hosted server is usually awake by the first sign prompt. Automatic x402 payments do not call the analyzer at all (see `LIMITATIONS.md`). The API key is hard-coded to the public demo key in `messaging/handlers.ts`. The server's `attestation` field is ignored (no client-side verification yet).
 
 The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); the server evaluates its pre-sign subset and ignores the rest. The x402 rules (caps, allow-lists, mandate) are enforced **only here**. Which fields are actually enforced: [`policy-dsl.md`](./policy-dsl.md).
 

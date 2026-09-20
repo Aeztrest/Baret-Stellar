@@ -72,7 +72,7 @@ pnpm workspace (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). Paket adları `@
 | `baret_docs` | `tailwind-plus-protocol` | Herkese açık API dokümantasyon sitesi (Next.js + MDX) | 3000 |
 | `docs/` | - | Tasarım/spec dokümanları (bkz. `docs/README.md`) | - |
 | `assets/` | - | Kaynak görseller (kodda referans yok; sunulan varlıklar `apps/showcase/public/`'te) | - |
-| `scripts/` | - | Repo araçları (`check-docs.mjs`: doküman tutarlılık denetimi) | - |
+| `scripts/` | - | Repo araçları (`check-docs.mjs`: doküman tutarlılık denetimi; `check-secrets.mjs`: sır taraması) | - |
 
 Paket bağımlılık grafiği ve "neden ayrı paket" gerekçesi: [`docs/architecture/packages.md`](./docs/architecture/packages.md).
 
@@ -183,7 +183,7 @@ dApp ──window.baretStellar.signTransaction(xdr)──► inpage/wallet-stand
                    tx.peekRequest ──► kuyruğun başı
                    tx.analyzeRequest ──► background/baret/analyze-client.ts ──► POST /v1/analyze
                        (policy = kayıtlı GuardPolicy, yoksa BALANCED_POLICY; userWallet = authority G…)
-                   ─► verdict: allow / advisory / block  (sunucuya ulaşılamazsa "offline" advisory)
+                   ─► verdict: allow / advisory / block  (sunucuya ulaşılamazsa "offline" advisory: Retry + imza için basılı tutma)
                  kullanıcı Sign / Decline  (Blocked ise 1.5 sn basılı tutma ile override)
                  tx.sign ──► performSign: aktif hesabın anahtarıyla imza (+ signAndSend ise Horizon'a gönder)
        ◄── imzalı XDR ── dApp
@@ -218,8 +218,8 @@ Giriş A: fetch interceptor                        Giriş B: dApp doğrudan sign
    7. PAYMENT-SIGNATURE başlığı (v2 PaymentPayload, base64) → istek yeniden gönderilir
 ```
 
-Elle onay, mandate'i canlı yapar (`promoteAllowance`) ve **ilk onayda** zincir üstü alt anahtarı kurar
-(`provisionRealSubKey`): `MerchantSpendPolicy` cüzdana `Policy` signer olarak eklenir (ilk seferde),
+Elle onay, mandate'i canlı yapar (`promoteAllowance`) ve zincir üstü alt anahtarı kurar (ilk onayda, süresi dolan mandate'in
+yenilenmesinde ve önceki kurulum başarısız olduysa; `refreshSubKeyAfterApproval`): `MerchantSpendPolicy` cüzdana `Policy` signer olarak eklenir (ilk seferde),
 `set_allowance(wallet, merchant=payTo, signer=altAnahtar, tavanlar, mandate)` çağrılır, sonra alt anahtar
 `SignerLimits{token: [Policy(MerchantSpendPolicy)]}` ile `Ed25519` signer olarak eklenir. Sonraki otomatik
 ödemeler bu alt anahtarla imzalanır ve cüzdanın `__check_auth`'u politikayı çağırır. Bu adım **best-effort**'tır:

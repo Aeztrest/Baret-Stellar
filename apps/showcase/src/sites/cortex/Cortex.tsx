@@ -58,7 +58,7 @@ const SCENARIOS: ScenarioMeta[] = [
   {
     id: "drift", icon: Repeat, label: "Agent Drift",
     tagline: "Fire a burst of real payments and watch the cap catch the runaway spend.",
-    displayPrice: "$0.50 / call", color: "#F2A93B",
+    displayPrice: "$0.25 / call", color: "#F2A93B",
   },
   {
     id: "asset-swap", icon: Coins,

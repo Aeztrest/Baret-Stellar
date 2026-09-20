@@ -30,8 +30,10 @@ pnpm typecheck         # tüm workspace
 pnpm test              # yalnız sunucu testleri; CI hepsini koşturur: pnpm -r --if-present test
 pnpm --filter @stellar-thorn/extension test | @stellar-thorn/wallet test | ... test
 pnpm --filter @stellar-thorn/server x402-setup   # demo satıcı anahtarı + testnet fonlama (tek seferlik)
+pnpm --filter @stellar-thorn/server chain-check  # testnet'te MerchantSpendPolicy, smart-wallet wasm ve USDC hâlâ canlı mı (çıkış 1 = sorun)
 pnpm docs:check        # doküman tutarlılık denetimi (linkler, yollar, env, paketler)
-cargo test --manifest-path contracts/Cargo.toml  # Soroban kontratları
+pnpm secrets:check     # izlenen dosyalarda Stellar seed / baret_ anahtarı / PEM taraması; bilerek herkese açık anahtar: yanına "secret-scan: allow <neden>" yaz
+cargo test --manifest-path contracts/Cargo.toml  # Soroban kontratları (CI ayrıca: cargo fmt --check, clippy -D warnings [yalnız merchant-spend-policy], wasm32v1-none derlemesi)
 cd baret_docs && npm install && npm run lint && npm run build   # API doküman sitesi (workspace DIŞI)
 ```
 
@@ -58,7 +60,7 @@ Sunucu testleri ağa ihtiyaç duymaz. Eklenti popup/options'ı, showcase ve cüz
 - **Yeni `/v1` rotası:** `PUBLIC_ROUTES`'a bilerek eklemedikçe otomatik anahtar ister. Rotayı `apps/server/src/api/openapi.ts`'e yaz (`openapi.test.ts` her kayıtlı rotayı zorlar),
   showcase portal kataloğuna (`apps/showcase/src/pages/developers/endpoints.ts`; `portal-catalog.test.ts` karşılaştırır) ve `baret_docs`'a ekle.
 - **Yeni eklenti RPC'si:** önce `packages/ext-protocol/src/index.ts`, sonra `background/messaging/handlers.ts`. Gizli anahtar yalnız service worker belleğinde durur; loglama, mesajla taşıma, popup/content'e verme. Otomatik (kullanıcısız) imza yolları `useAuthority({isAutomatic:true})` kullanır.
-- **Elle senkron tutulan aynalar** (birini değiştirirsen diğerini de değiştir): sunucu `domain/*` ↔ `packages/swig-guard/src/types.ts`; `attestation/sign-verdict.ts` ↔ `packages/agent-guard/src/attestation.ts` (kanonik payload birebir);
+- **Elle senkron tutulan aynalar** (birini değiştirirsen diğerini de değiştir): sunucu `domain/*` ↔ `packages/swig-guard/src/types.ts` (bulgu kodu listesi `apps/server/test/domain/finding-codes.test.ts` ile kilitli); `attestation/sign-verdict.ts` ↔ `packages/agent-guard/src/attestation.ts` (kanonik payload birebir);
   `api/policy-schema.ts` preset'leri ↔ `swig-guard/src/policy.ts` şablonları; `PaymentRequirements` şekilleri (server/extension/showcase).
 - **UI:** renk/tipografi yalnız `@stellar-thorn/ui` token'larından; light ve dark ikisi de doğru olmalı. `apps/showcase`'te Tailwind, `var()` tabanlı token renklerde `/NN` opaklık sınıflarını (`bg-primary/10`) **üretmez**; `index.css`'teki `tint-*`, `glass-bg` vb. yardımcıları kullan.
 - **Metin sesi** (UI, README, hata metni): [`docs/positioning.md`](./docs/positioning.md). Kısa, dürüst ("testnet ise testnet de"), pazarlama sözcüğü ve gereksiz uzun tire yok.

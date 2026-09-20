@@ -66,7 +66,7 @@ export const MERCHANT_SPEND_POLICY_CONTRACT_ID: string | null =
 
 Rebuild/reload the extension. That's the only code change needed — every
 call site (`swig/sub-keys.ts#provisionMerchantSubKey`,
-`messaging/handlers.ts#provisionRealSubKey`) already reads this constant
+`swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval`) already reads this constant
 and was written against the real contract's interface.
 
 ## Interface
@@ -78,6 +78,25 @@ and was written against the real contract's interface.
 | `get_allowance(wallet, merchant)` / `available_today(wallet, merchant)` | — (view) | Read state |
 | `install(wallet)` / `uninstall(wallet)` | `wallet` / permissionless | `PolicyInterface` lifecycle hooks, called by passkey-kit's `add_signer`/`remove_signer` when this policy itself is (de)registered as a `Policy` signer on the wallet — see `sub-keys.ts#ensurePolicyInstalled`, called automatically before the first `set_allowance`. Not invoked directly |
 | `policy__(source, signer, contexts)` | — (called by the smart wallet itself) | The actual gate: deny-by-default, exactly one `transfer` context, `to` must match a live, unexpired, non-paused `Allowance` for that merchant, `signer` must match the `Allowance.signer` that merchant's mandate was granted to (rejects `WrongSigner` otherwise — this is what stops merchant A's leaked sub-key from spending against merchant B's cap), amount within `cap_per_tx` and the rolling 24h `cap_per_day` |
+
+## Liveness and TTL
+
+Testnet can be reset, and a persistent entry whose TTL lapses is archived, so check before a demo:
+
+```bash
+pnpm --filter @stellar-thorn/server chain-check
+```
+
+It simulates a read-only `get_allowance` on the deployed contract (`Error(Contract, #3)` / `NoAllowance` means the contract ran and answered; a restore preamble or a missing contract fails), and checks that the smart-wallet wasm hash in `smart-wallet-config.ts` and the USDC token contract still exist. Exit code 1 means something needs attention. The same check runs weekly in CI (`testnet-health.yml`).
+
+Checked on 2026-09-20: the contract answered (`NoAllowance`), the smart-wallet wasm had about 178 days of TTL, USDC about 140. The public testnet RPC reports `liveUntilLedgerSeq: 0` for this contract's own instance and wasm entries even though they run; the cause is not verified, so the script treats 0 as "TTL unknown" and relies on the simulation.
+
+To extend a TTL (needs a funded source account; do not paste the secret into a file):
+
+```bash
+stellar contract extend --id <C…> --ledgers-to-extend <n> --source-account <key> --network testnet
+stellar contract extend --wasm-hash <hash> --ledgers-to-extend <n> --source-account <key> --network testnet
+```
 
 ## End-to-end verification
 
@@ -97,7 +116,8 @@ Once deployed and wired in:
    check the background service worker's console for a
    `[BARET] sub-key provisioning failed for …` warning (provisioning is
    best-effort and never blocks the payment itself — see
-   `messaging/handlers.ts#provisionRealSubKey`).
+   `swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval`; a failure also adds an
+   alert to the Activity tab).
 4. On [stellar.expert](https://stellar.expert/explorer/testnet), look up
    the smart wallet's contract address and confirm two new transactions:
    an `invoke` against `MERCHANT_SPEND_POLICY_CONTRACT_ID` (`set_allowance`)
@@ -115,5 +135,4 @@ Documentation status: `docs/x402-defense.md` §11, `docs/extension-architecture.
 contract's unit tests. **This checklist has not been re-run against the live testnet as part of the documentation update**, so treat the live end-to-end behaviour as "expected, verify with the steps above" until someone runs it and records the result here
 (date, wallet address, the `set_allowance` / `add_signer` transaction hashes, and the outcome of the over-cap payment in step 6).
 
-Known gap to test while you are here: renew an expired mandate (re-approve after `mandate_seconds`) and confirm whether payments still succeed. Today the extension renews only its local mandate, not the on-chain allowance or the sub-key's signer expiry
-(see `docs/implementation-status.md` §4).
+Renewal check to run while you are here: let a mandate lapse (or set `mandateMaxAgeDays` very low), re-approve the merchant, and confirm the Activity tab shows "Renewed scoped on-chain sub-key" and that the next auto-payment settles. The extension mints a new sub-key on renewal (unit-tested; see `docs/implementation-status.md` §4), but this has **not** been run against the live testnet.

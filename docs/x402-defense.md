@@ -183,7 +183,7 @@ verification needs `@stellar/stellar-sdk`. The canonical payload is **duplicated
 The extension registers a per-merchant **sub-key** on the user's passkey-kit smart wallet, and the wallet consults the `MerchantSpendPolicy` Soroban contract (`contracts/contracts/merchant-spend-policy`) every time that sub-key signs. This replaced an earlier design where sub-keys were `unlimited` signers and caps were bookkeeping only.
 (The earlier `PaymentGuard` vault, which held deposited funds, is kept in the repo but is **not** part of the product; see [`../contracts/README.md`](../contracts/README.md).)
 
-**Provisioning** (first manual approval of a merchant, `messaging/handlers.ts#provisionRealSubKey` → `swig/sub-keys.ts#provisionMerchantSubKey`):
+**Provisioning** (a manual approval of a merchant that has no live sub-key: the first approval, a renewal after the mandate lapsed, or a retry after a failure; `swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval` → `swig/sub-keys.ts#provisionMerchantSubKey`):
 1. `ensurePolicyInstalled`: register the policy on the wallet as a `Policy` signer with an empty limits map (fires the policy's `install(wallet)` hook; the empty map means the policy can never act alone).
 2. Mint a fresh Ed25519 sub-key.
 3. `set_allowance(wallet, merchant = payTo, signer = sub-key, cap_per_tx, cap_per_day, mandate_seconds)` on the policy (needs `wallet.require_auth()`, satisfied by the admin authority).
@@ -193,10 +193,10 @@ The extension registers a per-merchant **sub-key** on the user's passkey-kit sma
 Any other contract, the wallet's own admin surface, or more than one context is denied by default. The sub-key's own signature is still required alongside the policy (the policy is a required co-signer, never the sole `Signature::Policy` for a value transfer).
 
 **Limits to keep honest:**
-- Provisioning is best-effort and runs after the first approval; if it fails (RPC error, passphrase no longer cached) that merchant keeps using the admin key and has **no** on-chain cap until a later manual approval retries.
+- Provisioning is best-effort and runs after a manual approval; if it fails (RPC error, passphrase no longer cached) that merchant keeps using the admin key and has **no** on-chain cap until a later manual approval retries, and Activity shows an alert saying so.
 - Caps and expiry are fixed at provisioning time. Editing a cap in the extension does not update the on-chain allowance.
 - `ledger.pause` is local only; `ledger.revoke` removes the signer on-chain.
-- **Known gap (mandate renewal):** renewing an expired mandate updates only the local row; the on-chain allowance and the sub-key's signer expiry are not renewed, so payments signed by the old sub-key are rejected on-chain afterwards. See [`implementation-status.md`](./implementation-status.md) §4.
+- **Mandate renewal:** the on-chain allowance and the sub-key's signer both expire with the mandate, so re-approving a lapsed mandate mints a **new** sub-key. `set_allowance` rebinds the policy to it (the old key would get `WrongSigner`) and the old row is marked revoked locally. If minting fails the old key is retired and the merchant falls back to the admin key, with an alert. A repeat approval under a still-live mandate (Strict policy) keeps the existing key. The old signer entry is not removed on-chain; it carries its own expiry. Unit-tested, not yet run against the live testnet ([`implementation-status.md`](./implementation-status.md) §4).
 - The deployed contract and the smart-wallet WASM hash are pinned in `swig/smart-wallet-config.ts`; deploy record and the live end-to-end verification checklist: `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`. The code path and the contract's 14 unit tests exist; the live checklist was **not** re-run while writing this document.
 
 ---

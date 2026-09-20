@@ -5,12 +5,14 @@
  * a family of distinct-looking third-party apps — no Baret branding here,
  * by design: the site should look identical whether or not the visitor has
  * Baret installed. Dark/light aware: the nav adapts and carries its own
- * theme toggle.
+ * theme toggle. A small "fictional demo" pill stays visible on every site:
+ * the balances, APYs and holder counts on these pages are invented for the
+ * scenario, and the site should not pass them off as real.
  */
 
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Check, ChevronDown, Copy, LogOut, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Copy, Info, LogOut, ShieldCheck } from "lucide-react";
 import { ThemeToggle } from "@stellar-thorn/ui";
 import { useWallet } from "../wallet/context";
 
@@ -181,6 +183,14 @@ export function SiteShell({ theme, children, navLinks }: Props) {
         <ArrowLeft size={12} style={{ color: theme.primary }} />
         Showcase
       </Link>
+      <div
+        role="note"
+        className="pointer-events-none fixed bottom-5 right-5 z-50 flex items-center gap-1.5 rounded-full bg-neutral-900/90 px-3 py-2 text-xs font-medium text-white shadow-lg backdrop-blur dark:bg-white/10"
+      >
+        <Info size={12} style={{ color: theme.primary }} />
+        Fictional demo dApp
+        <span className="hidden sm:inline">· its numbers are made up</span>
+      </div>
       <NavBar theme={theme} navLinks={navLinks} />
       <main className="pt-[68px]">{children}</main>
     </div>

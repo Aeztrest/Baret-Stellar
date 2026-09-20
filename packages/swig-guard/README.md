@@ -22,8 +22,8 @@ if (ev.decision === "block") console.warn(ev.blockingReasons);   // ev.analysis 
 
 - `TransactionGuard.evaluate(req)` → `{ decision: "allow" | "block", advisoryFindings, blockingReasons, analysis, transactionXdr }`; `prepare(req)` throws `GuardBlockedError` on a block.
 - `analyzeTransaction(cfg, req)`: the raw client. Refuses a plain `http://` URL to a non-loopback host unless `allowInsecureHttp: true`; 15 s default timeout; errors are `AnalyzeError` (fail closed).
-- `GuardPolicy`, `STRICT_POLICY`, `BALANCED_POLICY`, `PERMISSIVE_POLICY`, `POLICY_TEMPLATES`, `validatePolicy`, `normalizePolicy`.
-- Types mirroring the server verdict: `AnalysisResult`, `RiskFinding`, `EstimatedChanges`, `VerdictAttestation`… (`src/types.ts`; keep in sync with `apps/server/src/domain/*`).
+- `GuardPolicy`, `STRICT_POLICY`, `BALANCED_POLICY`, `PERMISSIVE_POLICY`, `POLICY_TEMPLATES`, `validatePolicy`, `normalizePolicy`, and `DEFAULT_X402_CAPS` (the default per-merchant x402 caps: 0.5 per payment, 2 per hour, 5 per day, in USDC).
+- Types mirroring the server verdict: `AnalysisResult`, `RiskFinding`, `EstimatedChanges`, `VerdictAttestation`… (`src/types.ts`; keep in sync with `apps/server/src/domain/*`). `RISK_FINDING_CODES` lists every code the server returns and is checked against the server's catalog by `apps/server/test/domain/finding-codes.test.ts`; `CLIENT_FINDING_CODES` are the codes a client raises itself.
 
 ## Develop
 

@@ -12,7 +12,10 @@
  * key already committed in render.yaml, not a secret.
  */
 
+import type { ClientFindingCode } from "@stellar-thorn/swig-guard";
+
 const DEMO_API_KEY = "dev-key-change-me";
+const ANALYZE_TIMEOUT_MS = 45_000;
 
 export interface RiskFinding {
   code: string;
@@ -88,8 +91,13 @@ export async function analyzeTransactionForPreview(
   userWallet: string,
   opts: AnalyzeOptions = {},
 ): Promise<AnalysisResult> {
+  // The hosted server sleeps when idle and needs about 30 s to wake, so a
+  // short timeout would report a healthy server as unreachable.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
   try {
     const res = await fetch("/api/v1/analyze", {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -130,7 +138,12 @@ export async function analyzeTransactionForPreview(
       offline: false,
     };
   } catch (err) {
+    if (controller.signal.aborted) {
+      return offlineResult(`no answer within ${ANALYZE_TIMEOUT_MS / 1000} s (free hosting may still be waking up)`);
+    }
     return offlineResult(err instanceof Error ? err.message : String(err));
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -150,10 +163,10 @@ function offlineResult(reason: string): AnalysisResult {
     reasons: [`Couldn't reach the analyze server: ${reason}`],
     riskFindings: [
       {
-        code: "ANALYZE_UNREACHABLE",
+        code: "ANALYZE_UNREACHABLE" satisfies ClientFindingCode,
         severity: "medium",
         message:
-          "Analyze server unreachable. Baret won't sign unchecked transactions.",
+          "Analyze server unreachable, so there is no verdict for this transaction.",
       },
     ],
     estimatedChanges: EMPTY_CHANGES,

@@ -52,8 +52,8 @@ Legend: **S** = server (`/v1/analyze`, `policy/engine.ts` + detectors), **X** = 
 | Field | Effect | Enforced |
 |---|---|---|
 | `x402AutoApprove` | `false` = every x402 payment opens the popup. Otherwise only a *live mandate* auto-signs | X |
-| `maxX402PerTx` | Global per-payment ceiling; also seeds a new merchant's `capPerTx` (default 1.0) | X |
-| `x402HourlyCap`, `x402DailyCap` | Seed a new merchant's rolling caps (defaults 5.0 / 25.0), enforced as sliding windows per merchant | X |
+| `maxX402PerTx` | Global per-payment ceiling; also seeds a new merchant's `capPerTx` (default 0.5, `DEFAULT_X402_CAPS.perTx`) | X |
+| `x402HourlyCap`, `x402DailyCap` | Seed a new merchant's rolling caps (defaults 2.0 / 5.0, `DEFAULT_X402_CAPS`), enforced as sliding windows per merchant | X |
 | `allowedFacilitators` | Static allow-list for `extra.sponsorBy` | X |
 | `allowedMerchantOrigins`, `blockedMerchantOrigins` | Allow/deny by page origin | X |
 | `mandateMaxAgeDays` | Lifetime of a manually granted mandate (default 30) | X |
@@ -81,13 +81,15 @@ Exact values (`packages/swig-guard/src/policy.ts`). `CANONICAL_USDC_CONTRACTS` =
 | `allowWarnings` | false | true | true |
 | `requireSuccessfulSimulation` | true | true | true |
 | `x402AutoApprove` | **false** | true | true |
-| `maxX402PerTx` / `x402HourlyCap` / `x402DailyCap` | 0.10 / 1.00 / 5.00 | 1.00 / 5.00 / 25.00 | 10.00 / 50.00 / 250.00 |
+| `maxX402PerTx` / `x402HourlyCap` / `x402DailyCap` | 0.10 / 1.00 / 5.00 | 0.50 / 2.00 / 5.00 | 10.00 / 50.00 / 250.00 |
 | `allowedAssets` | canonical USDC | canonical USDC | - |
 | `mandateMaxAgeDays` | 14 | 30 | 90 |
 | `requireMemo` | false | false | - |
 | `maxTimeBoundsWindowSeconds` | 60 | 120 | - |
 | `maxResourceFeeStroops` / `maxBaseFeeStroops` | 10,000,000 / 200,000 | 50,000,000 / 1,000,000 | - |
 | Non-enforced fields (§1.4) | strict values | balanced values | mostly unset |
+
+The default x402 caps (0.5 per payment, 2 per hour, 5 per day, in USDC) live in one constant, `DEFAULT_X402_CAPS` in `packages/swig-guard/src/policy.ts`; Balanced and the extension's fallback for a new merchant both read it. Changing them affects only wallets with no saved policy (or one that leaves a cap unset) and merchants approved afterwards: a saved policy keeps its own numbers, and an existing merchant's allowance keeps the caps it was created with (they are also fixed on-chain when the sub-key is provisioned).
 
 Balanced is the fallback everywhere the wallet reads its policy (`policy.read`, the sign pipeline and the x402 handlers all use `BALANCED_POLICY` until the user saves one). A different fallback in one place once made the UI show "Balanced" while enforcing nothing; keep them identical.
 

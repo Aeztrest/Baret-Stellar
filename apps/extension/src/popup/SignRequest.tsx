@@ -6,7 +6,9 @@
  * the request with the user's verdict. The footer bar itself carries the
  * verdict tone. Header-verdict and footer-CTA bookend in matching color so
  * the Safe / Caution / Blocked signal reads at a glance, not just on the
- * button. A Blocked verdict demands a 1.5s press-and-hold to override.
+ * button. A Blocked verdict demands a 1.5s press-and-hold to override, and so
+ * does signing when the analyzer could not be reached (an unchecked signature
+ * should never be one stray click).
  *
  * Spec: docs/wallet-spec.md §8 + docs/x402-defense.md.
  */
@@ -60,6 +62,7 @@ export function SignRequest() {
   useEffect(() => {
     if (!request) return;
     let cancelled = false;
+    setAnalysis(null);
     setAnalyzing(true);
     setAnalysisError(null);
     rpc.call("tx.analyzeRequest", { requestId: request.requestId })
@@ -152,12 +155,15 @@ export function SignRequest() {
         onDecline={() => onDecide(false)}
         onSign={() => onDecide(true, false)}
         onOverrideSign={() => onDecide(true, true)}
+        onRetry={() => setAnalysisAttempt((n) => n + 1)}
         blocked={blocked}
         advisory={advisory}
       />
     </div>
   );
 }
+
+const SLOW_HINT_MS = 6_000;
 
 const ANALYZE_STEPS = [
   "Reading the transaction",
@@ -175,12 +181,18 @@ const ANALYZE_STEPS = [
  */
 function AnalyzingCard() {
   const [step, setStep] = useState(0);
+  const [slow, setSlow] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
       setStep((s) => (s < ANALYZE_STEPS.length - 1 ? s + 1 : s));
     }, 550);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const id = setTimeout(() => setSlow(true), SLOW_HINT_MS);
+    return () => clearTimeout(id);
   }, []);
 
   return (
@@ -219,6 +231,12 @@ function AnalyzingCard() {
           </div>
         ))}
       </div>
+
+      {slow && (
+        <p className="text-center text-[10px] leading-relaxed text-text-muted">
+          The analyzer is waking up (free hosting sleeps when idle). This can take up to 30 seconds.
+        </p>
+      )}
     </div>
   );
 }
@@ -288,7 +306,7 @@ function Header({ origin, verb }: { origin: string; verb: string }) {
 }
 
 function Footer({
-  analysis, working, kind, onDecline, onSign, onOverrideSign, blocked, advisory,
+  analysis, working, kind, onDecline, onSign, onOverrideSign, onRetry, blocked, advisory,
 }: {
   analysis: AnalyzeResponse | null;
   working: boolean;
@@ -296,11 +314,14 @@ function Footer({
   onDecline: () => void;
   onSign: () => void;
   onOverrideSign: () => void;
+  onRetry: () => void;
   blocked: boolean;
   advisory: boolean;
 }) {
   const signLabel = kind === "transactionAndSend" ? "Sign & send" : "Sign";
   const signLabelOverride = advisory ? `${signLabel} anyway` : signLabel;
+  // The analyzer could not be reached, so there is no verdict at all.
+  const unchecked = analysis?.offline === true;
 
   const footerStyle = blocked
     ? { background: "var(--bad-dim)", borderTop: "1px solid var(--bad)" }
@@ -310,9 +331,20 @@ function Footer({
 
   return (
     <footer className="p-3 flex flex-col gap-2 shrink-0" style={footerStyle}>
-      {analysis?.offline && (
-        <div className="text-[10px] text-warn px-2 leading-relaxed">
-          Baret couldn't reach the analyzer. Sign now and this transaction goes unchecked.
+      {unchecked && (
+        <div className="flex items-start justify-between gap-2 px-2">
+          <span className="text-[10px] text-warn leading-relaxed">
+            Baret couldn't reach the analyzer, so this transaction has no check. Retry, or hold to sign it unchecked.
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onRetry}
+            disabled={working}
+            leftIcon={<RefreshCw size={12} />}
+          >
+            Retry
+          </Button>
         </div>
       )}
       {blocked && (
@@ -326,7 +358,21 @@ function Footer({
           Decline
         </Button>
         {blocked ? (
-          <HoldToSignButton working={working} onConfirm={onOverrideSign} />
+          <HoldToSignButton
+            tone="bad"
+            label="Hold to sign anyway"
+            ariaLabel="Hold for 1.5 seconds to sign a blocked transaction anyway. Baret logs the override."
+            working={working}
+            onConfirm={onOverrideSign}
+          />
+        ) : unchecked ? (
+          <HoldToSignButton
+            tone="warn"
+            label="Hold to sign anyway"
+            ariaLabel="Hold for 1.5 seconds to sign without a Baret check. Baret logs the override."
+            working={working}
+            onConfirm={onOverrideSign}
+          />
         ) : (
           <Button
             variant="primary"
@@ -347,10 +393,19 @@ function Footer({
 const HOLD_MS = 1500;
 
 /**
- * Press-and-hold override for Blocked verdicts. The fill bar tracks the hold;
- * releasing early cancels. Only a completed 1.5s hold fires onConfirm.
+ * Press-and-hold override for Blocked verdicts and for signing without a
+ * check. The fill bar tracks the hold; releasing early cancels. Only a
+ * completed 1.5s hold fires onConfirm.
  */
-function HoldToSignButton({ working, onConfirm }: { working: boolean; onConfirm: () => void }) {
+function HoldToSignButton({
+  working, onConfirm, tone, label, ariaLabel,
+}: {
+  working: boolean;
+  onConfirm: () => void;
+  tone: "bad" | "warn";
+  label: string;
+  ariaLabel: string;
+}) {
   const [progress, setProgress] = useState(0);
   const raf = useRef<number | null>(null);
   const start = useRef<number | null>(null);
@@ -392,12 +447,12 @@ function HoldToSignButton({ working, onConfirm }: { working: boolean; onConfirm:
       onPointerLeave={cancel}
       onPointerCancel={cancel}
       disabled={working}
-      aria-label="Hold for 1.5 seconds to sign a blocked transaction anyway. Baret logs the override."
+      aria-label={ariaLabel}
       className="relative w-full h-10 px-4 rounded-[var(--r-input)] font-semibold text-sm overflow-hidden select-none disabled:opacity-45"
       style={{
-        background: "var(--bad-dim)",
-        border: "1px solid var(--bad)",
-        color: "var(--bad)",
+        background: `var(--${tone}-dim)`,
+        border: `1px solid var(--${tone})`,
+        color: `var(--${tone})`,
         touchAction: "none",
       }}
     >
@@ -406,7 +461,7 @@ function HoldToSignButton({ working, onConfirm }: { working: boolean; onConfirm:
         className="absolute inset-y-0 left-0"
         style={{
           width: `${progress * 100}%`,
-          background: "var(--bad)",
+          background: `var(--${tone})`,
           opacity: 0.25,
           transition: progress === 0 ? "width 160ms ease-out" : "none",
         }}
@@ -415,7 +470,7 @@ function HoldToSignButton({ working, onConfirm }: { working: boolean; onConfirm:
         {working ? (
           <><Loader2 size={13} className="animate-spin" /> Signing…</>
         ) : (
-          <><ShieldX size={13} /> Hold to sign anyway</>
+          <>{tone === "bad" ? <ShieldX size={13} /> : <AlertTriangle size={13} />} {label}</>
         )}
       </span>
     </button>
