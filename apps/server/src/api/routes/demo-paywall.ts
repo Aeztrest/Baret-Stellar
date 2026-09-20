@@ -67,7 +67,15 @@ export function registerDemoPaywallRoute(app: FastifyInstance): void {
 
     const headerValue =
       pickHeader(req, "payment-signature") ?? pickHeader(req, "x-payment");
-    const requirements = await buildRequirements(facilitator, merchant, q);
+    let requirements: Awaited<ReturnType<typeof buildRequirements>>;
+    try {
+      requirements = await buildRequirements(facilitator, merchant, q);
+    } catch (err) {
+      // A facilitator outage is an upstream failure (502), not a server bug,
+      // and the message names the facilitator URL, so it stays in the log.
+      req.log.warn({ err }, "scrybe: couldn't build payment requirements");
+      return reply.code(502).send({ error: "Couldn't build payment requirements" });
+    }
 
     if (!headerValue) {
       return send402(reply, requirements);

@@ -373,6 +373,7 @@ Her hata: `{ "error": { "code", "message", "details?" } }`. Kodlar (`api/errors.
 `FACILITATOR_ERROR`, `UNAVAILABLE`, `INTERNAL_ERROR`. HTTP eşleşmesi: 400 (`BAD_REQUEST`, `WRONG_NETWORK`), 401, 403, 404, 413, 429 (+`Retry-After`),
 502/504 (`RPC_ERROR`; zaman aşımı 504), 502 (`FACILITATOR_ERROR`), 503, 500.
 İstisnalar: `/demo/*` rotaları bu zarfı kullanmaz (`{error: "..."}`), `/mcp/call` eksik `tool` için `{error:"Missing 'tool' field"}` döner.
+Sızıntı kuralları: analiz sonucu kendi cevap şemasını geçemezse `500 INTERNAL_ERROR` "Response validation failed" döner ve şema ayrıntısı (`issues`) yalnız loga yazılır; istek gövdesi hatasında (`400`) `details.issues` kalır, çünkü çağıranın kendi girdisidir. Demo satıcılar facilitator'a ulaşamazsa (`buildRequirements`) `502 {error: "Couldn't build payment requirements"}` döner, facilitator URL'i yalnız logdadır (verify/settle sebepleri `detail` olarak bilerek dönmeye devam eder, showcase onları gösterir).
 
 ## 15. Test, build, lint
 
@@ -382,7 +383,7 @@ pnpm --filter @stellar-thorn/server lint        # tsc --noEmit
 pnpm --filter @stellar-thorn/server build       # tsc -p tsconfig.build.json → dist/
 ```
 
-Testler `test/` altında: `app-auth`, `api/{developer,openapi,error-sanitization,analyze-x402-log,portal-catalog}`, `keys/key-store`,
+Testler `test/` altında: `app-auth`, `api/{developer,openapi,error-sanitization,analyze-x402-log,analyze-response-check,demo-routes,portal-catalog}`, `keys/key-store`,
 `policy/engine`, `risk/*`, `simulation/*`, `analysis/extract-deltas`, `attestation/*`, `data/audit-store`, `domain/finding-codes`, `chain-check` (sunucu `scripts/` betiğinin sınıflandırma mantığı). Önemli kilitler:
 `openapi.test.ts` (her kayıtlı rota OpenAPI'de olmalı, hata kodları eşit olmalı), `portal-catalog.test.ts` (showcase portal kataloğu ↔ OpenAPI),
 `finding-codes.test.ts` (sunucu bulgu kodları ↔ swig-guard `RISK_FINDING_CODES`).
