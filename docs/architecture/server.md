@@ -341,7 +341,7 @@ Bkz. [`ARCHITECTURE.md` §4.4](../../ARCHITECTURE.md#44-x402-satıcı-tarafı-su
   Settlement sonrası hata, "ödendi ama hata döndü" olabileceğinden ayrı loglanır (`logX402SettlementOutcome`).
 - **Demo satıcı** (`api/routes/demo-paywall.ts`, `demo-cortex.ts`): elle yazılmış `FacilitatorClient` (`/supported`, `/verify`, `/settle`,
   1 sa. `/supported` cache'i). `GET /demo/scrybe?q=` gerçek 402 + `PAYMENT-REQUIRED` (base64) döner; `PAYMENT-SIGNATURE` gelince verify → settle.
-  `/demo/cortex` aynı akış + `scenario=safe|drift|asset-swap|blind` (drift: 0,5 USDC/çağrı; blind: 2,5 USDC; asset-swap: native XLM SAC).
+  `/demo/cortex` aynı akış + `scenario=safe|drift|asset-swap|blind` (drift: 0,25 USDC/çağrı; blind: 2,5 USDC; asset-swap: native XLM SAC).
   Sunucu **hiç yalan söylemez**: `accepted.amount` her zaman gerçekte imzalanıp settle edilen tutardır; "blind" senaryonun yalanı showcase sayfasındadır.
 - **Kurulum:** `pnpm --filter @stellar-thorn/server x402-setup` merchant anahtarını üretir/`.env`'e yazar, testnet'te fonlar, USDC trustline ekler.
   (Soroban SAC `transfer` alıcıda trustline yoksa `Contract #13` ile düşer.) **Render'da `X402_MERCHANT_SECRET` elle girilmelidir** (`sync:false`).
