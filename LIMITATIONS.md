@@ -102,6 +102,10 @@ The post-sign monitor flags only **unknown outgoing transactions** (drift), by p
 - Options → Anchors signs in and lists what the anchor offers (SEP-6 `/info`). The login token is held in service-worker memory only: locking the wallet, or the worker restarting (Chrome suspends it after a short idle), signs you out, and you sign in again with one click. Deposits, withdrawals and transaction tracking are not built yet, and Baret does not yet check a withdrawal's destination and memo against the anchor's instructions, so a withdrawal payment is judged by the normal analysis.
 - A fee-bump envelope wrapping a challenge is not treated as a challenge; it goes to the normal analysis. The recognizer reads `stellar.toml` from the network, so a known anchor whose file is unreachable also shows the Caution.
 
+### Trustline exception for anchor assets
+
+- To let an anchor's USDC trustline through, the extension switches off `blockTrustlineChanges` and `blockUnlimitedTrustlines` for a transaction whose trustline changes are all additions for canonical USDC or an asset an allow-listed anchor declares. Anything else (a removal, a look-alike issuer, another account) keeps the normal rules. "Add USDC trustline" in Options adds only canonical USDC; an anchor that issues its own differently-issued USDC isn't supported yet.
+
 ### Analysis dependency
 
 - The extension analyses via the hosted server (`https://baret-stellar.onrender.com` in packaged builds) with the public demo key. If it can't be reached the popup shows an "offline" advisory with a Retry button; signing anyway takes a deliberate 1.5 s press-and-hold, so it never allows silently or by one stray click. The hosted server sleeps when idle and the first request can take about 30 s, so the extension waits up to 45 s and pings `/health` when a site connects.

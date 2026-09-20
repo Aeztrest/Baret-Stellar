@@ -22,6 +22,19 @@ SIGNING_KEY="GSHOULDNOTBEREAD"
 
 [[CURRENCIES]]
 code="USDC"
+issuer="GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+display_decimals=2
+
+[[CURRENCIES]]
+code="NOISSUER"
+
+[[CURRENCIES]]
+code="EURC"
+issuer="GEURCISSUER"
+
+[SOMETHING_ELSE]
+code="LEAKED"
+issuer="GLEAKED"
 `;
 
 beforeEach(() => {
@@ -35,7 +48,21 @@ describe("parseAnchorToml", () => {
       webAuthEndpoint: "https://tr-mock-anchor.fly.dev/auth",
       transferServer: "https://tr-mock-anchor.fly.dev/sep6",
       networkPassphrase: "Test SDF Network ; September 2015",
+      currencies: [
+        { code: "USDC", issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5" },
+        { code: "EURC", issuer: "GEURCISSUER" },
+      ],
     });
+  });
+
+  it("keeps only complete [[CURRENCIES]] entries and ignores other tables", () => {
+    const { currencies } = parseAnchorToml(SAMPLE);
+    expect(currencies?.map((c) => c.code)).toEqual(["USDC", "EURC"]);
+  });
+
+  it("caps how many currencies it keeps", () => {
+    const many = Array.from({ length: 80 }, (_, i) => `[[CURRENCIES]]\ncode="C${i}"\nissuer="G${i}"\n`).join("\n");
+    expect(parseAnchorToml(many).currencies).toHaveLength(50);
   });
 
   it("ignores keys under a table header, so a nested SIGNING_KEY can't override", () => {
@@ -50,6 +77,7 @@ describe("parseAnchorToml", () => {
       webAuthEndpoint: undefined,
       transferServer: undefined,
       networkPassphrase: undefined,
+      currencies: [],
     });
   });
 });

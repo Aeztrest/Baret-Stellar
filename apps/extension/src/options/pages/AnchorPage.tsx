@@ -9,10 +9,16 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Landmark, LogIn, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, Landmark, LogIn, ShieldCheck } from "lucide-react";
 import type { AnchorAssetInfo, AnchorDirectionInfo, AnchorSummary } from "@stellar-thorn/ext-protocol";
-import { Button, EmptyState, usePolling } from "@stellar-thorn/ui";
+import { Button, EmptyState, shortAddr, usePolling } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
+
+interface SetupState {
+  exists: boolean;
+  hasUsdcTrustline: boolean;
+  usdc: string | null;
+}
 
 type InfoState =
   | { status: "loading" }
@@ -29,6 +35,33 @@ export function AnchorPage() {
   const [info, setInfo] = useState<Record<string, InfoState>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [setup, setSetup] = useState<SetupState | null>(null);
+  const [setupBusy, setSetupBusy] = useState<"fund" | "trust" | null>(null);
+
+  // The account an anchor pays out to. Deposits land here (the classic `G…`
+  // account), not in the smart wallet.
+  const refreshSetup = useCallback(async () => {
+    try {
+      setSetup(await rpc.call("wallet.balance", {}));
+    } catch {
+      setSetup(null);
+    }
+  }, [rpc]);
+  usePolling(refreshSetup, 15_000);
+
+  const runSetup = async (step: "fund" | "trust") => {
+    setSetupBusy(step);
+    setErr(null);
+    try {
+      if (step === "fund") await rpc.call("wallet.airdrop", undefined as never);
+      else await rpc.call("wallet.addUsdcTrustline", undefined as never);
+      await refreshSetup();
+    } catch (e) {
+      setErr(errorMessage(e));
+    } finally {
+      setSetupBusy(null);
+    }
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -93,6 +126,34 @@ export function AnchorPage() {
         </div>
       )}
 
+      {unlocked && setup && wallet?.authorityAddress && (
+        <section className="card p-5 space-y-3">
+          <div>
+            <p className="font-semibold text-sm">Account setup</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Anchors pay out to your account <span className="font-mono">{shortAddr(wallet.authorityAddress)}</span>, not
+              to your smart wallet. It needs XLM and a USDC trustline first.
+            </p>
+          </div>
+          <SetupRow
+            done={setup.exists}
+            label="Account is funded"
+            action={wallet.network === "testnet" ? "Fund with Friendbot" : undefined}
+            busy={setupBusy === "fund"}
+            disabled={setupBusy !== null}
+            onAction={() => void runSetup("fund")}
+          />
+          <SetupRow
+            done={setup.hasUsdcTrustline}
+            label={setup.usdc !== null ? `USDC trustline (balance ${setup.usdc})` : "USDC trustline"}
+            action="Add USDC trustline"
+            busy={setupBusy === "trust"}
+            disabled={setupBusy !== null || !setup.exists}
+            onAction={() => void runSetup("trust")}
+          />
+        </section>
+      )}
+
       {anchors && anchors.length === 0 && (
         <div className="card">
           <EmptyState
@@ -132,6 +193,31 @@ export function AnchorPage() {
           <InfoBlock state={info[a.domain]} onRetry={() => void loadInfo(a.domain)} />
         </section>
       ))}
+    </div>
+  );
+}
+
+function SetupRow(props: {
+  done: boolean;
+  label: string;
+  action?: string;
+  busy: boolean;
+  disabled: boolean;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      {props.done ? (
+        <CheckCircle2 size={15} style={{ color: "var(--ok)" }} />
+      ) : (
+        <Circle size={15} className="text-muted-foreground" />
+      )}
+      <span className="flex-1">{props.label}</span>
+      {!props.done && props.action && (
+        <Button variant="secondary" size="sm" disabled={props.disabled} onClick={props.onAction}>
+          {props.busy ? "Working…" : props.action}
+        </Button>
+      )}
     </div>
   );
 }

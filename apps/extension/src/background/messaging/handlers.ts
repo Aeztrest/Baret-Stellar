@@ -65,6 +65,7 @@ import {
 } from "../wallet-standard/sign-queue";
 import { analyzeTransaction } from "../baret/analyze-client";
 import { analyzeSep10Challenge } from "../sep/sep10-challenge";
+import { trustlineException } from "../sep/trustline-exception";
 import { anchorInfo, anchorLogin, listAnchors } from "../sep/anchor-service";
 import {
   isMandateLive,
@@ -1036,15 +1037,32 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
   if (challenge) return challenge;
 
   const policy = await loadPolicy();
-  return analyzeTransaction(
+
+  // Strict policies block trustline changes, which would also block the
+  // trustline an anchor flow needs. Relax exactly those two rules for a
+  // transaction whose trustline changes are all for an asset the wallet or an
+  // allow-listed anchor vouches for (`sep/trustline-exception.ts`).
+  const exception =
+    policy.blockTrustlineChanges || policy.blockUnlimitedTrustlines
+      ? await trustlineException(req.payloadBase64, {
+          passphrase: getNetworkPassphrase(snap.network),
+          authority: snap.authorityAddress,
+          canonical: { code: "USDC", issuer: USDC_ISSUER[snap.network] ?? USDC_ISSUER.testnet! },
+        })
+      : null;
+
+  const result = await analyzeTransaction(
     {
       network: snap.network,
       transactionXdr: req.payloadBase64,
       userWallet: snap.authorityAddress,
-      policy,
+      policy: exception
+        ? { ...policy, blockTrustlineChanges: false, blockUnlimitedTrustlines: false }
+        : policy,
     },
     { apiKey: "dev-key-change-me" },
   );
+  return exception ? { ...result, reasons: [...result.reasons, exception.note] } : result;
 };
 
 /**
