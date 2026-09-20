@@ -57,7 +57,8 @@ const RULES = [
   },
   {
     kind: "PEM private key",
-    find: (line) => (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(line) ? ["-----BEGIN PRIVATE KEY-----"] : []),
+    // The returned label must not spell the header out: this file is scanned too.
+    find: (line) => (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(line) ? ["PEM header"] : []),
   },
 ];
 
