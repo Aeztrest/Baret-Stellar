@@ -183,7 +183,7 @@ dApp ──window.baretStellar.signTransaction(xdr)──► inpage/wallet-stand
                    tx.peekRequest ──► kuyruğun başı
                    tx.analyzeRequest ──► background/baret/analyze-client.ts ──► POST /v1/analyze
                        (policy = kayıtlı GuardPolicy, yoksa BALANCED_POLICY; userWallet = authority G…)
-                   ─► verdict: allow / advisory / block  (sunucuya ulaşılamazsa "offline" advisory)
+                   ─► verdict: allow / advisory / block  (sunucuya ulaşılamazsa "offline" advisory: Retry + imza için basılı tutma)
                  kullanıcı Sign / Decline  (Blocked ise 1.5 sn basılı tutma ile override)
                  tx.sign ──► performSign: aktif hesabın anahtarıyla imza (+ signAndSend ise Horizon'a gönder)
        ◄── imzalı XDR ── dApp

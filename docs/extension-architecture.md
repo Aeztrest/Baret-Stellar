@@ -212,8 +212,8 @@ silent trust it can't attribute. Never call `indexedDB.open()` with another vers
 
 ## 9. Analyze client and policy
 
-`baret/analyze-client.ts` posts `{ network, transactionXdr, userWallet: authority G…, policy }` to `<base>/v1/analyze` (base: `https://baret-stellar.onrender.com` in packaged builds, `http://localhost:8080` in dev), 25 s timeout (Render free cold start ≈ 30 s), and normalises the
-response to `allow | advisory | block`. It never throws: an unreachable server yields an `offline` advisory with the finding `ANALYZE_UNREACHABLE` ("sign only if you trust this dApp"). The API key is hard-coded to the public demo key in `messaging/handlers.ts`. The server's `attestation` field is ignored (no client-side verification yet).
+`baret/analyze-client.ts` posts `{ network, transactionXdr, userWallet: authority G…, policy }` to `<base>/v1/analyze` (base: `https://baret-stellar.onrender.com` in packaged builds, `http://localhost:8080` in dev), 45 s timeout (Render free cold start ≈ 32 s when measured), and normalises the
+response to `allow | advisory | block`. It never throws: an unreachable server yields an `offline` advisory with the finding `ANALYZE_UNREACHABLE`. In that state the sign screen shows a **Retry** button and does not offer a one-click Sign: signing without a check needs the same 1.5 s press-and-hold as a Blocked override (`popup/SignRequest.tsx`). While the first analysis is slow the screen says the analyzer is waking up after 6 s. `ws.connect` also fires `warmUpAnalyzer()` (a `GET /health`, at most once per 5 minutes, failures ignored) so the hosted server is usually awake by the first sign prompt. Automatic x402 payments do not call the analyzer at all (see `LIMITATIONS.md`). The API key is hard-coded to the public demo key in `messaging/handlers.ts`. The server's `attestation` field is ignored (no client-side verification yet).
 
 The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); the server evaluates its pre-sign subset and ignores the rest. The x402 rules (caps, allow-lists, mandate) are enforced **only here**. Which fields are actually enforced: [`policy-dsl.md`](./policy-dsl.md).
 

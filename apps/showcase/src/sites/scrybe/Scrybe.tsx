@@ -514,6 +514,9 @@ function ConversationEntry({ entry, walletAddress, onSetupTrustline, onRetry }: 
   );
 }
 
+// The hosted server sleeps when idle; the first request after that can take ~30 s.
+const SLOW_HINT_MS = 6_000;
+
 function ProgressStep({ entry }: { entry: AnswerEntry }) {
   const PHASES: Array<{ key: Phase; label: string }> = [
     { key: "asking",    label: "Asking the oracle" },
@@ -522,6 +525,16 @@ function ProgressStep({ entry }: { entry: AnswerEntry }) {
     { key: "settling",  label: "Settling on Stellar" },
   ];
   const idx = PHASES.findIndex((p) => p.key === entry.phase);
+
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (entry.phase !== "asking") {
+      setSlow(false);
+      return;
+    }
+    const id = setTimeout(() => setSlow(true), Math.max(0, SLOW_HINT_MS - (Date.now() - entry.startedAt)));
+    return () => clearTimeout(id);
+  }, [entry.phase, entry.startedAt]);
 
   return (
     <div className="ml-10 space-y-1.5 rounded-xl border border-slate-900/10 bg-white/70 p-3.5 font-mono dark:border-indigo-400/12 dark:bg-white/[0.03]">
@@ -557,6 +570,11 @@ function ProgressStep({ entry }: { entry: AnswerEntry }) {
           </div>
         );
       })}
+      {slow && (
+        <p className="pt-1 font-sans text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+          The demo server is waking up (free hosting sleeps when idle). The first request can take up to 30 seconds.
+        </p>
+      )}
     </div>
   );
 }

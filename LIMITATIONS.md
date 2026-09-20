@@ -98,8 +98,9 @@ The post-sign monitor flags only **unknown outgoing transactions** (drift), by p
 
 ### Analysis dependency
 
-- The extension analyses via the hosted server (`https://baret-stellar.onrender.com` in packaged builds) with the public demo key. If it can't be reached the popup shows an "offline" advisory and lets the user decide; it does not silently allow.
+- The extension analyses via the hosted server (`https://baret-stellar.onrender.com` in packaged builds) with the public demo key. If it can't be reached the popup shows an "offline" advisory with a Retry button; signing anyway takes a deliberate 1.5 s press-and-hold, so it never allows silently or by one stray click. The hosted server sleeps when idle and the first request can take about 30 s, so the extension waits up to 45 s and pings `/health` when a site connects.
 - The analyze server is advisory input, not the trust boundary: x402 caps and mandates are enforced locally.
+- **Automatic x402 payments do not consult the analyzer.** Inside a live mandate they are approved from the extension's own caps and allow-lists and, once the sub-key exists, the on-chain policy, so they keep working while the server is down or asleep. The trade-off is that these payments get no server-side simulation.
 
 ### Distribution
 

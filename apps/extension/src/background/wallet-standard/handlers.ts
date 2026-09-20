@@ -23,6 +23,7 @@ import type { X402MandatePreview } from "@stellar-thorn/ext-protocol";
 
 import { dispatch, getState, subscribe } from "../state/store";
 import { openPopupWindow } from "../popup-window";
+import { warmUpAnalyzer } from "../baret/analyze-client";
 import { isUnlocked, useAuthority } from "../crypto/session";
 import {
   getHorizon,
@@ -110,6 +111,9 @@ function waitForUnlock(timeoutMs = 120_000): Promise<boolean> {
 export const wsConnect: WsHandler = async (raw) => {
   const { origin } = raw as WsConnectReq;
   if (!origin) throw new Error("Origin required");
+  // Connecting comes before signing: wake a sleeping hosted analyzer now so the
+  // first sign prompt doesn't wait on a cold start.
+  void warmUpAnalyzer();
   if (getState().phase === "locked") {
     const unlocked = await waitForUnlock();
     if (!unlocked) {

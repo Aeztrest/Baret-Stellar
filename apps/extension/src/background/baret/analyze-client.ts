@@ -23,9 +23,37 @@ import type {
 const DEFAULT_BASE_URL = import.meta.env.PROD
   ? "https://baret-stellar.onrender.com"
   : "http://localhost:8080";
-// Render's free plan sleeps after 15 min idle and takes ~30s to cold-start
-// on the next request. Give it real room instead of timing out mid-wake.
-const ANALYZE_TIMEOUT_MS = 25_000;
+// Render's free plan sleeps after 15 min idle; the first request after that
+// answered in about 32 s when measured. Leave room for it instead of giving
+// up mid-wake and showing an "unchecked" advisory for a healthy server.
+export const ANALYZE_TIMEOUT_MS = 45_000;
+
+const WARM_UP_INTERVAL_MS = 5 * 60_000;
+const WARM_UP_TIMEOUT_MS = 60_000;
+let lastWarmUpAt = 0;
+
+const trimBase = (base?: string) => (base ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+
+/**
+ * Wakes a sleeping hosted analyzer before the user reaches a sign prompt.
+ * Fire and forget: `GET /health` carries no user data and is exempt from rate
+ * limiting. Failures are ignored on purpose, because the analyze call reports
+ * its own.
+ */
+export async function warmUpAnalyzer(opts: Pick<AnalyzeClientOptions, "baseUrl"> = {}): Promise<void> {
+  const now = Date.now();
+  if (now - lastWarmUpAt < WARM_UP_INTERVAL_MS) return;
+  lastWarmUpAt = now;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WARM_UP_TIMEOUT_MS);
+  try {
+    await fetch(`${trimBase(opts.baseUrl)}/health`, { signal: controller.signal });
+  } catch {
+    /* analysis surfaces its own failure */
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export interface AnalyzeClientOptions {
   baseUrl?: string;
@@ -68,7 +96,7 @@ export async function analyzeTransaction(
   req: AnalyzeRequest,
   opts: AnalyzeClientOptions = {},
 ): Promise<AnalyzeResponse> {
-  const url = `${(opts.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "")}/v1/analyze`;
+  const url = `${trimBase(opts.baseUrl)}/v1/analyze`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -150,7 +178,7 @@ function offlineResponse(message: string): AnalyzeResponse {
         code: "ANALYZE_UNREACHABLE" satisfies ClientFindingCode,
         severity: "medium",
         message:
-          "Baret's analyze server didn't respond. Sign only if you trust this dApp.",
+          "Baret's analyze server didn't respond, so this transaction has no check. Retry, or sign only if you trust this dApp.",
       },
     ],
     estimatedChanges: EMPTY_CHANGES,

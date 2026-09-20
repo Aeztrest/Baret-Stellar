@@ -60,7 +60,7 @@ Sözlük: ✅ uygulanmış · 🟡 kısmen · ⏳ planlanmış/kodda yok · 🗃
 | `signAndSendTransaction` sağlayıcıda | 🟡 | Background `ws.signAndSendTransaction` var; **inpage sağlayıcı bunu sunmuyor** (showcase `signTransaction` + kendi Horizon gönderimiyle düşer) |
 | Connect izni (per-origin, "her zaman güven") | ✅ | `db/site-permissions.ts` |
 | Pre-sign analiz popup'ı (Safe/Caution/Blocked, "1,5 sn basılı tut" override) | ✅ | `popup/SignRequest.tsx` |
-| Analiz sunucusuna ulaşılamayınca "korumasız imza" advisory | ✅ | `analyze-client.ts` `offline:true` |
+| Analiz sunucusuna ulaşılamayınca "korumasız imza" advisory: Retry düğmesi, imza için 1,5 sn basılı tutma, 45 sn zaman aşımı, 6 sn sonra "sunucu uyanıyor" ipucu, `ws.connect`'te ısıtma isteği | ✅ | `analyze-client.ts` (`offline:true`, `warmUpAnalyzer`), `popup/SignRequest.tsx` |
 | `tx.send` RPC | ⏳ | `notImplemented` |
 | Auth-entry ground-truth çözümü (sayfanın yalanına karşı) | ✅ | `parseTransferAuthEntry`; asset allow-list ihlali **bloklu** verdict |
 | Eklentinin sunucu API anahtarı | 🟡 | `dev-key-change-me` **koda gömülü** (`messaging/handlers.ts`); yapılandırılamaz |

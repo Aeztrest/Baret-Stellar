@@ -68,6 +68,8 @@ Notlar:
 | `Scrybe`, `Cortex` → `/api/demo/scrybe`, `/api/demo/cortex` | `GET` (+`PAYMENT-SIGNATURE`) | Yok |
 | `/developers` portalı → `/api/...` | tüm uçlar | Kullanıcının kendi anahtarı (`Authorization: Bearer`) |
 
+Sunucu Render free planında uyur; uyandıktan sonraki ilk istek yaklaşık 30 sn sürer. `baret/analyze.ts` bu yüzden 45 sn zaman aşımı kullanır (aşılırsa "no answer within 45 s (free hosting may still be waking up)" der) ve Scrybe ilk istek 6 sn'yi geçerse "The demo server is waking up" ipucunu gösterir. Cortex'te bu ipucu yoktur.
+
 ### 1.5 Build
 
 `pnpm build:showcase` (`tsc && vite build` → `apps/showcase/dist`). Vercel `buildCommand` sırayla `swig-guard`, `wallet-adapter`, **`extension`** (zip'leri `public/`'e üretmek için), sonra showcase'i derler.

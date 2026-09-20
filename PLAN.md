@@ -67,7 +67,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | CI (`main`) | ✅ yeşil | son 4 koşu başarılı |
 | Dockerfile filtresi, eski `openapi.yaml` kalıntısı | ✅ düzeldi | Dockerfile `@stellar-thorn/server` filtresini kullanıyor; eski `openapi.yaml` silinmiş |
 | Sahte sayaçlar (Scrybe `ORACLE_STATS` "48,210", `RECENT_QUESTIONS`) | ✅ silindi (T1.1) | `apps/showcase/src/sites/scrybe/Scrybe.tsx` |
-| Eklenti analiz timeout'u 25 sn (Render cold start ≈ 30 sn) | ⏳ | `apps/extension/src/background/baret/analyze-client.ts` |
+| Eklenti analiz timeout'u 25 sn (Render cold start ≈ 30 sn) | ✅ 45 sn + ısıtma + Retry/basılı tutma (T1.2) | `apps/extension/src/background/baret/analyze-client.ts` |
 | Attestation eklentide/showcase'te doğrulanmıyor; canlıda kapalı | ⏳ | `docs/implementation-status.md` §1 |
 | Stellar SDK sürümleri | 🚫 ertelendi (T0.4) | eklenti `^16.0.1`, diğerleri `^15.1.0`; ihtiyacımız olan API iki majörde de aynı |
 | SEP-1/6/10 (anchor) kodu | ⏳ hiç yok | |
@@ -168,12 +168,18 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Açık gözlem (kapsam dışı):** NovaSwap'ın grafik kartı 390 px genişlikte sağa taşıyor ("1H" kesiliyor); T1.1 ile ilgisiz, önceden var. İstenirse ayrı küçük bir düzeltme.
 - **Doküman:** `docs/architecture/clients.md` §1.3, `docs/implementation-status.md` §5. (`docs/showcase-briefs.md` ve `apps/showcase/README.md` bu rakamlardan söz etmiyor, değişmedi.)
 
-#### T1.2 Offline, cold-start ve kopyalar ⏳
-- **Bulgu:** eklenti timeout'u 25 sn, Render cold start ≈ 30 sn → uyuyan sunucuda ilk imza "korumasız" advisory'sine düşer; advisory'de Sign butonu açık; popup kopyası ("Sign stays locked…") ve showcase kopyası ("won't sign unchecked…") davranışla çelişiyor. Popup'ta "Retry analysis" var (LIMITATIONS).
-- **Adımlar:** (a) timeout'u ≈ 45 sn'ye çıkar; (b) "sunucu uyanıyor…" durumu göster; (c) popup açılırken `/health` ile ısıtma isteği; (d) offline advisory'de Sign için **bilinçli onay** (blok override'ı gibi basılı tut) iste; (e) çelişen kopyaları düzelt; (f) showcase çağrılarına `AbortController` + zaman aşımı mesajı.
-- **Riskler → önlem:** (d) kullanıcıyı sinirlendirebilir → yalnız `offline:true` iken; x402 otomatik imza (D2) bu görevden **etkilenmez**; isteğe bağlı ısıtma isteği rate limit'i tüketmez (`/health` muaf).
-- **Kabul:** uyuyan sunucuda ilk imza doğru durumu gösterir; offline'da onaysız imza yok; testler (analyze-client) güncellendi.
-- **Doküman:** `docs/extension-architecture.md`, `docs/implementation-status.md` §2.2, `LIMITATIONS.md`.
+#### T1.2 Offline, cold-start ve kopyalar ✅
+- **Bulgu (doğrulandı):** eklenti timeout'u 25 sn, Render cold start ≈ 32 sn (ölçüldü) → uyuyan sunucuda ilk imza "korumasız" advisory'sine düşüyordu; advisory'de Sign tek tıkla açıktı. Popup'taki "Sign stays locked…" metni ise **doğruydu** (yalnız analiz RPC'si istisna fırlatınca geçerli, `analysis` null, buton kilitli); çelişki offline yolundaydı. Showcase'teki "won't sign unchecked" metni yanlıştı (o sayfa hiç imzalamıyor).
+- **Yapıldı (2026-09-20):**
+  - `analyze-client.ts`: zaman aşımı 25 → **45 sn** (`ANALYZE_TIMEOUT_MS` dışa aktarıldı), `warmUpAnalyzer()` (`GET /health`, 5 dk'da en fazla bir kez, hatalar yutulur); offline bulgu metni "Retry, or sign only if you trust…" diyor.
+  - `wallet-standard/handlers.ts`: `ws.connect` başında `void warmUpAnalyzer()` (imzadan önceki doğal adım).
+  - `popup/SignRequest.tsx`: analiz 6 sn'yi geçerse "The analyzer is waking up… up to 30 seconds"; offline'da **Retry** düğmesi + imza için **1,5 sn basılı tutma** (`HoldToSignButton` genelleştirildi: `bad`/`warn` tonu); yeniden denemede eski sonuç temizleniyor; `overridden` bayrağı offline imzada da history'ye yazılıyor.
+  - Showcase: `baret/analyze.ts` 45 sn zaman aşımı + yanlış metin düzeltildi; Scrybe'de ilk istek 6 sn'yi geçerse "demo server is waking up" ipucu.
+  - **D2 korundu:** x402 otomatik imza yolları analyzer'ı hiç çağırmıyor (kod taranarak doğrulandı: `analyzeTransaction` yalnız popup'ın analiz RPC'sinden çağrılıyor), bu görevden etkilenmez; `LIMITATIONS.md`'ye dürüstçe yazıldı.
+- **Kanıt:** yeni `analyze-client.test.ts` (6 test: başarı, HTTP hatası, ağ hatası, **35 sn'de hâlâ bekliyor / 45'te vazgeçiyor**, ısıtma tekrar önleme + hata yutma); zaman aşımını 25'e çevirince **2 test gerçekten kırıldı** (mutasyonla doğrulandı, geri alındı, dosya yedekle birebir aynı). Eklenti 16 dosya / 95 test, extension + showcase typecheck, Chrome ve Firefox build'i, `docs:check`, `secrets:check` yeşil. Popup, geçici bir harness'la (sahte RPC) başsız Chromium'da çekildi: offline (uyarı + Retry + turuncu basılı-tutma düğmesi), yavaş başlangıç (6 sn sonra ipucu, Sign kilitli), normal yol ve erken analiz (ipucu yok). Harness silindi, depoya girmedi.
+- **Kanıt sınırı:** gerçek eklenti tarayıcıya yüklenip uçtan uca denenmedi (`ws.connect` ısıtması ve basılı tutmanın gerçek imza akışı dahil); basılı tutma mantığı önceki bloklu-imza düğmesiyle aynı kod. Koyu tema harness'ta uygulanmadı (`theme` parametresi çalışmadı), koyu tema doğrulanmadı. "Hold to sign anyway" etiketi dar düğmede iki satıra kırılıyor (bloklu durumdaki mevcut düğmeyle aynı düzen).
+- **Yapılmadı (bilerek):** Cortex'e "sunucu uyanıyor" ipucu (bileşeni yalnız faz alıyor, ayrı iş); popup açılırken ısıtma (ek RPC gerektirir, `ws.connect` yeterli görüldü); ısıtmanın kalıcı önbelleği (SW her uyandığında sıfırlanır, 5 dk kuralı yalnızca bellekte).
+- **Doküman:** `docs/extension-architecture.md`, `docs/implementation-status.md` §2.2, `LIMITATIONS.md`, `docs/wallet-spec.md` (durum tablosu), `ARCHITECTURE.md` §4.2, `docs/architecture/clients.md` §1.4.
 
 #### T1.3 Attestation uçtan uca ⏳
 - **Hedef:** eklentinin sunucu kararını Ed25519 imzasıyla doğrulaması ("sahte `safe:true`" riskini kapatmak).
@@ -344,6 +350,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 5) | T1.2 ✅: analyze timeout 45 sn, `ws.connect`'te ısıtma, sunucu-uyanıyor ipucu, offline'da Retry + 1,5 sn basılı tutma; showcase zaman aşımı/kopya düzeltmeleri; 6 yeni test (mutasyonla doğrulandı); popup harness'la görsel doğrulama. |
 | 2026-09-20 (ilerleme 4) | T1.1 ✅: Scrybe sahte sayaç/akış silindi, örnek kartlar illüstrasyon olarak etiketlendi, kurmaca dApp rozeti, Hub ve index.html düzeltmeleri. Görsel doğrulama kısmen (bkz. T1.1 kanıt sınırı). |
 | 2026-09-20 (ilerleme 3) | S1 ✅: 7 yeşil PR merge edildi, 3 kırmızı bilerek açık. Görevler artık **görev başına commit** ediliyor (yerel `main`, henüz push edilmedi). Rebase sonrası düzeltmeler: workflow sürümleri hizalandı, `check-secrets.mjs` kendi PEM etiketini yakalıyordu (düzeltildi), `payment-guard` anlık görüntüleri yenilendi. |
 | 2026-09-20 (ilerleme 2) | T0.6 ✅: `chain-check` betiği + haftalık `testnet-health.yml`; canlı testnet'te kontrat/wasm/USDC canlı (kontrat simülasyonla doğrulandı). T0.7'nin "kontrat canlı mı" kısmı böylece kanıtlandı; uçtan uca ödeme akışı hâlâ ⏳. |
