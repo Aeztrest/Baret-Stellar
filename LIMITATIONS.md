@@ -96,6 +96,12 @@ Per-merchant sub-keys are registered on the smart wallet as Ed25519 signers scop
 Facilitator `/supported` cross-check, amount-anomaly detection, settle-but-no-delivery and verify-orphan alerts, auto-revoke of idle sub-keys and `maxActiveSubKeys` exist as policy fields and editor toggles but nothing enforces them. See [`docs/policy-dsl.md`](./docs/policy-dsl.md) §1.4.
 The post-sign monitor flags only **unknown outgoing transactions** (drift), by polling Horizon every 8 s.
 
+### SEP-10 anchor logins
+
+- The wallet recognises SEP-10 login challenges and blocks look-alikes (real sequence number, extra spend operations, a signature that isn't the anchor's `SIGNING_KEY`, a login for another account). Only `tr-mock-anchor.fly.dev` is on the built-in allowlist; a valid challenge from any other domain is a Caution ("unverified anchor"), and Baret never contacts an unlisted domain. The allowlist is not user-editable yet.
+- This covers the login challenge only. Baret has no SEP-6 client and does not yet check a withdrawal's destination and memo against the anchor's instructions, so a withdrawal payment is judged by the normal analysis.
+- A fee-bump envelope wrapping a challenge is not treated as a challenge; it goes to the normal analysis. The recognizer reads `stellar.toml` from the network, so a known anchor whose file is unreachable also shows the Caution.
+
 ### Analysis dependency
 
 - The extension analyses via the hosted server (`https://baret-stellar.onrender.com` in packaged builds) with the public demo key. If it can't be reached the popup shows an "offline" advisory with a Retry button; signing anyway takes a deliberate 1.5 s press-and-hold, so it never allows silently or by one stray click. The hosted server sleeps when idle and the first request can take about 30 s, so the extension waits up to 45 s and pings `/health` when a site connects.

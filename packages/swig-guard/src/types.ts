@@ -53,6 +53,9 @@ export const RISK_FINDING_CODES = [
 export const CLIENT_FINDING_CODES = [
   "ANALYZE_UNREACHABLE",
   "X402_ASSET_NOT_ALLOWED",
+  "SEP10_INVALID_CHALLENGE",
+  "SEP10_ACCOUNT_MISMATCH",
+  "SEP10_UNVERIFIED_ANCHOR",
 ] as const;
 
 export type ServerFindingCode = (typeof RISK_FINDING_CODES)[number];

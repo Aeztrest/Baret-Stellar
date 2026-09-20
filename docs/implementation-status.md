@@ -62,6 +62,7 @@ Sözlük: ✅ uygulanmış · 🟡 kısmen · ⏳ planlanmış/kodda yok · 🗃
 | Pre-sign analiz popup'ı (Safe/Caution/Blocked, "1,5 sn basılı tut" override) | ✅ | `popup/SignRequest.tsx` |
 | Analiz sunucusuna ulaşılamayınca "korumasız imza" advisory: Retry düğmesi, imza için 1,5 sn basılı tutma, 45 sn zaman aşımı, 6 sn sonra "sunucu uyanıyor" ipucu, `ws.connect`'te ısıtma isteği | ✅ | `analyze-client.ts` (`offline:true`, `warmUpAnalyzer`), `popup/SignRequest.tsx` |
 | `tx.send` RPC | ⏳ | `notImplemented` |
+| SEP-10 challenge tanıyıcı: geçerli girişi "para hareket etmez" diye gösterir; sahte challenge (sıfır olmayan sequence, `manage_data` dışı op, yanlış imza/`SIGNING_KEY`, farklı hesap) **bloklar**; allowlist dışı anchor uyarıdır | ✅ | `sep/sep10-challenge.ts`, `sep/anchors.ts`, `sep/toml.ts`; `tx.analyzeRequest` sunucudan önce çağırır. Yalnız `tr-mock-anchor.fly.dev` allowlist'te; SEP-6 çekme koruması ve anchor istemcisi ⏳ (`PLAN.md` T2.2-T2.4) |
 | Auth-entry ground-truth çözümü (sayfanın yalanına karşı) | ✅ | `parseTransferAuthEntry`; asset allow-list ihlali **bloklu** verdict |
 | Eklentinin sunucu API anahtarı | 🟡 | `dev-key-change-me` **koda gömülü** (`messaging/handlers.ts`); yapılandırılamaz |
 
