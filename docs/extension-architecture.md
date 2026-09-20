@@ -24,7 +24,7 @@ Rule: a change to the message bus, the storage schema or the manifest updates th
  background service worker  (src/background/index.ts)
    ├─ messaging/router.ts        dispatches by port name; rejects ports whose sender.id isn't this extension
    ├─ wallet-standard/handlers   ws.* + x402.review  (dApp facing)
-   ├─ messaging/handlers.ts      wallet.* tx.* ledger.* policy.* history.* alerts.* sitePermissions.* network.set
+   ├─ messaging/handlers.ts      wallet.* tx.* ledger.* policy.* history.* alerts.* sitePermissions.* anchor.* network.set
    ├─ state/{machine,store}      in-memory wallet phase + listeners
    ├─ crypto/*                   kdf, session (decrypted seed), hd, attempt-limiter, sub-key-cache
    ├─ db/*                       IndexedDB "baret" v4
@@ -89,7 +89,8 @@ src/background/
 ├── rpc/{connection,monitor}.ts
 ├── x402/{parse,build,handlers}.ts
 ├── swig/{provision,sub-keys,sub-key-lifecycle,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
-├── sep/{anchors,toml,sep10-challenge}.ts   anchor allowlist, stellar.toml reader, SEP-10 challenge recognizer
+├── sep/{anchors,toml,http,session,sep10-challenge,sep10-login,sep6-info,anchor-service}.ts   anchor allowlist, stellar.toml reader, guarded HTTP, in-memory login tokens,
+│                                  SEP-10 recognizer + login, SEP-6 /info, the `anchor.*` handlers' logic (`fake-anchor.testutil.ts` is test-only)
 └── baret/analyze-client.ts
 ```
 
@@ -138,6 +139,7 @@ Errors are returned as `payload: { error: string }` on the `rsp`. Types live in 
 | Ledger | `ledger.list` `ledger.pause` `ledger.unpause` `ledger.revoke` |
 | Policy | `policy.read` `policy.write` (validated by `swig-guard`'s `validatePolicy`; stored in `storage.local` `baret.policy.v1`; default `BALANCED_POLICY`) |
 | History / alerts / sites | `history.list` `history.detail` `alerts.list` `alerts.dismiss` `sitePermissions.list` `sitePermissions.revoke` |
+| Anchors | `anchor.list` (allow-listed anchors + whether the active account is signed in) `anchor.login` (`{domain}`; user-initiated) `anchor.info` (`{domain}`; SEP-6 `/info`, no login) |
 | Network | `network.set` (`testnet` \| `pubnet`) |
 
 `ExtEvents` also defines `alert.new`, `ledger.tick`, `tx.signRequest`, `tx.signed`, but **nothing emits them today**; surfaces poll (`usePolling`) instead.
@@ -225,6 +227,12 @@ response to `allow | advisory | block`. It never throws: an unreachable server y
 
 The domain is attacker-controlled (it is inside the XDR), so only allow-listed domains are ever contacted, and only for `https://<host>/.well-known/stellar.toml`: 8 s timeout, 100 KB cap, redirects refused, 5-minute in-memory cache, hostnames only (no ports, IPs or `localhost`). A domain off the list is never fetched. Fee-bump envelopes are not treated as challenges and go to the normal analysis. The check runs only on transaction requests from a dApp; sign requests for SEP-6 withdrawals and Baret's own anchor flows are separate work (`PLAN.md` T2.2 to T2.4).
 
+**Signing in to an anchor (Options → Anchors).** `anchor.login` is a deliberate click, and it is the only place the wallet signs a challenge on its own. `sep/sep10-login.ts` reads the anchor's toml (allow-listed domain only), asks its `WEB_AUTH_ENDPOINT` for a challenge, runs the same recognizer as above and **refuses to sign unless the verdict is Allow** (so a forged, mis-keyed, wrong-account or wrong-network challenge is never signed). It then posts the signed challenge and keeps the returned JWT only if its `sub` is this account and it hasn't expired. The token lives in `sep/session.ts` (service-worker memory, keyed by account and domain), never in storage and never in a response to a surface; `lock()` clears it, and so does a worker restart. `anchor.info` reads the SEP-6 `/info` (public per the spec). Every anchor call goes through `sep/http.ts`: https only, no redirects, 15 s timeout, 256 KB cap, JSON only; the anchor's own error text is flattened and cut to 200 characters before it is shown. There is no polling and no `alarms` use: SEP-6 status calls need the token, and the token can't outlive the worker (see `PLAN.md` T2.2).
+
+**SEP-6 withdrawal guard.** To withdraw, the user pays the anchor on Stellar, and the anchor states exactly what to pay: an account, a memo, an amount, an asset. A page can show "withdraw 10 USDC" and hand the wallet something else, which the analyze server sees as an ordinary payment. After the SEP-10 check, `tx.analyzeRequest` runs `sep/withdraw-verify.ts`. A transaction is a withdrawal payment when it pays an account listed in an allow-listed anchor's `stellar.toml` `ACCOUNTS` (payment, path payment, `account_merge` and `create_account` destinations all count). For those, Baret asks **the anchor** what it requested (`sep/sep6-transactions.ts`, `GET /sep6/transactions` with the user's SEP-10 token, so a withdrawal a dApp started is checked the same as one Baret started) and `sep/withdraw-guard.ts` requires the transaction to be exactly one `payment` from the user's account with the anchor's destination, memo (type and value), amount and asset, for a request still `pending_user_transfer_start`. Anything else is **Blocked** (`SEP6_WITHDRAW_MISMATCH`, critical, with every difference listed) and never reaches the server. If there is nothing to compare with (not signed in to the anchor, anchor unreachable, no such request on record) it is **Blocked** too (`SEP6_WITHDRAW_UNVERIFIED`, high), and the reason says to sign in under Options → Anchors and try again: a payment to an anchor-controlled account isn't signed on trust. A match still goes through the normal analysis and gets a line saying it was checked; a request whose time to pay has passed is a Caution (`SEP6_WITHDRAW_EXPIRED`). Which accounts are an anchor's (`sep/anchor-accounts.ts`) is remembered in `storage.local` (`baret.anchorAccounts.v1`) for 24 hours, refreshed when stale (3 s timeout; if the refresh fails the old entry is kept), so an ordinary payment makes **no request at all**; the anchor's toml is read again only for a payment to one of its listed accounts (for its transfer server), and the anchor's `/sep6/transactions` only then too. The very first payment on a fresh install reads the toml once. Amounts are compared in stroops, a hash memo as base64 (as SEP-6 states it).
+
+**Trustline exception.** Balanced blocks unlimited trustlines and Strict also blocks any trustline change, and a plain `changeTrust` (no limit) is unlimited, so an anchor flow's USDC trustline would be blocked. Before calling the server, `tx.analyzeRequest` asks `sep/trustline-exception.ts` whether every `changeTrust` in the transaction is an addition (non-zero limit) on the wallet's own account for an asset that is either canonical USDC for the network or declared in an allow-listed anchor's `[[CURRENCIES]]`. If so, only `blockTrustlineChanges` and `blockUnlimitedTrustlines` are switched off for that transaction (the rest of the policy applies unchanged) and a line saying why is appended to the reasons. A removal, another account's trustline, a liquidity-pool share, or any asset nobody vouches for (including a look-alike `USDC` from another issuer) keeps the normal rules. The anchor's toml is fetched only when a non-canonical asset is involved. Options → Anchors also shows an "Account setup" panel (funded? USDC trustline?) with Friendbot / Add-trustline buttons that reuse `wallet.airdrop` and `wallet.addUsdcTrustline`: anchors pay out to the authority `G…` account, not the smart wallet.
+
 The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); the server evaluates its pre-sign subset and ignores the rest. The x402 rules (caps, allow-lists, mandate) are enforced **only here**. Which fields are actually enforced: [`policy-dsl.md`](./policy-dsl.md).
 
 ---
@@ -233,6 +241,8 @@ The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); t
 
 `rpc/monitor.ts` polls Horizon every 8 s for new transactions on the authority and the smart wallet (paging cursors in `storage.local`), started/stopped from the wallet phase (and restarted on account switch). A successful transaction with no matching `history.signature` in the last 200 entries raises a
 `drift` alert (IndexedDB + OS notification + unread badge). A failed transaction is recorded as an `alert` history row. It is polling, not a WebSocket stream, and there are no `verify_orphan`/`no_delivery` alerts.
+
+Transactions the wallet submits itself must be in history or they are reported as intrusions: `wallet.transferXlm`, `wallet.addUsdcTrustline` and `wallet.airdrop` (Friendbot's funding transaction) write a `send` / `receive` entry keyed by the transaction hash right after submission (`recordOwnTransaction` in `messaging/handlers.ts`; best-effort, so a failed write doesn't fail the send). Not checked: whether the relayed smart-wallet deploy and the sub-key transactions (`swig/*`, passkey-kit `send()`) reconcile the same way; the live sub-key run (`PLAN.md` T0.7) will show it. The monitor also still counts any transaction that merely *touches* the authority, including someone else's incoming payment, as unmatched, although `LIMITATIONS.md` describes drift as unknown outgoing transactions.
 
 ---
 

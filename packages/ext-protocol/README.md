@@ -5,7 +5,7 @@ The single source of truth for messages between the extension's surfaces (backgr
 What is in `src/index.ts`:
 
 - `Envelope` (`__bx: 1`, `id`, `kind: "req" | "rsp" | "evt"`, `method`, `payload`).
-- `ExtRpc`: the popup/options ↔ background RPC registry (`wallet.*`, `tx.*`, `ledger.*`, `policy.*`, `history.*`, `alerts.*`, `sitePermissions.*`, `network.set`) with request/response types. The background's `handlers` object is typed from this, so a missing handler fails to compile.
+- `ExtRpc`: the popup/options ↔ background RPC registry (`wallet.*`, `tx.*`, `ledger.*`, `policy.*`, `history.*`, `alerts.*`, `sitePermissions.*`, `anchor.*`, `network.set`) with request/response types. The background's `handlers` object is typed from this, so a missing handler fails to compile.
 - `ExtEvents` (only `state.changed` is emitted today), `ExtWalletStandardMethods` (`ws.*`) and `ExtX402Methods` (`x402.review`).
 - Domain snapshots shared by the UI and the background: `WalletStateSnapshot`, `AccountSnapshot`, `AllowanceSnapshot`, `HistoryEntry`, `AlertEntry`, `AnalyzeResponse`, `X402MandatePreview`…
 

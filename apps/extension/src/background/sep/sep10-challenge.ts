@@ -248,7 +248,7 @@ function expectedWebAuthDomain(
     : "";
 }
 
-function baseAccount(address: string): string {
+export function baseAccount(address: string): string {
   if (!address.startsWith("M")) return address;
   try {
     return MuxedAccount.fromAddress(address, "0").baseAccount().accountId();

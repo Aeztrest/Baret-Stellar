@@ -8,12 +8,22 @@
  */
 
 import { normalizeAnchorDomain } from "./anchors.js";
+import { BodyTooLargeError, readTextCapped } from "./http.js";
+
+/** An asset the anchor says it issues or ramps (`[[CURRENCIES]]`). */
+export interface AnchorCurrency {
+  code: string;
+  issuer: string;
+}
 
 export interface AnchorToml {
   signingKey?: string;
   webAuthEndpoint?: string;
   transferServer?: string;
   networkPassphrase?: string;
+  /** `ACCOUNTS`: Stellar accounts the anchor says it controls. */
+  accounts?: string[];
+  currencies?: AnchorCurrency[];
 }
 
 export class TomlError extends Error {}
@@ -59,65 +69,74 @@ export async function fetchAnchorToml(
       signal: controller.signal,
     });
     if (!res.ok) throw new TomlError(`stellar.toml answered HTTP ${res.status}.`);
-    const toml = parseAnchorToml(await readCapped(res, maxBytes));
+    const toml = parseAnchorToml(await readTextCapped(res, maxBytes));
     cache.set(host, { at: Date.now(), toml });
     return toml;
   } catch (err) {
     if (err instanceof TomlError) throw err;
+    if (err instanceof BodyTooLargeError) throw new TomlError("stellar.toml is too large.");
     throw new TomlError("Couldn't read the anchor's stellar.toml.");
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function readCapped(res: Response, maxBytes: number): Promise<string> {
-  const declared = Number(res.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    throw new TomlError("stellar.toml is too large.");
-  }
-  const reader = res.body?.getReader();
-  if (!reader) {
-    const text = await res.text();
-    if (text.length > maxBytes) throw new TomlError("stellar.toml is too large.");
-    return text;
-  }
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBytes) {
-      await reader.cancel();
-      throw new TomlError("stellar.toml is too large.");
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    bytes.set(c, offset);
-    offset += c.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
-}
+const KEY_VALUE = /^([A-Za-z][A-Za-z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/;
+const MAX_CURRENCIES = 50;
+const MAX_ACCOUNTS = 50;
+const STRING_ARRAY = /^([A-Z][A-Z0-9_]*)\s*=\s*\[(.*)\]\s*(?:#.*)?$/;
+const QUOTED = /"((?:[^"\\]|\\.)*)"/g;
 
-const KEY_VALUE = /^([A-Z][A-Z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"\s*(?:#.*)?$/;
-
-/** Top-level `KEY="value"` pairs only; parsing stops at the first table header. */
+/**
+ * Top-level `KEY="value"` pairs and the `code` / `issuer` strings of each
+ * `[[CURRENCIES]]` table. Every other table is skipped, so a `SIGNING_KEY`
+ * nested elsewhere can't override the top-level one.
+ */
 export function parseAnchorToml(text: string): AnchorToml {
   const top: Record<string, string> = {};
+  const accounts: string[] = [];
+  const currencies: AnchorCurrency[] = [];
+  let section: "top" | "currency" | "other" = "top";
+  let current: Record<string, string> = {};
+  const flush = () => {
+    if (section === "currency" && current.code && current.issuer && currencies.length < MAX_CURRENCIES) {
+      currencies.push({ code: current.code, issuer: current.issuer });
+    }
+    current = {};
+  };
+
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
-    if (line.startsWith("[")) break;
+    if (line.startsWith("[")) {
+      flush();
+      section = /^\[\[\s*CURRENCIES\s*\]\]/.test(line) ? "currency" : "other";
+      continue;
+    }
+    if (section === "top") {
+      // Only single-line arrays: `ACCOUNTS=["G…", "G…"]`.
+      const arr = STRING_ARRAY.exec(line);
+      if (arr && arr[1] === "ACCOUNTS") {
+        for (const q of arr[2]!.matchAll(QUOTED)) {
+          if (accounts.length < MAX_ACCOUNTS) accounts.push(q[1]!);
+        }
+        continue;
+      }
+    }
     const m = KEY_VALUE.exec(line);
-    if (m) top[m[1]!] = m[2]!.replace(/\\(["\\])/g, "$1");
+    if (!m) continue;
+    const value = m[2]!.replace(/\\(["\\])/g, "$1");
+    if (section === "top") top[m[1]!] = value;
+    else if (section === "currency") current[m[1]!] = value;
   }
+  flush();
+
   return {
     signingKey: top.SIGNING_KEY,
     webAuthEndpoint: top.WEB_AUTH_ENDPOINT,
     transferServer: top.TRANSFER_SERVER,
     networkPassphrase: top.NETWORK_PASSPHRASE,
+    accounts,
+    currencies,
   };
 }

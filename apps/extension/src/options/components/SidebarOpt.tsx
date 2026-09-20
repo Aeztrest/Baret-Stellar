@@ -4,7 +4,7 @@
  */
 
 import { NavLink } from "react-router-dom";
-import { Home as HomeIcon, Clock, Shield, FileCode, Globe, Settings as SettingsIcon, Lock } from "lucide-react";
+import { Home as HomeIcon, Clock, Shield, FileCode, Globe, Landmark, Settings as SettingsIcon, Lock } from "lucide-react";
 import { Mark, ThemeToggle, shortAddr } from "@stellar-thorn/ui";
 import { useRpc, useWalletState } from "../../shared/state-context";
 
@@ -14,6 +14,7 @@ const NAV = [
   { to: "/activity", label: "Activity",    icon: Clock },
   { to: "/policies", label: "Policies",    icon: FileCode },
   { to: "/x402",     label: "x402 Console", icon: Shield },
+  { to: "/anchors",  label: "Anchors",     icon: Landmark },
   { to: "/settings", label: "Settings",    icon: SettingsIcon },
 ];
 
