@@ -64,6 +64,7 @@ import {
   newRequestId,
 } from "../wallet-standard/sign-queue";
 import { analyzeTransaction } from "../baret/analyze-client";
+import { analyzeSep10Challenge } from "../sep/sep10-challenge";
 import {
   isMandateLive,
   listAllowances,
@@ -1023,6 +1024,16 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
       offline: false,
     };
   }
+  // A SEP-10 login challenge is a harmless-looking `manage_data` transaction to
+  // the analyze server, and a fake one (real sequence, extra spend operations)
+  // looks identical. Decide anything challenge-shaped here, before the server.
+  const challenge = await analyzeSep10Challenge(req.payloadBase64, {
+    origin: req.origin,
+    userAccount: snap.authorityAddress,
+    networkPassphrase: getNetworkPassphrase(snap.network),
+  });
+  if (challenge) return challenge;
+
   const policy = await loadPolicy();
   return analyzeTransaction(
     {

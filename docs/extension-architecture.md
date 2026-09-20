@@ -89,6 +89,7 @@ src/background/
 ├── rpc/{connection,monitor}.ts
 ├── x402/{parse,build,handlers}.ts
 ├── swig/{provision,sub-keys,sub-key-lifecycle,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
+├── sep/{anchors,toml,sep10-challenge}.ts   anchor allowlist, stellar.toml reader, SEP-10 challenge recognizer
 └── baret/analyze-client.ts
 ```
 
@@ -214,6 +215,15 @@ silent trust it can't attribute. Never call `indexedDB.open()` with another vers
 
 `baret/analyze-client.ts` posts `{ network, transactionXdr, userWallet: authority G…, policy }` to `<base>/v1/analyze` (base: `https://baret-stellar.onrender.com` in packaged builds, `http://localhost:8080` in dev), 45 s timeout (Render free cold start ≈ 32 s when measured), and normalises the
 response to `allow | advisory | block`. It never throws: an unreachable server yields an `offline` advisory with the finding `ANALYZE_UNREACHABLE`. In that state the sign screen shows a **Retry** button and does not offer a one-click Sign: signing without a check needs the same 1.5 s press-and-hold as a Blocked override (`popup/SignRequest.tsx`). While the first analysis is slow the screen says the analyzer is waking up after 6 s. `ws.connect` also fires `warmUpAnalyzer()` (a `GET /health`, at most once per 5 minutes, failures ignored) so the hosted server is usually awake by the first sign prompt. Automatic x402 payments do not call the analyzer at all (see `LIMITATIONS.md`). The API key is hard-coded to the public demo key in `messaging/handlers.ts`. The server's `attestation` field is ignored (no client-side verification yet).
+
+**SEP-10 challenges are decided before the server is asked.** `tx.analyzeRequest` first runs `sep/sep10-challenge.ts` on transaction payloads. A SEP-10 login challenge (sequence 0, first operation `manage_data("<domain> auth")` sourced from the logging-in account) looks like a harmless `manage_data` transaction to the analyze server, and so does a forged one carrying a payment or `account_merge`; the recognizer separates them. Anything challenge-shaped (an `… auth` first operation, or sequence 0) never reaches the server:
+
+- **Blocked** (`SEP10_INVALID_CHALLENGE`, critical): non-zero sequence, any operation that isn't `manage_data`, no login entry first, expired or infinite timebounds, wrong operation sources, `web_auth_domain` not matching the anchor's auth endpoint host, no valid signature from the anchor's `SIGNING_KEY`, or a toml for another network. The finding's `details.rules` lists every violated rule. Structure, timebounds and signature come from the SDK's `WebAuth.readChallengeTx`; the operation-type rule, the toml key as authority and the account check are Baret's own.
+- **Blocked** (`SEP10_ACCOUNT_MISMATCH`, high): the login is for an account other than the wallet's authority `G…` (muxed addresses are compared by their base account).
+- **Caution** (`SEP10_UNVERIFIED_ANCHOR`, medium): structurally valid but the anchor can't be verified, either because its domain isn't on the allowlist (`sep/anchors.ts`, shipped list: `tr-mock-anchor.fly.dev`) or because its `stellar.toml` couldn't be read or has no `SIGNING_KEY`.
+- **Allow**: valid and verified, with the text "signs you in, no funds move".
+
+The domain is attacker-controlled (it is inside the XDR), so only allow-listed domains are ever contacted, and only for `https://<host>/.well-known/stellar.toml`: 8 s timeout, 100 KB cap, redirects refused, 5-minute in-memory cache, hostnames only (no ports, IPs or `localhost`). A domain off the list is never fetched. Fee-bump envelopes are not treated as challenges and go to the normal analysis. The check runs only on transaction requests from a dApp; sign requests for SEP-6 withdrawals and Baret's own anchor flows are separate work (`PLAN.md` T2.2 to T2.4).
 
 The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); the server evaluates its pre-sign subset and ignores the rest. The x402 rules (caps, allow-lists, mandate) are enforced **only here**. Which fields are actually enforced: [`policy-dsl.md`](./policy-dsl.md).
 
