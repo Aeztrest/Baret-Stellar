@@ -22,6 +22,7 @@ import { Buffer } from "buffer";
 import browser from "webextension-polyfill";
 import { entropyToMnemonic, mnemonicToEntropy, validateMnemonic } from "bip39";
 import type {
+  AnalyzeResponse,
   ExtRpcMethod,
   ExtRpcRequest,
   ExtRpcResponse,
@@ -65,6 +66,10 @@ import {
 } from "../wallet-standard/sign-queue";
 import { analyzeTransaction } from "../baret/analyze-client";
 import { analyzeSep10Challenge } from "../sep/sep10-challenge";
+import { trustlineException } from "../sep/trustline-exception";
+import { verifyWithdrawal, type WithdrawVerdict } from "../sep/withdraw-verify";
+import { browserAnchorAccountsCache } from "../sep/anchor-accounts-storage";
+import { anchorInfo, anchorLogin, listAnchors } from "../sep/anchor-service";
 import {
   isMandateLive,
   listAllowances,
@@ -418,6 +423,36 @@ const exportSecretHandler: Handler<"wallet.exportSecret"> = async ({
   }
 };
 
+/**
+ * Records a transaction the wallet itself built and submitted. The post-sign
+ * monitor reconciles every confirmed transaction against history and raises a
+ * high "drift" alert for anything it can't match, so an unrecorded
+ * wallet-initiated send would report the user's own action as an intrusion.
+ * Best-effort: the transaction is already on the network, so a failed write
+ * must not turn a success into an error.
+ */
+async function recordOwnTransaction(entry: {
+  type: "send" | "receive";
+  hash: string;
+  summary: string;
+}): Promise<void> {
+  try {
+    await appendHistory({
+      type: entry.type,
+      accountPubkey: requireActiveAccountPubkey(),
+      signature: entry.hash,
+      origin: null,
+      summary: entry.summary,
+      decision: "allow",
+      reasons: [],
+      broadcast: entry.type === "send",
+      createdAt: Date.now(),
+    });
+  } catch (err) {
+    console.warn("[BARET] couldn't record own transaction:", err);
+  }
+}
+
 const airdropHandler: Handler<"wallet.airdrop"> = async () => {
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
   const snap = getSnapshot();
@@ -440,6 +475,13 @@ const airdropHandler: Handler<"wallet.airdrop"> = async () => {
     );
   }
   const body = (await res.json()) as { hash?: string };
+  if (body.hash) {
+    await recordOwnTransaction({
+      type: "receive",
+      hash: body.hash,
+      summary: "Received test XLM from Friendbot",
+    });
+  }
   return {
     transactionHash: body.hash ?? "unknown",
     amountXlm: 10_000, // friendbot default
@@ -650,6 +692,11 @@ const transferXlmHandler: Handler<"wallet.transferXlm"> = async ({
 
   try {
     const result = await horizon.submitTransaction(tx);
+    await recordOwnTransaction({
+      type: "send",
+      hash: result.hash,
+      summary: `Sent ${amountXlm} XLM to ${shortId(to)}`,
+    });
     return { transactionHash: result.hash };
   } catch (err) {
     throw new Error(horizonSubmitErrorMessage(err));
@@ -683,6 +730,11 @@ const addUsdcTrustlineHandler: Handler<
 
   try {
     const result = await horizon.submitTransaction(tx);
+    await recordOwnTransaction({
+      type: "send",
+      hash: result.hash,
+      summary: "Added a USDC trustline",
+    });
     return { transactionHash: result.hash };
   } catch (err) {
     throw new Error(horizonSubmitErrorMessage(err));
@@ -1034,17 +1086,59 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
   });
   if (challenge) return challenge;
 
+  // A payment to an account an anchor controls must be exactly the withdrawal
+  // the anchor asked for. A mismatch (or no way to check) never reaches the
+  // server; a match still gets the normal analysis, with a line saying so.
+  const withdrawal = await verifyWithdrawal(req.payloadBase64, {
+    passphrase: getNetworkPassphrase(snap.network),
+    authority: snap.authorityAddress,
+    accountsCache: browserAnchorAccountsCache,
+  });
+  if (withdrawal?.kind === "block") return withdrawal.response;
+
   const policy = await loadPolicy();
-  return analyzeTransaction(
+
+  // Strict policies block trustline changes, which would also block the
+  // trustline an anchor flow needs. Relax exactly those two rules for a
+  // transaction whose trustline changes are all for an asset the wallet or an
+  // allow-listed anchor vouches for (`sep/trustline-exception.ts`).
+  const exception =
+    policy.blockTrustlineChanges || policy.blockUnlimitedTrustlines
+      ? await trustlineException(req.payloadBase64, {
+          passphrase: getNetworkPassphrase(snap.network),
+          authority: snap.authorityAddress,
+          canonical: { code: "USDC", issuer: USDC_ISSUER[snap.network] ?? USDC_ISSUER.testnet! },
+        })
+      : null;
+
+  const result = await analyzeTransaction(
     {
       network: snap.network,
       transactionXdr: req.payloadBase64,
       userWallet: snap.authorityAddress,
-      policy,
+      policy: exception
+        ? { ...policy, blockTrustlineChanges: false, blockUnlimitedTrustlines: false }
+        : policy,
     },
     { apiKey: "dev-key-change-me" },
   );
+  const withNote = exception ? { ...result, reasons: [...result.reasons, exception.note] } : result;
+  return annotateWithdrawal(withNote, withdrawal);
 };
+
+function annotateWithdrawal(
+  result: AnalyzeResponse,
+  verdict: WithdrawVerdict | null,
+): AnalyzeResponse {
+  if (verdict?.kind !== "annotate") return result;
+  return {
+    ...result,
+    decision: verdict.advisory && result.decision === "allow" ? "advisory" : result.decision,
+    reasons: [...result.reasons, verdict.note],
+    advisoryReasons: verdict.advisory ? [...result.advisoryReasons, verdict.note] : result.advisoryReasons,
+    riskFindings: [...result.riskFindings, ...verdict.findings],
+  };
+}
 
 /**
  * The active policy, falling back to `BALANCED_POLICY` — the documented
@@ -1247,6 +1341,10 @@ export const handlers: { [M in ExtRpcMethod]: Handler<M> } = {
   "wallet.addAccount": addAccountHandler,
   "wallet.switchAccount": switchAccountHandler,
   "wallet.renameAccount": renameAccountHandler,
+
+  "anchor.list": async () => listAnchors(),
+  "anchor.login": ({ domain }) => anchorLogin(domain),
+  "anchor.info": ({ domain }) => anchorInfo(domain),
 
   "network.set": networkSet,
 

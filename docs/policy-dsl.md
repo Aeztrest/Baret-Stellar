@@ -27,8 +27,8 @@ Legend: **S** = server (`/v1/analyze`, `policy/engine.ts` + detectors), **X** = 
 | `maxLossPercent` | 0-100 | Block if the wallet's **native XLM** balance would fall by more than this %. Needs `userWallet`; without data it blocks (fail-closed) | S |
 | `minPostUsdcBalance` | number (asset units) | Block if `minPostAsset` (default network USDC) would end below this. Fail-closed when unprojectable | S |
 | `minPostAsset` | `CODE:ISSUER` or `C…` | Asset for the above | S |
-| `blockTrustlineChanges` | bool | Block opening/changing/removing a classic trustline | S |
-| `blockUnlimitedTrustlines` | bool | Block trustlines opened at the int64-max limit | S |
+| `blockTrustlineChanges` | bool | Block opening/changing/removing a classic trustline. **Exception (extension):** when every trustline in a transaction is an addition on your own account for canonical USDC or an asset an allow-listed anchor declares in its `stellar.toml`, the extension turns this rule and `blockUnlimitedTrustlines` off for that one transaction and says so on the sign screen (`sep/trustline-exception.ts`) | S |
+| `blockUnlimitedTrustlines` | bool | Block trustlines opened at the int64-max limit (same exception as above; a plain `changeTrust` with no limit is unlimited, so Balanced would otherwise block the USDC trustline) | S |
 | `blockSorobanAllowanceGrants` | bool | Block Soroban token `approve` grants (incl. effectively unlimited) | S |
 | `blockRiskyContracts` | bool | Block contracts on the operator's `RISKY_CONTRACT_IDS` | S |
 | `blockUnknownContractExposure` | bool | Block contracts not on the operator's `KNOWN_SAFE_CONTRACT_IDS` (only when that list is configured; `allowWarnings:true` downgrades it to advisory) | S |

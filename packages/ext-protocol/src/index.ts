@@ -148,6 +148,31 @@ export interface AlertEntry {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
+/* 2a. Anchors (SEP-10 / SEP-6)                                               */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/** One allow-listed anchor and whether the active account is signed in to it. */
+export interface AnchorSummary {
+  domain: string;
+  loggedIn: boolean;
+  /** Epoch ms the login token lapses; `null` when not signed in. */
+  expiresAt: number | null;
+}
+
+/** What an anchor's SEP-6 `/info` says about one direction (deposit or withdraw) of an asset. */
+export interface AnchorDirectionInfo {
+  enabled: boolean;
+  feePercent: number | null;
+  fundingMethods: string[];
+}
+
+export interface AnchorAssetInfo {
+  code: string;
+  deposit: AnchorDirectionInfo | null;
+  withdraw: AnchorDirectionInfo | null;
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
 /* 2b. Pre-sign analysis result (mirrors @stellar-thorn/swig-guard AnalysisResult) */
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -282,6 +307,14 @@ export interface ExtRpc {
   "sitePermissions.list":   { req: void;                                   rsp: SitePermissionSnapshot[] };
   /** Forgets a remembered connect decision — the site prompts again next `standard:connect`. */
   "sitePermissions.revoke": { req: { origin: string };                     rsp: { ok: true } };
+
+  /* Anchors (SEP-10 login, SEP-6 info) ───── */
+  /** Allow-listed anchors with the active account's login state. */
+  "anchor.list":       { req: void;                                       rsp: AnchorSummary[] };
+  /** Signs in to an anchor with the active account (user-initiated, from the Options page). The token stays in service-worker memory. */
+  "anchor.login":      { req: { domain: string };                         rsp: { domain: string; account: string; expiresAt: number } };
+  /** The anchor's SEP-6 `/info`. Needs no login. */
+  "anchor.info":       { req: { domain: string };                         rsp: { domain: string; assets: AnchorAssetInfo[] } };
 
   /* Network ──────────────────────────────── */
   "network.set":       { req: { network: StellarNetwork };                       rsp: { ok: true } };

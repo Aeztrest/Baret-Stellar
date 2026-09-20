@@ -43,7 +43,7 @@ Sözlük: ✅ uygulanmış · 🟡 kısmen · ⏳ planlanmış/kodda yok · 🗃
 | Donanım cüzdanı | ⏳ | Kapsam dışı (vision) |
 | Gerçek smart wallet deploy (passkey-kit, Ed25519 admin) | ✅ | `swig/provision.ts` (≥5 XLM gerekir) |
 | Popup sekmeleri Home / Activity / Allowances / Settings | ✅ | |
-| Options sayfaları Home / Sites / Activity / Policies / x402 Console / Settings | ✅ | **Options'ta ayrı "Allowances" sayfası yok**; allowance'lar Sites/SiteDetail ve x402 konsolunda |
+| Options sayfaları Home / Sites / Activity / Policies / x402 Console / Anchors / Settings | ✅ | **Options'ta ayrı "Allowances" sayfası yok**; allowance'lar Sites/SiteDetail ve x402 konsolunda |
 | Gönder (XLM) / Al / Airdrop (Friendbot) / USDC trustline ekle | ✅ | Gönder authority `G…` hesabından yapılır |
 | "Swap" hızlı eylemi | ⏳ | Yok (wallet-spec'te placeholder deniyordu, kodda hiç yok) |
 | CSV dışa aktarma, tarih/tutar filtreleri, toplu yeniden analiz | ⏳ | Yok |
@@ -62,7 +62,10 @@ Sözlük: ✅ uygulanmış · 🟡 kısmen · ⏳ planlanmış/kodda yok · 🗃
 | Pre-sign analiz popup'ı (Safe/Caution/Blocked, "1,5 sn basılı tut" override) | ✅ | `popup/SignRequest.tsx` |
 | Analiz sunucusuna ulaşılamayınca "korumasız imza" advisory: Retry düğmesi, imza için 1,5 sn basılı tutma, 45 sn zaman aşımı, 6 sn sonra "sunucu uyanıyor" ipucu, `ws.connect`'te ısıtma isteği | ✅ | `analyze-client.ts` (`offline:true`, `warmUpAnalyzer`), `popup/SignRequest.tsx` |
 | `tx.send` RPC | ⏳ | `notImplemented` |
-| SEP-10 challenge tanıyıcı: geçerli girişi "para hareket etmez" diye gösterir; sahte challenge (sıfır olmayan sequence, `manage_data` dışı op, yanlış imza/`SIGNING_KEY`, farklı hesap) **bloklar**; allowlist dışı anchor uyarıdır | ✅ | `sep/sep10-challenge.ts`, `sep/anchors.ts`, `sep/toml.ts`; `tx.analyzeRequest` sunucudan önce çağırır. Yalnız `tr-mock-anchor.fly.dev` allowlist'te; SEP-6 çekme koruması ve anchor istemcisi ⏳ (`PLAN.md` T2.2-T2.4) |
+| SEP-10 challenge tanıyıcı: geçerli girişi "para hareket etmez" diye gösterir; sahte challenge (sıfır olmayan sequence, `manage_data` dışı op, yanlış imza/`SIGNING_KEY`, farklı hesap) **bloklar**; allowlist dışı anchor uyarıdır | ✅ | `sep/sep10-challenge.ts`, `sep/anchors.ts`, `sep/toml.ts`; `tx.analyzeRequest` sunucudan önce çağırır. Yalnız `tr-mock-anchor.fly.dev` allowlist'te; çekme koruması ⏳ (`PLAN.md` T2.4) |
+| Anchor'ın bildirdiği varlık için trustline istisnası (Balanced'ın limitsiz-trustline kuralı ve Strict'in trustline kuralı, yalnız canonical USDC / anchor toml `CURRENCIES` varlığının eklenmesi için kapatılır) + Options → Anchors "Account setup" paneli | ✅ | `sep/trustline-exception.ts`, `tx.analyzeRequest`, `options/pages/AnchorPage.tsx` |
+| SEP-6 çekme koruması: anchor'ın `ACCOUNTS`'undaki bir hesaba giden ödeme, anchor'ın kendi talimatıyla (`/sep6/transactions`) birebir eşleşen **tek** `payment` değilse bloklanır; talimat doğrulanamıyorsa (girişsiz, anchor erişilemez, kayıt yok) fail-closed bloklanır | ✅ | `sep/withdraw-guard.ts`, `sep/withdraw-verify.ts`, `sep/sep6-transactions.ts`; `tx.analyzeRequest`. Baret'in kendi çekme başlatma/ödeme akışı ⏳ (`PLAN.md` T2.4 ikinci kısım) |
+| Anchor girişi (Options → Anchors): SEP-10 challenge'ı **kendisi doğrulamadan imzalamaz**; JWT yalnız service worker belleğinde, kilitlenince silinir; SEP-6 `/info` gösterilir | ✅ | `sep/sep10-login.ts`, `sep/session.ts`, `sep/sep6-info.ts`, `sep/anchor-service.ts`, `options/pages/AnchorPage.tsx`. Yatırma/çekme, işlem kayıtları ve çekme koruması ⏳ (`PLAN.md` T2.4, T2.5) |
 | Auth-entry ground-truth çözümü (sayfanın yalanına karşı) | ✅ | `parseTransferAuthEntry`; asset allow-list ihlali **bloklu** verdict |
 | Eklentinin sunucu API anahtarı | 🟡 | `dev-key-change-me` **koda gömülü** (`messaging/handlers.ts`); yapılandırılamaz |
 

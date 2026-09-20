@@ -17,7 +17,7 @@ mechanics come from `docs/x402-defense.md`.
 > |---|---|
 > | Swap chip / USD subline on the hero (§3.2) | **Not built.** Quick actions are Send, Receive, Airdrop (testnet). No fiat price |
 > | Popup "Revoke all", "Add allowance manually" (§5) | **Not built.** Pause / Revoke are per merchant. "Revoke all" exists only per site (Options → Sites → site) |
-> | Options sidebar with *Allowances* (§7.1) | Sidebar is Home · Sites · Activity · Policies · x402 Console · Settings. No standalone Allowances page |
+> | Options sidebar with *Allowances* (§7.1) | Sidebar is Home · Sites · Activity · Policies · x402 Console · Anchors · Settings. No standalone Allowances page |
 > | News strip, sparkline, CSV export, date/amount filters, bulk re-analyze, telemetry/notification settings, custom RPC (§7) | **Not built** |
 > | x402 dashboard "By facilitator" reputation, drift-orphan inbox (§7.6) | **Not built** (x402 Console = payment ticker + per-merchant ledger) |
 > | Provisioning returns the authority as a *placeholder* smart wallet (§9.6) | **Wrong for the extension**: it deploys a real passkey-kit smart wallet. The placeholder is only in `apps/wallet` |
@@ -245,7 +245,7 @@ tabs as popup but expanded.
 
 ### 7.1 Sidebar
 
-Actual (`options/components/SidebarOpt.tsx`): Home · Sites · Activity · Policies · x402 Console · Settings, with the account chip/switcher and a lock action.
+Actual (`options/components/SidebarOpt.tsx`): Home · Sites · Activity · Policies · x402 Console · Anchors · Settings, with the account chip/switcher and a lock action.
 *(The spec's Allowances entry is not built; per-merchant allowances live in Sites → site detail and the x402 Console.)*
 
 ```

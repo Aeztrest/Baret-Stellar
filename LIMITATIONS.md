@@ -94,13 +94,19 @@ Per-merchant sub-keys are registered on the smart wallet as Ed25519 signers scop
 ### x402 protections that are specified but not built
 
 Facilitator `/supported` cross-check, amount-anomaly detection, settle-but-no-delivery and verify-orphan alerts, auto-revoke of idle sub-keys and `maxActiveSubKeys` exist as policy fields and editor toggles but nothing enforces them. See [`docs/policy-dsl.md`](./docs/policy-dsl.md) §1.4.
-The post-sign monitor flags only **unknown outgoing transactions** (drift), by polling Horizon every 8 s.
+The post-sign monitor flags **unknown transactions** (drift), by polling Horizon every 8 s: it compares every confirmed transaction that touches your account with the wallet's own history, so an *incoming* transaction from someone else (a payment to you) is not recognised as harmless and can raise a drift alert too. Transactions the wallet sends itself (send, add trustline, Friendbot funding) are recorded and don't.
 
 ### SEP-10 anchor logins
 
 - The wallet recognises SEP-10 login challenges and blocks look-alikes (real sequence number, extra spend operations, a signature that isn't the anchor's `SIGNING_KEY`, a login for another account). Only `tr-mock-anchor.fly.dev` is on the built-in allowlist; a valid challenge from any other domain is a Caution ("unverified anchor"), and Baret never contacts an unlisted domain. The allowlist is not user-editable yet.
-- This covers the login challenge only. Baret has no SEP-6 client and does not yet check a withdrawal's destination and memo against the anchor's instructions, so a withdrawal payment is judged by the normal analysis.
+- Options → Anchors signs in and lists what the anchor offers (SEP-6 `/info`). The login token is held in service-worker memory only: locking the wallet, or the worker restarting (Chrome suspends it after a short idle), signs you out, and you sign in again with one click. Deposits, withdrawals and transaction tracking are not built yet, and Baret can't start a withdrawal itself yet.
 - A fee-bump envelope wrapping a challenge is not treated as a challenge; it goes to the normal analysis. The recognizer reads `stellar.toml` from the network, so a known anchor whose file is unreachable also shows the Caution.
+
+- **Withdrawal guard.** A payment to an account listed in an allow-listed anchor's `stellar.toml` `ACCOUNTS` is blocked unless it is exactly the single payment the anchor asked for (destination, memo, amount, asset). Baret asks the anchor, which needs you signed in to it (Options → Anchors); without that, or if the anchor can't be reached, such a payment is blocked rather than signed on trust. Limits: it only knows an account is an anchor's if the anchor lists it in `ACCOUNTS` (single-line array), the ramped asset is fixed to USDC, a payment that reuses a withdrawal's memo but goes to an account nobody lists as the anchor's is judged as an ordinary payment, and if no allow-listed anchor's toml has ever been read (or its cached account list has expired and it can't be refreshed), the payment goes to the normal analysis instead. The first payment after install reads the anchor's public `stellar.toml` once; the account list is then cached for a day.
+
+### Trustline exception for anchor assets
+
+- To let an anchor's USDC trustline through, the extension switches off `blockTrustlineChanges` and `blockUnlimitedTrustlines` for a transaction whose trustline changes are all additions for canonical USDC or an asset an allow-listed anchor declares. Anything else (a removal, a look-alike issuer, another account) keeps the normal rules. "Add USDC trustline" in Options adds only canonical USDC; an anchor that issues its own differently-issued USDC isn't supported yet.
 
 ### Analysis dependency
 
