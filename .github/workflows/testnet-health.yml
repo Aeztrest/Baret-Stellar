@@ -1,0 +1,30 @@
+name: Testnet health
+
+# Testnet can be reset and unextended entries get archived, so the deployed
+# contract can die between demos. Runs weekly and on demand; a failure emails
+# the repo owner through GitHub's normal workflow-failure notification.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chain-check:
+    name: Contract, wallet wasm and USDC still live
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter @stellar-thorn/server...
+
+      - run: pnpm --filter @stellar-thorn/server chain-check

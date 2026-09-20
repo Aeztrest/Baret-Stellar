@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "x402-setup": "tsx src/scripts/x402-setup.ts"
+    "x402-setup": "tsx src/scripts/x402-setup.ts",
+    "chain-check": "tsx src/scripts/chain-check.ts"
   },
   "dependencies": {
     "@fastify/rate-limit": "10.3.0",

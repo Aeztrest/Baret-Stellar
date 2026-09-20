@@ -11,6 +11,7 @@ Fastify 5 + TypeScript, single process, **one network** (testnet or pubnet).
 cp apps/server/.env.example apps/server/.env      # testnet defaults; only the two Stellar URLs are required
 pnpm dev:server                                    # tsx watch → http://localhost:8080
 pnpm --filter @stellar-thorn/server x402-setup     # once: merchant key + testnet funding (for /demo/scrybe, /demo/cortex)
+pnpm --filter @stellar-thorn/server chain-check    # are the policy contract, wallet wasm and USDC still live on testnet? (exit 1 if not)
 ```
 
 Other scripts (from this directory or via `pnpm --filter @stellar-thorn/server`): `test` (vitest, offline), `lint` (`tsc --noEmit`), `build` (`tsc -p tsconfig.build.json` → `dist/`), `start` (`node dist/index.js`).

@@ -79,6 +79,25 @@ and was written against the real contract's interface.
 | `install(wallet)` / `uninstall(wallet)` | `wallet` / permissionless | `PolicyInterface` lifecycle hooks, called by passkey-kit's `add_signer`/`remove_signer` when this policy itself is (de)registered as a `Policy` signer on the wallet — see `sub-keys.ts#ensurePolicyInstalled`, called automatically before the first `set_allowance`. Not invoked directly |
 | `policy__(source, signer, contexts)` | — (called by the smart wallet itself) | The actual gate: deny-by-default, exactly one `transfer` context, `to` must match a live, unexpired, non-paused `Allowance` for that merchant, `signer` must match the `Allowance.signer` that merchant's mandate was granted to (rejects `WrongSigner` otherwise — this is what stops merchant A's leaked sub-key from spending against merchant B's cap), amount within `cap_per_tx` and the rolling 24h `cap_per_day` |
 
+## Liveness and TTL
+
+Testnet can be reset, and a persistent entry whose TTL lapses is archived, so check before a demo:
+
+```bash
+pnpm --filter @stellar-thorn/server chain-check
+```
+
+It simulates a read-only `get_allowance` on the deployed contract (`Error(Contract, #3)` / `NoAllowance` means the contract ran and answered; a restore preamble or a missing contract fails), and checks that the smart-wallet wasm hash in `smart-wallet-config.ts` and the USDC token contract still exist. Exit code 1 means something needs attention. The same check runs weekly in CI (`testnet-health.yml`).
+
+Checked on 2026-09-20: the contract answered (`NoAllowance`), the smart-wallet wasm had about 178 days of TTL, USDC about 140. The public testnet RPC reports `liveUntilLedgerSeq: 0` for this contract's own instance and wasm entries even though they run; the cause is not verified, so the script treats 0 as "TTL unknown" and relies on the simulation.
+
+To extend a TTL (needs a funded source account; do not paste the secret into a file):
+
+```bash
+stellar contract extend --id <C…> --ledgers-to-extend <n> --source-account <key> --network testnet
+stellar contract extend --wasm-hash <hash> --ledgers-to-extend <n> --source-account <key> --network testnet
+```
+
 ## End-to-end verification
 
 Once deployed and wired in:

@@ -55,7 +55,8 @@ apps/server/src/
 ├── infra/                       stellar-rpc.ts (Horizon+Soroban adapter), x402.ts (+fastify adapter), logger.ts
 ├── x402/                        facilitator-client.ts, merchant-config.ts (demo satıcı)
 ├── mcp/server.ts                MCP araç tanımları + çağrı
-└── scripts/x402-setup.ts        Tek seferlik satıcı anahtarı/USDC trustline kurulumu
+├── scripts/x402-setup.ts        Tek seferlik satıcı anahtarı/USDC trustline kurulumu
+└── scripts/chain-check.ts       Testnet canlılık kontrolü: MerchantSpendPolicy çalışıyor mu, smart-wallet wasm ve USDC var mı (çıkış kodu 1 = sorun)
 ```
 
 ## 2. Başlatma
@@ -382,7 +383,7 @@ pnpm --filter @stellar-thorn/server build       # tsc -p tsconfig.build.json →
 ```
 
 Testler `test/` altında: `app-auth`, `api/{developer,openapi,error-sanitization,analyze-x402-log,portal-catalog}`, `keys/key-store`,
-`policy/engine`, `risk/*`, `simulation/*`, `analysis/extract-deltas`, `attestation/*`, `data/audit-store`, `domain/finding-codes`. Önemli kilitler:
+`policy/engine`, `risk/*`, `simulation/*`, `analysis/extract-deltas`, `attestation/*`, `data/audit-store`, `domain/finding-codes`, `chain-check` (sunucu `scripts/` betiğinin sınıflandırma mantığı). Önemli kilitler:
 `openapi.test.ts` (her kayıtlı rota OpenAPI'de olmalı, hata kodları eşit olmalı), `portal-catalog.test.ts` (showcase portal kataloğu ↔ OpenAPI),
 `finding-codes.test.ts` (sunucu bulgu kodları ↔ swig-guard `RISK_FINDING_CODES`).
 

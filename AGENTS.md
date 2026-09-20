@@ -30,6 +30,7 @@ pnpm typecheck         # tüm workspace
 pnpm test              # yalnız sunucu testleri; CI hepsini koşturur: pnpm -r --if-present test
 pnpm --filter @stellar-thorn/extension test | @stellar-thorn/wallet test | ... test
 pnpm --filter @stellar-thorn/server x402-setup   # demo satıcı anahtarı + testnet fonlama (tek seferlik)
+pnpm --filter @stellar-thorn/server chain-check  # testnet'te MerchantSpendPolicy, smart-wallet wasm ve USDC hâlâ canlı mı (çıkış 1 = sorun)
 pnpm docs:check        # doküman tutarlılık denetimi (linkler, yollar, env, paketler)
 pnpm secrets:check     # izlenen dosyalarda Stellar seed / baret_ anahtarı / PEM taraması; bilerek herkese açık anahtar: yanına "secret-scan: allow <neden>" yaz
 cargo test --manifest-path contracts/Cargo.toml  # Soroban kontratları (CI ayrıca: cargo fmt --check, clippy -D warnings [yalnız merchant-spend-policy], wasm32v1-none derlemesi)

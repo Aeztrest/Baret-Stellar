@@ -349,6 +349,7 @@ pnpm docs:check          # documentation consistency (links, paths, env vars, pa
 pnpm secrets:check       # scan tracked files for Stellar seeds, Baret API keys, PEM keys
 (cd baret_docs && npm run build)   # public API docs site (Next.js + MDX; outside the pnpm workspace)
 pnpm --filter @stellar-thorn/server x402-setup   # bootstrap merchant on testnet
+pnpm --filter @stellar-thorn/server chain-check  # is the deployed contract / wallet wasm / USDC still live on testnet?
 
 # Smart contract (in ./contracts)
 cargo test -p merchant-spend-policy   # MerchantSpendPolicy unit tests
