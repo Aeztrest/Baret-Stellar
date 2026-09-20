@@ -66,7 +66,7 @@ export const MERCHANT_SPEND_POLICY_CONTRACT_ID: string | null =
 
 Rebuild/reload the extension. That's the only code change needed — every
 call site (`swig/sub-keys.ts#provisionMerchantSubKey`,
-`messaging/handlers.ts#provisionRealSubKey`) already reads this constant
+`swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval`) already reads this constant
 and was written against the real contract's interface.
 
 ## Interface
@@ -116,7 +116,8 @@ Once deployed and wired in:
    check the background service worker's console for a
    `[BARET] sub-key provisioning failed for …` warning (provisioning is
    best-effort and never blocks the payment itself — see
-   `messaging/handlers.ts#provisionRealSubKey`).
+   `swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval`; a failure also adds an
+   alert to the Activity tab).
 4. On [stellar.expert](https://stellar.expert/explorer/testnet), look up
    the smart wallet's contract address and confirm two new transactions:
    an `invoke` against `MERCHANT_SPEND_POLICY_CONTRACT_ID` (`set_allowance`)
@@ -134,5 +135,4 @@ Documentation status: `docs/x402-defense.md` §11, `docs/extension-architecture.
 contract's unit tests. **This checklist has not been re-run against the live testnet as part of the documentation update**, so treat the live end-to-end behaviour as "expected, verify with the steps above" until someone runs it and records the result here
 (date, wallet address, the `set_allowance` / `add_signer` transaction hashes, and the outcome of the over-cap payment in step 6).
 
-Known gap to test while you are here: renew an expired mandate (re-approve after `mandate_seconds`) and confirm whether payments still succeed. Today the extension renews only its local mandate, not the on-chain allowance or the sub-key's signer expiry
-(see `docs/implementation-status.md` §4).
+Renewal check to run while you are here: let a mandate lapse (or set `mandateMaxAgeDays` very low), re-approve the merchant, and confirm the Activity tab shows "Renewed scoped on-chain sub-key" and that the next auto-payment settles. The extension mints a new sub-key on renewal (unit-tested; see `docs/implementation-status.md` §4), but this has **not** been run against the live testnet.

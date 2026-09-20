@@ -65,11 +65,11 @@ import {
 } from "../wallet-standard/sign-queue";
 import { analyzeTransaction } from "../baret/analyze-client";
 import {
+  isMandateLive,
   listAllowances,
   promoteAllowance,
   readAllowance,
   setStatus as setAllowanceStatus,
-  writeAllowance,
 } from "../db/allowances";
 import {
   appendHistory,
@@ -82,17 +82,14 @@ import {
   preloadActiveSubKeys,
   clearSubKeyCache,
   evictSubKey,
-  getCachedPassphrase,
-  putSubKey,
 } from "../crypto/sub-key-cache";
 import {
   findActiveSubKeyForMerchant,
   setSubKeyStatus,
-  writeSubKey,
-  type SubKeyRow,
 } from "../db/sub-keys";
-import { buildRemoveSubKeyTransaction, provisionMerchantSubKey } from "../swig/sub-keys";
-import { atomicToUi, parseTransferAuthEntry, uiToAtomic } from "../x402/parse";
+import { buildRemoveSubKeyTransaction } from "../swig/sub-keys";
+import { refreshSubKeyAfterApproval } from "../swig/sub-key-lifecycle";
+import { atomicToUi, parseTransferAuthEntry } from "../x402/parse";
 
 const POLICY_STORAGE_KEY = "baret.policy.v1";
 const BACKUP_ACK_STORAGE_KEY = "baret.backupAck.v1";
@@ -1066,83 +1063,6 @@ function endSignFlowIfDrained(): void {
   }
 }
 
-/**
- * Mints a real, on-chain `MerchantSpendPolicy`-scoped sub-key for a merchant
- * the user just approved for the first time, and records it. This is the
- * actual security upgrade behind the sub-key blast-radius guarantee: a
- * leaked sub-key secret can only ever drain this one merchant's cap, not
- * the wallet — see `swig/sub-keys.ts#provisionMerchantSubKey`.
- *
- * Best-effort and non-fatal by design: it runs AFTER the just-approved
- * payment has already been signed and returned to the caller, so a failure
- * here (RPC hiccup, passphrase cache expired — see
- * `crypto/sub-key-cache.ts#getCachedPassphrase`) never unwinds that payment.
- * It just leaves this merchant on the shared authority key for now, same as
- * before this feature existed; the next manual approval retries it.
- */
-async function provisionRealSubKey(
-  allowanceId: string,
-  merchantOrigin: string,
-  mandateSeconds: number,
-): Promise<void> {
-  const passphrase = getCachedPassphrase();
-  if (!passphrase) {
-    console.warn(
-      `[BARET] sub-key provisioning skipped for ${merchantOrigin}: wallet passphrase not currently cached.`,
-    );
-    return;
-  }
-  try {
-    const row = await readAllowance(allowanceId);
-    if (!row) return;
-
-    const authority = useAuthority();
-    const result = await provisionMerchantSubKey(
-      authority,
-      row.payTo,
-      row.asset,
-      uiToAtomic(row.capPerTx),
-      uiToAtomic(row.capPerDay),
-      mandateSeconds,
-    );
-
-    const encryptedSecret = await encryptWithPassphrase(result.subKey.rawSecretKey(), passphrase);
-    const now = Date.now();
-    const subKeyRow: SubKeyRow = {
-      pubkey: result.subKey.publicKey(),
-      accountPubkey: row.accountPubkey,
-      merchantOrigin,
-      encryptedSecret,
-      status: "active",
-      rotation: 0,
-      provisionSignature: result.signature,
-      revokeSignature: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await writeSubKey(subKeyRow);
-    putSubKey(subKeyRow.pubkey, result.subKey);
-
-    row.subKeyPubkey = subKeyRow.pubkey;
-    row.updatedAt = now;
-    await writeAllowance(row);
-
-    await appendHistory({
-      type: "alert",
-      accountPubkey: row.accountPubkey,
-      signature: result.signature,
-      origin: merchantOrigin,
-      summary: `Provisioned scoped on-chain sub-key for ${merchantOrigin}`,
-      decision: "allow",
-      reasons: ["MerchantSpendPolicy-gated signer registered — leaks now cap-scoped to this merchant"],
-      broadcast: true,
-      createdAt: now,
-    });
-  } catch (err) {
-    console.warn(`[BARET] sub-key provisioning failed for ${merchantOrigin}:`, err);
-  }
-}
-
 const txSignHandler: Handler<"tx.sign"> = async ({
   requestId,
   accept,
@@ -1201,6 +1121,11 @@ const txSignHandler: Handler<"tx.sign"> = async ({
       const policy = await loadPolicy();
       const mandateSeconds =
         (policy?.mandateMaxAgeDays ?? DEFAULT_MANDATE_MAX_AGE_DAYS) * 24 * 60 * 60;
+      // Read BEFORE promoting: promotion makes every mandate look live. A
+      // mandate that had lapsed (or never existed) means any sub-key lapsed
+      // with it on-chain and needs replacing, not just the local row extending.
+      const before = await readAllowance(req.x402Mandate.allowanceId);
+      const mandateWasLive = before ? isMandateLive(before) : false;
       const promoted = await promoteAllowance(
         req.x402Mandate.allowanceId,
         req.x402Mandate.nonce,
@@ -1210,17 +1135,23 @@ const txSignHandler: Handler<"tx.sign"> = async ({
         console.warn(
           `[BARET] mandate promotion skipped for ${req.x402Mandate.allowanceId}: ${promoted.reason}`,
         );
-      } else if (req.x402Mandate.isFirstApproval) {
+      } else {
         // Awaited (not fire-and-forget): the signed payment was already
         // handed back via `req.resolve` above and the popup already closed
         // via `endSignFlowIfDrained`, so this only delays this RPC call's
         // own response — not the payment. Fire-and-forget here risks the
-        // MV3 service worker being torn down mid-provisioning.
-        await provisionRealSubKey(
-          req.x402Mandate.allowanceId,
-          req.x402Mandate.merchantOrigin,
-          mandateSeconds,
-        );
+        // MV3 service worker being torn down mid-provisioning. Best-effort:
+        // it never unwinds the payment (see `swig/sub-key-lifecycle.ts`).
+        try {
+          await refreshSubKeyAfterApproval({
+            allowanceId: req.x402Mandate.allowanceId,
+            merchantOrigin: req.x402Mandate.merchantOrigin,
+            mandateSeconds,
+            mandateWasLive,
+          });
+        } catch (err) {
+          console.warn(`[BARET] sub-key refresh failed for ${req.x402Mandate.merchantOrigin}:`, err);
+        }
       }
     }
 

@@ -73,7 +73,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | SEP-1/6/10 (anchor) kodu | ⏳ hiç yok | |
 | `spend_log` sınırsız `Vec` (kontrat) | ⏳ | `contracts/contracts/merchant-spend-policy/src/lib.rs` |
 | Varsayılan tavan 1 / 5 / **25** USDC | ✅ 0.5 / 2 / 5 (T1.6) | `apps/extension/src/background/x402/handlers.ts` |
-| Mandate yenileme hatası (zincir tarafı yenilenmiyor) | ⏳ bilinen hata | `docs/implementation-status.md` §4, `LIMITATIONS.md` |
+| Mandate yenileme hatası (zincir tarafı yenilenmiyor) | ✅ düzeltildi, canlı doğrulama T0.7'de (T1.5) | `docs/implementation-status.md` §4, `LIMITATIONS.md` |
 | Zincir üstü alt anahtarın canlı uçtan uca doğrulaması | ⏳ yeniden koşulmadı | `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` |
 | `baret_docs` (içerik güncel) deploy tanımı | ⏳ yok | `ARCHITECTURE.md` §7 |
 | Mermaid diyagramı, Skills referansları, canlı demo/video linki, roadmap/SCF-InstaAwards niyeti (README) | ⏳ | Faz F |
@@ -194,12 +194,16 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - ⏳ (her biri **önce koda bakılarak doğrulanacak**): 500 "response validation failed" cevabında Zod `issues`'ın istemciye sızması (`apps/server/src/api/routes/analyze.ts`); `demo-paywall.ts`'te `buildRequirements` hatası 500 mü 502 mi; batch içinde sınırsız `Promise.all`; `X402_MEMO_MISSING` yalnız `policy.requireMemo` açıkken üretilir (varsayılan kapalı) → **sorun değil, dokümanda belirt**.
 - **Kabul:** hata zarfı yükseltilmiş iç mesaj sızdırmaz (AGENTS.md kuralı); testler eklendi.
 
-#### T1.5 Mandate yenileme hatası ⏳ (bilinen hata)
-- **Sorun:** süresi dolan mandate yeniden onaylanınca yalnız yerel satır uzar; zincirdeki `set_allowance` süresi ve alt anahtarın `Temporary` signer süresi yenilenmez → eski alt anahtarla ödeme reddedilir.
-- **Adımlar:** yenilemede yeni alt anahtar kur (ya da `set_allowance` + signer'ı yenile); sıra: yenisini ekle → eskisini kaldır; idempotent ve kısmi başarısızlığa dayanıklı; sonucu allowance satırında sakla.
-- **Riskler → önlem:** kısmi başarısızlık (yeni eklendi, eski kalır) → durum alanı + yeniden dene; passphrase önbelleği 5 dk TTL → başarısızlıkta kullanıcıya "kilit aç" yönlendirmesi; canlı doğrulama T0.7'de.
-- **Kabul:** birim testleri (mock'lu) + T0.7'de canlı doğrulama; `docs/implementation-status.md` §4 "Bilinen sorun" satırı kaldırılır.
-- **Doküman:** `docs/x402-defense.md` §11, `LIMITATIONS.md`, `docs/implementation-status.md`.
+#### T1.5 Mandate yenileme hatası ✅ (canlı doğrulama T0.7'de)
+- **Kök neden (koddan doğrulandı):** süresi dolan mandate'in satırı `status:"active"` kalıyor (yalnız `expiresAt` geçmişte), `isFirstApproval` ise `status === "pending"`'e bakıyor → yenilemede `false`; eski `provisionRealSubKey` yalnız `isFirstApproval` iken çağrılıyordu. Zincirdeki `set_allowance` süresi ve alt anahtarın `Temporary` signer süresi mandate ile birlikte dolduğu için eklenti eski alt anahtarı kullanmaya devam ediyordu. Ek bulgu: `ext-protocol`'teki yorum "süresi dolan mandate `pending` olur" diyordu (yanlış, hatanın kaynağı) ve "sonraki elle onay yeniden dener" iddiası da yanlıştı: ilk kurulum başarısız olursa da yeniden denenmiyordu.
+- **Yapıldı (2026-09-20):**
+  - Yeni modül `swig/sub-key-lifecycle.ts` (`refreshSubKeyAfterApproval`): elle onaydan sonra, mandate lapsed **ya da** merchant'ın alt anahtarı yoksa yeni alt anahtar kurar; eskisini yerelde `revoked` yapar, `rotation` artar, önbellekten atar. Canlı mandate + geçerli alt anahtar (Strict'te tekrar onay) → dokunmaz.
+  - Başarısızlıkta (RPC, parola önbelleği yok): eski alt anahtar emekliye ayrılır (yoksa her otomatik ödeme zincirde reddedilirdi), ödemeler admin anahtarına düşer (ilk kurulum başarısızlığıyla aynı, belgeli durum) ve **Activity'de uyarı** çıkar. Önceden yalnız `console.warn` vardı.
+  - `txSignHandler`: mandate'in canlı olup olmadığı **terfiden önce** okunuyor (terfi her mandate'i canlı gösterir); `provisionRealSubKey` kaldırıldı, kullanılmayan import'lar temizlendi. `ext-protocol` yorumu düzeltildi.
+  - Ödün (bilerek): eski signer zincirde `remove_signer` ile silinmiyor (mandate ile aynı süre sonunda kendiliğinden düşer; `set_allowance` politikayı yeni anahtara bağladığı için eski anahtar zaten `WrongSigner` alır). Ekstra işlem ve ücret harcanmadı.
+- **Kanıt:** 11 yeni test. `sub-key-lifecycle.test.ts` (7): ilk kurulum, lapsed yenileme, canlı mandate'te dokunmama, alt anahtarsız yeniden deneme, başarısız yenileme (eski emekli + uyarı), parola önbelleği yok, ilk kurulum başarısızlığı. `tx-sign-mandate.test.ts` (4): `tx.sign` lapsed/canlı/ilk onay için doğru `mandateWasLive`, stale nonce'ta dokunmama. **İki mutasyon gerçekten test kırdı:** orijinal hata geri getirilince (var olan anahtar her zaman korunur) 3 test, liveness'ı terfiden sonra okumak 2 test; dosyalar yedekle birebir aynı geri yüklendi. Eklenti 18 dosya / 108 test, typecheck 0 hata, Chrome + Firefox build, `docs:check`, `secrets:check` yeşil.
+- **Kanıt sınırı:** canlı testnet'te yenileme **koşturulmadı** (T0.7); `provisionMerchantSubKey` testlerde mock. Yani "yeni alt anahtar zincirde kabul ediliyor" iddiası birim testle değil, T0.7'deki canlı adımla doğrulanacak. Alt anahtarı yoksa yeniden deneme yalnız bir sonraki **elle** onayda olur (otomatik yolda parola yok); kullanıcıya bunu söyleyen bir UI ipucu eklenmedi.
+- **Doküman:** `docs/x402-defense.md` §11, `LIMITATIONS.md`, `docs/implementation-status.md` §4, `docs/extension-architecture.md`, `ARCHITECTURE.md` §4.3, `contracts/README.md`, `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` (yenileme kontrol adımı).
 
 #### T1.6 Varsayılan tavanları düşür ✅ (D3)
 - **Yapıldı (2026-09-20, kullanıcı onayıyla 0.5 / 2 / 5 USDC):**
@@ -354,6 +358,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 7) | T1.5 ✅: mandate yenilemede yeni alt anahtar (`refreshSubKeyAfterApproval`), başarısızlıkta eski anahtar emekli + Activity uyarısı, ilk kurulum başarısızsa yeniden deneme; 11 yeni test, 2 mutasyon doğrulaması. Canlı testnet doğrulaması T0.7'ye kaldı. |
 | 2026-09-20 (ilerleme 6) | T1.6 ✅: varsayılan x402 tavanları 0.5 / 2 / 5 USDC, tek kaynak `DEFAULT_X402_CAPS`; Cortex drift çağrı başı 0.25 USDC'ye uyarlandı; 5 yeni test, 2 mutasyon doğrulaması. |
 | 2026-09-20 (ilerleme 5) | T1.2 ✅: analyze timeout 45 sn, `ws.connect`'te ısıtma, sunucu-uyanıyor ipucu, offline'da Retry + 1,5 sn basılı tutma; showcase zaman aşımı/kopya düzeltmeleri; 6 yeni test (mutasyonla doğrulandı); popup harness'la görsel doğrulama. |
 | 2026-09-20 (ilerleme 4) | T1.1 ✅: Scrybe sahte sayaç/akış silindi, örnek kartlar illüstrasyon olarak etiketlendi, kurmaca dApp rozeti, Hub ve index.html düzeltmeleri. Görsel doğrulama kısmen (bkz. T1.1 kanıt sınırı). |

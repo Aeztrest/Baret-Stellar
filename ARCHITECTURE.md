@@ -218,8 +218,8 @@ Giriş A: fetch interceptor                        Giriş B: dApp doğrudan sign
    7. PAYMENT-SIGNATURE başlığı (v2 PaymentPayload, base64) → istek yeniden gönderilir
 ```
 
-Elle onay, mandate'i canlı yapar (`promoteAllowance`) ve **ilk onayda** zincir üstü alt anahtarı kurar
-(`provisionRealSubKey`): `MerchantSpendPolicy` cüzdana `Policy` signer olarak eklenir (ilk seferde),
+Elle onay, mandate'i canlı yapar (`promoteAllowance`) ve zincir üstü alt anahtarı kurar (ilk onayda, süresi dolan mandate'in
+yenilenmesinde ve önceki kurulum başarısız olduysa; `refreshSubKeyAfterApproval`): `MerchantSpendPolicy` cüzdana `Policy` signer olarak eklenir (ilk seferde),
 `set_allowance(wallet, merchant=payTo, signer=altAnahtar, tavanlar, mandate)` çağrılır, sonra alt anahtar
 `SignerLimits{token: [Policy(MerchantSpendPolicy)]}` ile `Ed25519` signer olarak eklenir. Sonraki otomatik
 ödemeler bu alt anahtarla imzalanır ve cüzdanın `__check_auth`'u politikayı çağırır. Bu adım **best-effort**'tır:

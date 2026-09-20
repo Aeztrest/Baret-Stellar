@@ -391,8 +391,8 @@ function enqueueAndWait(
 /**
  * Resolves which key signs an auto-approved x402 payment: the merchant's
  * active, `MerchantSpendPolicy`-scoped sub-key when one has been provisioned
- * (see `messaging/handlers.ts`'s `provisionRealSubKey`), else the wallet's
- * admin `authority` — the same fallback `provisionRealSubKey` itself
+ * (see `swig/sub-key-lifecycle.ts`'s `refreshSubKeyAfterApproval`), else the
+ * wallet's admin `authority` — the same fallback `refreshSubKeyAfterApproval` itself
  * documents. Both are valid smart-wallet signers; only the sub-key is
  * capped to this one merchant on-chain.
  */

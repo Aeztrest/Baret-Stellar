@@ -88,7 +88,7 @@ src/background/
 ├── db/{index,keystore,allowances,history,alerts,sub-keys,site-permissions}.ts
 ├── rpc/{connection,monitor}.ts
 ├── x402/{parse,build,handlers}.ts
-├── swig/{provision,sub-keys,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
+├── swig/{provision,sub-keys,sub-key-lifecycle,smart-wallet-config}.ts   ("swig" is a legacy directory name; this is passkey-kit code)
 └── baret/analyze-client.ts
 ```
 
@@ -203,7 +203,7 @@ silent trust it can't attribute. Never call `indexedDB.open()` with another vers
 
 - **Smart wallet** (`swig/provision.ts`): `wallet.provisionSmartWallet` deploys a real [passkey-kit](https://github.com/stellar/passkey-kit) smart-wallet instance from the canonical WASM hash in `swig/smart-wallet-config.ts`, with the account's existing Ed25519 authority as the first (unlimited, permanent) admin signer. No WebAuthn ceremony. The authority pays for the deploy (needs ≥ 5 XLM). The address is stored per account (`AccountEntry.smartWalletAddress`); provisioning is idempotent.
 - **x402 payments come from the smart wallet** (`C…`), so it must hold the token (USDC SAC) balance. Classic sends from the UI (`wallet.transferXlm`) come from the authority `G…` account.
-- **Merchant sub-keys** (`swig/sub-keys.ts`): on the first manual approval of a merchant, `provisionRealSubKey` (a) installs `MerchantSpendPolicy` on the wallet as a `Policy` signer with an **empty** limits map (idempotent), (b) calls `MerchantSpendPolicy.set_allowance(wallet, merchant=payTo, signer=<new sub-key>, caps, mandate_seconds)`,
+- **Merchant sub-keys** (`swig/sub-keys.ts`): on a manual approval of a merchant that has no live sub-key (the first approval, a renewal after the mandate lapsed, or a retry after a failure), `refreshSubKeyAfterApproval` in `swig/sub-key-lifecycle.ts` (a) installs `MerchantSpendPolicy` on the wallet as a `Policy` signer with an **empty** limits map (idempotent), (b) calls `MerchantSpendPolicy.set_allowance(wallet, merchant=payTo, signer=<new sub-key>, caps, mandate_seconds)`,
   (c) adds the sub-key as an `Ed25519` signer with `SignerLimits { token: [Policy(MerchantSpendPolicy)] }` in temporary storage with the mandate's expiry. From then on auto-approved payments to that merchant are signed by the sub-key through the wallet's own `__check_auth`, which calls the policy on-chain.
   `ledger.revoke` sends `remove_signer`. Failure of provisioning never blocks the payment (best-effort; the merchant then uses the admin key). Details, guarantees and the **known mandate-renewal gap**: [`x402-defense.md`](./x402-defense.md) §11 and [`implementation-status.md`](./implementation-status.md) §4.
 - Contract addresses/hashes are constants in `swig/smart-wallet-config.ts` (must match `contracts/**/DEPLOYMENT.md`).

@@ -84,9 +84,9 @@ export interface AllowanceSnapshot {
    *  stale popup promoting a mandate that changed underneath it. */
   nonce: number;
   /**
-   * "pending": seen but never manually authorized (or a mandate that expired and needs
-   * re-authorization) — never auto-approved regardless of policy.
-   * "active": a live, manually-authorized mandate within its expiry.
+   * "pending": seen but never manually authorized — never auto-approved regardless of policy.
+   * "active": manually authorized. It stays "active" after `expiresAt` passes, so liveness is
+   * `status === "active" && now <= expiresAt` (`isMandateLive`), not this field alone.
    * "paused" / "revoked": user-initiated holds.
    */
   status: "pending" | "active" | "paused" | "revoked";
