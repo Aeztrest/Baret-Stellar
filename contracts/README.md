@@ -78,6 +78,8 @@ Redeploy steps and the end-to-end verification checklist: [`contracts/merchant-s
 
 ```bash
 cargo test --manifest-path contracts/Cargo.toml -p merchant-spend-policy
+cargo fmt --manifest-path contracts/Cargo.toml --all -- --check
+cargo clippy --manifest-path contracts/Cargo.toml -p merchant-spend-policy --all-targets -- -D warnings
 cd contracts && stellar contract build          # → target/wasm32v1-none/release/merchant_spend_policy.wasm
 ```
 

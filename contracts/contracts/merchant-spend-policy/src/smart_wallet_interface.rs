@@ -38,6 +38,8 @@ pub mod types {
     /// - 100-109: signer storage / management
     /// - 110-119: auth (`__check_auth`)
     /// - 120-129: WebAuthn (secp256r1) verification
+    // Vendored from passkey-kit: variant names must match the wallet's own spec.
+    #[allow(clippy::enum_variant_names)]
     #[contracterror]
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
     #[repr(u32)]

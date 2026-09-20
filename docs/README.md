@@ -100,6 +100,8 @@ Durum sözlüğü (özellikle `implementation-status.md`'de): ✅ uygulanmış �
 
 Bu denetim **anlam** doğrulamaz (bir davranış değişikliğini yakalayamaz); yukarıdaki tablo ve inceleme yerine geçmez, yalnızca en sık bozulan yüzeyi (yollar/linkler/env/paketler) kapatır.
 
+`pnpm secrets:check` (`scripts/check-secrets.mjs`, bağımlılıksız Node) izlenen dosyalarda checksum'ı geçerli Stellar secret seed'i (`S…`), `baret_…` API anahtarı ve PEM özel anahtarı arar, CI'da ayrı iş olarak koşar. Bilerek herkese açık bir anahtar (ör. showcase'in demo verici kimliği) aynı satıra ya da bir üst satıra `secret-scan: allow <neden>` yorumu konarak muaf tutulur.
+
 ## Doküman yazma ilkeleri
 
 - **Doğrulanabilirlik:** iddianın yanına dosya yolu/işlev adı yaz. Emin değilsen "doğrulanmadı" yaz. Sayı (test sayısı, satır sayısı) yerine komut ver, çünkü sayılar çabuk bayatlar.

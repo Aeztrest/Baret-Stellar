@@ -31,7 +31,8 @@ pnpm test              # yalnız sunucu testleri; CI hepsini koşturur: pnpm -r 
 pnpm --filter @stellar-thorn/extension test | @stellar-thorn/wallet test | ... test
 pnpm --filter @stellar-thorn/server x402-setup   # demo satıcı anahtarı + testnet fonlama (tek seferlik)
 pnpm docs:check        # doküman tutarlılık denetimi (linkler, yollar, env, paketler)
-cargo test --manifest-path contracts/Cargo.toml  # Soroban kontratları
+pnpm secrets:check     # izlenen dosyalarda Stellar seed / baret_ anahtarı / PEM taraması; bilerek herkese açık anahtar: yanına "secret-scan: allow <neden>" yaz
+cargo test --manifest-path contracts/Cargo.toml  # Soroban kontratları (CI ayrıca: cargo fmt --check, clippy -D warnings [yalnız merchant-spend-policy], wasm32v1-none derlemesi)
 cd baret_docs && npm install && npm run lint && npm run build   # API doküman sitesi (workspace DIŞI)
 ```
 

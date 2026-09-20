@@ -60,7 +60,7 @@ mod smart_wallet_interface;
 use smart_wallet_interface::{types::SignerKey, PolicyInterface, SmartWalletClient};
 use soroban_sdk::{
     auth::{Context, ContractContext},
-    contract, contractevent, contracterror, contractimpl, contracttype, panic_with_error,
+    contract, contracterror, contractevent, contractimpl, contracttype, panic_with_error,
     symbol_short, vec, Address, BytesN, Env, TryFromVal, Vec,
 };
 
@@ -321,7 +321,10 @@ impl PolicyInterface for Contract {
                     panic_with_error!(&env, Error::NotAllowed);
                 }
 
-                let merchant = match args.get(1).and_then(|v| Address::try_from_val(&env, &v).ok()) {
+                let merchant = match args
+                    .get(1)
+                    .and_then(|v| Address::try_from_val(&env, &v).ok())
+                {
                     Some(m) => m,
                     None => panic_with_error!(&env, Error::NotAllowed),
                 };

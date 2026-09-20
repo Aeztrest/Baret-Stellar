@@ -72,7 +72,7 @@ pnpm workspace (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). Paket adları `@
 | `baret_docs` | `tailwind-plus-protocol` | Herkese açık API dokümantasyon sitesi (Next.js + MDX) | 3000 |
 | `docs/` | - | Tasarım/spec dokümanları (bkz. `docs/README.md`) | - |
 | `assets/` | - | Kaynak görseller (kodda referans yok; sunulan varlıklar `apps/showcase/public/`'te) | - |
-| `scripts/` | - | Repo araçları (`check-docs.mjs`: doküman tutarlılık denetimi) | - |
+| `scripts/` | - | Repo araçları (`check-docs.mjs`: doküman tutarlılık denetimi; `check-secrets.mjs`: sır taraması) | - |
 
 Paket bağımlılık grafiği ve "neden ayrı paket" gerekçesi: [`docs/architecture/packages.md`](./docs/architecture/packages.md).
 

@@ -73,6 +73,7 @@ const USDC_SAC_TESTNET =
 // real value — see file header. Issues PHNTM (PixelDrop), LUMA (ClaimHub),
 // NOVA (LaunchPad).
 const DEMO_ISSUER = Keypair.fromSecret(
+  // secret-scan: allow public demo issuer, testnet only, holds nothing of value
   "SCHGMLONQHTLBFIBJK75MEZFPF3ZJOPXULEKHZU3TJ6MBETJ6XC6WXQ5",
 );
 const PHNTM = new Asset("PHNTM", DEMO_ISSUER.publicKey());
@@ -98,6 +99,7 @@ const DEMO_ASSET_TRUST_LIMIT = "1000000";
 // across both sites: it's the same drainer identity preying on more than
 // one dApp, same as a real one would.
 const USDC_DRAINER = Keypair.fromSecret(
+  // secret-scan: allow public demo drainer identity, testnet only, holds nothing of value
   "SAJ4C3WYHOHZRGO7CB7C7EXE7QK7E3434CGNVZYHY7JFAY2X5CTNAJVL",
 );
 const ATTACKER_ACCOUNT =

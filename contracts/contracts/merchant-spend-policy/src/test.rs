@@ -360,7 +360,9 @@ struct StubWallet;
 impl StubWallet {
     /// Test-only: `Some` when `is_still_signer` was set true, `None` otherwise.
     pub fn set_still_signer(env: Env, still: bool) {
-        env.storage().instance().set(&symbol_short!("still"), &still);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("still"), &still);
     }
 
     pub fn get_signer(env: Env, _signer_key: SignerKey) -> Option<SignerVal> {
@@ -392,8 +394,8 @@ fn uninstall_refuses_while_still_a_signer() {
     let stub_client = StubWalletClient::new(&env, &stub_id);
     stub_client.set_still_signer(&true);
 
-    policy.install(&stub_id.clone().try_into().unwrap());
-    policy.uninstall(&stub_id.try_into().unwrap());
+    policy.install(&stub_id);
+    policy.uninstall(&stub_id);
 }
 
 #[test]
@@ -407,7 +409,7 @@ fn uninstall_succeeds_once_no_longer_a_signer() {
     let stub_client = StubWalletClient::new(&env, &stub_id);
     stub_client.set_still_signer(&false);
 
-    let wallet: Address = stub_id.try_into().unwrap();
+    let wallet: Address = stub_id;
     policy.install(&wallet);
     policy.uninstall(&wallet); // must not panic
 }

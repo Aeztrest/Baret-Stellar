@@ -346,11 +346,13 @@ pnpm build:extension     # Chrome + Firefox dist + auto-zip for /install downloa
 pnpm typecheck           # tsc across every workspace
 pnpm test                # vitest in @stellar-thorn/server (CI runs every workspace: pnpm -r --if-present test)
 pnpm docs:check          # documentation consistency (links, paths, env vars, packages)
+pnpm secrets:check       # scan tracked files for Stellar seeds, Baret API keys, PEM keys
 (cd baret_docs && npm run build)   # public API docs site (Next.js + MDX; outside the pnpm workspace)
 pnpm --filter @stellar-thorn/server x402-setup   # bootstrap merchant on testnet
 
 # Smart contract (in ./contracts)
 cargo test -p merchant-spend-policy   # MerchantSpendPolicy unit tests
+cargo fmt --all -- --check && cargo clippy -p merchant-spend-policy --all-targets -- -D warnings   # what CI also enforces
 stellar contract build --package merchant-spend-policy
   # → target/wasm32v1-none/release/merchant_spend_policy.wasm
 ```
