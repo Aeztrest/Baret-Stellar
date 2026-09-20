@@ -240,6 +240,8 @@ The client-side policy is the saved `GuardPolicy` (default `BALANCED_POLICY`); t
 `rpc/monitor.ts` polls Horizon every 8 s for new transactions on the authority and the smart wallet (paging cursors in `storage.local`), started/stopped from the wallet phase (and restarted on account switch). A successful transaction with no matching `history.signature` in the last 200 entries raises a
 `drift` alert (IndexedDB + OS notification + unread badge). A failed transaction is recorded as an `alert` history row. It is polling, not a WebSocket stream, and there are no `verify_orphan`/`no_delivery` alerts.
 
+Transactions the wallet submits itself must be in history or they are reported as intrusions: `wallet.transferXlm`, `wallet.addUsdcTrustline` and `wallet.airdrop` (Friendbot's funding transaction) write a `send` / `receive` entry keyed by the transaction hash right after submission (`recordOwnTransaction` in `messaging/handlers.ts`; best-effort, so a failed write doesn't fail the send). Not checked: whether the relayed smart-wallet deploy and the sub-key transactions (`swig/*`, passkey-kit `send()`) reconcile the same way; the live sub-key run (`PLAN.md` T0.7) will show it. The monitor also still counts any transaction that merely *touches* the authority, including someone else's incoming payment, as unmatched, although `LIMITATIONS.md` describes drift as unknown outgoing transactions.
+
 ---
 
 ## 11. Surfaces

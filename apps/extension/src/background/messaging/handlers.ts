@@ -420,6 +420,36 @@ const exportSecretHandler: Handler<"wallet.exportSecret"> = async ({
   }
 };
 
+/**
+ * Records a transaction the wallet itself built and submitted. The post-sign
+ * monitor reconciles every confirmed transaction against history and raises a
+ * high "drift" alert for anything it can't match, so an unrecorded
+ * wallet-initiated send would report the user's own action as an intrusion.
+ * Best-effort: the transaction is already on the network, so a failed write
+ * must not turn a success into an error.
+ */
+async function recordOwnTransaction(entry: {
+  type: "send" | "receive";
+  hash: string;
+  summary: string;
+}): Promise<void> {
+  try {
+    await appendHistory({
+      type: entry.type,
+      accountPubkey: requireActiveAccountPubkey(),
+      signature: entry.hash,
+      origin: null,
+      summary: entry.summary,
+      decision: "allow",
+      reasons: [],
+      broadcast: entry.type === "send",
+      createdAt: Date.now(),
+    });
+  } catch (err) {
+    console.warn("[BARET] couldn't record own transaction:", err);
+  }
+}
+
 const airdropHandler: Handler<"wallet.airdrop"> = async () => {
   if (!isUnlocked()) throw new Error("Unlock the wallet first.");
   const snap = getSnapshot();
@@ -442,6 +472,13 @@ const airdropHandler: Handler<"wallet.airdrop"> = async () => {
     );
   }
   const body = (await res.json()) as { hash?: string };
+  if (body.hash) {
+    await recordOwnTransaction({
+      type: "receive",
+      hash: body.hash,
+      summary: "Received test XLM from Friendbot",
+    });
+  }
   return {
     transactionHash: body.hash ?? "unknown",
     amountXlm: 10_000, // friendbot default
@@ -652,6 +689,11 @@ const transferXlmHandler: Handler<"wallet.transferXlm"> = async ({
 
   try {
     const result = await horizon.submitTransaction(tx);
+    await recordOwnTransaction({
+      type: "send",
+      hash: result.hash,
+      summary: `Sent ${amountXlm} XLM to ${shortId(to)}`,
+    });
     return { transactionHash: result.hash };
   } catch (err) {
     throw new Error(horizonSubmitErrorMessage(err));
@@ -685,6 +727,11 @@ const addUsdcTrustlineHandler: Handler<
 
   try {
     const result = await horizon.submitTransaction(tx);
+    await recordOwnTransaction({
+      type: "send",
+      hash: result.hash,
+      summary: "Added a USDC trustline",
+    });
     return { transactionHash: result.hash };
   } catch (err) {
     throw new Error(horizonSubmitErrorMessage(err));

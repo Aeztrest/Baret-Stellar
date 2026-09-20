@@ -222,6 +222,13 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Kanıt sınırı:** Cortex "9. çağrıda tavan aşılır" aritmetik (8 × 0.25 = 2.0; 9. = 2.25 > 2.0), gerçek testnet'te bir patlama koşturularak **doğrulanmadı**; Options → Policies ekranının yeni değerleri gösterdiği tarayıcıda görülmedi (değerler şablondan okunuyor).
 - **Doküman:** `docs/policy-dsl.md` (varsayılanlar, tablo, etki notu), `docs/architecture/packages.md`, `packages/swig-guard/README.md`, `docs/architecture/clients.md` (Cortex drift).
 
+#### T1.7 Kendi işlemlerimizi drift sanma ✅
+- **Bulgu (T2.3'ün tarayıcı doğrulamasında, önceden var olan hata):** taze bir cüzdanda "Fund with Friendbot" + "Add USDC trustline" sonrası sidebar'da iki **"high" drift alarmı** çıktı ("An unsigned transaction touched your authority"). `wallet.airdrop`, `wallet.transferXlm` ve `wallet.addUsdcTrustline` işlemleri geçmişe yazılmıyordu; monitör her onaylı işlemi geçmişteki imzalarla eşleştirir, eşleşmeyeni drift sayar. Yani cüzdan **kendi** işlemini saldırı diye bildiriyordu (ilk çalıştırma ve anchor kurulum demosunda tam ortada).
+- **Yapıldı (2026-09-20):** `recordOwnTransaction` (best-effort: işlem zaten ağda, geçmiş yazımı başarısız olursa gönderim hataya çevrilmez) üç yerden çağrılıyor: gönderim/trustline `send`, Friendbot `receive` (hash yoksa ya da "already funded" ise kayıt yok).
+- **Kanıt:** 6 yeni test (`messaging/own-transactions.test.ts`): üç akış, "already funded" kaydı yok, geçmiş yazımı başarısız olsa da başarı, ağın reddettiği işlem kaydedilmiyor. **6 mutasyon test kırdı.** **Gerçek tarayıcıda** (canlı Friendbot/Horizon) aynı akış: `alerts.list → []`, geçmişte "Received test XLM from Friendbot" ve "Added a USDC trustline".
+- **Kanıt sınırı / açık kalanlar:** (1) Relay'li akıllı cüzdan dağıtımı ve alt-anahtar işlemleri (`swig/*`, passkey-kit `send()`) aynı şekilde eşleşiyor mu **doğrulanmadı**; T0.7'deki canlı alt-anahtar koşusunda görülecek. (2) Monitör hesaba *dokunan* her işlemi sayıyor: başkasının sana yaptığı **gelen** ödeme de eşleşmez ve drift alarmı verir. LIMITATIONS "yalnız bilinmeyen giden işlem" diyordu, kod bunu yapmıyor; LIMITATIONS kodla uyumlu hale getirildi. Davranışı (gelen işlemi saymamak) değiştirmek monitör semantiği kararı, akıllı cüzdan tarafını bozabileceği için yapılmadı.
+- **Doküman:** `docs/extension-architecture.md` §10, `LIMITATIONS.md`.
+
 ### Faz 2: Anchor (jüri için en ağır kalem)
 
 **Ortak tasarım (T2.1-T2.7 için):**
@@ -396,6 +403,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-09-20 (ilerleme 12) | T1.7 ✅: cüzdanın kendi gönderdiği işlemler (gönderim, trustline, Friendbot) geçmişe yazılıyor, monitör onları drift saymıyor; 6 yeni test, 6 mutasyon, gerçek tarayıcıda doğrulandı. Gelen işlemlerin drift sayılması ve relay'li işlemlerin eşleşmesi açık (T0.7). |
 | 2026-09-20 (ilerleme 11) | T2.3 ✅: anchor'ın bildirdiği varlık için trustline istisnası (Balanced'ı da kapsıyor), toml `[[CURRENCIES]]` okuyucusu, Options → Anchors "Account setup" paneli; 19 yeni test, gerçek tarayıcıda fonlama + trustline doğrulaması. Yan bulgu: kendi işlemlerimiz drift alarmı üretiyor (T1.7). |
 | 2026-09-20 (ilerleme 10) | PR #45 merge edildi; T2.1 için PR #46 açıldı. T2.2 ✅ (dal `feat/anchor-sep-client`): korumalı anchor HTTP'si, doğrulamadan imzalamayan SEP-10 girişi, bellek-içi JWT (kilitte silinir), SEP-6 `/info`, Options → Anchors; 47 yeni test, 14 mutasyon, gerçek Chromium'da canlı anchor ile uçtan uca doğrulama. Plandan sapma: `alarms` poll'u yok (JWT bellekte), deposit/withdraw istemcisi ve kayıt deposu T2.4/T2.5'e kaydırıldı. |
 | 2026-09-20 (ilerleme 9) | T1.4 için PR #45 açıldı. Faz 2 başladı, dal `feat/anchor-sep10`. T2.1 ✅: eklentide `sep/` modülü (allowlist, toml okuyucu, SEP-10 tanıyıcı), `tx.analyzeRequest` sunucudan önce challenge'ı kendisi karara bağlıyor; sahte challenge bloklanır, bilinmeyen anchor uyarıdır; 36 yeni test, 12 mutasyon doğrulaması, canlı anchor duman testi. |

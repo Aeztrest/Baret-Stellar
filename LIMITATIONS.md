@@ -94,7 +94,7 @@ Per-merchant sub-keys are registered on the smart wallet as Ed25519 signers scop
 ### x402 protections that are specified but not built
 
 Facilitator `/supported` cross-check, amount-anomaly detection, settle-but-no-delivery and verify-orphan alerts, auto-revoke of idle sub-keys and `maxActiveSubKeys` exist as policy fields and editor toggles but nothing enforces them. See [`docs/policy-dsl.md`](./docs/policy-dsl.md) §1.4.
-The post-sign monitor flags only **unknown outgoing transactions** (drift), by polling Horizon every 8 s.
+The post-sign monitor flags **unknown transactions** (drift), by polling Horizon every 8 s: it compares every confirmed transaction that touches your account with the wallet's own history, so an *incoming* transaction from someone else (a payment to you) is not recognised as harmless and can raise a drift alert too. Transactions the wallet sends itself (send, add trustline, Friendbot funding) are recorded and don't.
 
 ### SEP-10 anchor logins
 
