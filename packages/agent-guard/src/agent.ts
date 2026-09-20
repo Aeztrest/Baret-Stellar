@@ -24,6 +24,7 @@ import {
   TransactionGuard,
   GuardBlockedError,
   AnalyzeError,
+  type ClientFindingCode,
   type GuardEvaluation,
   type AnalysisResult,
   type StellarNetwork,
@@ -256,7 +257,7 @@ function offlineAnalysis(network: StellarNetwork): AnalysisResult {
     estimatedChanges: { native: [], assets: [], trustlines: [], allowances: [] },
     riskFindings: [
       {
-        code: "ANALYZE_UNREACHABLE",
+        code: "ANALYZE_UNREACHABLE" satisfies ClientFindingCode,
         severity: "medium",
         message: "Signed without a Baret verdict (allowOffline).",
       },

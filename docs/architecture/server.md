@@ -382,8 +382,9 @@ pnpm --filter @stellar-thorn/server build       # tsc -p tsconfig.build.json →
 ```
 
 Testler `test/` altında: `app-auth`, `api/{developer,openapi,error-sanitization,analyze-x402-log,portal-catalog}`, `keys/key-store`,
-`policy/engine`, `risk/*`, `simulation/*`, `analysis/extract-deltas`, `attestation/*`, `data/audit-store`. Önemli kilitler:
-`openapi.test.ts` (her kayıtlı rota OpenAPI'de olmalı, hata kodları eşit olmalı), `portal-catalog.test.ts` (showcase portal kataloğu ↔ OpenAPI).
+`policy/engine`, `risk/*`, `simulation/*`, `analysis/extract-deltas`, `attestation/*`, `data/audit-store`, `domain/finding-codes`. Önemli kilitler:
+`openapi.test.ts` (her kayıtlı rota OpenAPI'de olmalı, hata kodları eşit olmalı), `portal-catalog.test.ts` (showcase portal kataloğu ↔ OpenAPI),
+`finding-codes.test.ts` (sunucu bulgu kodları ↔ swig-guard `RISK_FINDING_CODES`).
 
 ## 16. Tuzaklar
 

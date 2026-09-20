@@ -6,7 +6,11 @@
  * many, not the trust boundary.
  */
 
-import type { GuardPolicy, StellarNetwork } from "@stellar-thorn/swig-guard";
+import type {
+  ClientFindingCode,
+  GuardPolicy,
+  StellarNetwork,
+} from "@stellar-thorn/swig-guard";
 import type {
   AnalyzeResponse,
   RiskFindingPayload,
@@ -143,7 +147,7 @@ function offlineResponse(message: string): AnalyzeResponse {
     reasons: [`Could not reach Baret: ${message}`],
     riskFindings: [
       {
-        code: "ANALYZE_UNREACHABLE",
+        code: "ANALYZE_UNREACHABLE" satisfies ClientFindingCode,
         severity: "medium",
         message:
           "Baret's analyze server didn't respond. Sign only if you trust this dApp.",

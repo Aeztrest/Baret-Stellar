@@ -12,6 +12,8 @@
  * key already committed in render.yaml, not a secret.
  */
 
+import type { ClientFindingCode } from "@stellar-thorn/swig-guard";
+
 const DEMO_API_KEY = "dev-key-change-me";
 
 export interface RiskFinding {
@@ -150,7 +152,7 @@ function offlineResult(reason: string): AnalysisResult {
     reasons: [`Couldn't reach the analyze server: ${reason}`],
     riskFindings: [
       {
-        code: "ANALYZE_UNREACHABLE",
+        code: "ANALYZE_UNREACHABLE" satisfies ClientFindingCode,
         severity: "medium",
         message:
           "Analyze server unreachable. Baret won't sign unchecked transactions.",

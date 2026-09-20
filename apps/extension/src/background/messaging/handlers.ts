@@ -26,7 +26,11 @@ import type {
   ExtRpcRequest,
   ExtRpcResponse,
 } from "@stellar-thorn/ext-protocol";
-import { BALANCED_POLICY, type GuardPolicy } from "@stellar-thorn/swig-guard";
+import {
+  BALANCED_POLICY,
+  type ClientFindingCode,
+  type GuardPolicy,
+} from "@stellar-thorn/swig-guard";
 
 import { dispatch, getSnapshot } from "../state/store";
 import { encryptWithPassphrase, decryptWithPassphrase, needsIterationUpgrade } from "../crypto/kdf";
@@ -948,7 +952,7 @@ const txAnalyzeRequestHandler: Handler<"tx.analyzeRequest"> = async ({
         reasons: [warning],
         riskFindings: [
           {
-            code: "X402_ASSET_NOT_ALLOWED",
+            code: "X402_ASSET_NOT_ALLOWED" satisfies ClientFindingCode,
             severity: "high" as const,
             message: `Paying in an untrusted asset (${shortId(intent.contract)}), not your allow-listed USDC.`,
           },

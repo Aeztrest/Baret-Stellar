@@ -34,7 +34,7 @@ Guard SDK'sı. Ne yapar:
 - **`analyzeTransaction(cfg, req)`** (`src/analyze.ts`): `POST {baseUrl}/v1/analyze`, `Authorization: Bearer <apiKey>`. `assertSecureBaseUrl` düz `http://` adresini loopback dışında reddeder
   (`allowInsecureHttp` ile aşılır). Zaman aşımı 15 sn. Hata → `AnalyzeError`.
 - **`TransactionGuard`** (`src/guard.ts`): `evaluate()` **asla imzalamaz/göndermez**, `decision: "allow" | "block"` döner; `prepare()` blokta `GuardBlockedError` fırlatır.
-- **Tipler** (`src/types.ts`): sunucu `Decision`'ının aynası (`AnalysisResult`, `RiskFinding`…). `RiskSeverity` burada `critical` da içerir; sunucu yalnız `low|medium|high` üretir.
+- **Tipler** (`src/types.ts`): sunucu `Decision`'ının aynası (`AnalysisResult`, `RiskFinding`…). `RiskSeverity` burada `critical` da içerir; sunucu yalnız `low|medium|high` üretir. Bulgu kodları çalışma zamanı dizisi olarak durur: `RISK_FINDING_CODES` sunucunun döndürdüğü kodlar, `CLIENT_FINDING_CODES` istemcinin kendi ürettiği `ANALYZE_UNREACHABLE` ve `X402_ASSET_NOT_ALLOWED` (sunucu bunları üretmez). Sunucu kataloğu ile `RISK_FINDING_CODES` `apps/server/test/domain/finding-codes.test.ts` ile kilitlidir; üretici noktalar `satisfies ClientFindingCode` ile tiplenir.
 - Export haritası: `.` (hepsi) ve `./policy`. Tüketiciler `dist/`'i kullanır, bu yüzden **önce build edilmeli** (`pnpm build:guard`).
 
 Neden ayrı ve SDK'sız: eklenti ve bağımsız cüzdan paketine girer; tarayıcı paketini şişirmemek için.
