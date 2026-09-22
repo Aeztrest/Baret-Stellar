@@ -14,6 +14,27 @@ Baret ships as a Chrome/Firefox extension, a live showcase that proves every
 claim with **real Stellar testnet transactions**, a merchant + analysis server,
 and a deployed Soroban smart contract. It is a single pnpm monorepo.
 
+## At a glance
+
+**Testnet only, unaudited.** The hosted analyze + x402 server is
+<https://baret-stellar.onrender.com> (`/health`, `/openapi.json`; the free plan
+sleeps when idle, so the first request can take about 30 seconds).
+
+| Area | State | How it was checked |
+|---|---|---|
+| Pre-sign analysis (26 finding codes, policy presets) | Built and live | Server test suite (181 tests), live on the hosted server |
+| x402 firewall in the wallet (caps, mandates, allow-lists) | Built and used | Real testnet settlement through the `/scrybe` and `/cortex` demos; extension test suite (288 tests) |
+| **MerchantSpendPolicy** on-chain sub-key caps | Built and deployed | 14 contract unit tests; the live testnet end-to-end checklist was run by the team and passed on 2026-09-20 (wallet address and transaction hashes were not recorded) |
+| **Anchor sign-in (SEP-10)** and blocking of forged login challenges | Built | Attack fixtures in tests; a real login against the live mock anchor from the built extension in Chromium |
+| SEP-6 `/info`, anchor-asset trustline exception, account setup panel | Built | Same live run: `/info`, Friendbot funding and the USDC trustline worked from the extension |
+| SEP-6 withdrawal guard | Built | **Tested against a simulated anchor only**, never against a real withdrawal (see [Anchors](#stellar-anchors-sep-1-sep-6-sep-10)) |
+| Deposit and withdraw flows, SEP-12, SEP-38, `G` to smart-wallet bridge | **Not built** | See [Anchors](#stellar-anchors-sep-1-sep-6-sep-10) for why |
+| Verdict attestation | Code exists, **off** on the hosted server | Not verified by the extension yet |
+
+Known limits are listed openly in [`LIMITATIONS.md`](./LIMITATIONS.md); the
+spec-versus-code ledger is
+[`docs/implementation-status.md`](./docs/implementation-status.md).
+
 ---
 
 ## 🛰️ Deployed Soroban contract (Stellar testnet)
@@ -135,6 +156,63 @@ Chrome MV3 + Firefox MV3. The wallet itself.
   every page, auto-discovered by dApps using the Stellar Wallets Kit or the
   Freighter API. Exposes connect / requestAccess / getAddress / getNetwork /
   signTransaction / signAuthEntry / signMessage.
+
+### Stellar anchors (SEP-1, SEP-6, SEP-10)
+
+Code: `apps/extension/src/background/sep`. Anchors turn local currency into Stellar assets and back. They also add two
+wallet-side risks a normal wallet can't see: a fake **login challenge** that is
+really a spend, and a **withdrawal payment** whose destination, memo or amount
+was swapped. To the analyze server both look like ordinary transactions.
+Baret's angle is to be the firewall for those flows, not another wallet UI for
+them.
+
+What is built and working:
+
+- **Login challenge recognizer (SEP-10).** A challenge is a sequence-0
+  transaction with a `manage_data` login entry. Anything challenge-shaped is
+  decided in the extension before the server is asked. A forged one (real
+  sequence number, an extra payment or `account_merge`, wrong signer, expired,
+  wrong `web_auth_domain`, wrong network) is **blocked** with every broken rule
+  listed; a login for another account is blocked; a valid one from an unknown
+  anchor is a caution; a valid one from a known anchor says it moves no funds.
+  The anchor's `SIGNING_KEY` from its `stellar.toml` (SEP-1) is the authority.
+- **Sign-in from Options → Anchors.** The extension fetches the anchor's
+  challenge, refuses to sign unless it passes the same recognizer, and keeps
+  the returned token **only in service-worker memory** (locking the wallet
+  clears it).
+- **Trustline exception.** A plain `changeTrust` has no limit, so the default
+  policy blocked the USDC trustline every anchor flow needs. If every trustline
+  in a transaction is an addition for canonical USDC or an asset an
+  allow-listed anchor declares in its toml, only those two trustline rules are
+  relaxed for that transaction, and the sign screen says why. Look-alike
+  issuers, removals and other accounts keep the normal rules.
+- **Account setup panel** (funded? USDC trustline?) with Friendbot and
+  add-trustline buttons.
+- **Withdrawal guard (SEP-6).** A payment to an account an allow-listed anchor
+  lists in `ACCOUNTS` must be exactly the single payment the anchor's own
+  record asks for (destination, memo, amount, asset), or it is blocked. If
+  there is nothing to compare with (not signed in, anchor unreachable, no such
+  request) it is blocked too instead of being signed on trust.
+- Anchor calls are https only, follow no redirects, have a timeout and a size
+  cap, and expect JSON. Only allow-listed anchors are ever contacted.
+
+What is **not** built, and why. There is no Turkish-lira anchor on Stellar
+testnet (the organizers confirmed this), and SEP-24 was ruled out, so we worked
+against the mock anchor the organizers pointed to
+([`tr-mock-anchor.fly.dev`](https://tr-mock-anchor.fly.dev): SEP-1, SEP-6,
+SEP-10). We ran into errors with that mock when trying to take it further, so
+we built and verified what we could and did not paper over the rest:
+
+- no Baret-initiated **deposit or withdraw flow**, no transaction tracking;
+- the **withdrawal guard has only been exercised against a simulated anchor**
+  in tests, not against a real withdrawal payment;
+- no SEP-12 (KYC), no SEP-38 (quotes), no bridge between the anchor's classic
+  `G…` account and the smart wallet (`C…`).
+
+The allow-list is a constant (`apps/extension/src/background/sep/anchors.ts`),
+so pointing at a real anchor later is a config and testing task, not a
+redesign. Design and per-task evidence: [`PLAN.md`](./PLAN.md); how it fits the
+extension: [`docs/extension-architecture.md`](./docs/extension-architecture.md) §9.
 
 ### The showcase — `apps/showcase`
 
@@ -280,6 +358,9 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
    watch the on-chain settlement land.
 8. Open **Options → Policies**, switch to the Strict template, save, and
    revisit the showcase — even "safe" scenarios now warn or block.
+9. Open **Options → Anchors**: fund the account with Friendbot, add the USDC
+   trustline, then **Sign in** to `tr-mock-anchor.fly.dev`. The signed-in state
+   clears when you lock the wallet.
 
 ---
 
@@ -303,27 +384,66 @@ pnpm build:extension           # → apps/extension/dist (Chrome) + dist-firefox
 └────────────────────────────────────────────────────────────┘
 ```
 
-### Surface diagram
+### System map
 
+```mermaid
+flowchart LR
+  subgraph Page["dApp page"]
+    D["dApp or showcase site"]
+  end
+  subgraph Ext["Baret extension (MV3)"]
+    IP["inpage: window.baretStellar"] --> CS["content script"] --> SW["background service worker"]
+    SW --> POP["popup: verdict and hold-to-sign"]
+    SW --> DB[("IndexedDB: keystore, allowances, history")]
+    SW --> SEP["sep: SEP-10, SEP-6, stellar.toml"]
+  end
+  D --> IP
+  SW -->|"POST /v1/analyze"| SRV["Analyze + x402 server (Fastify)"]
+  SRV --> RPC["Soroban RPC and Horizon (simulation)"]
+  SRV -->|"verify and settle"| FAC["x402 facilitator"]
+  SW -->|"scoped sub-key signature"| SWL["Smart wallet (passkey-kit)"]
+  SWL -->|"__check_auth"| POL["MerchantSpendPolicy (Soroban)"]
+  SEP -->|"stellar.toml, /auth, /sep6"| ANC["Allow-listed anchor"]
 ```
-   dApp page (any showcase site, or any real dApp)
-   ─ window.baretStellar (Freighter-compatible) ──► Baret inpage script
-                                      │
-                                      ▼  window.postMessage
-                              content-script bridge
-                                      │
-                                      ▼  chrome.runtime
-                              background service worker
-                              ├── analyze-client → apps/server /v1/analyze
-                              ├── x402 mandates + caps (GuardPolicy from swig-guard)
-                              ├── IndexedDB: keystore, allowances, sub_keys,
-                              │                history, alerts, site_permissions
-                              └── sign-queue ──► popup UI (SignRequest /
-                                                  ConnectApproval)
-                                      │
-                                      ▼  x402 payments (optional)
-                    smart wallet + MerchantSpendPolicy on Stellar testnet
+
+### What happens when a page asks for a signature
+
+```mermaid
+flowchart TD
+  A["Sign request from a page"] --> B{"Looks like a SEP-10 login challenge?"}
+  B -- yes --> B1["Check it against the anchor's stellar.toml key and this account"]
+  B1 -->|"valid, known anchor"| OK1["Safe: signs you in, moves no funds"]
+  B1 -->|"forged, wrong key, wrong account"| BL1["Blocked"]
+  B1 -->|"valid, unknown anchor"| CA1["Caution"]
+  B -- no --> C{"Pays an account an anchor lists as its own?"}
+  C -- yes --> C1["Ask the anchor what it requested (needs your login)"]
+  C1 -->|"exactly the one payment requested"| D
+  C1 -->|"any difference, or nothing to compare"| BL2["Blocked"]
+  C -- no --> D["Trustline exception check, then policy and simulation on the analyze server"]
+  D --> E["Verdict: Safe, Caution or Blocked, with balance changes and findings"]
+  E --> F["A Blocked verdict needs a 1.5 s press-and-hold to sign anyway"]
 ```
+
+### An x402 payment, with the cap enforced on-chain
+
+```mermaid
+sequenceDiagram
+  participant M as Merchant
+  participant B as Baret extension
+  participant W as Smart wallet
+  participant P as MerchantSpendPolicy
+  M-->>B: HTTP 402 with PaymentRequirements
+  B->>B: check caps, allow-lists and the merchant's mandate
+  B->>W: sign the auth entry with the merchant's scoped sub-key
+  W->>P: __check_auth calls policy__ for this transfer
+  P-->>W: allow only that merchant, within its caps
+  B->>M: retry with the PAYMENT-SIGNATURE header
+  M->>M: facilitator verifies and settles on Stellar
+```
+
+The sub-key is created when you approve a merchant by hand (best effort; if that
+fails, the payment falls back to the admin key and the cap is enforced only by
+the extension).
 
 The user signs in the **popup**. Every approval is gated by the policy engine
 plus the analyze server, and on-chain spending is bounded by
@@ -366,12 +486,57 @@ stellar contract build --package merchant-spend-policy
 
 The MerchantSpendPolicy contract is deployed on testnet (address above); a
 wallet installs it as a signer the first time it approves a merchant. The
-extension installs as an unpacked / temporary add-on — not yet on the Chrome
+extension installs as an unpacked / temporary add-on, not yet on the Chrome
 Web Store or AMO. The analyze + merchant server runs locally or on a free
 Render instance (testnet, sleeps when idle) and the showcase on Vercel; see
-[`DEPLOY.md`](./DEPLOY.md). Known limits and follow-on work are tracked in
+[`DEPLOY.md`](./DEPLOY.md). The per-area state is in [At a glance](#at-a-glance);
+known limits and follow-on work are tracked in
 [`LIMITATIONS.md`](./LIMITATIONS.md); the spec-versus-code ledger is
 [`docs/implementation-status.md`](./docs/implementation-status.md).
+
+### Limits worth knowing before you judge it
+
+- **Testnet, unaudited.** Nothing here should protect real funds.
+- **The contract stores every payment in one entry.** MerchantSpendPolicy v1
+  keeps a rolling-window `spend_log` that grows without bound (about 44 KB at
+  1,000 recorded payments in a local measurement; the network's exact entry
+  limit was not verified), so a merchant paid very often will eventually hit
+  ledger entry limits. A fixed-size 25-bucket
+  window is designed in [`PLAN.md`](./PLAN.md) but **not built**; the contract
+  can't be upgraded in place, so it needs a new deployment.
+- **The on-chain cap applies only once a sub-key exists.** It is created by a
+  manual merchant approval and is best effort; if provisioning fails the
+  extension's own caps still apply, the contract's do not.
+- **Automatic x402 payments don't consult the analyze server.** They are
+  bounded by the wallet's caps, allow-lists and the on-chain policy, so they
+  keep working when the server is down.
+- **The post-sign monitor can over-report.** It matches every confirmed
+  transaction that touches your account against the wallet's own history, so
+  someone else's incoming payment can raise a drift alert.
+- **Cold start.** The hosted server sleeps when idle; the extension waits up to
+  45 seconds and wakes it when a site connects.
+
+### Next
+
+- A real Turkish-lira anchor (or a working mock end to end): Baret-started
+  deposit and withdraw, a real withdrawal to test the guard against, and the
+  bridge between the anchor's `G…` account and the smart wallet.
+- MerchantSpendPolicy v2 with the bounded spend window, contract events for a
+  post-sign monitor, and a permanent revoke.
+- Fee sponsorship through OpenZeppelin Channels, and passkey unlock for the
+  extension wallet.
+- Turning verdict attestation on and verifying it in the extension.
+
+---
+
+## Built on
+
+| | |
+|---|---|
+| Stellar standards | SEP-1 (`stellar.toml`), SEP-10 (web authentication), SEP-6 (deposit and withdrawal API) |
+| Wallet | [passkey-kit](https://github.com/stellar/passkey-kit) smart wallet, `@stellar/stellar-sdk`, Soroban SDK (Rust) for the contract |
+| Payments | x402 (`@x402/core`, `@x402/stellar`) with a public Built-on-Stellar facilitator; Circle's testnet USDC |
+| Testnet services | Friendbot, Soroban RPC, Horizon, the organizers' mock anchor |
 
 ---
 

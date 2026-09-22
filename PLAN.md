@@ -148,7 +148,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Yapılmadı (bilerek):** TTL'i otomatik uzatan anahtarlı bir "keeper" (gizli anahtar gerektirir); yeniden deploy prosedürü zaten `DEPLOYMENT.md`'de.
 - **Doküman:** `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` (yeni "Liveness and TTL" bölümü), `docs/architecture/server.md`, `apps/server/README.md`, `AGENTS.md`, `README.md`.
 
-#### T0.7 Zincir üstü uçtan uca canlı doğrulama ⏳ (yüksek değer)
+#### T0.7 Zincir üstü uçtan uca canlı doğrulama ✅ (kullanıcı 2026-09-20'de geçtiğini bildirdi; tx hash'leri ve mandate yenileme adımı kayda geçmedi)
 - **Neden:** README'nin ana iddiası (tavan zincirde uygulanır) canlı testnet'te yeniden koşulmadı (`DEPLOYMENT.md` "End-to-end verification").
 - **Adımlar:** listeyi çalıştır (smart wallet deploy → yeni merchant'a ilk x402 ödemesi → `set_allowance` + `add_signer` işlemleri → limit üstü ödemenin reddi → mandate yenileme testi); sonucu tarih, cüzdan adresi ve işlem hash'leriyle `DEPLOYMENT.md`'ye yaz.
 - **Riskler → önlem:** UI gerektirir (kullanıcıyla birlikte); passphrase önbelleği 5 dk TTL → adımları ardışık yap; sonucu T1.5'in mandate-yenileme hatasıyla ilişkilendir.

@@ -132,7 +132,6 @@ Once deployed and wired in:
    by the network, not just the extension's own bookkeeping.
 
 Documentation status: `docs/x402-defense.md` §11, `docs/extension-architecture.md` §8, `LIMITATIONS.md` and `docs/implementation-status.md` §4 already describe the guarantee as implemented in code and covered by the
-contract's unit tests. **This checklist has not been re-run against the live testnet as part of the documentation update**, so treat the live end-to-end behaviour as "expected, verify with the steps above" until someone runs it and records the result here
-(date, wallet address, the `set_allowance` / `add_signer` transaction hashes, and the outcome of the over-cap payment in step 6).
+contract's unit tests. **This checklist was not re-run as part of the documentation update.** It was later run against the live testnet by the team, who reported on 2026-09-20 that it **passed**. That run's wallet address, the `set_allowance` / `add_signer` transaction hashes and the outcome of the over-cap payment in step 6 were **not recorded here**; add them when convenient.
 
-Renewal check to run while you are here: let a mandate lapse (or set `mandateMaxAgeDays` very low), re-approve the merchant, and confirm the Activity tab shows "Renewed scoped on-chain sub-key" and that the next auto-payment settles. The extension mints a new sub-key on renewal (unit-tested; see `docs/implementation-status.md` §4), but this has **not** been run against the live testnet.
+Renewal check to run while you are here: let a mandate lapse (or set `mandateMaxAgeDays` very low), re-approve the merchant, and confirm the Activity tab shows "Renewed scoped on-chain sub-key" and that the next auto-payment settles. The extension mints a new sub-key on renewal (unit-tested; see `docs/implementation-status.md` §4), but it is **not separately recorded** as run against the live testnet (the 2026-09-20 report above covers the checklist, not this renewal step).
