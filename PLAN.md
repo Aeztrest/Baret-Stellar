@@ -71,7 +71,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | Attestation eklentide/showcase'te doğrulanmıyor; canlıda kapalı | ⏳ | `docs/implementation-status.md` §1 |
 | Stellar SDK sürümleri | 🚫 ertelendi (T0.4) | eklenti `^16.0.1`, diğerleri `^15.1.0`; ihtiyacımız olan API iki majörde de aynı |
 | SEP-1/6/10 (anchor) kodu | 🟡 SEP-10 tanıyıcı + giriş, SEP-1 toml, SEP-6 `/info`, Options → Anchors var (T2.1, T2.2); yatırma/çekme, kayıtlar, çekme koruması ⏳ | `apps/extension/src/background/sep/` |
-| `spend_log` sınırsız `Vec` (kontrat) | ⏳ | `contracts/contracts/merchant-spend-policy/src/lib.rs` |
+| `spend_log` sınırsız `Vec` (kontrat) | ✅ v2'de sınırlı (T3.1, 2026-10-02); eklenti hâlâ v1'de | `contracts/contracts/merchant-spend-policy/src/lib.rs` |
 | Varsayılan tavan 1 / 5 / **25** USDC | ✅ 0.5 / 2 / 5 (T1.6) | `apps/extension/src/background/x402/handlers.ts` |
 | Mandate yenileme hatası (zincir tarafı yenilenmiyor) | ✅ düzeltildi, canlı doğrulama T0.7'de (T1.5) | `docs/implementation-status.md` §4, `LIMITATIONS.md` |
 | Zincir üstü alt anahtarın canlı uçtan uca doğrulaması | ⏳ yeniden koşulmadı | `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` |
@@ -324,7 +324,10 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 ### Faz 3: Zincir üstü (kontrat v2)
 
-#### T3.1 MerchantSpendPolicy v2 ⏳
+#### T3.1 MerchantSpendPolicy v2 ✅ (kod + testnet; mainnet Instawards D1'de, bkz. `docs/instawards-sow.md`)
+- **Yapıldı (2026-10-02, dal `feat/mainnet-spend-policy`):** sınırlı harcama kaydı, kalıcı `Revoked` (`#11`), mandate 1 sn-365 gün (`#12`), `Spent`/`StatusChanged` event'leri, `Error` → `PolicyError` (bindings artık üretiliyor). 20 test; testnet `CATKKYWT…7DZLTOBLD`, wasm `ae2ce5c4…6aa04b`; canlı prova `DEPLOYMENT.md`'de.
+- **Plandan sapma (gerekçeli):** 25 saatlik sabit kova yerine aynı 15 dk dilimindeki harcamaları **sonraki** zaman damgasıyla birleştiren log (≤ 97 kayıt). Kayan pencere neredeyse tam korunur: tavan en fazla 15 dk erken reddedebilir, hiç aşılmaz (25 kova en fazla 1 saat fazladan kilitlerdi). Mevcut `rolling_window_resets_after_24h` testi değişmeden geçiyor.
+- **Açık:** eklenti v1'de kalıyor (T3.2).
 - **Bulgu:** `spend_log: Vec<(u64,i128)>` sınırsız. Ölçüm (scratch): 1000 kayıt ≈ 44 KB, 8 M CPU; darboğaz tek ledger entry'nin boyutu ve her ödemede tamamını yazma ücreti. 0.001 USDC ödemelerle günde 1 USDC → ~1000, 25 USDC → ~25.000 kayıt. Entry limiti (~64 KiB) ağ ayarından doğrulanmadı.
 - **Tasarım:** sabit uzunluklu **25 saatlik bucket** + `head_hour`; her çağrıda kaydır/sıfırla; toplamı bucket'lardan al. **Tam kayan pencere korunmaz:** 24 bucket cap'in 2 katına izin verir; 25 bucket cap'i hiç aşmaz (ödeme 24-25 saat sayılır, en fazla 1 saat fazladan kilit). Entry ≈ 450 B, CPU O(25).
 - **Aynı görevde:** vendored arayüzle çakışan `Error` enum'unu yeniden adlandır (bindings üretimini engelliyor); `pause/resume/revoke` ve harcama için **event** (post-sign monitör için); `Revoked` kalıcı olsun (`resume` geri açmasın); `mandate_seconds` üst sınırı.
@@ -413,6 +416,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-10-02 | Instawards SOW (güncel PDF) esas alındı: D1 = MerchantSpendPolicy v2 + agent cüzdanı mainnet'te (PaymentGuard yerine; gerekçe `docs/instawards-sow.md`). T3.1 kodu ve testnet provası ✅; `agent-guard`'a `spend-policy` alt yolu (SDK 16 + passkey-kit). |
 | 2026-09-20 (ilerleme 13) | T2.4 1. kısım: SEP-6 çekme koruması (anchor'a imza anında sorup tek `payment`'ı birebir doğrular, fail-closed; `ACCOUNTS` 24 saat önbellekli, sıradan ödeme istek atmaz); 81 yeni test, 27 mutasyon (2 boşluk bulunup kapatıldı). Baret'in kendi çekme akışı 2. kısımda. |
 | 2026-09-20 (ilerleme 12) | T1.7 ✅: cüzdanın kendi gönderdiği işlemler (gönderim, trustline, Friendbot) geçmişe yazılıyor, monitör onları drift saymıyor; 6 yeni test, 6 mutasyon, gerçek tarayıcıda doğrulandı. Gelen işlemlerin drift sayılması ve relay'li işlemlerin eşleşmesi açık (T0.7). |
 | 2026-09-20 (ilerleme 11) | T2.3 ✅: anchor'ın bildirdiği varlık için trustline istisnası (Balanced'ı da kapsıyor), toml `[[CURRENCIES]]` okuyucusu, Options → Anchors "Account setup" paneli; 19 yeni test, gerçek tarayıcıda fonlama + trustline doğrulaması. Yan bulgu: kendi işlemlerimiz drift alarmı üretiyor (T1.7). |

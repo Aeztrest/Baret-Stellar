@@ -19,7 +19,7 @@ apps/extension        apps/wallet                   apps/showcase ──► show
    │  └────────► swig-guard ◄───────────────────────────┘   (showcase package.json'da wallet-adapter de
    │                 ▲                                       tanımlı ama kodda import EDİLMİYOR)
    │                 │
-   │        packages/agent-guard ──► @stellar/stellar-sdk (doğrudan)
+   │        packages/agent-guard ──► @stellar/stellar-sdk 16, passkey-kit (spend-policy)
    └► passkey-kit, passkey-kit-sdk, @stellar/stellar-sdk
 
 apps/server: workspace paketlerine BAĞIMLI DEĞİL (kendi domain tiplerini taşır; swig-guard/types.ts bunun aynasıdır)
@@ -47,6 +47,9 @@ Neden ayrı ve SDK'sız: eklenti ve bağımsız cüzdan paketine girer; tarayıc
   Env'ler: `BARET_API_URL`, `BARET_API_KEY`, `BARET_NETWORK`, `BARET_POLICY`, `BARET_HORIZON_URL`, `BARET_AGENT_SECRET`, `BARET_PINNED_SERVER_PUBLIC_KEY`.
 - **`attestation.ts`**: `verifyVerdictAttestation`. `pinnedServerPublicKey` verilirse `evaluate()` yanlış/eksik imzada `AttestationError` fırlatır (fail-closed). Sunucudaki `sign-verdict.ts` ile **birebir aynı** kanonik payload'ı kullanır; birini değiştirirsen ikisini değiştir.
 - **`cli.ts`** → `baret` ikilisi (`analyze | sign | submit | address | init | policy list`; `<xdr>` yerine `-` = stdin; `--json`). Çıkış kodları: `0` izin, `1` policy bloğu, `2` hata.
+- **`spend-policy.ts`** (alt yol `@stellar-thorn/agent-guard/spend-policy`): agent'a zincir üstü harcama tavanı. `SpendPolicyOwner` (sahip anahtarıyla passkey-kit akıllı cüzdanını deploy eder, MerchantSpendPolicy'yi boş limitle `Policy` signer olarak kurar, `set_allowance` + agent anahtarını token'a kapsamlı ve policy kapılı `Ed25519` signer olarak ekler; `pause/resume/revoke`), `payMerchant` (yalnız agent anahtarıyla `transfer`; imzalı auth ile yeniden simüle eder, ret simülasyonda yakalanır), `getMerchantAllowance`.
+  Kök `index.ts`'ten export **edilmez**: passkey-kit'in bağımlısı `sac-sdk` derlenmemiş TS dağıtır, düz Node yükleyemez; kökten export etmek `baret` CLI'ını kırıyordu. Bu modül tsx/bundler altında çalışır (`vitest.config.ts`'te `server.deps.inline`). Çalıştırıcı: `scripts/spend-policy.ts` (`pnpm --filter @stellar-thorn/agent-guard spend-policy <komut>`).
+  Bu yüzden `agent-guard` Stellar SDK **16** kullanır (passkey-kit ≥ 16 ister); eklentiyle aynı majör, sunucu ve diğerleri 15'te.
 - `swig-guard` tiplerini/şablonlarını yeniden export eder (tek import).
 - Sunucu URL'i varsayılanı `http://localhost:8080` (`DEFAULT_SERVER_URL`).
 

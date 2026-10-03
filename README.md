@@ -58,7 +58,13 @@ sub-key's blast radius is exactly the one merchant it was granted to.
 | **Source** | [`contracts/contracts/merchant-spend-policy`](./contracts/contracts/merchant-spend-policy) |
 | **Full deploy record** | [`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`](./contracts/contracts/merchant-spend-policy/DEPLOYMENT.md) |
 
-Built with the Soroban SDK (Rust), 14 passing unit tests. Plugs into the
+The extension uses the v1 deployment above. The source in this repo is now
+**v2** (20 passing unit tests): a bounded spend log, a final `revoke`, a
+one-year mandate limit and contract events. v2 runs on testnet at
+[`CATKKYWT…7DZLTOBLD`](https://stellar.expert/explorer/testnet/contract/CATKKYWTT6MB7M5QRRMPPOJNCOSRZW7S3A3QMHVKTH6C7AO7DZLTOBLD)
+for agent wallets (`@stellar-thorn/agent-guard/spend-policy`); moving the
+extension to it needs a sub-key migration and is not done yet. Built with the
+Soroban SDK (Rust). Plugs into the
 wallet as a `PolicyInterface` signer (the same extension mechanism
 [passkey-kit](https://github.com/stellar/passkey-kit)'s smart wallet uses for
 any co-signing policy) — see [the smart-contract
@@ -104,7 +110,7 @@ the user's own smart wallet (passkey-kit), deployed to testnet at
 | Function | Auth | Purpose |
 |---|---|---|
 | `set_allowance(wallet, merchant, signer, cap_per_tx, cap_per_day, mandate_seconds)` | `wallet` | Grant/renew a merchant's caps, bound to the ONE sub-key that may spend against them |
-| `pause` / `resume` / `revoke(wallet, merchant)` | `wallet` | Toggle a merchant on the fly |
+| `pause` / `resume` / `revoke(wallet, merchant)` | `wallet` | Toggle a merchant on the fly (v2: `revoke` is final; only a new `set_allowance` re-opens it) |
 | `install(wallet)` / `uninstall(wallet)` | `wallet` / permissionless | Lifecycle hooks, called by the wallet's own `add_signer`/`remove_signer` — not invoked directly |
 | `policy__(source, signer, contexts)` | — (called by the wallet during `__check_auth`) | **The actual gate** — deny-by-default; approves a `transfer` only if `signer` is the sub-key that merchant's allowance was granted to, within cap, within its mandate |
 | `get_allowance(wallet, m)` / `available_today(wallet, m)` | view | Read on-chain state |
@@ -497,13 +503,14 @@ known limits and follow-on work are tracked in
 ### Limits worth knowing before you judge it
 
 - **Testnet, unaudited.** Nothing here should protect real funds.
-- **The contract stores every payment in one entry.** MerchantSpendPolicy v1
-  keeps a rolling-window `spend_log` that grows without bound (about 44 KB at
-  1,000 recorded payments in a local measurement; the network's exact entry
-  limit was not verified), so a merchant paid very often will eventually hit
-  ledger entry limits. A fixed-size 25-bucket
-  window is designed in [`PLAN.md`](./PLAN.md) but **not built**; the contract
-  can't be upgraded in place, so it needs a new deployment.
+- **The extension's contract stores every payment in one entry.** The v1
+  deployment the extension uses keeps a rolling-window `spend_log` that grows
+  without bound (about 44 KB at 1,000 recorded payments in a local
+  measurement), so a merchant paid very often will eventually hit ledger entry
+  limits. v2 fixes this by merging spends in the same 15-minute slice (at most
+  97 entries per day; a cap can refuse up to 15 minutes early but never
+  allows more), but the contract can't be upgraded in place and the extension
+  has not been migrated to the v2 deployment yet.
 - **The on-chain cap applies only once a sub-key exists.** It is created by a
   manual merchant approval and is best effort; if provisioning fails the
   extension's own caps still apply, the contract's do not.
@@ -521,8 +528,9 @@ known limits and follow-on work are tracked in
 - A real Turkish-lira anchor (or a working mock end to end): Baret-started
   deposit and withdraw, a real withdrawal to test the guard against, and the
   bridge between the anchor's `G…` account and the smart wallet.
-- MerchantSpendPolicy v2 with the bounded spend window, contract events for a
-  post-sign monitor, and a permanent revoke.
+- Move the extension's sub-keys to MerchantSpendPolicy v2 (bounded spend
+  window, contract events, final revoke) and a v2 deployment on mainnet for
+  agent wallets.
 - Fee sponsorship through OpenZeppelin Channels, and passkey unlock for the
   extension wallet.
 - Turning verdict attestation on and verifying it in the extension.
