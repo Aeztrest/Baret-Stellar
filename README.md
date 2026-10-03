@@ -61,7 +61,7 @@ sub-key's blast radius is exactly the one merchant it was granted to.
 The extension uses the v1 deployment above. The source in this repo is now
 **v2** (20 passing unit tests): a bounded spend log, a final `revoke`, a
 one-year mandate limit and contract events. v2 runs on testnet at
-[`CATKKYWT…7DZLTOBLD`](https://stellar.expert/explorer/testnet/contract/CATKKYWTT6MB7M5QRRMPPOJNCOSRZW7S3A3QMHVKTH6C7AO7DZLTOBLD)
+[`CCL7DJY2…S7MPNH`](https://stellar.expert/explorer/testnet/contract/CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH)
 for agent wallets (`@stellar-thorn/agent-guard/spend-policy`); moving the
 extension to it needs a sub-key migration and is not done yet. Built with the
 Soroban SDK (Rust). Plugs into the

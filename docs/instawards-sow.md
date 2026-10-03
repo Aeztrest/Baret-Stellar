@@ -35,8 +35,10 @@ Yapılanlar (2026-10-02, dal `feat/mainnet-spend-policy`):
   - Ödeme ve durum değişikliği event'leri (`Spent`, `StatusChanged`) eklendi.
   - Hata enum'u `PolicyError` oldu; vendored arayüzle ad çakışması TypeScript bağlama üretimini engelliyordu.
 - **Agent tarafı araçları:** `packages/agent-guard/src/spend-policy.ts` (kütüphane) ve `packages/agent-guard/scripts/spend-policy.ts` (komut satırı). Gizli anahtarlar yalnız ortam değişkeninden okunur.
-- **Testnet provası:** kontrat `CATKKYWT…7DZLTOBLD`. Cüzdan kurulumu, policy, limit, agent anahtarı; ardından agent'ın yalnız kendi anahtarıyla tavan içi ödemesi geçti. Tavan aşımı (`#5`), durdurulmuş hâl (`#4`), 24 saat tavanı (`#6`) ve iptal sonrası `resume` (`#11`) zincirde reddedildi. İşlem linkleri: `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` "v2 and agent wallets".
+- **Testnet provası:** kontrat `CCL7DJY2…S7MPNH` (2026-10-03, optimize edilmiş 11.4 KB sürüm; ilk prova 18 KB sürümle 2026-10-02). Cüzdan kurulumu, policy, limit, agent anahtarı; ardından agent'ın yalnız kendi anahtarıyla tavan içi ödemesi geçti. Tavan aşımı (`#5`), durdurulmuş hâl (`#4`), 24 saat tavanı (`#6`) ve iptal sonrası `resume` (`#11`) zincirde reddedildi. İşlem linkleri: `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` "v2 and agent wallets".
 - **Mainnet hazırlığı doğrulandı:** passkey-kit akıllı cüzdan wasm'ı mainnet'te kurulu; Circle USDC'nin mainnet asset kontratı `CCW67TSZ…SJMI75` (ihraççı home domain `circle.com`). Mainnet ve testnet aynı protokol sürümünde (29).
+
+- **Maliyet ölçümü (2026-10-03, mainnet simülasyonu):** kontrat kodunu mainnet'e yüklemek ~18.8 XLM; neredeyse tamamı kira, çünkü mainnet yeni kodu en az ~120 gün saklatır ve kirayı peşin alır. Kod 18 KB'tan 11.4 KB'a küçültüldü (spec'ten doküman yorumları ve kullanılmayan tipler çıkarıldı, `--optimize`); kod kirası modülün bellekteki boyutuna göre hesaplandığı ve büyük bir sabit kısmı olduğu için bu yalnız ~2.1 XLM kazandırdı. Owner için toplam ihtiyaç ~36 XLM (yükleme, kurulum, agent ve merchant hesaplarını owner'dan açma, trustline, pay).
 
 Kalanlar:
 

@@ -325,7 +325,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 ### Faz 3: Zincir üstü (kontrat v2)
 
 #### T3.1 MerchantSpendPolicy v2 ✅ (kod + testnet; mainnet Instawards D1'de, bkz. `docs/instawards-sow.md`)
-- **Yapıldı (2026-10-02, dal `feat/mainnet-spend-policy`):** sınırlı harcama kaydı, kalıcı `Revoked` (`#11`), mandate 1 sn-365 gün (`#12`), `Spent`/`StatusChanged` event'leri, `Error` → `PolicyError` (bindings artık üretiliyor). 20 test; testnet `CATKKYWT…7DZLTOBLD`, wasm `ae2ce5c4…6aa04b`; canlı prova `DEPLOYMENT.md`'de.
+- **Yapıldı (2026-10-02, dal `feat/mainnet-spend-policy`):** sınırlı harcama kaydı, kalıcı `Revoked` (`#11`), mandate 1 sn-365 gün (`#12`), `Spent`/`StatusChanged` event'leri, `Error` → `PolicyError` (bindings artık üretiliyor). 20 test; testnet `CCL7DJY2…S7MPNH`, wasm `cda12f8a…6e8611`; canlı prova `DEPLOYMENT.md`'de.
 - **Plandan sapma (gerekçeli):** 25 saatlik sabit kova yerine aynı 15 dk dilimindeki harcamaları **sonraki** zaman damgasıyla birleştiren log (≤ 97 kayıt). Kayan pencere neredeyse tam korunur: tavan en fazla 15 dk erken reddedebilir, hiç aşılmaz (25 kova en fazla 1 saat fazladan kilitlerdi). Mevcut `rolling_window_resets_after_24h` testi değişmeden geçiyor.
 - **Açık:** eklenti v1'de kalıyor (T3.2).
 - **Bulgu:** `spend_log: Vec<(u64,i128)>` sınırsız. Ölçüm (scratch): 1000 kayıt ≈ 44 KB, 8 M CPU; darboğaz tek ledger entry'nin boyutu ve her ödemede tamamını yazma ücreti. 0.001 USDC ödemelerle günde 1 USDC → ~1000, 25 USDC → ~25.000 kayıt. Entry limiti (~64 KiB) ağ ayarından doğrulanmadı.

@@ -72,11 +72,11 @@ The contract can't be upgraded in place: each version is a new contract ID, and 
 | | v1 (extension) | v2 (current source) |
 |---|---|---|
 | Network | testnet | testnet |
-| Contract ID | `CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S` | `CATKKYWTT6MB7M5QRRMPPOJNCOSRZW7S3A3QMHVKTH6C7AO7DZLTOBLD` |
-| Wasm hash | `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834` | `ae2ce5c49c6581a61f613a80cb1785e8ae9e3ec91ae4930d17eb546e606aa04b` |
+| Contract ID | `CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S` | `CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH` |
+| Wasm hash | `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834` | `cda12f8a2ac1a8fbe59174b287184fca9298f0b2a4250771f4a35cf5e66e8611` |
 | Used by | `MERCHANT_SPEND_POLICY_CONTRACT_ID` in `apps/extension/src/background/swig/smart-wallet-config.ts` | agent wallets via `packages/agent-guard/src/spend-policy.ts` (rehearsal run recorded in `DEPLOYMENT.md`) |
 
-There is no mainnet deployment yet.
+There is no mainnet deployment yet. Build v2 with `stellar contract build --package merchant-spend-policy --optimize` to reproduce the hash above; uploading it to mainnet costs ~18.8 XLM, almost all rent (see `DEPLOYMENT.md`).
 | Smart-wallet WASM (not ours) | passkey-kit canonical hash `SMART_WALLET_WASM_HASH` in the same file |
 
 Redeploy steps and the end-to-end verification checklist: [`contracts/merchant-spend-policy/DEPLOYMENT.md`](./contracts/merchant-spend-policy/DEPLOYMENT.md). If you change the contract, bump the hash here, in the root `README.md` and in `smart-wallet-config.ts`.
