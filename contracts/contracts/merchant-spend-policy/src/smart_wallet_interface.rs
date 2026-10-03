@@ -7,7 +7,7 @@
 //! `passkey-kit-sdk` bindings era 0.14.0), path `contracts/smart-wallet-interface`.
 //! License: Apache-2.0, Copyright Stellar Development Foundation.
 //!
-//! Vendored (copied, not modified) rather than pulled in as a git
+//! Vendored (copied, not modified, apart from `export = false` below) rather than pulled in as a git
 //! dependency so the exact interface this contract binds to is reviewable
 //! in this repo and pinned the same way `contracts/DEPLOYMENT.md` pins
 //! WASM hashes — no "locally rebuilt" or drifting reference. Only the
@@ -17,6 +17,12 @@
 //! `types` module. The `events` module (typed events for the wallet's own
 //! signer-management operations) is intentionally omitted — a policy never
 //! emits those.
+//!
+//! The one local change: every type except `SignerKey` is marked
+//! `export = false`, so it stays usable in Rust but is left out of this
+//! contract's spec. Only `SignerKey` appears in this contract's own
+//! interface (`policy__`); the rest added ~2.5 KB to the uploaded wasm,
+//! and mainnet charges rent on every byte of it.
 //!
 //! Doc comments below are preserved verbatim from the source for the
 //! contract-level invariants they document (`SignerLimits`, `PolicyInterface`
@@ -40,7 +46,7 @@ pub mod types {
     /// - 120-129: WebAuthn (secp256r1) verification
     // Vendored from passkey-kit: variant names must match the wallet's own spec.
     #[allow(clippy::enum_variant_names)]
-    #[contracterror]
+    #[contracterror(export = false)]
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
     #[repr(u32)]
     pub enum Error {
@@ -63,7 +69,7 @@ pub mod types {
     /// Optional expiration for a signer as a UNIX timestamp in seconds, INCLUSIVE:
     /// the signer is valid while `ledger timestamp <= expiration` and expired once
     /// `ledger timestamp > expiration`. `None` never expires.
-    #[contracttype]
+    #[contracttype(export = false)]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct SignerExpiration(pub Option<u64>);
 
@@ -76,12 +82,12 @@ pub mod types {
     /// - `Some({address -> Some([keys])})`: the signer may authorize invocations
     ///   of contract `address` only if every listed key also APPROVES. The listed
     ///   keys are required CO-SIGNERS.
-    #[contracttype]
+    #[contracttype(export = false)]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct SignerLimits(pub Option<Map<Address, Option<Vec<SignerKey>>>>);
 
     /// Which durability a signer entry is stored under.
-    #[contracttype]
+    #[contracttype(export = false)]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub enum SignerStorage {
         Persistent,
@@ -90,7 +96,7 @@ pub mod types {
 
     /// Full signer description used by `__constructor`, `add_signer` and
     /// `update_signer`.
-    #[contracttype]
+    #[contracttype(export = false)]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub enum Signer {
         Policy(Address, SignerExpiration, SignerLimits, SignerStorage),
@@ -115,7 +121,7 @@ pub mod types {
     }
 
     /// Stored signer value. Secp256r1 carries the SEC-1 uncompressed public key.
-    #[contracttype]
+    #[contracttype(export = false)]
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub enum SignerVal {
         Policy(SignerExpiration, SignerLimits),

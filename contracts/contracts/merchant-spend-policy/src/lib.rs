@@ -55,6 +55,10 @@
 //! alongside) function-for-function, extended from a single global cap to a
 //! per-(wallet, merchant) one.
 
+// Comments on contract items below are `//`, not `///`: doc comments are
+// copied into the wasm's contract spec, and mainnet charges rent on every
+// uploaded byte (they were ~2 KB of a ~16 KB contract).
+
 mod smart_wallet_interface;
 
 use smart_wallet_interface::{types::SignerKey, PolicyInterface, SmartWalletClient};
@@ -66,23 +70,23 @@ use soroban_sdk::{
 
 const DAY_SECONDS: u64 = 86_400;
 
-/// Spends that land in the same `SPEND_BUCKET_SECONDS` slice are merged into
-/// one `spend_log` entry, so the log holds at most
-/// `DAY_SECONDS / SPEND_BUCKET_SECONDS + 1` (97) entries no matter how many
-/// micropayments a sub-key makes. Without this, thousands of tiny x402
-/// payments inside one day grow the persistent entry (and the cost of every
-/// `policy__` call that iterates it) without bound, until the allowance is
-/// too expensive to use at all.
+// Spends that land in the same `SPEND_BUCKET_SECONDS` slice are merged into
+// one `spend_log` entry, so the log holds at most
+// `DAY_SECONDS / SPEND_BUCKET_SECONDS + 1` (97) entries no matter how many
+// micropayments a sub-key makes. Without this, thousands of tiny x402
+// payments inside one day grow the persistent entry (and the cost of every
+// `policy__` call that iterates it) without bound, until the allowance is
+// too expensive to use at all.
 const SPEND_BUCKET_SECONDS: u64 = 900;
 
-/// Longest mandate one `set_allowance` can grant. An open-ended grant would
-/// leave the caps as the only limit forever; a year forces a fresh, explicit
-/// owner decision at least that often.
+// Longest mandate one `set_allowance` can grant. An open-ended grant would
+// leave the caps as the only limit forever; a year forces a fresh, explicit
+// owner decision at least that often.
 const MAX_MANDATE_SECONDS: u64 = 365 * DAY_SECONDS;
 
-/// TTL renewal parameters (in ledgers at the historical 5s close time): bump
-/// to ~30 days whenever remaining TTL drops below ~1 week. Mirrors
-/// `sample-policy`'s renewal constants.
+// TTL renewal parameters (in ledgers at the historical 5s close time): bump
+// to ~30 days whenever remaining TTL drops below ~1 week. Mirrors
+// `sample-policy`'s renewal constants.
 const RENEW_THRESHOLD: u32 = 60 * 60 * 24 / 5 * 7;
 const RENEW_TO: u32 = 60 * 60 * 24 / 5 * 30;
 
@@ -97,34 +101,34 @@ pub enum Status {
 #[contracttype]
 #[derive(Clone)]
 pub struct Allowance {
-    /// The Ed25519 sub-key this merchant's mandate is bound to — `policy__`
-    /// rejects any invocation whose `signer` doesn't match, so a leaked
-    /// sub-key can only ever spend against ITS OWN merchant's allowance,
-    /// never another merchant's the same wallet also approved.
+    // The Ed25519 sub-key this merchant's mandate is bound to — `policy__`
+    // rejects any invocation whose `signer` doesn't match, so a leaked
+    // sub-key can only ever spend against ITS OWN merchant's allowance,
+    // never another merchant's the same wallet also approved.
     pub signer: BytesN<32>,
-    /// Largest single payment allowed to this merchant (atomic units).
+    // Largest single payment allowed to this merchant (atomic units).
     pub cap_per_tx: i128,
-    /// Cumulative spend allowed per any trailing 24h window (atomic units).
+    // Cumulative spend allowed per any trailing 24h window (atomic units).
     pub cap_per_day: i128,
-    /// (ledger_timestamp, amount) of every settled payment still inside the
-    /// trailing 24h window. True sliding window, same rationale as
-    /// `PaymentGuard::Allowance::spend_log`.
+    // (ledger_timestamp, amount) of every settled payment still inside the
+    // trailing 24h window. True sliding window, same rationale as
+    // `PaymentGuard::Allowance::spend_log`.
     pub spend_log: Vec<(u64, i128)>,
     pub status: Status,
-    /// Ledger timestamp this mandate lapses at. `set_allowance` must be
-    /// called again (a fresh, explicit grant by the wallet) to renew it.
+    // Ledger timestamp this mandate lapses at. `set_allowance` must be
+    // called again (a fresh, explicit grant by the wallet) to renew it.
     pub expires_at: u64,
 }
 
 #[contracttype]
 pub enum DataKey {
-    /// Wallets that currently have this policy installed as a signer.
+    // Wallets that currently have this policy installed as a signer.
     Installed(Address),
-    /// (wallet, merchant) -> Allowance.
+    // (wallet, merchant) -> Allowance.
     Allowance(Address, Address),
 }
 
-/// Emitted whenever a wallet grants or renews a merchant's caps.
+// Emitted whenever a wallet grants or renews a merchant's caps.
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AllowanceSet {
@@ -137,10 +141,10 @@ pub struct AllowanceSet {
     pub cap_per_day: i128,
 }
 
-/// Named `PolicyError`, not `Error`: the vendored `smart_wallet_interface`
-/// also exports an `Error`, and two spec entries with one name stop
-/// `stellar contract bindings` from generating a client.
-/// Emitted when a wallet pauses, resumes or revokes a merchant.
+// Named `PolicyError`, not `Error`: the vendored `smart_wallet_interface`
+// also exports an `Error`, and two spec entries with one name stop
+// `stellar contract bindings` from generating a client.
+// Emitted when a wallet pauses, resumes or revokes a merchant.
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StatusChanged {
@@ -151,8 +155,8 @@ pub struct StatusChanged {
     pub status: Status,
 }
 
-/// Emitted for every payment the policy approves, so a monitor (or anyone on
-/// an explorer) can see each spend against a merchant's caps.
+// Emitted for every payment the policy approves, so a monitor (or anyone on
+// an explorer) can see each spend against a merchant's caps.
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Spent {
@@ -175,18 +179,18 @@ pub enum PolicyError {
     ExceedsDailyCap = 6,
     InvalidAmount = 7,
     MandateExpired = 8,
-    /// Deny-by-default catch-all: a non-`transfer` invocation, a context
-    /// shaped unexpectedly, a `transfer` not FROM the wallet itself, or one
-    /// whose `to` has no allowance recorded.
+    // Deny-by-default catch-all: a non-`transfer` invocation, a context
+    // shaped unexpectedly, a `transfer` not FROM the wallet itself, or one
+    // whose `to` has no allowance recorded.
     NotAllowed = 9,
-    /// The invoking signer isn't the Ed25519 sub-key this merchant's
-    /// allowance was granted to — e.g. a different merchant's sub-key for
-    /// the same wallet attempting to spend against this one.
+    // The invoking signer isn't the Ed25519 sub-key this merchant's
+    // allowance was granted to — e.g. a different merchant's sub-key for
+    // the same wallet attempting to spend against this one.
     WrongSigner = 10,
-    /// `resume` on a revoked merchant. Revocation is final; only a fresh
-    /// `set_allowance` grant re-opens it.
+    // `resume` on a revoked merchant. Revocation is final; only a fresh
+    // `set_allowance` grant re-opens it.
     Revoked = 11,
-    /// `mandate_seconds` is zero or longer than `MAX_MANDATE_SECONDS`.
+    // `mandate_seconds` is zero or longer than `MAX_MANDATE_SECONDS`.
     InvalidMandate = 12,
 }
 
@@ -195,11 +199,11 @@ pub struct Contract;
 
 #[contractimpl]
 impl Contract {
-    /// Grant or update a merchant's caps for `wallet`. Requires `wallet`'s
-    /// own auth (this is a multi-tenant contract — there is no single
-    /// "owner" of the whole deployment, each wallet administers only its own
-    /// entries). Resets the merchant to `Active`, starts a fresh rolling
-    /// window, and grants a mandate valid for `mandate_seconds` from now.
+    // Grant or update a merchant's caps for `wallet`. Requires `wallet`'s
+    // own auth (this is a multi-tenant contract — there is no single
+    // "owner" of the whole deployment, each wallet administers only its own
+    // entries). Resets the merchant to `Active`, starts a fresh rolling
+    // window, and grants a mandate valid for `mandate_seconds` from now.
     pub fn set_allowance(
         env: Env,
         wallet: Address,
@@ -260,8 +264,8 @@ impl Contract {
             .unwrap_or_else(|| panic_with_error!(&env, PolicyError::NoAllowance))
     }
 
-    /// Remaining spendable amount for a merchant in the trailing 24h window.
-    /// Read-only: does not persist the pruned log.
+    // Remaining spendable amount for a merchant in the trailing 24h window.
+    // Read-only: does not persist the pruned log.
     pub fn available_today(env: Env, wallet: Address, merchant: Address) -> i128 {
         let mut allowance: Allowance = env
             .storage()
@@ -450,9 +454,9 @@ impl PolicyInterface for Contract {
     }
 }
 
-/// Drop every log entry older than the trailing 24h window and return the
-/// sum of what remains. Same true-sliding-window rationale as
-/// `PaymentGuard::prune_and_sum`.
+// Drop every log entry older than the trailing 24h window and return the
+// sum of what remains. Same true-sliding-window rationale as
+// `PaymentGuard::prune_and_sum`.
 fn prune_and_sum(env: &Env, log: &mut Vec<(u64, i128)>, now: u64) -> i128 {
     let mut kept: Vec<(u64, i128)> = vec![env];
     let mut sum: i128 = 0;
@@ -468,11 +472,11 @@ fn prune_and_sum(env: &Env, log: &mut Vec<(u64, i128)>, now: u64) -> i128 {
     sum
 }
 
-/// Append a settled spend, merging it into the newest entry when both fall in
-/// the same `SPEND_BUCKET_SECONDS` slice. The merged entry takes the LATER
-/// timestamp, so an amount can only stay in the 24h window longer than its
-/// true time (by under one bucket), never shorter: the cap may refuse a
-/// payment up to 15 minutes early, but can never be exceeded.
+// Append a settled spend, merging it into the newest entry when both fall in
+// the same `SPEND_BUCKET_SECONDS` slice. The merged entry takes the LATER
+// timestamp, so an amount can only stay in the 24h window longer than its
+// true time (by under one bucket), never shorter: the cap may refuse a
+// payment up to 15 minutes early, but can never be exceeded.
 fn record_spend(env: &Env, log: &mut Vec<(u64, i128)>, now: u64, amount: i128) {
     if let Some((last_ts, last_amount)) = log.last() {
         if last_ts / SPEND_BUCKET_SECONDS == now / SPEND_BUCKET_SECONDS {
