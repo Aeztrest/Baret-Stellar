@@ -107,6 +107,56 @@ esac
 
 ---
 
+## On-chain spending limits (`spend-policy`)
+
+The firewall above decides what the agent signs. `spend-policy` adds a limit
+the agent can't sign its way around: the funds sit in a passkey-kit smart
+wallet, and the agent's key is registered on it as a signer that can only
+`transfer` one token to one merchant, within that merchant's per-payment and
+rolling 24-hour caps. The caps live in the
+[`MerchantSpendPolicy`](../../contracts/contracts/merchant-spend-policy) contract,
+so the network refuses an over-cap or paused payment no matter what the agent
+process does. The owner's key is needed to set or change limits, never to pay.
+
+```ts
+import { Keypair } from "@stellar/stellar-sdk";
+import { SpendPolicyOwner, payMerchant } from "@stellar-thorn/agent-guard/spend-policy";
+
+// Owner, once: wallet + policy + a grant bound to the agent's key.
+const owner = new SpendPolicyOwner(ownerKeypair, { network: "testnet", policyContractId: "C…" });
+await owner.ensureWallet();
+await owner.ensurePolicyInstalled();
+await owner.grantMerchant({
+  merchant: "G…", agentPublicKey: agentKeypair.publicKey(), token: "C…", // e.g. the USDC asset contract
+  capPerTx: 5_000_000n, capPerDay: 20_000_000n, mandateSeconds: 30 * 86_400, // 0.5 / 2 USDC, 30 days
+});
+
+// Agent, any time after: only its own key.
+await payMerchant({
+  network: "testnet", policyContractId: "C…", agent: agentKeypair,
+  walletAddress: owner.walletAddress, token: "C…", merchant: "G…", amount: 1_000_000n,
+});
+```
+
+`owner.pause / resume / revoke(merchant)` change the grant on chain; `revoke` is
+final until a new `grantMerchant`. A refused payment throws with the contract's
+error code (`Error(Contract, #5)` over the per-payment cap, `#6` over the 24 h
+cap, `#4` paused, `#11` revoked).
+
+It is a separate entry point, not part of the root import, and for now it runs
+under tsx or a bundler, not plain Node: passkey-kit depends on `sac-sdk`, which
+ships untranspiled TypeScript. The repo's runner wraps it:
+
+```bash
+pnpm --filter @stellar-thorn/agent-guard spend-policy <setup|fund|status|pay|pause|resume|revoke|prove [--daily]>
+```
+
+Environment variables, the testnet run and the mainnet runbook:
+[`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`](../../contracts/contracts/merchant-spend-policy/DEPLOYMENT.md#v2-and-agent-wallets).
+Testnet only so far; the contract is not audited.
+
+---
+
 ## Configuration
 
 Resolved highest-priority first: **explicit options/flags → env → `~/.baret/config.json` → defaults.**

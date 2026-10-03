@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 4,
+    "address": 3,
     "nonce": 0,
     "mux_id": 0
   },
@@ -47,7 +47,7 @@
                   "i128": "10000"
                 },
                 {
-                  "i128": "25000"
+                  "i128": "30000"
                 },
                 {
                   "u64": "2592000"
@@ -66,69 +66,13 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
-              "function_name": "policy__",
+              "function_name": "revoke",
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "vec": [
-                    {
-                      "symbol": "Ed25519"
-                    },
-                    {
-                      "bytes": "0101010101010101010101010101010101010101010101010101010101010101"
-                    }
-                  ]
-                },
-                {
-                  "vec": [
-                    {
-                      "vec": [
-                        {
-                          "symbol": "Contract"
-                        },
-                        {
-                          "map": [
-                            {
-                              "key": {
-                                "symbol": "args"
-                              },
-                              "val": {
-                                "vec": [
-                                  {
-                                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                                  },
-                                  {
-                                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                                  },
-                                  {
-                                    "i128": "10000"
-                                  }
-                                ]
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "contract"
-                              },
-                              "val": {
-                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "fn_name"
-                              },
-                              "val": {
-                                "symbol": "transfer"
-                              }
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 }
               ]
             }
@@ -137,6 +81,8 @@
         }
       ]
     ],
+    [],
+    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
@@ -144,69 +90,25 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
-              "function_name": "policy__",
+              "function_name": "set_allowance",
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "vec": [
-                    {
-                      "symbol": "Ed25519"
-                    },
-                    {
-                      "bytes": "0101010101010101010101010101010101010101010101010101010101010101"
-                    }
-                  ]
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "vec": [
-                    {
-                      "vec": [
-                        {
-                          "symbol": "Contract"
-                        },
-                        {
-                          "map": [
-                            {
-                              "key": {
-                                "symbol": "args"
-                              },
-                              "val": {
-                                "vec": [
-                                  {
-                                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                                  },
-                                  {
-                                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                                  },
-                                  {
-                                    "i128": "10000"
-                                  }
-                                ]
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "contract"
-                              },
-                              "val": {
-                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "fn_name"
-                              },
-                              "val": {
-                                "symbol": "transfer"
-                              }
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
+                  "bytes": "0101010101010101010101010101010101010101010101010101010101010101"
+                },
+                {
+                  "i128": "10000"
+                },
+                {
+                  "i128": "30000"
+                },
+                {
+                  "u64": "2592000"
                 }
               ]
             }
@@ -276,7 +178,7 @@
               "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
               "key": {
                 "ledger_key_nonce": {
-                  "nonce": "4837995959683129791"
+                  "nonce": "4270020994084947596"
                 }
               },
               "durability": "temporary",
@@ -335,7 +237,7 @@
                       "symbol": "cap_per_day"
                     },
                     "val": {
-                      "i128": "25000"
+                      "i128": "30000"
                     }
                   },
                   {
@@ -367,18 +269,7 @@
                       "symbol": "spend_log"
                     },
                     "val": {
-                      "vec": [
-                        {
-                          "vec": [
-                            {
-                              "u64": "0"
-                            },
-                            {
-                              "i128": "20000"
-                            }
-                          ]
-                        }
-                      ]
+                      "vec": []
                     }
                   },
                   {

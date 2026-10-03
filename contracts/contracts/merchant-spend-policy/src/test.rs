@@ -4,8 +4,8 @@ use super::*;
 use smart_wallet_interface::types::{SignerExpiration, SignerLimits, SignerVal};
 use soroban_sdk::{
     contract, contractimpl,
-    testutils::{Address as _, Ledger},
-    Address, BytesN, Env, IntoVal,
+    testutils::{Address as _, EnvTestConfig, Events, Ledger},
+    Address, BytesN, Env, IntoVal, Symbol,
 };
 
 const MANDATE_SECS: u64 = 30 * DAY_SECONDS;
@@ -18,7 +18,10 @@ struct Fixture<'a> {
 }
 
 fn setup<'a>() -> Fixture<'a> {
-    let env = Env::default();
+    setup_in(Env::default())
+}
+
+fn setup_in<'a>(env: Env) -> Fixture<'a> {
     env.mock_all_auths();
 
     let wallet = Address::generate(&env);
@@ -412,4 +415,211 @@ fn uninstall_succeeds_once_no_longer_a_signer() {
     let wallet: Address = stub_id;
     policy.install(&wallet);
     policy.uninstall(&wallet); // must not panic
+}
+
+/// Pays `amount` to `f.merchant` with sub-key 1 at the current ledger time.
+fn spend(f: &Fixture, token: &Address, amount: i128) {
+    let ctx = transfer_context(&f.env, token, &f.wallet, &f.merchant, amount);
+    f.policy.policy__(
+        &f.wallet,
+        &signer_key(&f.env, 1),
+        &soroban_sdk::vec![&f.env, ctx],
+    );
+}
+
+fn set_time(f: &Fixture, ts: u64) {
+    f.env.ledger().with_mut(|l| l.timestamp = ts);
+}
+
+#[test]
+fn spend_log_stays_bounded_under_many_micropayments() {
+    // 1,800 invocations would write a multi-megabyte snapshot file.
+    let f = setup_in(Env::new_with_config(EnvTestConfig {
+        capture_snapshot_at_drop: false,
+    }));
+    let token = Address::generate(&f.env);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10,
+        &1_000_000,
+        &MANDATE_SECS,
+    );
+
+    // One payment a minute for 30 hours: 1,800 spends, more than a full day.
+    let start = 900 * 1_000;
+    for i in 0..1_800u64 {
+        set_time(&f, start + i * 60);
+        spend(&f, &token, 1);
+    }
+
+    let log_len = f
+        .policy
+        .get_allowance(&f.wallet, &f.merchant)
+        .spend_log
+        .len();
+    assert!(
+        log_len as u64 <= DAY_SECONDS / SPEND_BUCKET_SECONDS + 1,
+        "spend_log grew to {log_len} entries"
+    );
+}
+
+#[test]
+#[should_panic] // ExceedsDailyCap
+fn merged_spends_still_count_against_daily_cap() {
+    let f = setup();
+    let token = Address::generate(&f.env);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &25_000,
+        &MANDATE_SECS,
+    );
+
+    let start = 900 * 1_000;
+    set_time(&f, start);
+    spend(&f, &token, 10_000);
+    set_time(&f, start + 60); // same bucket: merged into one entry
+    spend(&f, &token, 10_000);
+    assert_eq!(f.policy.available_today(&f.wallet, &f.merchant), 5_000);
+
+    set_time(&f, start + 120);
+    spend(&f, &token, 10_000); // 30,000 > 25,000
+}
+
+#[test]
+fn merged_entry_expires_conservatively_never_early() {
+    let f = setup();
+    let token = Address::generate(&f.env);
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &20_000,
+        &MANDATE_SECS,
+    );
+
+    let start = 900 * 1_000;
+    set_time(&f, start);
+    spend(&f, &token, 10_000);
+    set_time(&f, start + 800); // same bucket, merged under the later time
+    spend(&f, &token, 10_000);
+
+    // The first spend is truly 24h old here, but the merged entry carries the
+    // later timestamp, so the whole amount still counts: refused early, never
+    // over-allowed.
+    set_time(&f, start + DAY_SECONDS + 1);
+    assert_eq!(f.policy.available_today(&f.wallet, &f.merchant), 0);
+
+    // Once the later spend has also left the window, the full cap is back.
+    set_time(&f, start + 800 + DAY_SECONDS);
+    assert_eq!(f.policy.available_today(&f.wallet, &f.merchant), 20_000);
+}
+
+/// The contract panics with `PolicyError` rather than returning it, so the
+/// generated `try_` client reports it as a plain contract error code.
+fn policy_error(e: PolicyError) -> soroban_sdk::Error {
+    soroban_sdk::Error::from_contract_error(e as u32)
+}
+
+fn grant(f: &Fixture, mandate_seconds: u64) {
+    f.policy.set_allowance(
+        &f.wallet,
+        &f.merchant,
+        &signer_bytes(&f.env, 1),
+        &10_000,
+        &30_000,
+        &mandate_seconds,
+    );
+}
+
+#[test]
+fn revoke_is_final_until_a_fresh_grant() {
+    let f = setup();
+    grant(&f, MANDATE_SECS);
+    f.policy.revoke(&f.wallet, &f.merchant);
+
+    assert_eq!(
+        f.policy.try_resume(&f.wallet, &f.merchant),
+        Err(Ok(policy_error(PolicyError::Revoked)))
+    );
+    assert_eq!(
+        f.policy.try_pause(&f.wallet, &f.merchant),
+        Err(Ok(policy_error(PolicyError::Revoked)))
+    );
+
+    // A new set_allowance is an explicit owner decision and re-opens it.
+    grant(&f, MANDATE_SECS);
+    assert_eq!(
+        f.policy.get_allowance(&f.wallet, &f.merchant).status,
+        Status::Active
+    );
+}
+
+#[test]
+fn mandate_must_be_positive_and_at_most_a_year() {
+    let f = setup();
+    for bad in [0, MAX_MANDATE_SECONDS + 1] {
+        assert_eq!(
+            f.policy.try_set_allowance(
+                &f.wallet,
+                &f.merchant,
+                &signer_bytes(&f.env, 1),
+                &10_000,
+                &30_000,
+                &bad,
+            ),
+            Err(Ok(policy_error(PolicyError::InvalidMandate)))
+        );
+    }
+    grant(&f, MAX_MANDATE_SECONDS);
+}
+
+#[test]
+fn spend_and_status_changes_emit_events() {
+    let f = setup();
+    let token = Address::generate(&f.env);
+    grant(&f, MANDATE_SECS);
+
+    spend(&f, &token, 1_000);
+    assert_eq!(
+        f.env.events().all(),
+        soroban_sdk::vec![
+            &f.env,
+            (
+                f.policy.address.clone(),
+                (
+                    Symbol::new(&f.env, "spent"),
+                    f.wallet.clone(),
+                    f.merchant.clone()
+                )
+                    .into_val(&f.env),
+                soroban_sdk::map![&f.env, (Symbol::new(&f.env, "amount"), 1_000_i128)]
+                    .into_val(&f.env),
+            ),
+        ]
+    );
+
+    f.policy.pause(&f.wallet, &f.merchant);
+    assert_eq!(
+        f.env.events().all(),
+        soroban_sdk::vec![
+            &f.env,
+            (
+                f.policy.address.clone(),
+                (
+                    Symbol::new(&f.env, "status_changed"),
+                    f.wallet.clone(),
+                    f.merchant.clone()
+                )
+                    .into_val(&f.env),
+                soroban_sdk::map![&f.env, (Symbol::new(&f.env, "status"), Status::Paused)]
+                    .into_val(&f.env),
+            ),
+        ]
+    );
 }

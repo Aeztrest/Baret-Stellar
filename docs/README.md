@@ -41,6 +41,7 @@ Durum sözlüğü (özellikle `implementation-status.md`'de): ✅ uygulanmış �
 | [`architecture/packages.md`](./architecture/packages.md) | Paketler ve bağımlılıkları | TR |
 | [`architecture/clients.md`](./architecture/clients.md) | Showcase, bağımsız cüzdan, portal, API doküman sitesi | TR |
 | [`implementation-status.md`](./implementation-status.md) | Spec ↔ gerçek farkı (özellik defteri) | TR |
+| [`instawards-sow.md`](./instawards-sow.md) | Instawards SOW: SOW'dan sapmalar, teslimat durumu, sahipten gerekenler | TR |
 | [`extension-architecture.md`](./extension-architecture.md) | Eklenti yüzeyleri, mesajlar, DB, kripto, build | EN |
 | [`x402-defense.md`](./x402-defense.md) | x402 protokolü, saldırı matrisi, attestation, zincir üstü alt anahtar | EN |
 | [`policy-dsl.md`](./policy-dsl.md) | `GuardPolicy` şeması ve nerede uygulandığı | EN |
