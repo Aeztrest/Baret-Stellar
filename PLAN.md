@@ -325,7 +325,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 ### Faz 3: Zincir üstü (kontrat v2)
 
 #### T3.1 MerchantSpendPolicy v2 ✅ (kod + testnet; mainnet Instawards D1'de, bkz. `docs/instawards-sow.md`)
-- **Yapıldı (2026-10-02, dal `feat/mainnet-spend-policy`):** sınırlı harcama kaydı, kalıcı `Revoked` (`#11`), mandate 1 sn-365 gün (`#12`), `Spent`/`StatusChanged` event'leri, `Error` → `PolicyError` (bindings artık üretiliyor). 20 test; testnet `CATKKYWT…7DZLTOBLD`, wasm `ae2ce5c4…6aa04b`; canlı prova `DEPLOYMENT.md`'de.
+- **Yapıldı (2026-10-02, dal `feat/mainnet-spend-policy`):** sınırlı harcama kaydı, kalıcı `Revoked` (`#11`), mandate 1 sn-365 gün (`#12`), `Spent`/`StatusChanged` event'leri, `Error` → `PolicyError` (bindings artık üretiliyor). 20 test; testnet `CCL7DJY2…S7MPNH`, wasm `cda12f8a…6e8611`; canlı prova `DEPLOYMENT.md`'de.
 - **Plandan sapma (gerekçeli):** 25 saatlik sabit kova yerine aynı 15 dk dilimindeki harcamaları **sonraki** zaman damgasıyla birleştiren log (≤ 97 kayıt). Kayan pencere neredeyse tam korunur: tavan en fazla 15 dk erken reddedebilir, hiç aşılmaz (25 kova en fazla 1 saat fazladan kilitlerdi). Mevcut `rolling_window_resets_after_24h` testi değişmeden geçiyor.
 - **Açık:** eklenti v1'de kalıyor (T3.2).
 - **Bulgu:** `spend_log: Vec<(u64,i128)>` sınırsız. Ölçüm (scratch): 1000 kayıt ≈ 44 KB, 8 M CPU; darboğaz tek ledger entry'nin boyutu ve her ödemede tamamını yazma ücreti. 0.001 USDC ödemelerle günde 1 USDC → ~1000, 25 USDC → ~25.000 kayıt. Entry limiti (~64 KiB) ağ ayarından doğrulanmadı.
@@ -416,6 +416,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-10-07 | Instawards D1 ✅ mainnet: MerchantSpendPolicy v2 `CCFFBHBK…VMDKDNOS`, agent cüzdanı `CC5RDVZP…ZQZ2SGN` (0.5 / 2 USDC), durdur/devam denendi; D3 ödemesi yapıldı (`4d3d6490…`). `spend-policy` aracında iki mainnet hatası düzeltildi (çift ücret teklifi, düşük öncelik teklifi + kısa süre), `BARET_DRY_RUN` eklendi. Ayrıntı `docs/instawards-sow.md`. |
 | 2026-10-02 | Instawards SOW (güncel PDF) esas alındı: D1 = MerchantSpendPolicy v2 + agent cüzdanı mainnet'te (PaymentGuard yerine; gerekçe `docs/instawards-sow.md`). T3.1 kodu ve testnet provası ✅; `agent-guard`'a `spend-policy` alt yolu (SDK 16 + passkey-kit). |
 | 2026-09-20 (ilerleme 13) | T2.4 1. kısım: SEP-6 çekme koruması (anchor'a imza anında sorup tek `payment`'ı birebir doğrular, fail-closed; `ACCOUNTS` 24 saat önbellekli, sıradan ödeme istek atmaz); 81 yeni test, 27 mutasyon (2 boşluk bulunup kapatıldı). Baret'in kendi çekme akışı 2. kısımda. |
 | 2026-09-20 (ilerleme 12) | T1.7 ✅: cüzdanın kendi gönderdiği işlemler (gönderim, trustline, Friendbot) geçmişe yazılıyor, monitör onları drift saymıyor; 6 yeni test, 6 mutasyon, gerçek tarayıcıda doğrulandı. Gelen işlemlerin drift sayılması ve relay'li işlemlerin eşleşmesi açık (T0.7). |

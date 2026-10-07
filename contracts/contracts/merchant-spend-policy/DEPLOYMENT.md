@@ -8,7 +8,7 @@ granted, up to that merchant's `cap_per_tx`/rolling `cap_per_day` — see
 
 > **Two versions.** The extension uses **v1** (below). The source is now **v2**
 > (bounded spend log, final `revoke`, mandate limit, events; see
-> [`../../README.md`](../../README.md)), deployed on testnet for agent wallets.
+> [`../../README.md`](../../README.md)), deployed on testnet and, since 2026-10-07, on mainnet for agent wallets.
 > The v2 record and the agent-wallet runbook (testnet and mainnet) are in
 > [v2 and agent wallets](#v2-and-agent-wallets) at the end of this file.
 
@@ -145,34 +145,79 @@ Renewal check to run while you are here: let a mandate lapse (or set `mandateMax
 
 ## v2 and agent wallets
 
-### Testnet deployment (2026-10-02)
+### Testnet deployment (2026-10-03)
 
 | | |
 |---|---|
-| Contract ID | [`CATKKYWTT6MB7M5QRRMPPOJNCOSRZW7S3A3QMHVKTH6C7AO7DZLTOBLD`](https://stellar.expert/explorer/testnet/contract/CATKKYWTT6MB7M5QRRMPPOJNCOSRZW7S3A3QMHVKTH6C7AO7DZLTOBLD) |
-| Wasm hash | `ae2ce5c49c6581a61f613a80cb1785e8ae9e3ec91ae4930d17eb546e606aa04b` (`stellar contract build`, stellar-cli 26.0.0) |
+| Contract ID | [`CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH`](https://stellar.expert/explorer/testnet/contract/CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH) |
+| Wasm hash | `cda12f8a2ac1a8fbe59174b287184fca9298f0b2a4250771f4a35cf5e66e8611` (`stellar contract build --package merchant-spend-policy --optimize`, stellar-cli 26.0.0, 11,449 bytes) |
 | Smart-wallet wasm | passkey-kit `fdefad64…e3c903f0`, already installed on testnet **and mainnet** (checked against both networks' RPC on 2026-10-02) |
 
-An earlier v2 build without the `PolicyError` rename, events, final revoke and mandate limit was deployed the same day at `CABIAQ46ABTQWZE3KXTVB6MLFAD7CQAYQVFF2R5NVIGRDPUKA6M3IRXH` while the tooling was being written. It is not used by anything.
+Earlier v2 builds went to testnet while the tooling was being written and are not used by anything: `CABIAQ46…M3IRXH` (2026-10-02, before the `PolicyError` rename, events, final revoke and mandate limit) and `CATKKYWT…7DZLTOBLD` (2026-10-02, wasm `ae2ce5c4…6aa04b`, same behaviour as the current build but 18 KB).
 
-### Rehearsal run (testnet, 2026-10-02)
+### Upload cost and size (mainnet)
+
+Mainnet keeps a new contract-code entry for at least 2,073,600 ledgers (~120 days; testnet: ~7 days) and charges that rent up front. Simulated against mainnet on 2026-10-03, uploading this contract costs **~18.8 XLM** (16.33 XLM was actually charged on 2026-10-07; the unused part of the bid is refunded), almost all of it rent; instruction, write and bandwidth fees together are under 0.01 XLM.
+Rent on code follows the module's in-memory size, which has a large fixed part, so shrinking the wasm from 17,992 to 11,449 bytes (doc comments kept out of the spec, vendored types not exported, `--optimize`) only took the upload from ~20.9 to ~18.8 XLM.
+Testnet numbers don't carry over: there, the policy's own TTL renewal (to 30 days) fired on the first install because new entries start with only ~7 days, which cost ~18 XLM in rent on that step; on mainnet the starting ~120 days is well above the one-week renewal threshold.
+
+### Rehearsal run (testnet, 2026-10-03)
 
 Owner, agent and merchant were fresh friendbot accounts. Token: the native XLM asset contract (`CDLZFC3S…HHGCYSC`), since the policy works with any SEP-41 token; mainnet uses USDC. Caps: 1 per payment, 3 per rolling 24 h, 30-day mandate.
 
 | Step | Result |
 |---|---|
-| Smart wallet deployed, owner key as admin | [`CATIZGVC…KJH4OS56`](https://stellar.expert/explorer/testnet/contract/CATIZGVCD3ZWR6RO7GJFTNRGXRDVGIBQQIFLIQYY4E7TDWY2KJH4OS56), [tx](https://stellar.expert/explorer/testnet/tx/8d11958d1f25f82c18e7c31c4b2827d2e1e135aafe18035ef181ad935ebc0b62) |
-| Policy installed as wallet signer | [tx](https://stellar.expert/explorer/testnet/tx/bd0ed6c304b9bdba88cd669634a3972c95fabec9c9a98b14f9753048bb8751c3) |
-| `set_allowance` (bound to the agent key) | [tx](https://stellar.expert/explorer/testnet/tx/ec6e7f491ea0d79c2aea67ebdc08bc86331dba43a052f877e730917eb5ee0b26) |
-| Agent key added as signer, scoped to the token and gated by the policy | [tx](https://stellar.expert/explorer/testnet/tx/53e8c31ab2fbe8a8f6c0c94d7ffcf629e3db036ae3fb5d63a9aef1154546247b) |
-| Agent pays 0.5, signed only by the agent key | ✅ [tx](https://stellar.expert/explorer/testnet/tx/d6a8a315f00f9e85ff34e4fba48b560e3578b61c006b8525df3fd62c472db10b) |
+| Smart wallet deployed, owner key as admin | [`CA6LJY56…M7765ZDA`](https://stellar.expert/explorer/testnet/contract/CA6LJY56IF5Q4NAFVUFG7QL3CV4LHCU6WW766PRQ434CPTOJM7765ZDA), [tx](https://stellar.expert/explorer/testnet/tx/c37e5a42e3a11824fad5df70b84ec21a7cb202de02545fc033df93346760383d) |
+| Policy installed as wallet signer | [tx](https://stellar.expert/explorer/testnet/tx/24e042d68d599acd0cacb9180e0cdb3ecbbf28ee1b16ad719e458bce81917c7d) |
+| `set_allowance` (bound to the agent key) | [tx](https://stellar.expert/explorer/testnet/tx/b67a416c92427f484dfb959fe7649c1ea5108d3e367fd00805cf253946c413c6) |
+| Agent key added as signer, scoped to the token and gated by the policy | [tx](https://stellar.expert/explorer/testnet/tx/f2ca5a98d3b3d650eb298100bec1bb9c3ef07bd62760a459cddca908bc910baf) |
+| Agent pays 0.5, signed only by the agent key | ✅ [tx](https://stellar.expert/explorer/testnet/tx/118d611ac020a2e00ca5f08793a6d7ea4aedb3fc9141bdf9e03a4f4d7448806f) |
 | Agent tries 1.0000001 (over per-payment cap) | refused, `Error(Contract, #5)` `ExceedsPerTx` |
-| Owner pauses, agent tries 0.5 | [pause](https://stellar.expert/explorer/testnet/tx/f0f5326e290ffeef59984a91f9a4765082500b31e7e3b81db4daecc87c24e248), refused `#4` `NotActive` |
-| Owner resumes; agent pays 1 and 1 | [resume](https://stellar.expert/explorer/testnet/tx/5c499102cb6aeb015c654640268f5fcdbadc3759995c017cdd9d50f55db9c1a9), [tx](https://stellar.expert/explorer/testnet/tx/185714fae1215a848fd971de027603fd517c56c406e8a5839aca84cde575e076), [tx](https://stellar.expert/explorer/testnet/tx/3d398a999a6388016f9ccc0304463927dbc0135a0c6a53503a25a2d49cb0019e) |
+| Owner pauses, agent tries 0.5 | [pause](https://stellar.expert/explorer/testnet/tx/b76fa74be6b1afdc5956b727a1fabacfd65daf1bf8dc2cca1eaeb62e6398d20b), refused `#4` `NotActive` |
+| Owner resumes; agent pays 1 and 1 | [resume](https://stellar.expert/explorer/testnet/tx/c17a54349e295bc9bb2fa8d253b60cb16dbcf86ef0a31d005358d61c3f10696a), [tx](https://stellar.expert/explorer/testnet/tx/f42ab73eef040a047259f5b1bf66fa12ed7b94dae2db5e4ef8b3a2b166c36d97), [tx](https://stellar.expert/explorer/testnet/tx/6ffcf099c5bb2e8261afdf93a9e435eb9d25019bcd6040e023b499eb80785ba5) |
 | Agent tries 1 more (2.5 + 1 > 3 in 24 h) | refused `#6` `ExceedsDailyCap` |
-| Owner revokes, then tries `resume` | [revoke](https://stellar.expert/explorer/testnet/tx/fb3a100e332f2081883687f7c4b12d964204acdfee74b8b21c28a0df05bb60a5), `resume` refused `#11` `Revoked` |
+| Owner revokes, then tries `resume` | [revoke](https://stellar.expert/explorer/testnet/tx/a4066ea4b597a295b2bffe3b1b063c63c2e266078cc02bba27cbba3fa5235226), `resume` refused `#11` `Revoked` |
 
-Refusals are caught at simulation, so nothing is submitted for them; the script only counts a refusal when the error carries the expected contract code.
+Refusals are caught at simulation, so nothing is submitted for them; the script only counts a refusal when the error carries the expected contract code. The same run passed on 2026-10-02 against the 18 KB build (`CATKKYWT…`).
+
+### Mainnet deployment (2026-10-07)
+
+| | |
+|---|---|
+| Contract ID | [`CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS`](https://stellar.expert/explorer/public/contract/CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS) |
+| Wasm hash | `cda12f8a2ac1a8fbe59174b287184fca9298f0b2a4250771f4a35cf5e66e8611` (the build rehearsed on testnet; read back from the mainnet contract instance, and reproduced from this source with the build command in the runbook) |
+| Upload / deploy | [upload](https://stellar.expert/explorer/public/tx/79d98f0ea342faecfaae96ad0fb277141a351fd5aa427f34417dad918d38662a) (16.33 XLM charged), [deploy](https://stellar.expert/explorer/public/tx/15ff871d0bac609a5d768d6e6dd376f5c4b52c4ef1cdc8088a72a705dc56e6d1) (0.02 XLM) |
+| Deployer | `GAKJRNJEBNJEC2GV5LLQ4N3ZGYHJ3RADMCICD2KFUY6P3QCGEL7IZKP6` (no special rights: the contract has no owner) |
+
+Not audited. The amounts below are deliberately small.
+
+### Mainnet proof run (2026-10-07)
+
+Owner, agent and merchant are three team-controlled accounts. Token: Circle USDC (`CCW67TSZ…SJMI75`). Caps: 0.5 USDC per payment, 2 USDC per rolling 24 h, 30-day mandate.
+
+| Step | Result |
+|---|---|
+| Smart wallet deployed, owner key as admin | [`CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN`](https://stellar.expert/explorer/public/contract/CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN), [tx](https://stellar.expert/explorer/public/tx/a820c2a8b70243212c93dadd0211f53fdecb02355a2103982703915fd9a35971) (44.77 XLM charged, see below) |
+| Policy installed as wallet signer | [tx](https://stellar.expert/explorer/public/tx/3d3e17231726887e3e1d426c449878121c98a17d241ace85b5e78186fe7831a2) |
+| `set_allowance` (bound to the agent key `GD6PYZFO…XP7SOPN7`) | [tx](https://stellar.expert/explorer/public/tx/cda55c5cc0716ef0494b271292aa13d2976bd5d24ff31b31cb5d9b6fbf3570b4) |
+| Agent key added as signer, scoped to USDC and gated by the policy | [tx](https://stellar.expert/explorer/public/tx/0ea5e38a7bd41e4c04309fa41164de0670bbdf3015588d596d4b0e7be6084f8a) |
+| Owner moves 5 USDC into the wallet | [tx](https://stellar.expert/explorer/public/tx/c4cc89ddf606cdeb62cfdea37420864e02ca883fbda982e60f1b0a4a396bf768) |
+| **Agent pays 0.1 USDC to the merchant** | ✅ [tx](https://stellar.expert/explorer/public/tx/4d3d6490ff815fd5f942e9960d93d128c396b92e649de998d0122d7554868d60) |
+| Agent tries 0.5000001 (over per-payment cap) | refused, `Error(Contract, #5)` `ExceedsPerTx` |
+| Owner pauses, agent tries 0.1 | [pause](https://stellar.expert/explorer/public/tx/3f9346801dbce202aee969e43cb1c061fa5a8830dbc328152f1e0ba0fd776d5c), refused `#4` `NotActive` |
+| Owner resumes | [resume](https://stellar.expert/explorer/public/tx/75993dfff56ec49295537ddaffdac581471747a3d08975c1c0eba1a67138bad9) |
+
+Checked against Horizon and RPC after the run: the payment's source account is the agent, its envelope carries one signature (the agent's; the owner's key did not sign it), the operation is USDC `transfer(wallet → merchant, 0.1)`, and the balances moved from 5 / 0 to 4.9 / 0.1 USDC. The 24 h cap refusal and `revoke` were not exercised on mainnet (both are covered by the testnet run above).
+
+**What it cost (XLM actually charged).** Policy upload 16.33, wallet deploy 44.77, everything else under 0.4 in total (policy install 0.07, `set_allowance` 0.07, agent signer 0.04, funding 0.04, payment 0.01, pause and resume 0.002 each).
+The wallet deploy is expensive for a reason outside this repo: passkey-kit's shared wallet wasm (34 KB) had 46 days of TTL left on mainnet, and the wallet's constructor extends its own code to the maximum (~180 days), charging the caller the rent. Whoever uses that wasm first after a quiet period pays for everyone; on testnet it was already at the maximum, so the rehearsal showed 0.5 XLM. Check the code entry's TTL before quoting a mainnet cost.
+
+**Two bugs the mainnet run exposed, both fixed in `packages/agent-guard/src/spend-policy.ts`.** Neither cost anything (the network rejected or dropped the transactions) and neither could show on testnet:
+- `AssembledTransaction.sign()` rebuilds the transaction and adds the resource fee to the bid a second time: the 51 XLM wallet deploy went out bidding 103 XLM and was rejected as `txInsufficientBalance`. The tool now signs the simulated transaction itself, sets the fee to resource fee + 0.001 XLM, and refuses to send anything bidding more than 0.1 XLM above its resource fee.
+- At the SDK's default inclusion bid (100 stroops) and a 30 s validity window, the deploy was accepted and then expired without entering a ledger (mainnet's median Soroban inclusion fee was 200). The bid is now 10,000 stroops (the network charges the clearing rate, not the bid) and the window is 120 s.
+
+`BARET_DRY_RUN=1` in front of any `spend-policy` command builds and simulates each step, prints its fee and sends nothing; a dry run of the wallet deploy also works with `BARET_OWNER_PUBLIC` instead of the secret. `spend-policy wallet` and `spend-policy install` run the first two steps of `setup` on their own.
+The three accounts and the two USDC trustlines were opened with `packages/agent-guard/scripts/mainnet-accounts.mjs` ([tx](https://stellar.expert/explorer/public/tx/3f71c54c80ed158188675ffd2fac1753dc691e6a2a17c2186d45add069fffd75)).
 
 ### Runbook (testnet or mainnet)
 
@@ -182,7 +227,7 @@ The tooling is `packages/agent-guard/src/spend-policy.ts` (library) and `package
 # 1. Build and deploy the policy (any funded identity pays; there is no init and no owner)
 cd contracts
 cargo test -p merchant-spend-policy
-stellar contract build --package merchant-spend-policy
+stellar contract build --package merchant-spend-policy --optimize   # must give the hash above
 stellar contract deploy --wasm target/wasm32v1-none/release/merchant_spend_policy.wasm \
   --source <deployer> --network <testnet|mainnet>          # prints the C… id
 

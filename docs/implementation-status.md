@@ -136,10 +136,10 @@ Bu doküman yazılırken canlı testnet doğrulaması yapılmamıştı. **Sonrad
 | Kontrat | Durum |
 |---|---|
 | `merchant-spend-policy` v1 (eklentinin kullandığı) | ✅ testnet: `CCWTPB4F…SQ2DHQ5S`, wasm `122e762a…f3b834` |
-| `merchant-spend-policy` v2 (kaynaktaki sürüm): sınırlı harcama kaydı (15 dk dilim, ≤ 97 kayıt), kalıcı `revoke`, mandate ≤ 365 gün, `Spent`/`StatusChanged` event'leri, `PolicyError` | ✅ 20 test; testnet `CATKKYWT…7DZLTOBLD`, wasm `ae2ce5c4…6aa04b`; canlı prova kaydı `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` · ⏳ eklenti hâlâ v1'de (alt anahtar migrasyonu gerekir) |
-| Agent cüzdanı için zincir üstü tavan (`agent-guard` `spend-policy`: cüzdan kurulumu, policy, merchant yetkisi, yalnız agent anahtarıyla ödeme) | ✅ testnet'te uçtan uca (2026-10-02): tavan içi ödeme, `#5`/`#4`/`#6`/`#11` retleri · `packages/agent-guard/src/spend-policy.ts`, `packages/agent-guard/scripts/spend-policy.ts` |
+| `merchant-spend-policy` v2 (kaynaktaki sürüm): sınırlı harcama kaydı (15 dk dilim, ≤ 97 kayıt), kalıcı `revoke`, mandate ≤ 365 gün, `Spent`/`StatusChanged` event'leri, `PolicyError` | ✅ 20 test; testnet `CCL7DJY2…S7MPNH`, wasm `cda12f8a…6e8611` (11.4 KB, `--optimize`); canlı prova kaydı `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` · ⏳ eklenti hâlâ v1'de (alt anahtar migrasyonu gerekir) |
+| Agent cüzdanı için zincir üstü tavan (`agent-guard` `spend-policy`: cüzdan kurulumu, policy, merchant yetkisi, yalnız agent anahtarıyla ödeme) | ✅ testnet'te uçtan uca (2026-10-02, 2026-10-03): tavan içi ödeme, `#5`/`#4`/`#6`/`#11` retleri · `packages/agent-guard/src/spend-policy.ts`, `packages/agent-guard/scripts/spend-policy.ts` |
 | `payment-guard` (custodial vault) | 🗃️ Ürün dışı; kodu ve 26 testi duruyor; testnet'teki v2 bayat (v3 yeniden deploy edilmedi) |
-| Mainnet | ⏳ (Instawards Deliverable 1: v2 + agent cüzdanı, bkz. [`instawards-sow.md`](./instawards-sow.md)) |
+| Mainnet: `merchant-spend-policy` v2 + bir agent cüzdanı (0.5 / 2 USDC tavan) | ✅ 2026-10-07: kontrat `CCFFBHBK…VMDKDNOS`, cüzdan `CC5RDVZP…ZQZ2SGN`; agent yalnız kendi anahtarıyla 0.1 USDC ödedi, tavan üstü ve durdurulmuş ödeme reddedildi. Kayıt: `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`, özet [`instawards-sow.md`](./instawards-sow.md) · Eklenti, sunucu, showcase hâlâ yalnız testnet |
 
 ## 7. Dağıtım ve dokümantasyon
 

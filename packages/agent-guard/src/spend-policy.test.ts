@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { Keypair, Networks } from "@stellar/stellar-sdk";
+import { Account, Contract, Keypair, Networks, SorobanDataBuilder, TransactionBuilder } from "@stellar/stellar-sdk";
 import { deriveContractAddress } from "passkey-kit";
-import { SpendPolicyOwner, payMerchant } from "./spend-policy.js";
+import { SpendPolicyOwner, payMerchant, withOwnFeeAndWindow } from "./spend-policy.js";
 
 // Validation runs before any RPC call, so none of these touch the network.
 const POLICY = "CABIAQ46ABTQWZE3KXTVB6MLFAD7CQAYQVFF2R5NVIGRDPUKA6M3IRXH";
@@ -70,5 +70,31 @@ describe("payMerchant", () => {
 
   it("refuses a wallet that is not a contract", async () => {
     await expect(payMerchant({ ...base, walletAddress: owner.publicKey() })).rejects.toThrow(/walletAddress/);
+  });
+});
+
+describe("withOwnFeeAndWindow", () => {
+  // Regression: on mainnet a 51 XLM wallet deploy went out bidding 103 XLM
+  // because the SDK's sign() added the resource fee to the bid twice.
+  it("bids the resource fee plus 0.001 XLM, whatever the builder had", () => {
+    const resourceFee = 514_906_457n; // the real mainnet wallet-deploy resource fee
+    const doubled = new TransactionBuilder(new Account(owner.publicKey(), "1"), {
+      fee: (resourceFee * 2n).toString(),
+      networkPassphrase: Networks.PUBLIC,
+    })
+      .addOperation(new Contract(TOKEN).call("decimals"))
+      .setSorobanData(new SorobanDataBuilder().setResourceFee(resourceFee.toString()).build())
+      .setTimeout(30)
+      .build();
+
+    const before = Math.floor(Date.now() / 1000);
+    const fixed = withOwnFeeAndWindow(doubled, Networks.PUBLIC);
+
+    expect(BigInt(fixed.fee)).toBe(resourceFee + 10_000n);
+    expect(fixed.signatures).toHaveLength(0);
+    const maxTime = Number(fixed.timeBounds?.maxTime);
+    expect(maxTime).toBeGreaterThanOrEqual(before + 120);
+    expect(maxTime).toBeLessThanOrEqual(before + 125);
+    expect(fixed.operations).toHaveLength(1);
   });
 });
