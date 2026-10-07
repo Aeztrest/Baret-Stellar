@@ -2,7 +2,7 @@
  * Sets up and exercises on-chain agent spending limits (MerchantSpendPolicy)
  * on testnet or mainnet. Run with tsx from packages/agent-guard:
  *
- *   pnpm spend-policy <setup|status|fund|pause|resume|revoke|pay|prove [--daily]|allowance>
+ *   pnpm spend-policy <setup|wallet|install|status|fund|pause|resume|revoke|pay|prove [--daily]|allowance>
  *
  * Secrets come only from the environment (BARET_OWNER_SECRET,
  * BARET_AGENT_SECRET); nothing is written to disk. See
@@ -56,9 +56,19 @@ if (network !== "testnet" && network !== "pubnet") throw new Error("BARET_NETWOR
 const passphrase = network === "pubnet" ? Networks.PUBLIC : Networks.TESTNET;
 const rpcUrl = optEnv("BARET_RPC_URL") ?? SOROBAN_RPC_ENDPOINTS[network];
 const explorer = `https://stellar.expert/explorer/${network === "pubnet" ? "public" : "testnet"}`;
-const netOpts = () => ({ network, rpcUrl, policyContractId: env("BARET_POLICY_CONTRACT_ID") });
+// BARET_DRY_RUN=1 builds and simulates every step, prints its fee and sends nothing.
+const dryRun = optEnv("BARET_DRY_RUN") === "1";
+const netOpts = () => ({
+  network,
+  rpcUrl,
+  policyContractId: env("BARET_POLICY_CONTRACT_ID"),
+  dryRun,
+  onFee: (f: { label: string; feeXlm: string; resourceFeeXlm: string }) =>
+    console.log(`  ${dryRun ? "[dry run, not sent] " : ""}${f.label}: fee ${f.feeXlm} XLM (resource ${f.resourceFeeXlm})`),
+});
 
 function txLink(hash: string | undefined): string {
+  if (dryRun) return "(dry run)";
   return hash ? `${explorer}/tx/${hash}` : "(already done)";
 }
 
@@ -70,7 +80,11 @@ function printAllowance(a: AllowanceView): void {
 }
 
 function owner(): SpendPolicyOwner {
-  return new SpendPolicyOwner(Keypair.fromSecret(env("BARET_OWNER_SECRET")), netOpts());
+  // A dry run of the wallet deploy needs no signature, so the owner's public
+  // key is enough for it; later steps sign a wallet auth entry even to simulate.
+  const pub = optEnv("BARET_OWNER_PUBLIC");
+  const key = dryRun && pub ? Keypair.fromPublicKey(pub) : Keypair.fromSecret(env("BARET_OWNER_SECRET"));
+  return new SpendPolicyOwner(key, netOpts());
 }
 
 function agentKey(): Keypair {
@@ -212,6 +226,16 @@ async function main(): Promise<void> {
   switch (cmd) {
     case "setup":
       return setup();
+    // The first two steps of `setup` on their own, to check each one's cost
+    // on mainnet before sending the next.
+    case "wallet": {
+      const w = await owner().ensureWallet();
+      console.log(`wallet  ${w.walletAddress}  ${txLink(w.txHash)}`);
+      return;
+    }
+    case "install":
+      console.log(`policy installed on wallet  ${txLink((await owner().ensurePolicyInstalled()).txHash)}`);
+      return;
     case "status":
       return status();
     case "fund":
@@ -242,7 +266,7 @@ async function main(): Promise<void> {
       return;
     }
     default:
-      console.error("usage: spend-policy <setup|status|fund|pause|resume|revoke|pay [amount]|prove [--daily]|allowance>");
+      console.error("usage: spend-policy <setup|wallet|install|status|fund|pause|resume|revoke|pay [amount]|prove [--daily]|allowance>");
       process.exit(2);
   }
 }

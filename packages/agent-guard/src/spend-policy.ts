@@ -31,11 +31,7 @@ import {
   rpc,
   xdr,
 } from "@stellar/stellar-sdk";
-import {
-  basicNodeSigner,
-  Client as SorobanClient,
-  type AssembledTransaction,
-} from "@stellar/stellar-sdk/contract";
+import { Client as SorobanClient, type AssembledTransaction } from "@stellar/stellar-sdk/contract";
 import {
   Ed25519Signer,
   PasskeyClient,
@@ -68,7 +64,25 @@ const NETWORK_PASSPHRASES: Record<StellarNetwork, string> = {
   pubnet: Networks.PUBLIC,
 };
 
-const TX_TIMEOUT_SECONDS = 30;
+// Mainnet's Soroban lane had a queue when this was written: at the SDK's
+// default bid (100 stroops) and a 30 s validity window a wallet deploy was
+// accepted and then expired without ever entering a ledger (the median
+// inclusion fee was 200). The network charges the lane's clearing rate, not
+// the bid, so a generous bid costs nothing extra in quiet ledgers.
+const TX_TIMEOUT_SECONDS = 120;
+const INCLUSION_FEE_STROOPS = "10000";
+/** Poll past the validity window, so NOT_FOUND means "expired", not "still pending". */
+const POLL_ATTEMPTS = TX_TIMEOUT_SECONDS + 15;
+
+/**
+ * Most a transaction may bid above its Soroban resource fee (0.1 XLM, in
+ * stroops). `submitBuilt` refuses anything higher: the SDK's
+ * `AssembledTransaction.sign()` rebuilds the transaction and adds the
+ * resource fee to the bid a second time, which on mainnet turned a 51 XLM
+ * wallet deploy into a 103 XLM bid (rejected as txInsufficientBalance, and
+ * a 51 XLM inclusion bid had it been accepted).
+ */
+const MAX_INCLUSION_BID_STROOPS = 1_000_000n;
 
 export interface SpendPolicyNetworkOptions {
   network: StellarNetwork;
@@ -76,6 +90,14 @@ export interface SpendPolicyNetworkOptions {
   policyContractId: string;
   /** Defaults to SOROBAN_RPC_ENDPOINTS[network]. */
   rpcUrl?: string;
+  /**
+   * Build and simulate, report each transaction's fee through `onFee`, send
+   * nothing. Steps that need an earlier step on chain can only be dry-run
+   * once that step has really been sent.
+   */
+  dryRun?: boolean;
+  /** Called with every transaction's label and fee bid before it is sent (or skipped, in a dry run). */
+  onFee?: (info: { label: string; feeXlm: string; resourceFeeXlm: string }) => void;
 }
 
 export interface MerchantGrant {
@@ -144,6 +166,8 @@ export class SpendPolicyOwner {
   /** Deterministic: the same owner key always maps to the same wallet. */
   readonly walletAddress: string;
   private readonly server: rpc.Server;
+  private readonly dryRun: boolean;
+  private readonly onFee: SpendPolicyNetworkOptions["onFee"];
 
   constructor(
     private readonly owner: Keypair,
@@ -155,6 +179,8 @@ export class SpendPolicyOwner {
     this.rpcUrl = opts.rpcUrl ?? SOROBAN_RPC_ENDPOINTS[opts.network];
     this.policyContractId = opts.policyContractId;
     this.server = new rpc.Server(this.rpcUrl);
+    this.dryRun = opts.dryRun ?? false;
+    this.onFee = opts.onFee;
     this.walletAddress = deriveContractAddress(
       Buffer.from(owner.rawPublicKey()),
       owner.publicKey(),
@@ -195,8 +221,7 @@ export class SpendPolicyOwner {
         `Smart-wallet address mismatch: deploy returned ${at.result.options.contractId}, expected ${this.walletAddress}`,
       );
     }
-    await at.sign({ signTransaction: this.envelopeSigner() });
-    const txHash = await sendAssembled(at, "smart-wallet deploy");
+    const txHash = await this.submitBuilt(at.built, "smart-wallet deploy");
     return { walletAddress: this.walletAddress, txHash };
   }
 
@@ -302,12 +327,38 @@ export class SpendPolicyOwner {
     // signer entry that check reads. Re-simulating with the signed entry
     // fixes the footprint (without it the tx traps on chain).
     await authorized.simulate();
-    await authorized.sign({ signTransaction: this.envelopeSigner() });
-    return sendAssembled(authorized, label);
+    return this.submitBuilt(authorized.built, label);
   }
 
-  private envelopeSigner() {
-    return basicNodeSigner(this.owner, this.networkPassphrase).signTransaction;
+  /**
+   * Signs the simulated transaction as it was built and sends it. Not
+   * `AssembledTransaction.sign()` + `send()`: see MAX_INCLUSION_BID_STROOPS.
+   * Returns "" in a dry run.
+   */
+  private async submitBuilt(built: AssembledTransaction<unknown>["built"], label: string): Promise<string> {
+    if (!built) throw new Error(`${label}: transaction was not built`);
+    const tx = withOwnFeeAndWindow(built, this.networkPassphrase);
+    const resourceFee = BigInt(tx.toEnvelope().v1().tx().ext().sorobanData().resourceFee().toString());
+    const fee = BigInt(tx.fee);
+    this.onFee?.({ label, feeXlm: stroopsToXlm(fee), resourceFeeXlm: stroopsToXlm(resourceFee) });
+    if (fee - resourceFee > MAX_INCLUSION_BID_STROOPS) {
+      throw new Error(
+        `${label}: fee bid ${stroopsToXlm(fee)} XLM is more than 0.1 XLM above the resource fee ${stroopsToXlm(resourceFee)} XLM; refusing to send`,
+      );
+    }
+    if (this.dryRun) return "";
+
+    tx.sign(this.owner);
+    const sent = await this.server.sendTransaction(tx);
+    if (sent.status === "ERROR") {
+      const code = sent.errorResult?.result().switch().name ?? "unknown";
+      throw new Error(`${label} was rejected by the network (${code}, tx ${sent.hash})`);
+    }
+    const final = await this.server.pollTransaction(sent.hash, { attempts: POLL_ATTEMPTS });
+    if (final.status !== "SUCCESS") {
+      throw new Error(`${label} failed on chain (status ${final.status}, tx ${sent.hash})`);
+    }
+    return sent.hash;
   }
 
   private async contractExists(contractId: string): Promise<boolean> {
@@ -363,7 +414,7 @@ export async function payMerchant(opts: PayMerchantOptions): Promise<PayMerchant
     new Address(opts.merchant).toScVal(),
     nativeToScVal(opts.amount, { type: "i128" }),
   );
-  const unsigned = new TransactionBuilder(source, { fee: "1000000", networkPassphrase })
+  const unsigned = new TransactionBuilder(source, { fee: INCLUSION_FEE_STROOPS, networkPassphrase })
     .addOperation(op)
     .setTimeout(TX_TIMEOUT_SECONDS)
     .build();
@@ -402,7 +453,7 @@ export async function payMerchant(opts: PayMerchantOptions): Promise<PayMerchant
   // __check_auth reads (signer entries, the policy and its storage). This
   // run also executes the policy, so a refused payment stops here.
   const withAuth = new TransactionBuilder(await server.getAccount(opts.agent.publicKey()), {
-    fee: "1000000",
+    fee: INCLUSION_FEE_STROOPS,
     networkPassphrase,
   })
     .addOperation(
@@ -421,13 +472,20 @@ export async function payMerchant(opts: PayMerchantOptions): Promise<PayMerchant
     throw new Error(`Payment refused on chain (simulation): ${enforced.error}`);
   }
   const ready = rpc.assembleTransaction(authed, enforced).build();
+  const resourceFee = BigInt(ready.toEnvelope().v1().tx().ext().sorobanData().resourceFee().toString());
+  const fee = BigInt(ready.fee);
+  opts.onFee?.({ label: "payment", feeXlm: stroopsToXlm(fee), resourceFeeXlm: stroopsToXlm(resourceFee) });
+  if (fee - resourceFee > MAX_INCLUSION_BID_STROOPS) {
+    throw new Error(`payment: fee bid ${stroopsToXlm(fee)} XLM is more than 0.1 XLM above the resource fee; refusing to send`);
+  }
+  if (opts.dryRun) return { txHash: "", ledger: 0 };
   ready.sign(opts.agent);
 
   const sent = await server.sendTransaction(ready);
   if (sent.status === "ERROR") {
     throw new Error(`Payment submission failed: ${sent.errorResult?.toXDR("base64") ?? "unknown"}`);
   }
-  const final = await server.pollTransaction(sent.hash, { attempts: 20 });
+  const final = await server.pollTransaction(sent.hash, { attempts: POLL_ATTEMPTS });
   if (final.status !== "SUCCESS") {
     throw new Error(`Payment did not succeed on chain (status ${final.status}, tx ${sent.hash})`);
   }
@@ -481,14 +539,31 @@ function addressCredentials(creds: xdr.SorobanCredentials): xdr.SorobanAddressCr
   return anyCreds.value();
 }
 
-async function sendAssembled(tx: AssembledTransaction<unknown>, label: string): Promise<string> {
-  const sent = await tx.send();
-  const status = sent.getTransactionResponse?.status;
-  if (status !== "SUCCESS") {
-    const hash = sent.sendTransactionResponse?.hash ?? "unknown";
-    throw new Error(`${label} failed on chain (status ${status ?? "unknown"}, tx ${hash})`);
-  }
-  return sent.sendTransactionResponse?.hash ?? "";
+/**
+ * Rewrites a simulated transaction's fee to `resource fee + INCLUSION_FEE_STROOPS`
+ * and its validity window to TX_TIMEOUT_SECONDS from now, whatever the client
+ * that built it chose. Auth entries are untouched: their signatures cover the
+ * invocation, nonce and expiration ledger, not the envelope's fee or time bounds.
+ * Exported for its test only.
+ */
+export function withOwnFeeAndWindow(tx: NonNullable<AssembledTransaction<unknown>["built"]>, networkPassphrase: string) {
+  const env = tx.toEnvelope();
+  const inner = env.v1().tx();
+  const resourceFee = BigInt(inner.ext().sorobanData().resourceFee().toString());
+  inner.fee(Number(resourceFee + BigInt(INCLUSION_FEE_STROOPS)));
+  const maxTime = Math.floor(Date.now() / 1000) + TX_TIMEOUT_SECONDS;
+  inner.cond(
+    xdr.Preconditions.precondTime(
+      new xdr.TimeBounds({ minTime: xdr.Uint64.fromString("0"), maxTime: xdr.Uint64.fromString(String(maxTime)) }),
+    ),
+  );
+  env.v1().signatures([]);
+  return TransactionBuilder.fromXDR(env, networkPassphrase) as NonNullable<AssembledTransaction<unknown>["built"]>;
+}
+
+function stroopsToXlm(stroops: bigint): string {
+  const v = stroops.toString().padStart(8, "0");
+  return `${v.slice(0, -7)}.${v.slice(-7)}`;
 }
 
 function assertContract(id: string, name: string): void {
