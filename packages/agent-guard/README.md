@@ -9,19 +9,31 @@ Your agent builds a transaction; agent-guard sends the XDR through Baret's
 your policy, and only then — if the policy allows — signs and submits. Drains,
 unlimited approvals and rogue-contract calls are **blocked, not signed**.
 
-Built on top of [`@stellar-thorn/swig-guard`](../swig-guard) (the SDK-free guard)
-plus `@stellar/stellar-sdk` for key handling and Horizon submission.
+It also puts an **on-chain spending limit** on an agent: a per-payment and a
+rolling 24-hour cap enforced by a contract, so the agent's key can pay one
+merchant within the cap and nothing else ([below](#on-chain-spending-limits-spend-policy)).
+
+Built on Baret's `swig-guard` (bundled) plus `@stellar/stellar-sdk` for key
+handling and submission.
 
 ---
 
 ## Install
 
 ```bash
-# Not published to npm (the package is marked private). Use it from a checkout of this monorepo:
-pnpm install && pnpm build:guard && pnpm build:agent-guard   # then depend on it as a workspace package, or run: node packages/agent-guard/dist/cli.js
+npm install @stellar-thorn/agent-guard     # SDK
+npx baret --help                           # CLI (installed as `baret`)
 ```
 
-Requires Node ≥ 20 and a reachable Baret analyze server: run your own (`pnpm dev:server`, see the repo root) or use a hosted one. The server needs an API key: create a free one with `POST /v1/keys`
+Node ≥ 20, ESM only. The one runtime dependency is `@stellar/stellar-sdk` 16; everything else is bundled.
+From a checkout of the monorepo instead: `pnpm install && pnpm build:guard && pnpm build:agent-guard`, then `node packages/agent-guard/dist/cli.js`.
+
+The package has two independent parts:
+
+- **Transaction firewall** (`AgentWallet`, `baret analyze | sign | submit`): needs a reachable Baret analyze server. The hosted one runs on **testnet** only; for mainnet analysis run your own (`apps/server` in the repo).
+- **On-chain spending limits** (`@stellar-thorn/agent-guard/spend-policy`, `baret limits …`): needs no server, only Soroban RPC. Works on testnet and mainnet; the deployed contract addresses are built in.
+
+For the firewall: run your own server (`pnpm dev:server`, see the repo root) or use a hosted one. The server needs an API key: create a free one with `POST /v1/keys`
 (see the developer portal at `/developers` on the showcase, or `apps/server`'s `GET /openapi.json`) and pass it as `BARET_API_KEY`.
 
 ---
@@ -114,27 +126,27 @@ the agent can't sign its way around: the funds sit in a passkey-kit smart
 wallet, and the agent's key is registered on it as a signer that can only
 `transfer` one token to one merchant, within that merchant's per-payment and
 rolling 24-hour caps. The caps live in the
-[`MerchantSpendPolicy`](../../contracts/contracts/merchant-spend-policy) contract,
+[`MerchantSpendPolicy`](https://github.com/Aeztrest/Baret-Stellar/tree/main/contracts/contracts/merchant-spend-policy) contract,
 so the network refuses an over-cap or paused payment no matter what the agent
 process does. The owner's key is needed to set or change limits, never to pay.
 
 ```ts
 import { Keypair } from "@stellar/stellar-sdk";
-import { SpendPolicyOwner, payMerchant } from "@stellar-thorn/agent-guard/spend-policy";
+import { SpendPolicyOwner, payMerchant, USDC_CONTRACT_IDS } from "@stellar-thorn/agent-guard/spend-policy";
 
 // Owner, once: wallet + policy + a grant bound to the agent's key.
-const owner = new SpendPolicyOwner(ownerKeypair, { network: "testnet", policyContractId: "C…" });
+const owner = new SpendPolicyOwner(ownerKeypair, { network: "testnet" }); // or "pubnet"
 await owner.ensureWallet();
 await owner.ensurePolicyInstalled();
 await owner.grantMerchant({
-  merchant: "G…", agentPublicKey: agentKeypair.publicKey(), token: "C…", // e.g. the USDC asset contract
+  merchant: "G…", agentPublicKey: agentKeypair.publicKey(), token: USDC_CONTRACT_IDS.testnet,
   capPerTx: 5_000_000n, capPerDay: 20_000_000n, mandateSeconds: 30 * 86_400, // 0.5 / 2 USDC, 30 days
 });
 
 // Agent, any time after: only its own key.
 await payMerchant({
-  network: "testnet", policyContractId: "C…", agent: agentKeypair,
-  walletAddress: owner.walletAddress, token: "C…", merchant: "G…", amount: 1_000_000n,
+  network: "testnet", agent: agentKeypair,
+  walletAddress: owner.walletAddress, token: USDC_CONTRACT_IDS.testnet, merchant: "G…", amount: 1_000_000n,
 });
 ```
 
@@ -143,16 +155,29 @@ final until a new `grantMerchant`. A refused payment throws with the contract's
 error code (`Error(Contract, #5)` over the per-payment cap, `#6` over the 24 h
 cap, `#4` paused, `#11` revoked).
 
-It is a separate entry point, not part of the root import, and for now it runs
-under tsx or a bundler, not plain Node: passkey-kit depends on `sac-sdk`, which
-ships untranspiled TypeScript. The repo's runner wraps it:
+The policy contract defaults to the deployment for the chosen network (`MERCHANT_SPEND_POLICY_CONTRACT_IDS`; pass `policyContractId` to use your own).
+It is a separate entry point, not part of the root import, so the firewall doesn't load passkey-kit.
+
+The same from the command line, configured by environment variables:
 
 ```bash
-pnpm --filter @stellar-thorn/agent-guard spend-policy <setup|wallet|install|fund|status|pay|pause|resume|revoke|prove [--daily]>
+export BARET_NETWORK=testnet                       # or pubnet
+export BARET_OWNER_SECRET=S…                       # owner commands only
+export BARET_AGENT_PUBLIC=G… BARET_MERCHANT=G… BARET_CAP_PER_TX=0.5 BARET_CAP_PER_DAY=2
+baret limits setup                                 # wallet, policy, grant, agent signer; prints the wallet C…
+BARET_FUND_AMOUNT=5 baret limits fund              # owner moves token into the wallet
+
+export BARET_AGENT_SECRET=S… BARET_WALLET=C…       # agent side: no owner key
+baret limits pay 0.1
+baret limits status | pause | resume | revoke      # owner
+baret limits prove                                 # pays once, then shows over-cap and paused payments refused
 ```
 
-Environment variables, the testnet run and the mainnet runbook:
-[`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`](../../contracts/contracts/merchant-spend-policy/DEPLOYMENT.md#v2-and-agent-wallets).
+`BARET_TOKEN` defaults to Circle USDC on the selected network, `BARET_MANDATE_DAYS` to 30, `BARET_RPC_URL` to a public Soroban RPC, `BARET_POLICY_CONTRACT_ID` to the built-in deployment.
+Secrets are read from the environment only and never written anywhere.
+
+Deployed contracts, the testnet and mainnet runs and what each step cost:
+[`DEPLOYMENT.md`](https://github.com/Aeztrest/Baret-Stellar/blob/main/contracts/contracts/merchant-spend-policy/DEPLOYMENT.md#v2-and-agent-wallets).
 Run on testnet and, with a few USDC, on mainnet (2026-10-07); the contract is not audited.
 
 Before sending anything on mainnet, put `BARET_DRY_RUN=1` in front of the command: it builds and simulates each step, prints the fee and sends nothing.

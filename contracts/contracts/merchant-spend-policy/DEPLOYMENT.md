@@ -221,7 +221,7 @@ The three accounts and the two USDC trustlines were opened with `packages/agent-
 
 ### Runbook (testnet or mainnet)
 
-The tooling is `packages/agent-guard/src/spend-policy.ts` (library) and `packages/agent-guard/scripts/spend-policy.ts` (CLI), run with tsx. Secrets are read only from the environment; keep them in the `stellar` CLI's key store, not in files.
+The tooling is `packages/agent-guard/src/spend-policy.ts` (library) and `packages/agent-guard/src/limits-cli.ts` (CLI). In this repo it runs under tsx as `pnpm spend-policy <command>` (below); from the built or published package the same commands are `baret limits <command>`, and `BARET_POLICY_CONTRACT_ID` / `BARET_TOKEN` then default to the deployments above and Circle USDC. Secrets are read only from the environment; keep them in the `stellar` CLI's key store, not in files.
 
 ```bash
 # 1. Build and deploy the policy (any funded identity pays; there is no init and no owner)

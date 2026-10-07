@@ -312,6 +312,10 @@ function printHelp(): void {
     address           Print the agent G… address (from BARET_AGENT_SECRET)
     init              Write ~/.baret/config.json from flags / env
     policy list       List the built-in policy templates
+    limits <cmd>      On-chain spending limits for an agent (smart wallet +
+                      MerchantSpendPolicy): setup | status | pay | pause |
+                      resume | revoke | fund | prove. Configured by env vars;
+                      BARET_DRY_RUN=1 shows each fee and sends nothing.
 
   Flags
     --server <url>    Baret analyze server (env BARET_API_URL)
@@ -333,6 +337,14 @@ function printHelp(): void {
 /* ───────────────────────── entrypoint ───────────────────────── */
 
 async function main(): Promise<number> {
+  // `limits` has its own arguments and loads passkey-kit, so it is handed
+  // off before the firewall flags are parsed and only imported when used.
+  if (process.argv[2] === "limits") {
+    const { runLimitsCli } = await import("./limits-cli.js");
+    await runLimitsCli(process.argv.slice(3));
+    return EXIT_OK;
+  }
+
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
     allowPositionals: true,
