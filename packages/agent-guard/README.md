@@ -148,12 +148,16 @@ under tsx or a bundler, not plain Node: passkey-kit depends on `sac-sdk`, which
 ships untranspiled TypeScript. The repo's runner wraps it:
 
 ```bash
-pnpm --filter @stellar-thorn/agent-guard spend-policy <setup|fund|status|pay|pause|resume|revoke|prove [--daily]>
+pnpm --filter @stellar-thorn/agent-guard spend-policy <setup|wallet|install|fund|status|pay|pause|resume|revoke|prove [--daily]>
 ```
 
 Environment variables, the testnet run and the mainnet runbook:
 [`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`](../../contracts/contracts/merchant-spend-policy/DEPLOYMENT.md#v2-and-agent-wallets).
-Testnet only so far; the contract is not audited.
+Run on testnet and, with a few USDC, on mainnet (2026-10-07); the contract is not audited.
+
+Before sending anything on mainnet, put `BARET_DRY_RUN=1` in front of the command: it builds and simulates each step, prints the fee and sends nothing.
+Fees there are mostly rent and can be far from testnet's (deploying the wallet cost 44.8 XLM on mainnet against 0.5 on testnet; the reason is in the deployment record).
+Every transaction is sent at its simulated resource fee plus a 0.001 XLM inclusion bid, and the tool refuses to send one that bids more than 0.1 XLM above its resource fee.
 
 ---
 

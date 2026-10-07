@@ -2,7 +2,7 @@
 
 > Stellar Türkiye Instawards SOW'unun (gönderim 2026-07-21, önerilen başlangıç 2026-09-25, chapter lead İrem Koçi) kodla karşılaştırılmış takibi.
 > Kaynak SOW: kullanıcıdaki "2026.06._Instawards SOW - Ezgin's Project.pdf" (repoda değil; kökteki `.docx` boş şablondur).
-> Son güncelleme: 2026-10-02.
+> Son güncelleme: 2026-10-07.
 
 ## Hedef (değişmedi)
 
@@ -24,7 +24,14 @@ SOW yazıldığından beri kod ilerledi. Hedef aynı kaldı; onu gerçekleştire
 
 ## Deliverable 1: mainnet kontratı ve harcama limitleri
 
-**Durum: 🟡 kod ve testnet provası tamam, mainnet deploy'u bekliyor** (sahibin mainnet anahtarı ve onayı gerekir).
+**Durum: ✅ mainnet'te (2026-10-07).**
+
+Kanıt (SOW 6.1):
+- Kontrat: [`CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS`](https://stellar.expert/explorer/public/contract/CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS). Zincirdeki wasm hash'i (`cda12f8a…6e8611`) testnet'te denenen ve bu repodaki kaynaktan yeniden üretilen derlemeyle aynı.
+- Limitlerin kurulu olduğu akıllı cüzdan: [`CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN`](https://stellar.expert/explorer/public/contract/CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN). Tek merchant (ekibe ait test hesabı) için işlem başı 0.5 USDC, kayan 24 saatte 2 USDC, 30 gün; agent anahtarı `GD6PYZFO…XP7SOPN7`.
+- Durdur/devam ettir mainnet'te denendi: [pause](https://stellar.expert/explorer/public/tx/3f9346801dbce202aee969e43cb1c061fa5a8830dbc328152f1e0ba0fd776d5c) sonrası ödeme `#4 NotActive` ile reddedildi, [resume](https://stellar.expert/explorer/public/tx/75993dfff56ec49295537ddaffdac581471747a3d08975c1c0eba1a67138bad9) ile açıldı. `revoke` ve 24 saat tavanı mainnet'te denenmedi (testnet provasında var).
+- Ekran görüntüsü: sahip tarafından alınacak.
+- Tek satırlık not (SOW): "This is the smart contract that enforces Baret's spending limits, now running with real money."
 
 Yapılanlar (2026-10-02, dal `feat/mainnet-spend-policy`):
 
@@ -40,11 +47,9 @@ Yapılanlar (2026-10-02, dal `feat/mainnet-spend-policy`):
 
 - **Maliyet ölçümü (2026-10-03, mainnet simülasyonu):** kontrat kodunu mainnet'e yüklemek ~18.8 XLM; neredeyse tamamı kira, çünkü mainnet yeni kodu en az ~120 gün saklatır ve kirayı peşin alır. Kod 18 KB'tan 11.4 KB'a küçültüldü (spec'ten doküman yorumları ve kullanılmayan tipler çıkarıldı, `--optimize`); kod kirası modülün bellekteki boyutuna göre hesaplandığı ve büyük bir sabit kısmı olduğu için bu yalnız ~2.1 XLM kazandırdı. Owner için toplam ihtiyaç ~36 XLM (yükleme, kurulum, agent ve merchant hesaplarını owner'dan açma, trustline, pay).
 
-Kalanlar:
-
-1. Sahip, mainnet'te XLM'li bir anahtar oluşturur (`stellar keys`); agent ve test merchant hesapları da açılır. Merchant'ın USDC trustline'ı olmalı.
-2. Kontrat mainnet'e deploy edilir, `spend-policy setup` ile cüzdan, policy ve merchant yetkisi kurulur, `pause`/`resume` mainnet'te bir kez denenir.
-3. Kanıt: stellar.expert kontrat linki ve ekran görüntüsü (SOW 6.1).
+- **Mainnet'te gerçekleşen maliyet (tahsil edilen):** kontrat yükleme 16.33 XLM, akıllı cüzdan 44.77 XLM, geri kalan her şey toplam 0.4 XLM'in altında. Cüzdan adımı öngörülmemişti: passkey-kit'in ortak cüzdan kodunun mainnet'te 46 gün ömrü kalmıştı ve cüzdan kurulurken kendi kodunu ~180 güne uzatıp kirasını kurana ödetiyor (testnet'te kod zaten en üst sınırda olduğu için provada 0.5 XLM görünmüştü). Ürün mainnet'e çıkarsa hesaba katılmalı: kod kullanılmadıkça kira birikir ve bir sonraki işlemi yapan öder.
+- **Mainnet'in ortaya çıkardığı iki araç hatası (düzeltildi, para kaybı yok):** SDK'nın imzalama adımı ücret teklifini iki katına çıkarıyordu (51 yerine 103 XLM; ağ "yetersiz bakiye" diye reddetti), ve varsayılan öncelik teklifi (100 stroop) ile 30 saniyelik süre mainnet'teki sırada yetmedi (işlem ledger'a girmeden düştü). Araç artık işlemi kendisi imzalıyor, teklifi kaynak ücreti + 0.001 XLM yapıyor, bunun 0.1 XLM üstünü göndermeyi reddediyor ve `BARET_DRY_RUN=1` ile göndermeden ücret gösteriyor.
+- **Süreç notu:** PR #56, kontratı küçülten commit gönderilmeden önce merge edildi; mainnet'e çıkan derlemenin kaynağı `main`'e bu kaydı taşıyan PR ile girdi.
 
 ## Deliverable 2: npm paketi
 
@@ -53,11 +58,15 @@ Ayrıca `swig-guard` workspace bağımlılığı ya birlikte yayımlanmalı ya d
 
 ## Deliverable 3: uçtan uca mainnet ödemesi
 
-**Durum: ⏳.** Akış testnet'te çalışıyor (`spend-policy prove`). Mainnet'te tek bir tavan içi ödeme yapılır; tx hash'i, stellar.expert linki ve bir sayfalık açıklama hazırlanır.
+**Durum: 🟡 ödeme yapıldı (2026-10-07); SOW'un istediği "npm'den kurulan agent-guard ile" kısmı Deliverable 2'yi bekliyor.**
+
+- İşlem: [`4d3d6490…54868d60`](https://stellar.expert/explorer/public/tx/4d3d6490ff815fd5f942e9960d93d128c396b92e649de998d0122d7554868d60) (ledger 64823727). Agent, akıllı cüzdandan merchant'a 0.1 USDC ödedi.
+- Zincirden doğrulandı: işlemin kaynak hesabı agent, zarfta tek imza var ve agent'a ait (sahip anahtarı imzalamadı), işlem USDC `transfer(cüzdan → merchant, 0.1)`, bakiyeler 5 / 0 → 4.9 / 0.1 USDC. Aynı koşuda 0.5000001 USDC'lik ödeme kontrat tarafından `#5 ExceedsPerTx` ile reddedildi.
+- Ödeme repodaki `agent-guard` aracıyla (`spend-policy prove`) yapıldı. Paket npm'de yayımlandıktan sonra aynı ödeme yayımlanan paketle bir kez daha yapılırsa SOW'un cümlesi birebir karşılanır.
+- Kalan: bir sayfalık açıklama ya da kısa ekran kaydı (SOW 6.1).
 
 ## Sahipten gerekenler
 
-- Mainnet'te birkaç XLM'li sahip anahtarı (deploy ve kira ücretleri) ve agent hesabı için birkaç XLM (agent kendi ücretini öder).
-- Kanıt ödemeleri için birkaç dolarlık USDC.
-- npm hesabı ve kapsam kararı.
-- Mainnet'e giden her adım için açık onay.
+- Deliverable 1 için stellar.expert kontrat sayfasının ekran görüntüsü.
+- Deliverable 2 için npm hesabı ve kapsam (scope) kararı.
+- Mainnet hesapları sahibin `stellar` CLI deposunda (`baret-owner`, `baret-agent`, `baret-merchant`); gizli anahtarlar repoda ya da herhangi bir dosyada değil. Mainnet işlemlerini sahip kendi terminalinden çalıştırır.

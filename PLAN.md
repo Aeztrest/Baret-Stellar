@@ -416,6 +416,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-10-07 | Instawards D1 ✅ mainnet: MerchantSpendPolicy v2 `CCFFBHBK…VMDKDNOS`, agent cüzdanı `CC5RDVZP…ZQZ2SGN` (0.5 / 2 USDC), durdur/devam denendi; D3 ödemesi yapıldı (`4d3d6490…`). `spend-policy` aracında iki mainnet hatası düzeltildi (çift ücret teklifi, düşük öncelik teklifi + kısa süre), `BARET_DRY_RUN` eklendi. Ayrıntı `docs/instawards-sow.md`. |
 | 2026-10-02 | Instawards SOW (güncel PDF) esas alındı: D1 = MerchantSpendPolicy v2 + agent cüzdanı mainnet'te (PaymentGuard yerine; gerekçe `docs/instawards-sow.md`). T3.1 kodu ve testnet provası ✅; `agent-guard`'a `spend-policy` alt yolu (SDK 16 + passkey-kit). |
 | 2026-09-20 (ilerleme 13) | T2.4 1. kısım: SEP-6 çekme koruması (anchor'a imza anında sorup tek `payment`'ı birebir doğrular, fail-closed; `ACCOUNTS` 24 saat önbellekli, sıradan ödeme istek atmaz); 81 yeni test, 27 mutasyon (2 boşluk bulunup kapatıldı). Baret'in kendi çekme akışı 2. kısımda. |
 | 2026-09-20 (ilerleme 12) | T1.7 ✅: cüzdanın kendi gönderdiği işlemler (gönderim, trustline, Friendbot) geçmişe yazılıyor, monitör onları drift saymıyor; 6 yeni test, 6 mutasyon, gerçek tarayıcıda doğrulandı. Gelen işlemlerin drift sayılması ve relay'li işlemlerin eşleşmesi açık (T0.7). |
