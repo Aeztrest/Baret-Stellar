@@ -51,6 +51,22 @@ import type { StellarNetwork } from "@stellar-thorn/swig-guard";
 export const SMART_WALLET_WASM_HASH =
   "fdefad64b96837147e1c333e51f537b696eab925e9f147e63d597c04e3c903f0";
 
+/**
+ * Deployed MerchantSpendPolicy v2 per network (same wasm on both; see
+ * contracts/contracts/merchant-spend-policy/DEPLOYMENT.md). Used when
+ * `policyContractId` is not given.
+ */
+export const MERCHANT_SPEND_POLICY_CONTRACT_IDS: Record<StellarNetwork, string> = {
+  testnet: "CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH",
+  pubnet: "CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS",
+};
+
+/** Circle USDC's Stellar Asset Contract per network. */
+export const USDC_CONTRACT_IDS: Record<StellarNetwork, string> = {
+  testnet: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+  pubnet: "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+};
+
 export const SOROBAN_RPC_ENDPOINTS: Record<StellarNetwork, string> = {
   testnet: "https://soroban-testnet.stellar.org",
   // SDF runs no public mainnet RPC; this is one of the free providers listed
@@ -86,8 +102,8 @@ const MAX_INCLUSION_BID_STROOPS = 1_000_000n;
 
 export interface SpendPolicyNetworkOptions {
   network: StellarNetwork;
-  /** Deployed MerchantSpendPolicy contract (`C…`) on that network. */
-  policyContractId: string;
+  /** MerchantSpendPolicy contract (`C…`). Defaults to MERCHANT_SPEND_POLICY_CONTRACT_IDS[network]. */
+  policyContractId?: string;
   /** Defaults to SOROBAN_RPC_ENDPOINTS[network]. */
   rpcUrl?: string;
   /**
@@ -173,11 +189,12 @@ export class SpendPolicyOwner {
     private readonly owner: Keypair,
     opts: SpendPolicyNetworkOptions,
   ) {
-    assertContract(opts.policyContractId, "policyContractId");
+    const policyContractId = opts.policyContractId ?? MERCHANT_SPEND_POLICY_CONTRACT_IDS[opts.network];
+    assertContract(policyContractId, "policyContractId");
     this.network = opts.network;
     this.networkPassphrase = NETWORK_PASSPHRASES[opts.network];
     this.rpcUrl = opts.rpcUrl ?? SOROBAN_RPC_ENDPOINTS[opts.network];
-    this.policyContractId = opts.policyContractId;
+    this.policyContractId = policyContractId;
     this.server = new rpc.Server(this.rpcUrl);
     this.dryRun = opts.dryRun ?? false;
     this.onFee = opts.onFee;
@@ -497,7 +514,7 @@ export async function getMerchantAllowance(
   opts: SpendPolicyNetworkOptions & { walletAddress: string; merchant: string; publicKey: string },
 ): Promise<AllowanceView> {
   const client = (await SorobanClient.from<PolicyClient>({
-    contractId: opts.policyContractId,
+    contractId: opts.policyContractId ?? MERCHANT_SPEND_POLICY_CONTRACT_IDS[opts.network],
     rpcUrl: opts.rpcUrl ?? SOROBAN_RPC_ENDPOINTS[opts.network],
     networkPassphrase: NETWORK_PASSPHRASES[opts.network],
     publicKey: opts.publicKey,

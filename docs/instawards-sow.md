@@ -53,8 +53,20 @@ Yapılanlar (2026-10-02, dal `feat/mainnet-spend-policy`):
 
 ## Deliverable 2: npm paketi
 
-**Durum: ⏳.** Bilinen engel: passkey-kit'in bağımlısı `sac-sdk` derlenmemiş TypeScript dağıtıyor; paket düz Node'da çalışsın diye yayından önce derlemede içine gömülmeli (bundling).
-Ayrıca `swig-guard` workspace bağımlılığı ya birlikte yayımlanmalı ya da gömülmeli. npm kapsamı (scope) kesinleşmeli.
+**Durum: 🟡 paket yayına hazır, npm'e yükleme sahibi bekliyor.**
+
+Yapılanlar (2026-10-07, dal `feat/publish-agent-guard`):
+- Paket `tsup` ile paketleniyor: yayımlanmayan `swig-guard` ve düz Node'da yüklenemeyen passkey-kit (`sac-sdk` derlenmemiş TypeScript dağıtıyor) `dist/` içine gömülü. Tek çalışma zamanı bağımlılığı `@stellar/stellar-sdk`.
+- Limit komutları `baret` CLI'ına taşındı (`baret limits setup | pay | pause | resume | revoke | status | fund | prove`); mainnet ve testnet kontrat adresleri ile USDC adresi pakette gömülü, yani paket "mainnet kontratına bağlı" geliyor.
+- `private` kaldırıldı; lisans (MIT), depo, sürüm (0.1.0), `publishConfig.access: public` eklendi.
+- **Kurulum testi:** `npm pack` çıktısı repo dışında boş bir klasöre kuruldu ve düz Node ile çalıştırıldı: `baret --help`, iki giriş noktasının içe aktarımı ve tipleri, mainnet'teki limitin okunması, ve testnet'te baştan sona kurulum + agent ödemesi + tavan üstü / durdurulmuş ödeme retleri geçti. SOW 3. hafta çıktısındaki "agent-guard üzerinden deneme ödemesi" bu.
+
+SOW'dan sapma: SOW "mainnet analyze sunucusuna bağlı" diyor. Analiz sunucusu tek ağa bağlı çalışır ve barındırılan sunucu testnet'tedir; paketin güvenlik duvarı kısmı (`AgentWallet`, `baret analyze/sign/submit`) mainnet'te ancak kullanıcının kendi çalıştırdığı bir sunucuyla kullanılabilir. Zincir üstü limit kısmı sunucu gerektirmez ve mainnet'te çalışır. README bunu açıkça yazar.
+
+Kalanlar (sahip):
+1. npm hesabı ve `stellar-thorn` organizasyonu (kapsam 2026-10-07'de npm'de boştaydı).
+2. `npm login`, ardından `packages/agent-guard` içinde `npm publish`.
+3. Kanıt: `npmjs.com/package/@stellar-thorn/agent-guard` linki (SOW 6.1).
 
 ## Deliverable 3: uçtan uca mainnet ödemesi
 
@@ -68,5 +80,5 @@ Ayrıca `swig-guard` workspace bağımlılığı ya birlikte yayımlanmalı ya d
 ## Sahipten gerekenler
 
 - Deliverable 1 için stellar.expert kontrat sayfasının ekran görüntüsü.
-- Deliverable 2 için npm hesabı ve kapsam (scope) kararı.
+- Deliverable 2 için npm hesabı, `stellar-thorn` organizasyonu ve `npm publish`.
 - Mainnet hesapları sahibin `stellar` CLI deposunda (`baret-owner`, `baret-agent`, `baret-merchant`); gizli anahtarlar repoda ya da herhangi bir dosyada değil. Mainnet işlemlerini sahip kendi terminalinden çalıştırır.
