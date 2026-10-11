@@ -6,24 +6,19 @@
 
 ## Kaldığımız yer (2026-10-11)
 
-Başka bir bilgisayardan ya da yeni bir oturumdan devam ederken önce burayı oku. Kodun tamamı `main`'de (PR #56, #57, #58 merge edildi); açık dal ya da gönderilmemiş commit yok.
+Başka bir bilgisayardan ya da yeni bir oturumdan devam ederken önce burayı oku. Kodun tamamı `main`'de (PR #56-#58, #60, #61 merge edildi).
 
 | Teslimat | Durum | Kalan |
 |---|---|---|
 | D1: mainnet kontratı ve limitler | ✅ | Kontrat sayfasının ekran görüntüsü (sahip) |
-| D2: npm paketi | 🟡 paket hazır, **npm'e yüklenmedi** | npm hesabı, `stellar-thorn` organizasyonu, `npm publish` (sahip) |
-| D3: mainnet agent ödemesi | 🟡 ödeme yapıldı, açıklama yazıldı | Yayımlanan paketle bir ödeme daha; hash'i açıklamaya eklenecek |
+| D2: npm paketi | ✅ npm'de (2026-10-11) | Yok |
+| D3: mainnet agent ödemesi | 🟡 ödeme yapıldı, açıklama yazıldı | npm'den kurulan paketle bir ödeme daha; hash'i açıklamaya eklenecek |
 
 **Sıradaki adımlar, sırayla:**
 
-1. **npm (sahip):** [npmjs.com/signup](https://www.npmjs.com/signup) ile hesap (2FA ister), sonra [npmjs.com/org/create](https://www.npmjs.com/org/create) ile ücretsiz `stellar-thorn` organizasyonu. 2026-10-11'de kapsam npm'de hâlâ boştaydı ve paket yayımlanmamıştı.
-2. **Yayın (sahip çalıştırır):** güncel `main`'de
-   ```bash
-   pnpm install && pnpm build:guard
-   npm login
-   cd packages/agent-guard && npm publish      # prepublishOnly: typecheck + test + build
-   ```
-3. **Doğrulama:** `npmjs.com/package/@stellar-thorn/agent-guard` açılıyor mu; boş bir klasörde `npm install @stellar-thorn/agent-guard && npx baret --help` çalışıyor mu. Bu link D2'nin kanıtıdır (SOW 6.1).
+1. ~~npm hesabı ve `stellar-thorn` organizasyonu~~ ✅ 2026-10-11 (npm kullanıcısı `buildonbaret`, organizasyonun sahibi).
+2. ~~Yayın~~ ✅ 2026-10-11: `@stellar-thorn/agent-guard@0.1.0`, güncel `main`'den (`42db031`), sahip kendi terminalinden `npm publish` ile yayımladı. Hesapta 2FA açık olmalı; yayın tarayıcıda onay ister, bu yüzden etkileşimli bir terminalde çalıştırılır.
+3. ~~Doğrulama~~ ✅ 2026-10-11: [`npmjs.com/package/@stellar-thorn/agent-guard`](https://www.npmjs.com/package/@stellar-thorn/agent-guard) açık; boş bir klasörde `npm install @stellar-thorn/agent-guard && npx baret --help` çalıştı. Bu link D2'nin kanıtıdır (SOW 6.1).
 4. **D3'ü birebir karşılamak (sahip çalıştırır, mainnet, 0.1 USDC):** yayımlanan paketin kurulu olduğu klasörde
    ```bash
    BARET_NETWORK=pubnet BARET_AGENT_SECRET=$(stellar keys show baret-agent) \
@@ -123,7 +118,7 @@ SOW yazıldığından beri kod ilerledi. Hedef aynı kaldı; onu gerçekleştire
 | Agent `pay()` çağırır | Agent, cüzdanda yalnız tek token'a ve tek merchant'a kapsamlı **alt anahtar** olarak imza atar; cüzdan her ödemede policy'ye sorar | Agent'ın kimliği zincirde doğrulanır; sızan agent anahtarı başka merchant'a, başka token'a ya da tavan üstüne ödeme yapamaz. |
 | İşlem başı tavan, kayan 24 saat tavanı, anında durdur/iptal | Aynen var | `set_allowance`, `pause`/`resume`/`revoke`; v2'de iptal kalıcı. |
 | SOW bütçesindeki iki güvenlik düzeltmesi (yetkisiz `init()`, kayan olmayan günlük tavan) | MerchantSpendPolicy'de `init` yok; günlük tavan baştan beri gerçek kayan pencere | Bu iki açık PaymentGuard'a özgüydü. Bu turda MerchantSpendPolicy için yapılan sertleştirme aşağıda. |
-| npm paketi `@stellar-thorn/agent-guard` | Aynı paket, `spend-policy` alt yolu eklendi | Paket adı npm'de hangi kapsam bize aitse ona göre kesinleşecek (`@stellar-thorn` kapsamının sahipliği doğrulanmadı). |
+| npm paketi `@stellar-thorn/agent-guard` | Aynı paket, `spend-policy` alt yolu eklendi | `@stellar-thorn` kapsamı 2026-10-11'den beri bizim (npm organizasyonu `stellar-thorn`); paket SOW'daki adla yayımlandı. |
 
 ## Deliverable 1: mainnet kontratı ve harcama limitleri
 
@@ -156,7 +151,10 @@ Yapılanlar (2026-10-02, dal `feat/mainnet-spend-policy`):
 
 ## Deliverable 2: npm paketi
 
-**Durum: 🟡 paket yayına hazır, npm'e yükleme sahibi bekliyor.**
+**Durum: ✅ npm'de (2026-10-11).**
+
+Kanıt (SOW 6.1): [`npmjs.com/package/@stellar-thorn/agent-guard`](https://www.npmjs.com/package/@stellar-thorn/agent-guard), sürüm 0.1.0, yayın 2026-10-11 02:01 UTC, shasum `78029c8344d1e10825820702c82dcfd84eae0b76` (yayından önceki `npm publish --dry-run` çıktısıyla aynı).
+Yayından sonra kayıt defterinden boş bir klasöre kurulup doğrulandı: `npx baret --help` çalışıyor, iki giriş noktası (`.` ve `./spend-policy`) içe aktarılıyor, gömülü kontrat adresleri doğru, ve `npx baret limits allowance` mainnet'teki yetkiyi anahtarsız okuyor (`Active`, 0.5 / 2 USDC, bitiş 2026-11-06).
 
 Yapılanlar (2026-10-07, PR #58):
 - Paket `tsup` ile paketleniyor: yayımlanmayan `swig-guard` ve düz Node'da yüklenemeyen passkey-kit (`sac-sdk` derlenmemiş TypeScript dağıtıyor) `dist/` içine gömülü. Tek çalışma zamanı bağımlılığı `@stellar/stellar-sdk`.
@@ -166,23 +164,21 @@ Yapılanlar (2026-10-07, PR #58):
 
 SOW'dan sapma: SOW "mainnet analyze sunucusuna bağlı" diyor. Analiz sunucusu tek ağa bağlı çalışır ve barındırılan sunucu testnet'tedir; paketin güvenlik duvarı kısmı (`AgentWallet`, `baret analyze/sign/submit`) mainnet'te ancak kullanıcının kendi çalıştırdığı bir sunucuyla kullanılabilir. Zincir üstü limit kısmı sunucu gerektirmez ve mainnet'te çalışır. README bunu açıkça yazar.
 
-Kalanlar (sahip):
-1. npm hesabı ve `stellar-thorn` organizasyonu (kapsam 2026-10-07'de npm'de boştaydı).
-2. `npm login`, ardından `packages/agent-guard` içinde `npm publish`.
-3. Kanıt: `npmjs.com/package/@stellar-thorn/agent-guard` linki (SOW 6.1).
+Bilinen küçük not: yayın sırasında npm `bin` yolundaki `./` önekini kendisi temizledi (uyarı verdi); kurulu pakette `baret` komutu çalışıyor.
 
 ## Deliverable 3: uçtan uca mainnet ödemesi
 
-**Durum: 🟡 ödeme yapıldı (2026-10-07); SOW'un istediği "npm'den kurulan agent-guard ile" kısmı Deliverable 2'yi bekliyor.**
+**Durum: 🟡 ödeme yapıldı (2026-10-07); SOW'un istediği "npm'den kurulan agent-guard ile" kısmı için paket artık npm'de; ödemenin tekrarı agent anahtarının bulunduğu bilgisayarda yapılacak.**
 
 - İşlem: [`4d3d6490…54868d60`](https://stellar.expert/explorer/public/tx/4d3d6490ff815fd5f942e9960d93d128c396b92e649de998d0122d7554868d60) (ledger 64823727). Agent, akıllı cüzdandan merchant'a 0.1 USDC ödedi.
 - Zincirden doğrulandı: işlemin kaynak hesabı agent, zarfta tek imza var ve agent'a ait (sahip anahtarı imzalamadı), işlem USDC `transfer(cüzdan → merchant, 0.1)`, bakiyeler 5 / 0 → 4.9 / 0.1 USDC. Aynı koşuda 0.5000001 USDC'lik ödeme kontrat tarafından `#5 ExceedsPerTx` ile reddedildi.
-- Ödeme repodaki `agent-guard` aracıyla (`spend-policy prove`) yapıldı. Paket npm'de yayımlandıktan sonra aynı ödeme yayımlanan paketle bir kez daha yapılırsa SOW'un cümlesi birebir karşılanır.
+- Ödeme repodaki `agent-guard` aracıyla (`spend-policy prove`) yapıldı. Paket 2026-10-11'de yayımlandı; aynı ödeme npm'den kurulan paketle bir kez daha yapılırsa SOW'un cümlesi birebir karşılanır ("Sıradaki adımlar" 4).
 - Bir sayfalık açıklama (SOW 6.1): [`instawards-payment-proof.md`](./instawards-payment-proof.md). 2026-10-11'de zincire karşı yeniden doğrulandı: Horizon'da işlem başarılı, kaynak ve tek imza agent'a ait, `transfer(cüzdan → merchant, 0.1 USDC)`, merchant bakiyesi 0.1 USDC; kontrattan okunan yetki `Active`, 0.5 / 2 USDC, bitiş 2026-11-06.
 - Kalan: yayımlanan paketle ikinci ödeme ve hash'inin açıklamaya eklenmesi.
 
 ## Sahipten gerekenler
 
 - Deliverable 1 için stellar.expert kontrat sayfasının ekran görüntüsü.
-- Deliverable 2 için npm hesabı, `stellar-thorn` organizasyonu ve `npm publish`.
+- Deliverable 3 için npm'den kurulan paketle ikinci mainnet ödemesi (agent anahtarı ilk bilgisayarda).
+- npm hesabının (`buildonbaret`) 2FA kurtarma kodlarının şifre yöneticisinde saklanması; hesap kaybedilirse pakete yeni sürüm yayımlanamaz.
 - Mainnet hesapları sahibin `stellar` CLI deposunda (`baret-owner`, `baret-agent`, `baret-merchant`); gizli anahtarlar repoda ya da herhangi bir dosyada değil. Mainnet işlemlerini sahip kendi terminalinden çalıştırır.

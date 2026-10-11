@@ -420,6 +420,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-10-11 | Instawards D2 ✅: `@stellar-thorn/agent-guard@0.1.0` npm'de; kayıt defterinden kurulup doğrulandı. Kalan: npm'den kurulan paketle ikinci mainnet ödemesi (D3). |
 | 2026-10-11 | T3.2 🟡: eklenti testnet'te MerchantSpendPolicy v2'ye geçti (ağ başına adres, alt anahtar başına `policyContractId`, mandate ≤ 365 gün); tarayıcıda uçtan uca koşulmadı. Instawards D3 kanıt notu yazıldı (`docs/instawards-payment-proof.md`). |
 | 2026-10-07 | Instawards D1 ✅ mainnet: MerchantSpendPolicy v2 `CCFFBHBK…VMDKDNOS`, agent cüzdanı `CC5RDVZP…ZQZ2SGN` (0.5 / 2 USDC), durdur/devam denendi; D3 ödemesi yapıldı (`4d3d6490…`). `spend-policy` aracında iki mainnet hatası düzeltildi (çift ücret teklifi, düşük öncelik teklifi + kısa süre), `BARET_DRY_RUN` eklendi. Ayrıntı `docs/instawards-sow.md`. |
 | 2026-10-02 | Instawards SOW (güncel PDF) esas alındı: D1 = MerchantSpendPolicy v2 + agent cüzdanı mainnet'te (PaymentGuard yerine; gerekçe `docs/instawards-sow.md`). T3.1 kodu ve testnet provası ✅; `agent-guard`'a `spend-policy` alt yolu (SDK 16 + passkey-kit). |
