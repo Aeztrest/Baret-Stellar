@@ -47,8 +47,59 @@ Başka bir bilgisayardan ya da yeni bir oturumdan devam ederken önce burayı ok
 **Yeni bir bilgisayarda gerekenler:**
 
 - Repo: `git clone`, `pnpm install` (Node ≥ 20, pnpm 9.15). Kontratı yeniden derlemek gerekirse Rust ve `stellar` CLI (kayıtlar stellar-cli 26.0.0 ile alındı).
-- **Mainnet anahtarları repoda değildir ve kendiliğinden taşınmaz.** Yalnız ilk bilgisayardaki `stellar` CLI deposundadır (`~/.config/stellar/identity/`). Mainnet adımı çalıştırılacak bilgisayara sahibin yedeğinden elle eklenir: `stellar keys add baret-agent --secret-key` (anahtarı istemde sorar; komut satırına, `.env`'e ya da sohbete yazılmaz). 4. adım için yalnız `baret-agent` yeter; limit değiştirmek, durdurmak ya da cüzdana para koymak `baret-owner` ister.
-- SOW'un kendisi (PDF) repoda değildir; sahiptedir.
+- Mainnet anahtarları: aşağıdaki "Anahtarlar" bölümü. npm yayını (1-3. adımlar) için **hiçbir Stellar anahtarı gerekmez**.
+- SOW'un kendisi (PDF) repoda değildir; sahiptedir (ilk bilgisayarda `~/İndirilenler/2026.06._Instawards SOW - Ezgin's Project.pdf`).
+
+### Anahtarlar: nerede, nasıl alınır, nasıl taşınır
+
+Gizli anahtarlar **yalnız ilk bilgisayardadır** (bu işin yapıldığı Manjaro makinesi), `stellar` CLI'ın deposunda: `~/.config/stellar/identity/<ad>.toml`. Her dosya o hesabın 24 kelimelik seed phrase'ini **şifresiz** tutar. Repoda, `.env`'de ya da herhangi bir sohbette yoklar ve olmamalılar.
+
+| Ad | Ne işe yarar | Ne zaman gerekir |
+|---|---|---|
+| `baret-agent` | Agent'ın anahtarı; cüzdandan tavan içinde ödeme yapar, kendi ücretini öder | 4. adımdaki ödeme |
+| `baret-owner` | Akıllı cüzdanın tek yöneticisi; limit verir, durdurur, iptal eder, cüzdana para koyar. **Kaybolursa cüzdandaki USDC'ye ve limit ayarlarına bir daha erişilemez** | Limit yenileme (yetki 2026-11-06'da doluyor), durdurma, para ekleme/çekme |
+| `baret-merchant` | Ödemeyi alan test hesabı | Yalnız aldığı USDC'yi başka yere göndermek için |
+
+Testnet prova anahtarları (`baret-rh*`) değersizdir; taşımaya gerek yok, gerekirse `stellar keys generate <ad> --network testnet --fund` ile yenisi açılır.
+
+**İlk bilgisayarda anahtarı almak** (terminalde; çıktı `S…` ile başlayan gizli anahtardır):
+
+```bash
+stellar keys secret baret-agent      # `stellar keys show <ad>` aynı çıktıyı verir (stellar-cli 26)
+stellar keys secret baret-owner
+stellar keys secret baret-merchant
+```
+
+**Taşımak:** çıktıyı bir şifre yöneticisine (Bitwarden, 1Password vb.) kaydedin ve diğer bilgisayarda oradan okuyun. E-posta, mesajlaşma uygulaması, not dosyası, git ya da bir AI sohbeti kullanmayın: bu anahtarı gören herkes hesabı boşaltabilir.
+Alternatif: `~/.config/stellar/identity/baret-agent.toml` (ve gerekiyorsa `baret-owner.toml`, `baret-merchant.toml`) dosyalarını USB ya da `scp` ile diğer bilgisayarda aynı yola kopyalamak. Dosya seed phrase'i şifresiz taşır; aradaki ortamdan sonra silin.
+
+**Diğer bilgisayara eklemek ve doğrulamak:**
+
+```bash
+stellar keys add baret-agent --secret-key     # gizli anahtarı istemde sorar; komut satırına yazılmaz
+stellar keys address baret-agent              # yukarıdaki tablodaki G… adresiyle AYNI olmalı
+```
+
+Adres tabloyla aynı değilse yanlış anahtar eklenmiştir; hiçbir işlem göndermeyin. Anahtarı `--secure-store` ile eklemeyin: araç gizli anahtarı `stellar keys show` ile okur, işletim sistemi kasasındaki anahtarı okuyamaz (doğrulanmadı; düz depoyla çalıştığı doğrulandı).
+
+**Yedek:** üç anahtarın şifre yöneticisinde durması aynı zamanda yedektir. İlk bilgisayarın diski bozulursa ve yedek yoksa mainnet hesapları kalıcı olarak kaybolur; kimse, hiçbir araç geri getiremez.
+
+### Yalnız ilk bilgisayarda duran diğer şeyler
+
+Kalan Instawards adımları için **hiçbiri gerekmez**; eksik sanılıp aranmasınlar diye listeli.
+
+| Ne | Nerede | Gerekirse |
+|---|---|---|
+| Yerel sunucu ayarı | `apps/server/.env` (git'e girmez) | Sunucuyu yerelde çalıştırmak için: `apps/server/.env.example`'dan kopyalayın; demo satıcı anahtarını `pnpm --filter @stellar-thorn/server x402-setup` yeniden üretir (testnet) |
+| Asistanın hafıza notları | `~/.claude/projects/…BaretStellar/memory/` | İçeriğin tamamı bu dosyaya taşındı |
+| Eski bir çalışma kopyası | `git stash list` → "pre-sync snapshot 2026-10-02" | İçeriği zaten `main`'de (PR #43); silinebilir |
+| `gh` ve `npm` oturumları | Makineye özgü | Diğer bilgisayarda `gh auth login`, `npm login` |
+
+### Bir şey bulunamazsa
+
+1. **Önce zincire ve repoya bakın.** Adresler, işlemler, bakiyeler ve limitler herkese açıktır: yukarıdaki tablodaki linkler, `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` ve (anahtarsız) `BARET_NETWORK=pubnet BARET_WALLET=<cüzdan> BARET_MERCHANT=<merchant> BARET_AGENT_PUBLIC=<agent> npx baret limits allowance`.
+2. **Yalnız ilk bilgisayarın bildiği tek şey gizli anahtarlardır** (ve yukarıdaki tablodakiler). Bunlar için ilk bilgisayara dönmek gerekir: terminalde yukarıdaki `stellar keys secret` komutları yeterlidir, asistana sormaya gerek yoktur. O bilgisayardaki asistan oturumu `claude --resume` ile sürdürülebilir ve yerel dosyalara bakabilir, ama gizli anahtarı sohbete yazdırmayın; komutu kendiniz çalıştırıp çıktıyı doğrudan şifre yöneticisine alın.
+3. **Diğer bilgisayardaki asistan** bu konuşmayı bilmez; bu dosyayı ve `AGENTS.md`'yi okutarak başlayın. Bu dosyada olmayan ve repodan/zincirden çıkarılamayan bir bilgi lazım olursa, o bilgi ya ilk bilgisayardadır ya da sahiptedir (npm hesabı, SOW PDF'i, şifre yöneticisi).
 
 **Çalışma kuralları (bu iş için, `AGENTS.md`'ye ek):**
 
