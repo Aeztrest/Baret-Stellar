@@ -2,7 +2,110 @@
 
 > Stellar Türkiye Instawards SOW'unun (gönderim 2026-07-21, önerilen başlangıç 2026-09-25, chapter lead İrem Koçi) kodla karşılaştırılmış takibi.
 > Kaynak SOW: kullanıcıdaki "2026.06._Instawards SOW - Ezgin's Project.pdf" (repoda değil; kökteki `.docx` boş şablondur).
-> Son güncelleme: 2026-10-07.
+> Son güncelleme: 2026-10-11.
+
+## Kaldığımız yer (2026-10-11)
+
+Başka bir bilgisayardan ya da yeni bir oturumdan devam ederken önce burayı oku. Kodun tamamı `main`'de (PR #56, #57, #58 merge edildi); açık dal ya da gönderilmemiş commit yok.
+
+| Teslimat | Durum | Kalan |
+|---|---|---|
+| D1: mainnet kontratı ve limitler | ✅ | Kontrat sayfasının ekran görüntüsü (sahip) |
+| D2: npm paketi | 🟡 paket hazır, **npm'e yüklenmedi** | npm hesabı, `stellar-thorn` organizasyonu, `npm publish` (sahip) |
+| D3: mainnet agent ödemesi | 🟡 ödeme yapıldı | Yayımlanan paketle bir ödeme daha; bir sayfalık açıklama |
+
+**Sıradaki adımlar, sırayla:**
+
+1. **npm (sahip):** [npmjs.com/signup](https://www.npmjs.com/signup) ile hesap (2FA ister), sonra [npmjs.com/org/create](https://www.npmjs.com/org/create) ile ücretsiz `stellar-thorn` organizasyonu. 2026-10-11'de kapsam npm'de hâlâ boştaydı ve paket yayımlanmamıştı.
+2. **Yayın (sahip çalıştırır):** güncel `main`'de
+   ```bash
+   pnpm install && pnpm build:guard
+   npm login
+   cd packages/agent-guard && npm publish      # prepublishOnly: typecheck + test + build
+   ```
+3. **Doğrulama:** `npmjs.com/package/@stellar-thorn/agent-guard` açılıyor mu; boş bir klasörde `npm install @stellar-thorn/agent-guard && npx baret --help` çalışıyor mu. Bu link D2'nin kanıtıdır (SOW 6.1).
+4. **D3'ü birebir karşılamak (sahip çalıştırır, mainnet, 0.1 USDC):** yayımlanan paketin kurulu olduğu klasörde
+   ```bash
+   BARET_NETWORK=pubnet BARET_AGENT_SECRET=$(stellar keys show baret-agent) \
+   BARET_WALLET=CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN \
+   BARET_MERCHANT=GDEQU656DRS7X6AEZPIFQFYTEV6PT4RLZI6JCQNWKJH46VKTLTSAD3OU \
+   npx baret limits pay 0.1
+   ```
+   Önce başına `BARET_DRY_RUN=1` koyup ücrete bak. Kontrat ve USDC adresleri pakette gömülüdür. Cüzdanda 4.9 USDC, günlük tavanda yer var; yetki 2026-11-06'da doluyor (sonrası için sahip `baret limits setup` ile yeniler).
+5. **Yazılı kanıt:** D3 için bir sayfalık açıklama (SOW 6.1) ve bu dosyadaki durumların güncellenmesi.
+
+**Mainnet'teki adresler** (hepsi zincirde herkese açık):
+
+| | Adres |
+|---|---|
+| Kontrat (MerchantSpendPolicy v2) | [`CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS`](https://stellar.expert/explorer/public/contract/CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS) |
+| Akıllı cüzdan | [`CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN`](https://stellar.expert/explorer/public/contract/CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN) |
+| Sahip (`baret-owner`) | `GAKJRNJEBNJEC2GV5LLQ4N3ZGYHJ3RADMCICD2KFUY6P3QCGEL7IZKP6` |
+| Agent (`baret-agent`) | `GD6PYZFOOHXC22UIFKQFD4VXRPU7H5XL6SJ7NUS67LH2URHZXP7SOPN7` |
+| Merchant (`baret-merchant`) | `GDEQU656DRS7X6AEZPIFQFYTEV6PT4RLZI6JCQNWKJH46VKTLTSAD3OU` |
+
+**Yeni bir bilgisayarda gerekenler:**
+
+- Repo: `git clone`, `pnpm install` (Node ≥ 20, pnpm 9.15). Kontratı yeniden derlemek gerekirse Rust ve `stellar` CLI (kayıtlar stellar-cli 26.0.0 ile alındı).
+- Mainnet anahtarları: aşağıdaki "Anahtarlar" bölümü. npm yayını (1-3. adımlar) için **hiçbir Stellar anahtarı gerekmez**.
+- SOW'un kendisi (PDF) repoda değildir; sahiptedir (ilk bilgisayarda `~/İndirilenler/2026.06._Instawards SOW - Ezgin's Project.pdf`).
+
+### Anahtarlar: nerede, nasıl alınır, nasıl taşınır
+
+Gizli anahtarlar **yalnız ilk bilgisayardadır** (bu işin yapıldığı Manjaro makinesi), `stellar` CLI'ın deposunda: `~/.config/stellar/identity/<ad>.toml`. Her dosya o hesabın 24 kelimelik seed phrase'ini **şifresiz** tutar. Repoda, `.env`'de ya da herhangi bir sohbette yoklar ve olmamalılar.
+
+| Ad | Ne işe yarar | Ne zaman gerekir |
+|---|---|---|
+| `baret-agent` | Agent'ın anahtarı; cüzdandan tavan içinde ödeme yapar, kendi ücretini öder | 4. adımdaki ödeme |
+| `baret-owner` | Akıllı cüzdanın tek yöneticisi; limit verir, durdurur, iptal eder, cüzdana para koyar. **Kaybolursa cüzdandaki USDC'ye ve limit ayarlarına bir daha erişilemez** | Limit yenileme (yetki 2026-11-06'da doluyor), durdurma, para ekleme/çekme |
+| `baret-merchant` | Ödemeyi alan test hesabı | Yalnız aldığı USDC'yi başka yere göndermek için |
+
+Testnet prova anahtarları (`baret-rh*`) değersizdir; taşımaya gerek yok, gerekirse `stellar keys generate <ad> --network testnet --fund` ile yenisi açılır.
+
+**İlk bilgisayarda anahtarı almak** (terminalde; çıktı `S…` ile başlayan gizli anahtardır):
+
+```bash
+stellar keys secret baret-agent      # `stellar keys show <ad>` aynı çıktıyı verir (stellar-cli 26)
+stellar keys secret baret-owner
+stellar keys secret baret-merchant
+```
+
+**Taşımak:** çıktıyı bir şifre yöneticisine (Bitwarden, 1Password vb.) kaydedin ve diğer bilgisayarda oradan okuyun. E-posta, mesajlaşma uygulaması, not dosyası, git ya da bir AI sohbeti kullanmayın: bu anahtarı gören herkes hesabı boşaltabilir.
+Alternatif: `~/.config/stellar/identity/baret-agent.toml` (ve gerekiyorsa `baret-owner.toml`, `baret-merchant.toml`) dosyalarını USB ya da `scp` ile diğer bilgisayarda aynı yola kopyalamak. Dosya seed phrase'i şifresiz taşır; aradaki ortamdan sonra silin.
+
+**Diğer bilgisayara eklemek ve doğrulamak:**
+
+```bash
+stellar keys add baret-agent --secret-key     # gizli anahtarı istemde sorar; komut satırına yazılmaz
+stellar keys address baret-agent              # yukarıdaki tablodaki G… adresiyle AYNI olmalı
+```
+
+Adres tabloyla aynı değilse yanlış anahtar eklenmiştir; hiçbir işlem göndermeyin. Anahtarı `--secure-store` ile eklemeyin: araç gizli anahtarı `stellar keys show` ile okur, işletim sistemi kasasındaki anahtarı okuyamaz (doğrulanmadı; düz depoyla çalıştığı doğrulandı).
+
+**Yedek:** üç anahtarın şifre yöneticisinde durması aynı zamanda yedektir. İlk bilgisayarın diski bozulursa ve yedek yoksa mainnet hesapları kalıcı olarak kaybolur; kimse, hiçbir araç geri getiremez.
+
+### Yalnız ilk bilgisayarda duran diğer şeyler
+
+Kalan Instawards adımları için **hiçbiri gerekmez**; eksik sanılıp aranmasınlar diye listeli.
+
+| Ne | Nerede | Gerekirse |
+|---|---|---|
+| Yerel sunucu ayarı | `apps/server/.env` (git'e girmez) | Sunucuyu yerelde çalıştırmak için: `apps/server/.env.example`'dan kopyalayın; demo satıcı anahtarını `pnpm --filter @stellar-thorn/server x402-setup` yeniden üretir (testnet) |
+| Asistanın hafıza notları | `~/.claude/projects/…BaretStellar/memory/` | İçeriğin tamamı bu dosyaya taşındı |
+| Eski bir çalışma kopyası | `git stash list` → "pre-sync snapshot 2026-10-02" | İçeriği zaten `main`'de (PR #43); silinebilir |
+| `gh` ve `npm` oturumları | Makineye özgü | Diğer bilgisayarda `gh auth login`, `npm login` |
+
+### Bir şey bulunamazsa
+
+1. **Önce zincire ve repoya bakın.** Adresler, işlemler, bakiyeler ve limitler herkese açıktır: yukarıdaki tablodaki linkler, `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` ve (anahtarsız) `BARET_NETWORK=pubnet BARET_WALLET=<cüzdan> BARET_MERCHANT=<merchant> BARET_AGENT_PUBLIC=<agent> npx baret limits allowance`.
+2. **Yalnız ilk bilgisayarın bildiği tek şey gizli anahtarlardır** (ve yukarıdaki tablodakiler). Bunlar için ilk bilgisayara dönmek gerekir: terminalde yukarıdaki `stellar keys secret` komutları yeterlidir, asistana sormaya gerek yoktur. O bilgisayardaki asistan oturumu `claude --resume` ile sürdürülebilir ve yerel dosyalara bakabilir, ama gizli anahtarı sohbete yazdırmayın; komutu kendiniz çalıştırıp çıktıyı doğrudan şifre yöneticisine alın.
+3. **Diğer bilgisayardaki asistan** bu konuşmayı bilmez; bu dosyayı ve `AGENTS.md`'yi okutarak başlayın. Bu dosyada olmayan ve repodan/zincirden çıkarılamayan bir bilgi lazım olursa, o bilgi ya ilk bilgisayardadır ya da sahiptedir (npm hesabı, SOW PDF'i, şifre yöneticisi).
+
+**Çalışma kuralları (bu iş için, `AGENTS.md`'ye ek):**
+
+- Mainnet'e işlem gönderen komutları **sahip kendi terminalinden çalıştırır**; asistan komutu hazırlar, ne yaptığını ve maliyetini söyler, sonucu zincirden doğrular.
+- Her mainnet adımından önce `BARET_DRY_RUN=1` ile ücrete bakılır. Mainnet ücretleri çoğunlukla kiradır ve testnet'tekine benzemez (aşağıda D1'in maliyet notu).
+- Gerçekleşen her şey, işlem linkleriyle `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`'ye yazılır.
 
 ## Hedef (değişmedi)
 
@@ -55,7 +158,7 @@ Yapılanlar (2026-10-02, dal `feat/mainnet-spend-policy`):
 
 **Durum: 🟡 paket yayına hazır, npm'e yükleme sahibi bekliyor.**
 
-Yapılanlar (2026-10-07, dal `feat/publish-agent-guard`):
+Yapılanlar (2026-10-07, PR #58):
 - Paket `tsup` ile paketleniyor: yayımlanmayan `swig-guard` ve düz Node'da yüklenemeyen passkey-kit (`sac-sdk` derlenmemiş TypeScript dağıtıyor) `dist/` içine gömülü. Tek çalışma zamanı bağımlılığı `@stellar/stellar-sdk`.
 - Limit komutları `baret` CLI'ına taşındı (`baret limits setup | pay | pause | resume | revoke | status | fund | prove`); mainnet ve testnet kontrat adresleri ile USDC adresi pakette gömülü, yani paket "mainnet kontratına bağlı" geliyor.
 - `private` kaldırıldı; lisans (MIT), depo, sürüm (0.1.0), `publishConfig.access: public` eklendi.
