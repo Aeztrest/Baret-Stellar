@@ -12,7 +12,7 @@ Başka bir bilgisayardan ya da yeni bir oturumdan devam ederken önce burayı ok
 |---|---|---|
 | D1: mainnet kontratı ve limitler | ✅ | Kontrat sayfasının ekran görüntüsü (sahip) |
 | D2: npm paketi | 🟡 paket hazır, **npm'e yüklenmedi** | npm hesabı, `stellar-thorn` organizasyonu, `npm publish` (sahip) |
-| D3: mainnet agent ödemesi | 🟡 ödeme yapıldı | Yayımlanan paketle bir ödeme daha; bir sayfalık açıklama |
+| D3: mainnet agent ödemesi | 🟡 ödeme yapıldı, açıklama yazıldı | Yayımlanan paketle bir ödeme daha; hash'i açıklamaya eklenecek |
 
 **Sıradaki adımlar, sırayla:**
 
@@ -32,7 +32,7 @@ Başka bir bilgisayardan ya da yeni bir oturumdan devam ederken önce burayı ok
    npx baret limits pay 0.1
    ```
    Önce başına `BARET_DRY_RUN=1` koyup ücrete bak. Kontrat ve USDC adresleri pakette gömülüdür. Cüzdanda 4.9 USDC, günlük tavanda yer var; yetki 2026-11-06'da doluyor (sonrası için sahip `baret limits setup` ile yeniler).
-5. **Yazılı kanıt:** D3 için bir sayfalık açıklama (SOW 6.1) ve bu dosyadaki durumların güncellenmesi.
+5. **Yazılı kanıt:** D3'ün bir sayfalık açıklaması yazıldı: [`instawards-payment-proof.md`](./instawards-payment-proof.md) (2026-10-11). 4. adımdaki ödemenin hash'i oraya ("What this does not show" altındaki ilgili madde kaldırılarak) ve `DEPLOYMENT.md`'ye eklenir; bu dosyadaki durumlar güncellenir.
 
 **Mainnet'teki adresler** (hepsi zincirde herkese açık):
 
@@ -178,7 +178,8 @@ Kalanlar (sahip):
 - İşlem: [`4d3d6490…54868d60`](https://stellar.expert/explorer/public/tx/4d3d6490ff815fd5f942e9960d93d128c396b92e649de998d0122d7554868d60) (ledger 64823727). Agent, akıllı cüzdandan merchant'a 0.1 USDC ödedi.
 - Zincirden doğrulandı: işlemin kaynak hesabı agent, zarfta tek imza var ve agent'a ait (sahip anahtarı imzalamadı), işlem USDC `transfer(cüzdan → merchant, 0.1)`, bakiyeler 5 / 0 → 4.9 / 0.1 USDC. Aynı koşuda 0.5000001 USDC'lik ödeme kontrat tarafından `#5 ExceedsPerTx` ile reddedildi.
 - Ödeme repodaki `agent-guard` aracıyla (`spend-policy prove`) yapıldı. Paket npm'de yayımlandıktan sonra aynı ödeme yayımlanan paketle bir kez daha yapılırsa SOW'un cümlesi birebir karşılanır.
-- Kalan: bir sayfalık açıklama ya da kısa ekran kaydı (SOW 6.1).
+- Bir sayfalık açıklama (SOW 6.1): [`instawards-payment-proof.md`](./instawards-payment-proof.md). 2026-10-11'de zincire karşı yeniden doğrulandı: Horizon'da işlem başarılı, kaynak ve tek imza agent'a ait, `transfer(cüzdan → merchant, 0.1 USDC)`, merchant bakiyesi 0.1 USDC; kontrattan okunan yetki `Active`, 0.5 / 2 USDC, bitiş 2026-11-06.
+- Kalan: yayımlanan paketle ikinci ödeme ve hash'inin açıklamaya eklenmesi.
 
 ## Sahipten gerekenler
 
