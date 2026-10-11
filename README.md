@@ -51,23 +51,22 @@ sub-key's blast radius is exactly the one merchant it was granted to.
 
 | | |
 |---|---|
-| **Contract ID** | [`CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S`](https://stellar.expert/explorer/testnet/contract/CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S) |
+| **Contract ID** | [`CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH`](https://stellar.expert/explorer/testnet/contract/CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH) |
 | **Network** | Stellar testnet (`Test SDF Network ; September 2015`) |
-| **Wasm hash** | `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834` |
+| **Wasm hash** | `cda12f8a2ac1a8fbe59174b287184fca9298f0b2a4250771f4a35cf5e66e8611` |
 | **Multi-tenant** | One deployment serves every wallet that installs it as a signer — no per-user redeploy |
 | **Source** | [`contracts/contracts/merchant-spend-policy`](./contracts/contracts/merchant-spend-policy) |
 | **Full deploy record** | [`contracts/contracts/merchant-spend-policy/DEPLOYMENT.md`](./contracts/contracts/merchant-spend-policy/DEPLOYMENT.md) |
 
-The extension uses the v1 deployment above. The source in this repo is now
-**v2** (20 passing unit tests): a bounded spend log, a final `revoke`, a
-one-year mandate limit and contract events. v2 runs on testnet at
-[`CCL7DJY2…S7MPNH`](https://stellar.expert/explorer/testnet/contract/CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH)
-and, since 2026-10-07, on **mainnet** at
+This is **v2** of the contract (20 passing unit tests): a bounded spend log, a
+final `revoke`, a one-year mandate limit and contract events. The extension
+uses the testnet deployment above. The same build has run on **mainnet** since
+2026-10-07 at
 [`CCFFBHBK…VMDKDNOS`](https://stellar.expert/explorer/public/contract/CCFFBHBKOD3NBIUMLTS5LUJ5KSPA6HCVBEO5IRFAGCLZO7HXVMDKDNOS)
 for agent wallets (`@stellar-thorn/agent-guard/spend-policy`): an agent key paid
 [0.1 USDC](https://stellar.expert/explorer/public/tx/4d3d6490ff815fd5f942e9960d93d128c396b92e649de998d0122d7554868d60) out of a smart wallet within a 0.5 / 2 USDC cap,
-without the wallet owner signing. Moving the extension to v2 needs a sub-key
-migration and is not done yet. Built with the
+without the wallet owner signing ([plain-language note](./docs/instawards-payment-proof.md)).
+The extension itself stays on testnet. Built with the
 Soroban SDK (Rust). Plugs into the
 wallet as a `PolicyInterface` signer (the same extension mechanism
 [passkey-kit](https://github.com/stellar/passkey-kit)'s smart wallet uses for
@@ -109,7 +108,7 @@ Baret is **one product across several surfaces**, all in one monorepo.
 
 **MerchantSpendPolicy** (Soroban / Rust). Installed as a `Policy` signer on
 the user's own smart wallet (passkey-kit), deployed to testnet at
-[`CCWTPB4F72…SQ2DHQ5S`](https://stellar.expert/explorer/testnet/contract/CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S).
+[`CCL7DJY2VQ…IYS7MPNH`](https://stellar.expert/explorer/testnet/contract/CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH).
 
 | Function | Auth | Purpose |
 |---|---|---|
@@ -120,7 +119,7 @@ the user's own smart wallet (passkey-kit), deployed to testnet at
 | `get_allowance(wallet, m)` / `available_today(wallet, m)` | view | Read on-chain state |
 
 ```bash
-ID=CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S
+ID=CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH
 
 # Wallet owner grants a merchant to a specific sub-key: max 0.1 USDC/tx, 1 USDC/day,
 # 30-day mandate (7-decimal atomic units; signer = the sub-key's raw Ed25519 pubkey)
@@ -510,14 +509,12 @@ known limits and follow-on work are tracked in
   mainnet piece is the MerchantSpendPolicy v2 contract and a single agent
   wallet with a few USDC, deployed as a proof; the extension, server and
   showcase are testnet only.
-- **The extension's contract stores every payment in one entry.** The v1
-  deployment the extension uses keeps a rolling-window `spend_log` that grows
-  without bound (about 44 KB at 1,000 recorded payments in a local
-  measurement), so a merchant paid very often will eventually hit ledger entry
-  limits. v2 fixes this by merging spends in the same 15-minute slice (at most
-  97 entries per day; a cap can refuse up to 15 minutes early but never
-  allows more), but the contract can't be upgraded in place and the extension
-  has not been migrated to the v2 deployment yet.
+- **The extension's move to the v2 contract is unit-tested, not re-run live.**
+  The contract can't be upgraded in place, so v2 is a new address. Sub-keys
+  minted on the retired v1 deployment are no longer used to sign: the next
+  manual approval of that merchant mints a new one on v2. The browser
+  end-to-end checklist in the contract's `DEPLOYMENT.md` has not been re-run
+  against v2 with the extension.
 - **The on-chain cap applies only once a sub-key exists.** It is created by a
   manual merchant approval and is best effort; if provisioning fails the
   extension's own caps still apply, the contract's do not.

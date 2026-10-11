@@ -178,7 +178,7 @@ allowance keys) trusts only that value. The background never accepts a page-supp
 | `allowances` | `"<account>::<origin>::<asset>"` | indexes `merchantOrigin`, `status`, `accountPubkey`; `spendLog` drives the sliding-window caps |
 | `history` | id | indexes `origin`, `createdAt`, `accountPubkey`; trimmed to 500 rows |
 | `alerts` | id | indexes `createdAt`, `dismissedAt` (currently only `drift` alerts are created) |
-| `sub_keys` | sub-key pubkey | encrypted sub-key secret, `status`, provisioning/revoke tx hashes; index `accountPubkey` |
+| `sub_keys` | sub-key pubkey | encrypted sub-key secret, `status`, provisioning/revoke tx hashes, `policyContractId` (the MerchantSpendPolicy address the key is bound to; absent on rows minted before v2, which means the retired v1 contract); index `accountPubkey` |
 | `site_permissions` | `"<account>::<origin>"` | `trusted\|denied`, `remembered` |
 | `monitor`, `prefs` | - | created by migration v1, **unused** |
 
@@ -208,7 +208,8 @@ silent trust it can't attribute. Never call `indexedDB.open()` with another vers
 - **x402 payments come from the smart wallet** (`C…`), so it must hold the token (USDC SAC) balance. Classic sends from the UI (`wallet.transferXlm`) come from the authority `G…` account.
 - **Merchant sub-keys** (`swig/sub-keys.ts`): on a manual approval of a merchant that has no live sub-key (the first approval, a renewal after the mandate lapsed, or a retry after a failure), `refreshSubKeyAfterApproval` in `swig/sub-key-lifecycle.ts` (a) installs `MerchantSpendPolicy` on the wallet as a `Policy` signer with an **empty** limits map (idempotent), (b) calls `MerchantSpendPolicy.set_allowance(wallet, merchant=payTo, signer=<new sub-key>, caps, mandate_seconds)`,
   (c) adds the sub-key as an `Ed25519` signer with `SignerLimits { token: [Policy(MerchantSpendPolicy)] }` in temporary storage with the mandate's expiry. From then on auto-approved payments to that merchant are signed by the sub-key through the wallet's own `__check_auth`, which calls the policy on-chain.
-  `ledger.revoke` sends `remove_signer`. Failure of provisioning never blocks the payment (best-effort; the merchant then uses the admin key). Details, guarantees and the **known mandate-renewal gap**: [`x402-defense.md`](./x402-defense.md) §11 and [`implementation-status.md`](./implementation-status.md) §4.
+  The policy address comes from `merchantSpendPolicyContractId()` (`swig/smart-wallet-config.ts`, one entry per network; pubnet is `null`, so provisioning refuses to run there). A stored sub-key is only used to sign while its `policyContractId` equals that address; a key bound to another contract version is skipped, so the merchant prompts again and the approval mints a replacement.
+  `ledger.revoke` sends `remove_signer` for every active key of the merchant, including one bound to a retired policy. Failure of provisioning never blocks the payment (best-effort; the merchant then uses the admin key). Details, guarantees and the **known mandate-renewal gap**: [`x402-defense.md`](./x402-defense.md) §11 and [`implementation-status.md`](./implementation-status.md) §4.
 - Contract addresses/hashes are constants in `swig/smart-wallet-config.ts` (must match `contracts/**/DEPLOYMENT.md`).
 
 ---

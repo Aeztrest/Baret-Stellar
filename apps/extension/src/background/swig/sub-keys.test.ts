@@ -12,7 +12,7 @@ import { Keypair, StrKey } from "@stellar/stellar-sdk";
 // `@stellar/stellar-sdk/contract` boundary; no network calls happen.
 
 const mocks = vi.hoisted(() => ({
-  contractId: "CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S" as string | null,
+  contractId: "CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH" as string | null,
   kitGetSigner: vi.fn(),
   kitAddPolicy: vi.fn(),
   kitAddEd25519: vi.fn(),
@@ -22,9 +22,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("./smart-wallet-config", () => ({
   SMART_WALLET_WASM_HASH: "aa".repeat(32),
-  get MERCHANT_SPEND_POLICY_CONTRACT_ID() {
-    return mocks.contractId;
-  },
+  merchantSpendPolicyContractId: () => mocks.contractId,
 }));
 
 vi.mock("../rpc/connection", () => ({
@@ -101,7 +99,7 @@ describe("swig/sub-keys — MerchantSpendPolicy wiring", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.contractId = "CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S";
+    mocks.contractId = "CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH";
     mocks.kitSign.mockImplementation(async () => fakeWalletAuthorized());
     mocks.kitAddPolicy.mockResolvedValue("addPolicyTx");
     mocks.kitAddEd25519.mockResolvedValue("addEd25519Tx");
@@ -109,7 +107,7 @@ describe("swig/sub-keys — MerchantSpendPolicy wiring", () => {
   });
 
   afterEach(() => {
-    mocks.contractId = "CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S";
+    mocks.contractId = "CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH";
   });
 
   it("registers MerchantSpendPolicy as a wallet signer (empty limits map) before granting an allowance, when it isn't installed yet", async () => {
@@ -186,7 +184,7 @@ describe("swig/sub-keys — MerchantSpendPolicy wiring", () => {
 
     await expect(
       provisionMerchantSubKey(authority, merchant, tokenContractId, 100n, 1_000n, 86_400),
-    ).rejects.toThrow(/not deployed yet/);
+    ).rejects.toThrow(/not deployed on this network/);
 
     expect(mocks.kitGetSigner).not.toHaveBeenCalled();
     expect(mocks.kitAddPolicy).not.toHaveBeenCalled();

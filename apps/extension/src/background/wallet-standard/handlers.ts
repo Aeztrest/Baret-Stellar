@@ -55,6 +55,7 @@ import {
   tryReserveSpend,
 } from "../db/allowances";
 import { findActiveSubKeyForMerchant } from "../db/sub-keys";
+import { merchantSpendPolicyContractId } from "../swig/smart-wallet-config";
 import { loadSmartWalletAddress, signSmartWalletAuthEntry } from "../swig/sub-keys";
 
 export interface WsConnectReq {
@@ -457,7 +458,7 @@ export async function tryAutoApproveX402AuthEntry(
   // merchant's scoped sub-key when one's been provisioned (falls back to
   // authority otherwise — see `resolvePaymentSigner`). performSign honors
   // the entry's own `signatureExpirationLedger` (the facilitator enforces it).
-  const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin);
+  const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin, merchantSpendPolicyContractId());
   // Wrapped in try/catch (unlike a plain await) because performSign can
   // THROW — e.g. the sub-key passphrase cache TTL lapsed between the
   // reservation above and this call, a routine/expected condition, not just

@@ -14,11 +14,18 @@
 
 import { readAllowance, writeAllowance } from "../db/allowances";
 import { appendHistory } from "../db/history";
-import { findActiveSubKeyForMerchant, setSubKeyStatus, writeSubKey, type SubKeyRow } from "../db/sub-keys";
+import {
+  findActiveSubKeyForMerchant,
+  listActiveSubKeysForMerchant,
+  setSubKeyStatus,
+  writeSubKey,
+  type SubKeyRow,
+} from "../db/sub-keys";
 import { encryptWithPassphrase } from "../crypto/kdf";
 import { useAuthority } from "../crypto/session";
 import { evictSubKey, getCachedPassphrase, putSubKey } from "../crypto/sub-key-cache";
 import { uiToAtomic } from "../x402/parse";
+import { merchantSpendPolicyContractId } from "./smart-wallet-config";
 import { provisionMerchantSubKey } from "./sub-keys";
 
 export type SubKeyRefreshOutcome =
@@ -48,7 +55,14 @@ export async function refreshSubKeyAfterApproval(input: SubKeyRefreshInput): Pro
   const row = await readAllowance(allowanceId);
   if (!row) return "kept";
 
-  const existing = await findActiveSubKeyForMerchant(row.accountPubkey, merchantOrigin);
+  // Only a key bound to the policy in use counts. A key bound to a retired
+  // policy address (an older contract version) is treated as missing, so the
+  // next approval mints a replacement on the current contract.
+  const existing = await findActiveSubKeyForMerchant(
+    row.accountPubkey,
+    merchantOrigin,
+    merchantSpendPolicyContractId(),
+  );
   if (existing && mandateWasLive) return "kept";
 
   try {
@@ -76,14 +90,19 @@ export async function refreshSubKeyAfterApproval(input: SubKeyRefreshInput): Pro
       rotation: existing ? existing.rotation + 1 : 0,
       provisionSignature: result.signature,
       revokeSignature: null,
+      policyContractId: result.policyContractId,
       createdAt: now,
       updatedAt: now,
     };
     await writeSubKey(next);
     putSubKey(next.pubkey, result.subKey);
-    if (existing) {
-      await setSubKeyStatus(existing.pubkey, "revoked");
-      evictSubKey(existing.pubkey);
+    // Retire every other active key for this merchant: the lapsed one and
+    // any bound to a retired policy. Local only; on-chain they stay capped by
+    // their own policy until their Temporary signer entry expires.
+    for (const old of await listActiveSubKeysForMerchant(row.accountPubkey, merchantOrigin)) {
+      if (old.pubkey === next.pubkey) continue;
+      await setSubKeyStatus(old.pubkey, "revoked");
+      evictSubKey(old.pubkey);
     }
 
     row.subKeyPubkey = next.pubkey;

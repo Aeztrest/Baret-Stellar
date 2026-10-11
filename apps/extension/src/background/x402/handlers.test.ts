@@ -355,3 +355,23 @@ describe("x402Review — caps seeded for a new merchant", () => {
     expect(mandate?.capPerDay).toBe(0.9);
   });
 });
+
+describe("mandateSeconds — bounded by what MerchantSpendPolicy accepts", () => {
+  it("uses the policy's mandateMaxAgeDays, defaulting to 30 days", async () => {
+    const { handlers } = await freshEnv();
+    expect(handlers.mandateSeconds({ mandateMaxAgeDays: 14 })).toBe(14 * 86_400);
+    expect(handlers.mandateSeconds({})).toBe(30 * 86_400);
+    expect(handlers.mandateSeconds(null)).toBe(30 * 86_400);
+  });
+
+  it("caps at 365 days, the contract's limit, so provisioning is not refused on-chain", async () => {
+    const { handlers } = await freshEnv();
+    expect(handlers.mandateSeconds({ mandateMaxAgeDays: 1000 })).toBe(365 * 86_400);
+  });
+
+  it("returns a whole number of seconds and never zero", async () => {
+    const { handlers } = await freshEnv();
+    expect(handlers.mandateSeconds({ mandateMaxAgeDays: 0.5 })).toBe(43_200);
+    expect(handlers.mandateSeconds({ mandateMaxAgeDays: 0.000001 })).toBe(1);
+  });
+});
