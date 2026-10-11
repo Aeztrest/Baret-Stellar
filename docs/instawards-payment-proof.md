@@ -42,7 +42,7 @@ npx baret limits allowance
 # status Active · per-tx 0.5 · per-24h 2 · available now 2 · expires 2026-11-06T20:17:32.000Z · signer GD6PYZFO…XP7SOPN7
 ```
 
-(`baret` is the CLI of `@stellar-thorn/agent-guard`. Until the package is on npm, run it from this repo: `pnpm build:guard && pnpm --filter @stellar-thorn/agent-guard build`, then `node packages/agent-guard/dist/cli.js limits allowance`.)
+(`baret` is the CLI of [`@stellar-thorn/agent-guard`](https://www.npmjs.com/package/@stellar-thorn/agent-guard): `npm install @stellar-thorn/agent-guard` in an empty folder, then run the command above. Checked this way on 2026-10-11.)
 
 ## The limits also say no
 
