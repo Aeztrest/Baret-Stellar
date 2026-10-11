@@ -30,7 +30,7 @@ import {
 import { PasskeyKit } from "passkey-kit";
 import { activeAccountEntry, readKeystore } from "../db/keystore";
 import { getNetworkPassphrase, getSorobanRpcUrl } from "../rpc/connection";
-import { SMART_WALLET_WASM_HASH, MERCHANT_SPEND_POLICY_CONTRACT_ID } from "./smart-wallet-config";
+import { SMART_WALLET_WASM_HASH, merchantSpendPolicyContractId } from "./smart-wallet-config";
 
 /**
  * Dynamic client surface for `contracts/contracts/merchant-spend-policy`
@@ -54,10 +54,23 @@ interface MerchantSpendPolicyClient {
 export interface SubKeyProvisionResult {
   /** Newly generated sub-key keypair. Caller persists this (encrypted). */
   subKey: Keypair;
+  /** The MerchantSpendPolicy address the sub-key is scoped to. Caller persists it with the key. */
+  policyContractId: string;
   /** Smart-wallet contract address (`C…`). */
   smartWalletAddress: string;
   /** On-chain signature of the `add_signer` transaction. */
   signature: string;
+}
+
+/** The active network's MerchantSpendPolicy address; throws when none is deployed there. */
+function requirePolicyContractId(): string {
+  const id = merchantSpendPolicyContractId();
+  if (!id) {
+    throw new Error(
+      "MerchantSpendPolicy is not deployed on this network — see contracts/contracts/merchant-spend-policy/DEPLOYMENT.md, then set MERCHANT_SPEND_POLICY_CONTRACT_IDS in smart-wallet-config.ts.",
+    );
+  }
+  return id;
 }
 
 /** The active account's deployed smart-wallet contract address (`C…`), read fresh from the keystore. */
@@ -103,17 +116,13 @@ export async function buildAddSubKeyTransaction(
   tokenContractId: string,
   expiresAt: number,
 ): Promise<SubKeyProvisionResult> {
-  if (!MERCHANT_SPEND_POLICY_CONTRACT_ID) {
-    throw new Error(
-      "MerchantSpendPolicy is not deployed yet — see docs/x402-defense.md §11 for the deploy steps, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
-    );
-  }
+  const policyId = requirePolicyContractId();
   const smartWalletAddress = await loadSmartWalletAddress();
   const networkPassphrase = getNetworkPassphrase();
   const kit = connectKit(smartWalletAddress, authority.publicKey());
 
   const limits = new Map([
-    [tokenContractId, [SignerKey.Policy(MERCHANT_SPEND_POLICY_CONTRACT_ID)]],
+    [tokenContractId, [SignerKey.Policy(policyId)]],
   ]);
 
   const tx = await kit.addEd25519(subKey.publicKey(), limits, SignerStore.Temporary, expiresAt);
@@ -135,6 +144,7 @@ export async function buildAddSubKeyTransaction(
 
   return {
     subKey,
+    policyContractId: policyId,
     smartWalletAddress,
     signature: sent.sendTransactionResponse?.hash ?? "",
   };
@@ -158,19 +168,15 @@ export async function buildAddSubKeyTransaction(
  * the sub-key's Ed25519 signature entirely.
  */
 async function ensurePolicyInstalled(authority: Keypair): Promise<void> {
-  if (!MERCHANT_SPEND_POLICY_CONTRACT_ID) {
-    throw new Error(
-      "MerchantSpendPolicy is not deployed yet — see contracts/contracts/merchant-spend-policy/DEPLOYMENT.md, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
-    );
-  }
+  const policyId = requirePolicyContractId();
   const smartWalletAddress = await loadSmartWalletAddress();
   const networkPassphrase = getNetworkPassphrase();
   const kit = connectKit(smartWalletAddress, authority.publicKey());
 
-  const alreadyInstalled = await kit.getSigner(SignerKey.Policy(MERCHANT_SPEND_POLICY_CONTRACT_ID));
+  const alreadyInstalled = await kit.getSigner(SignerKey.Policy(policyId));
   if (alreadyInstalled) return;
 
-  const tx = await kit.addPolicy(MERCHANT_SPEND_POLICY_CONTRACT_ID, new Map(), SignerStore.Persistent);
+  const tx = await kit.addPolicy(policyId, new Map(), SignerStore.Persistent);
   const walletAuthorized = await kit.sign(tx, new Ed25519Signer(authority));
   await walletAuthorized.sign({
     signTransaction: basicNodeSigner(authority, networkPassphrase).signTransaction,
@@ -215,11 +221,7 @@ export async function provisionMerchantSubKey(
   capPerDayAtomic: bigint,
   mandateSeconds: number,
 ): Promise<SubKeyProvisionResult> {
-  if (!MERCHANT_SPEND_POLICY_CONTRACT_ID) {
-    throw new Error(
-      "MerchantSpendPolicy is not deployed yet — see contracts/contracts/merchant-spend-policy/DEPLOYMENT.md, then set MERCHANT_SPEND_POLICY_CONTRACT_ID in smart-wallet-config.ts.",
-    );
-  }
+  const policyId = requirePolicyContractId();
   await ensurePolicyInstalled(authority);
 
   const smartWalletAddress = await loadSmartWalletAddress();
@@ -229,7 +231,7 @@ export async function provisionMerchantSubKey(
   const subKey = Keypair.random();
 
   const policyClient = await SorobanClient.from<MerchantSpendPolicyClient>({
-    contractId: MERCHANT_SPEND_POLICY_CONTRACT_ID,
+    contractId: policyId,
     rpcUrl,
     networkPassphrase,
     publicKey: authority.publicKey(),

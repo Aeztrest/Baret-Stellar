@@ -36,6 +36,14 @@ export interface SubKeyRow {
   provisionSignature: string | null;
   /** On-chain signature of the RemoveAuthority tx (when status moves to revoked). */
   revokeSignature: string | null;
+  /**
+   * The MerchantSpendPolicy address this key's `SignerLimits` name. The
+   * contract can't be upgraded, so each version has its own address; a key
+   * bound to another address (or to none: rows minted before this field
+   * existed were bound to the retired v1 testnet contract) must not be used
+   * to sign, because the chain would reject or mis-cap it.
+   */
+  policyContractId?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -61,12 +69,31 @@ export async function readSubKey(pubkey: string): Promise<SubKeyRow | null> {
   return (r ?? null) as SubKeyRow | null;
 }
 
+/**
+ * The merchant's active sub-key that is bound to `policyContractId`, the
+ * MerchantSpendPolicy in use on the active network. `null` (no policy
+ * deployed there) never matches, so no key is used to sign.
+ */
 export async function findActiveSubKeyForMerchant(
   accountPubkey: string,
   merchantOrigin: string,
+  policyContractId: string | null,
 ): Promise<SubKeyRow | null> {
-  const all = await listSubKeys(accountPubkey, { merchantOrigin });
-  return all.find((r) => r.status === "active") ?? null;
+  if (!policyContractId) return null;
+  const all = await listSubKeys(accountPubkey, { merchantOrigin, status: "active" });
+  return all.find((r) => r.policyContractId === policyContractId) ?? null;
+}
+
+/**
+ * Every active sub-key for the merchant, whatever policy it is bound to.
+ * For revoking: a key bound to a retired policy is still a signer on the
+ * wallet until it is removed or expires.
+ */
+export async function listActiveSubKeysForMerchant(
+  accountPubkey: string,
+  merchantOrigin: string,
+): Promise<SubKeyRow[]> {
+  return listSubKeys(accountPubkey, { merchantOrigin, status: "active" });
 }
 
 export async function listSubKeys(

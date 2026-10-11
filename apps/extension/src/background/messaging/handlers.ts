@@ -54,7 +54,7 @@ import {
 } from "../rpc/connection";
 import { provisionSmartWallet } from "../swig/provision";
 import { performSign } from "../wallet-standard/handlers";
-import { DEFAULT_MANDATE_MAX_AGE_DAYS } from "../x402/handlers";
+import { mandateSeconds as mandateSecondsFor } from "../x402/handlers";
 import { closePopupWindow } from "../popup-window";
 import {
   peek as peekById,
@@ -90,7 +90,7 @@ import {
   evictSubKey,
 } from "../crypto/sub-key-cache";
 import {
-  findActiveSubKeyForMerchant,
+  listActiveSubKeysForMerchant,
   setSubKeyStatus,
 } from "../db/sub-keys";
 import { buildRemoveSubKeyTransaction } from "../swig/sub-keys";
@@ -817,9 +817,11 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
   const target = all.find((a) => a.merchantOrigin === merchantOrigin);
   if (!target) throw new Error(`No allowance found for ${merchantOrigin}`);
 
-  const subKey = await findActiveSubKeyForMerchant(accountPubkey, merchantOrigin);
+  // Every active key, including one bound to a retired policy version: it
+  // is still a signer on the wallet until removed.
+  const subKeys = await listActiveSubKeysForMerchant(accountPubkey, merchantOrigin);
 
-  if (!subKey) {
+  if (subKeys.length === 0) {
     await setAllowanceStatus(target.id, "revoked");
     await appendHistory({
       type: "alert",
@@ -840,10 +842,12 @@ const ledgerRevokeHandler: Handler<"ledger.revoke"> = async ({
   // as provisioning itself (`swig/provision.ts`) — not a per-payment action
   // needing a popup review. See `swig/sub-keys.ts`'s header.
   const authority = useAuthority();
-  const signature = await buildRemoveSubKeyTransaction(authority, subKey.pubkey);
-
-  await setSubKeyStatus(subKey.pubkey, "revoked", { revokeSignature: signature });
-  evictSubKey(subKey.pubkey);
+  let signature = "";
+  for (const subKey of subKeys) {
+    signature = await buildRemoveSubKeyTransaction(authority, subKey.pubkey);
+    await setSubKeyStatus(subKey.pubkey, "revoked", { revokeSignature: signature });
+    evictSubKey(subKey.pubkey);
+  }
   await setAllowanceStatus(target.id, "revoked");
   await appendHistory({
     type: "alert",
@@ -1224,8 +1228,7 @@ const txSignHandler: Handler<"tx.sign"> = async ({
     // payment to prompt again, it never widens access on its own.
     if (req.x402Mandate) {
       const policy = await loadPolicy();
-      const mandateSeconds =
-        (policy?.mandateMaxAgeDays ?? DEFAULT_MANDATE_MAX_AGE_DAYS) * 24 * 60 * 60;
+      const mandateSeconds = mandateSecondsFor(policy);
       // Read BEFORE promoting: promotion makes every mandate look live. A
       // mandate that had lapsed (or never existed) means any sub-key lapsed
       // with it on-chain and needs replacing, not just the local row extending.

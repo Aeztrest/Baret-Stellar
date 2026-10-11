@@ -80,7 +80,8 @@ function readExtensionConstants(): { policyId: string; walletWasmHash: string } 
   const here = dirname(fileURLToPath(import.meta.url));
   const file = join(here, "../../../extension/src/background/swig/smart-wallet-config.ts");
   const src = readFileSync(file, "utf8");
-  const policyId = /MERCHANT_SPEND_POLICY_CONTRACT_ID[^=]*=\s*"(C[A-Z2-7]{55})"/.exec(src)?.[1];
+  // The testnet entry of MERCHANT_SPEND_POLICY_CONTRACT_IDS: this script only checks testnet.
+  const policyId = /MERCHANT_SPEND_POLICY_CONTRACT_IDS[\s\S]*?testnet:\s*"(C[A-Z2-7]{55})"/.exec(src)?.[1];
   const walletWasmHash = /SMART_WALLET_WASM_HASH\s*=\s*"([0-9a-f]{64})"/.exec(src)?.[1];
   if (!policyId || !walletWasmHash) {
     throw new Error(`Could not read the policy contract id / wallet wasm hash from ${file}; update the patterns in chain-check.ts.`);

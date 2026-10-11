@@ -54,10 +54,30 @@ import {
 import { buildX402Payment, signX402Payment } from "./build";
 import { appendHistory } from "../db/history";
 import { findActiveSubKeyForMerchant } from "../db/sub-keys";
+import { merchantSpendPolicyContractId } from "../swig/smart-wallet-config";
 import { getSubKeypair } from "../crypto/sub-key-cache";
 import { loadSmartWalletAddress } from "../swig/sub-keys";
 
 export const DEFAULT_MANDATE_MAX_AGE_DAYS = 30;
+
+/**
+ * MerchantSpendPolicy v2 refuses a mandate longer than this
+ * (`MAX_MANDATE_SECONDS` in the contract). The local mandate is capped to
+ * match, so the popup never promises longer than the chain will honor.
+ */
+export const MAX_MANDATE_AGE_DAYS = 365;
+
+/**
+ * The mandate length a manual approval grants, in whole seconds (the
+ * contract takes an integer and refuses zero).
+ */
+export function mandateSeconds(policy: GuardPolicy | null | undefined): number {
+  const days = Math.min(
+    policy?.mandateMaxAgeDays ?? DEFAULT_MANDATE_MAX_AGE_DAYS,
+    MAX_MANDATE_AGE_DAYS,
+  );
+  return Math.max(1, Math.floor(days * 24 * 60 * 60));
+}
 
 /**
  * Builds the mandate preview shown in the manual-approval popup.
@@ -78,7 +98,6 @@ export function buildMandatePreview(
   policy: GuardPolicy,
   requestedAmount?: number,
 ): X402MandatePreview {
-  const days = policy.mandateMaxAgeDays ?? DEFAULT_MANDATE_MAX_AGE_DAYS;
   return {
     allowanceId: allowance.id,
     merchantOrigin: allowance.merchantOrigin,
@@ -86,7 +105,7 @@ export function buildMandatePreview(
     capPerTx: allowance.capPerTx,
     capPerHour: allowance.capPerHour,
     capPerDay: allowance.capPerDay,
-    expiresAt: Date.now() + days * 24 * 60 * 60 * 1000,
+    expiresAt: Date.now() + mandateSeconds(policy) * 1000,
     nonce: allowance.nonce,
     isFirstApproval: allowance.status === "pending",
     requestedAmount,
@@ -400,7 +419,7 @@ export async function resolvePaymentSigner(
   accountPubkey: string,
   origin: string,
 ): Promise<Keypair> {
-  const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin);
+  const subKeyRow = await findActiveSubKeyForMerchant(accountPubkey, origin, merchantSpendPolicyContractId());
   if (subKeyRow) {
     const subKey = await getSubKeypair(subKeyRow.pubkey);
     if (subKey) return subKey;

@@ -8,7 +8,10 @@ import { Keypair, StrKey } from "@stellar/stellar-sdk";
 // manual approval leaves the merchant with a sub-key the chain still accepts.
 
 vi.mock("webextension-polyfill", () => ({ default: { storage: { local: { get: vi.fn(), set: vi.fn() } } } }));
+const { POLICY } = vi.hoisted(() => ({ POLICY: "CPOLICYV2" }));
+
 vi.mock("./sub-keys", () => ({ provisionMerchantSubKey: vi.fn() }));
+vi.mock("./smart-wallet-config", () => ({ merchantSpendPolicyContractId: vi.fn(() => POLICY) }));
 vi.mock("../crypto/sub-key-cache", () => ({
   getCachedPassphrase: vi.fn(() => "passphrase"),
   putSubKey: vi.fn(),
@@ -49,6 +52,7 @@ async function freshEnv() {
   const newKey = Keypair.random();
   vi.mocked(chain.provisionMerchantSubKey).mockResolvedValue({
     subKey: newKey,
+    policyContractId: POLICY,
     smartWalletAddress: "C-WALLET",
     signature: "new-signature",
   });
@@ -85,7 +89,11 @@ async function freshEnv() {
   return { allowances, subKeys, history, chain, cache, lifecycle, newKey };
 }
 
-async function seedOldSubKey(subKeys: typeof import("../db/sub-keys"), allowances: typeof import("../db/allowances")) {
+async function seedOldSubKey(
+  subKeys: typeof import("../db/sub-keys"),
+  allowances: typeof import("../db/allowances"),
+  policyContractId: string | null = POLICY,
+) {
   const oldKey = Keypair.random();
   await subKeys.writeSubKey({
     pubkey: oldKey.publicKey(),
@@ -96,6 +104,7 @@ async function seedOldSubKey(subKeys: typeof import("../db/sub-keys"), allowance
     rotation: 0,
     provisionSignature: "old-signature",
     revokeSignature: null,
+    policyContractId: policyContractId ?? undefined,
     createdAt: 1,
     updatedAt: 1,
   });
@@ -123,7 +132,7 @@ describe("refreshSubKeyAfterApproval", () => {
     expect(await lifecycle.refreshSubKeyAfterApproval(input(false))).toBe("provisioned");
 
     expect(chain.provisionMerchantSubKey).toHaveBeenCalledTimes(1);
-    const active = await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN);
+    const active = await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY);
     expect(active?.pubkey).toBe(newKey.publicKey());
     expect(active?.rotation).toBe(0);
     expect((await allowances.readAllowance(ALLOWANCE_ID))?.subKeyPubkey).toBe(newKey.publicKey());
@@ -136,7 +145,7 @@ describe("refreshSubKeyAfterApproval", () => {
     expect(await lifecycle.refreshSubKeyAfterApproval(input(false))).toBe("renewed");
 
     expect(chain.provisionMerchantSubKey).toHaveBeenCalledTimes(1);
-    const active = await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN);
+    const active = await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY);
     expect(active?.pubkey).toBe(newKey.publicKey());
     expect(active?.rotation).toBe(1);
     expect((await subKeys.readSubKey(oldKey.publicKey()))?.status).toBe("revoked");
@@ -151,7 +160,7 @@ describe("refreshSubKeyAfterApproval", () => {
     expect(await lifecycle.refreshSubKeyAfterApproval(input(true))).toBe("kept");
 
     expect(chain.provisionMerchantSubKey).not.toHaveBeenCalled();
-    expect((await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN))?.pubkey).toBe(oldKey.publicKey());
+    expect((await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY))?.pubkey).toBe(oldKey.publicKey());
   });
 
   it("retries when an earlier attempt left the merchant without a sub-key, even under a live mandate", async () => {
@@ -160,7 +169,7 @@ describe("refreshSubKeyAfterApproval", () => {
     expect(await lifecycle.refreshSubKeyAfterApproval(input(true))).toBe("provisioned");
 
     expect(chain.provisionMerchantSubKey).toHaveBeenCalledTimes(1);
-    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN)).not.toBeNull();
+    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY)).not.toBeNull();
   });
 
   it("retires the lapsed sub-key and says so when renewal fails, so payments do not keep using a dead key", async () => {
@@ -170,7 +179,7 @@ describe("refreshSubKeyAfterApproval", () => {
 
     expect(await lifecycle.refreshSubKeyAfterApproval(input(false))).toBe("failed");
 
-    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN)).toBeNull();
+    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY)).toBeNull();
     expect((await subKeys.readSubKey(oldKey.publicKey()))?.status).toBe("revoked");
     expect(cache.evictSubKey).toHaveBeenCalledWith(oldKey.publicKey());
     expect((await allowances.readAllowance(ALLOWANCE_ID))?.subKeyPubkey).toBe("");
@@ -189,7 +198,7 @@ describe("refreshSubKeyAfterApproval", () => {
     expect(await lifecycle.refreshSubKeyAfterApproval(input(false))).toBe("failed");
 
     expect(chain.provisionMerchantSubKey).not.toHaveBeenCalled();
-    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN)).toBeNull();
+    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY)).toBeNull();
     const alerts = await history.listHistory({ accountPubkey: ACCOUNT, type: "alert" });
     expect(alerts[0]?.reasons.join(" ")).toContain("passphrase");
   });
@@ -200,8 +209,41 @@ describe("refreshSubKeyAfterApproval", () => {
 
     expect(await lifecycle.refreshSubKeyAfterApproval(input(false))).toBe("failed");
 
-    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN)).toBeNull();
+    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY)).toBeNull();
     const alerts = await history.listHistory({ accountPubkey: ACCOUNT, type: "alert" });
     expect(alerts[0]?.summary).toContain("Couldn't set up");
+  });
+
+  it("replaces a key bound to a retired policy contract, even under a live mandate", async () => {
+    const { lifecycle, subKeys, allowances, chain, cache, newKey } = await freshEnv();
+    // Minted before keys recorded their policy: bound to the retired v1 contract.
+    const legacyKey = await seedOldSubKey(subKeys, allowances, null);
+
+    expect(await lifecycle.refreshSubKeyAfterApproval(input(true))).toBe("provisioned");
+
+    expect(chain.provisionMerchantSubKey).toHaveBeenCalledTimes(1);
+    const active = await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY);
+    expect(active?.pubkey).toBe(newKey.publicKey());
+    expect(active?.policyContractId).toBe(POLICY);
+    expect((await subKeys.readSubKey(legacyKey.publicKey()))?.status).toBe("revoked");
+    expect(cache.evictSubKey).toHaveBeenCalledWith(legacyKey.publicKey());
+  });
+});
+
+describe("findActiveSubKeyForMerchant", () => {
+  it("only returns a key bound to the policy it is asked for", async () => {
+    const { subKeys, allowances } = await freshEnv();
+    const key = await seedOldSubKey(subKeys, allowances, POLICY);
+
+    expect((await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, POLICY))?.pubkey).toBe(key.publicKey());
+    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, "COTHERPOLICY")).toBeNull();
+  });
+
+  it("returns nothing on a network with no policy deployed", async () => {
+    const { subKeys, allowances } = await freshEnv();
+    await seedOldSubKey(subKeys, allowances, POLICY);
+
+    expect(await subKeys.findActiveSubKeyForMerchant(ACCOUNT, ORIGIN, null)).toBeNull();
+    expect(await subKeys.listActiveSubKeysForMerchant(ACCOUNT, ORIGIN)).toHaveLength(1);
   });
 });

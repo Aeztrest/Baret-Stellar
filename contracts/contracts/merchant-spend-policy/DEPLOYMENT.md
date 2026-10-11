@@ -6,19 +6,30 @@ gated by this policy can only ever transfer to the one merchant it was
 granted, up to that merchant's `cap_per_tx`/rolling `cap_per_day` — see
 `src/lib.rs` and `docs/x402-defense.md` §11.
 
-> **Two versions.** The extension uses **v1** (below). The source is now **v2**
+> **Two versions.** The source and every current deployment are **v2**
 > (bounded spend log, final `revoke`, mandate limit, events; see
-> [`../../README.md`](../../README.md)), deployed on testnet and, since 2026-10-07, on mainnet for agent wallets.
+> [`../../README.md`](../../README.md)): on testnet for the extension and agent wallets and, since 2026-10-07, on mainnet for agent wallets.
 > The v2 record and the agent-wallet runbook (testnet and mainnet) are in
 > [v2 and agent wallets](#v2-and-agent-wallets) at the end of this file.
+> v1 (testnet `CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S`, wasm hash `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834`) is retired: the extension used it until 2026-10-11.
 
-v1 is deployed on testnet at `CCWTPB4F72CLRLBMFK4RA52CFBKPQC6I5YTNRFPPTDXVG5ZXSQ2DHQ5S`
-(wasm hash `122e762adf01fc2fa83491e5e86ecbace3df517b71c16be27214f5ff29f3b834`),
-wired into `MERCHANT_SPEND_POLICY_CONTRACT_ID` in
-`apps/extension/src/background/swig/smart-wallet-config.ts`. Sub-key
-provisioning refuses to run while that constant is `null` (fails closed, not
-silently unscoped) — the section below is only needed to redeploy after a
-future contract change (bump the wasm hash and the constant again).
+The extension reads the address from `MERCHANT_SPEND_POLICY_CONTRACT_IDS` in
+`apps/extension/src/background/swig/smart-wallet-config.ts`, one entry per
+network: testnet is the v2 deployment `CCL7DJY2VQAECASTCNG6JLFZRUG4B3BMCMEMNWFOWC47Y5UXIYS7MPNH`,
+pubnet is `null`. Sub-key provisioning refuses to run on a network whose entry
+is `null` (fails closed, not silently unscoped). The mainnet deployment is
+deliberately not wired in: the extension's provisioning and auto-sign flow has
+only been run on testnet.
+
+The contract can't be upgraded, so a new version is a new address. Each stored
+sub-key records the address it was bound to (`SubKeyRow.policyContractId`) and
+is only used to sign while that matches the entry above; a key bound to another
+address (or to none, which means v1) is skipped, and the next manual approval
+of that merchant mints a replacement on the current contract. The old key stays
+a signer on the wallet, still capped by its own policy, until its `Temporary`
+entry expires or the user revokes the merchant (which removes every active key
+for it). The section below is only needed to redeploy after a future contract
+change (bump the wasm hash and the address again).
 
 The extension also needs this policy registered as a `Policy` signer on
 each user's smart wallet before `policy__` will accept anything for it — see
@@ -66,14 +77,17 @@ each wallet manages for itself via `set_allowance`.
 Edit `apps/extension/src/background/swig/smart-wallet-config.ts`:
 
 ```ts
-export const MERCHANT_SPEND_POLICY_CONTRACT_ID: string | null =
-  "C… the address from the deploy above";
+export const MERCHANT_SPEND_POLICY_CONTRACT_IDS: Record<StellarNetwork, string | null> = {
+  testnet: "C… the address from the deploy above",
+  pubnet: null,
+};
 ```
 
-Rebuild/reload the extension. That's the only code change needed — every
-call site (`swig/sub-keys.ts#provisionMerchantSubKey`,
-`swig/sub-key-lifecycle.ts#refreshSubKeyAfterApproval`) already reads this constant
-and was written against the real contract's interface.
+Rebuild/reload the extension. That's the only code change needed: every
+call site reads the address through `merchantSpendPolicyContractId()`, and
+existing sub-keys bound to the previous address are replaced on their
+merchant's next manual approval (see above). `chain-check` reads the testnet
+entry from the same file.
 
 ## Interface
 
@@ -138,7 +152,7 @@ Once deployed and wired in:
    by the network, not just the extension's own bookkeeping.
 
 Documentation status: `docs/x402-defense.md` §11, `docs/extension-architecture.md` §8, `LIMITATIONS.md` and `docs/implementation-status.md` §4 already describe the guarantee as implemented in code and covered by the
-contract's unit tests. **This checklist was not re-run as part of the documentation update.** It was later run against the live testnet by the team, who reported on 2026-09-20 that it **passed**. That run's wallet address, the `set_allowance` / `add_signer` transaction hashes and the outcome of the over-cap payment in step 6 were **not recorded here**; add them when convenient.
+contract's unit tests. **This checklist was not re-run as part of the documentation update.** It was later run against the live testnet by the team, who reported on 2026-09-20 that it **passed**; that was on v1. **It has not been re-run with the extension on v2** (the switch on 2026-10-11 is covered by unit tests and by the agent-wallet runs below, which use the same contract through different client code). That run's wallet address, the `set_allowance` / `add_signer` transaction hashes and the outcome of the over-cap payment in step 6 were **not recorded here**; add them when convenient.
 
 Renewal check to run while you are here: let a mandate lapse (or set `mandateMaxAgeDays` very low), re-approve the merchant, and confirm the Activity tab shows "Renewed scoped on-chain sub-key" and that the next auto-payment settles. The extension mints a new sub-key on renewal (unit-tested; see `docs/implementation-status.md` §4), but it is **not separately recorded** as run against the live testnet (the 2026-09-20 report above covers the checklist, not this renewal step).
 

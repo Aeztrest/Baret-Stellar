@@ -56,7 +56,7 @@ Legend: **S** = server (`/v1/analyze`, `policy/engine.ts` + detectors), **X** = 
 | `x402HourlyCap`, `x402DailyCap` | Seed a new merchant's rolling caps (defaults 2.0 / 5.0, `DEFAULT_X402_CAPS`), enforced as sliding windows per merchant | X |
 | `allowedFacilitators` | Static allow-list for `extra.sponsorBy` | X |
 | `allowedMerchantOrigins`, `blockedMerchantOrigins` | Allow/deny by page origin | X |
-| `mandateMaxAgeDays` | Lifetime of a manually granted mandate (default 30) | X |
+| `mandateMaxAgeDays` | Lifetime of a manually granted mandate (default 30; the extension caps it at 365, the on-chain policy's limit) | X |
 
 ### 1.4 Defined but **not enforced**
 

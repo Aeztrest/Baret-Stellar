@@ -52,7 +52,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 - **Aynı motor 4 yüzeyde:** MV3 tarayıcı cüzdanı (`apps/extension`, asıl ürün), HTTP analiz API'si (`apps/server`, anahtarlı; `POST /v1/keys` ile ücretsiz anahtar), agent SDK+CLI (`packages/agent-guard`), MCP araçları.
 - **Sunucu güven sınırı değildir.** Eklenti karar verir; sunucuya ulaşamazsa "korumasız imza" advisory'si gösterir. x402 tavanlarını kendi IndexedDB'sinde uygular.
-- **Tavan zincirde de:** `MerchantSpendPolicy` (Soroban, testnet `CCWTPB4F…SQ2DHQ5S`), passkey-kit smart wallet'a `Policy` signer olarak bağlanır; merchant başına alt anahtar. Kurulum **best-effort** ve ilk elle onaydan sonra.
+- **Tavan zincirde de:** `MerchantSpendPolicy` (Soroban, v2, testnet `CCL7DJY2…S7MPNH`), passkey-kit smart wallet'a `Policy` signer olarak bağlanır; merchant başına alt anahtar. Kurulum **best-effort** ve ilk elle onaydan sonra.
 - **Ödeme yapan akıllı cüzdan `C…`'dir**, kimlik/gas hesabı `G…` authority'dir (bu, anchor entegrasyonunda köprü gerektirir, bkz. T2.6).
 - Sunucu kontrat/eklenti/showcase arasındaki **elle senkron aynalar** `AGENTS.md`'de listelidir (sunucu `domain/*` ↔ swig-guard tipleri, attestation, policy şeması, `PaymentRequirements`).
 
@@ -71,7 +71,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 | Attestation eklentide/showcase'te doğrulanmıyor; canlıda kapalı | ⏳ | `docs/implementation-status.md` §1 |
 | Stellar SDK sürümleri | 🚫 ertelendi (T0.4) | eklenti `^16.0.1`, diğerleri `^15.1.0`; ihtiyacımız olan API iki majörde de aynı |
 | SEP-1/6/10 (anchor) kodu | 🟡 SEP-10 tanıyıcı + giriş, SEP-1 toml, SEP-6 `/info`, Options → Anchors var (T2.1, T2.2); yatırma/çekme, kayıtlar, çekme koruması ⏳ | `apps/extension/src/background/sep/` |
-| `spend_log` sınırsız `Vec` (kontrat) | ✅ v2'de sınırlı (T3.1, 2026-10-02); eklenti hâlâ v1'de | `contracts/contracts/merchant-spend-policy/src/lib.rs` |
+| `spend_log` sınırsız `Vec` (kontrat) | ✅ v2'de sınırlı (T3.1, 2026-10-02); eklenti v2'de (T3.2, 2026-10-11) | `contracts/contracts/merchant-spend-policy/src/lib.rs` |
 | Varsayılan tavan 1 / 5 / **25** USDC | ✅ 0.5 / 2 / 5 (T1.6) | `apps/extension/src/background/x402/handlers.ts` |
 | Mandate yenileme hatası (zincir tarafı yenilenmiyor) | ✅ düzeltildi, canlı doğrulama T0.7'de (T1.5) | `docs/implementation-status.md` §4, `LIMITATIONS.md` |
 | Zincir üstü alt anahtarın canlı uçtan uca doğrulaması | ⏳ yeniden koşulmadı | `contracts/contracts/merchant-spend-policy/DEPLOYMENT.md` |
@@ -327,7 +327,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 #### T3.1 MerchantSpendPolicy v2 ✅ (kod + testnet; mainnet Instawards D1'de, bkz. `docs/instawards-sow.md`)
 - **Yapıldı (2026-10-02, dal `feat/mainnet-spend-policy`):** sınırlı harcama kaydı, kalıcı `Revoked` (`#11`), mandate 1 sn-365 gün (`#12`), `Spent`/`StatusChanged` event'leri, `Error` → `PolicyError` (bindings artık üretiliyor). 20 test; testnet `CCL7DJY2…S7MPNH`, wasm `cda12f8a…6e8611`; canlı prova `DEPLOYMENT.md`'de.
 - **Plandan sapma (gerekçeli):** 25 saatlik sabit kova yerine aynı 15 dk dilimindeki harcamaları **sonraki** zaman damgasıyla birleştiren log (≤ 97 kayıt). Kayan pencere neredeyse tam korunur: tavan en fazla 15 dk erken reddedebilir, hiç aşılmaz (25 kova en fazla 1 saat fazladan kilitlerdi). Mevcut `rolling_window_resets_after_24h` testi değişmeden geçiyor.
-- **Açık:** eklenti v1'de kalıyor (T3.2).
+- **Kapandı:** eklenti v2'ye geçti (T3.2).
 - **Bulgu:** `spend_log: Vec<(u64,i128)>` sınırsız. Ölçüm (scratch): 1000 kayıt ≈ 44 KB, 8 M CPU; darboğaz tek ledger entry'nin boyutu ve her ödemede tamamını yazma ücreti. 0.001 USDC ödemelerle günde 1 USDC → ~1000, 25 USDC → ~25.000 kayıt. Entry limiti (~64 KiB) ağ ayarından doğrulanmadı.
 - **Tasarım:** sabit uzunluklu **25 saatlik bucket** + `head_hour`; her çağrıda kaydır/sıfırla; toplamı bucket'lardan al. **Tam kayan pencere korunmaz:** 24 bucket cap'in 2 katına izin verir; 25 bucket cap'i hiç aşmaz (ödeme 24-25 saat sayılır, en fazla 1 saat fazladan kilit). Entry ≈ 450 B, CPU O(25).
 - **Aynı görevde:** vendored arayüzle çakışan `Error` enum'unu yeniden adlandır (bindings üretimini engelliyor); `pause/resume/revoke` ve harcama için **event** (post-sign monitör için); `Revoked` kalıcı olsun (`resume` geri açmasın); `mandate_seconds` üst sınırı.
@@ -336,7 +336,11 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 - **Bağımlılık:** S1 (#22).
 - **Doküman:** `contracts/README.md`, `DEPLOYMENT.md`, kök `README.md` (adres/hash/test sayısı), `docs/x402-defense.md` §11, `smart-wallet-config.ts`.
 
-#### T3.2 Eklenti migrasyonu ⏳
+#### T3.2 Eklenti migrasyonu 🟡 (kod + birim testleri; tarayıcıda uçtan uca koşulmadı)
+- **Yapıldı (2026-10-11, dal `feat/extension-policy-v2`):** `smart-wallet-config.ts` ağ başına adres tutar (testnet v2 `CCL7DJY2…S7MPNH`, pubnet `null`); `sub_keys` satırı `policyContractId` saklar; imzada yalnız kullanımdaki adrese bağlı anahtar seçilir, eski adrese (ya da alansız eski satıra) bağlı anahtar yok sayılır ve bir sonraki elle onayda yenisi kurulur; `ledger.revoke` merchant'ın tüm aktif anahtarlarını zincirden kaldırır; mandate 365 günle sınırlanır (v2 üstünü `#12` ile reddeder); `chain-check` testnet girdisini okur. 294 eklenti testi.
+- **Plandan sapma:** DB sürümü yükseltilmedi. Alan isteğe bağlı ve indekssiz olduğu için şema değişmiyor; alansız satır "v1'e bağlı" sayılıyor (fail-closed).
+- **Kalan:** `DEPLOYMENT.md` "End-to-end verification" listesinin tarayıcıda v2 ile koşulması ve hash'lerin kaydı.
+- **Orijinal plan metni:**
 - DB v5: allowance/`sub_keys` satırlarına `policyContractId`; eski ID'ye bağlı alt anahtarları tespit edip yeniden kur (yoksa otomatik imza zincirde sessizce başarısız olur); `smart-wallet-config.ts`, README, `DEPLOYMENT.md`, `sub-keys.test.ts` mock ID'leri.
 - **Test:** `fake-indexeddb` ile eski şemadan yükseltme (`db/index.test.ts` desenine uy).
 - **Bağımlılık:** T3.1.
@@ -416,6 +420,7 @@ Ayrıntı: [`ARCHITECTURE.md`](./ARCHITECTURE.md) ve `docs/architecture/*`. Kıs
 
 | Tarih | Değişiklik |
 |---|---|
+| 2026-10-11 | T3.2 🟡: eklenti testnet'te MerchantSpendPolicy v2'ye geçti (ağ başına adres, alt anahtar başına `policyContractId`, mandate ≤ 365 gün); tarayıcıda uçtan uca koşulmadı. Instawards D3 kanıt notu yazıldı (`docs/instawards-payment-proof.md`). |
 | 2026-10-07 | Instawards D1 ✅ mainnet: MerchantSpendPolicy v2 `CCFFBHBK…VMDKDNOS`, agent cüzdanı `CC5RDVZP…ZQZ2SGN` (0.5 / 2 USDC), durdur/devam denendi; D3 ödemesi yapıldı (`4d3d6490…`). `spend-policy` aracında iki mainnet hatası düzeltildi (çift ücret teklifi, düşük öncelik teklifi + kısa süre), `BARET_DRY_RUN` eklendi. Ayrıntı `docs/instawards-sow.md`. |
 | 2026-10-02 | Instawards SOW (güncel PDF) esas alındı: D1 = MerchantSpendPolicy v2 + agent cüzdanı mainnet'te (PaymentGuard yerine; gerekçe `docs/instawards-sow.md`). T3.1 kodu ve testnet provası ✅; `agent-guard`'a `spend-policy` alt yolu (SDK 16 + passkey-kit). |
 | 2026-09-20 (ilerleme 13) | T2.4 1. kısım: SEP-6 çekme koruması (anchor'a imza anında sorup tek `payment`'ı birebir doğrular, fail-closed; `ACCOUNTS` 24 saat önbellekli, sıradan ödeme istek atmaz); 81 yeni test, 27 mutasyon (2 boşluk bulunup kapatıldı). Baret'in kendi çekme akışı 2. kısımda. |
