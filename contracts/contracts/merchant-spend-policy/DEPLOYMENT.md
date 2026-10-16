@@ -231,6 +231,8 @@ The wallet deploy is expensive for a reason outside this repo: passkey-kit's sha
 - At the SDK's default inclusion bid (100 stroops) and a 30 s validity window, the deploy was accepted and then expired without entering a ledger (mainnet's median Soroban inclusion fee was 200). The bid is now 10,000 stroops (the network charges the clearing rate, not the bid) and the window is 120 s.
 
 `BARET_DRY_RUN=1` in front of any `spend-policy` command builds and simulates each step, prints its fee and sends nothing; a dry run of the wallet deploy also works with `BARET_OWNER_PUBLIC` instead of the secret. `spend-policy wallet` and `spend-policy install` run the first two steps of `setup` on their own.
+**Payment with the published package (2026-10-11).** After `@stellar-thorn/agent-guard@0.1.0` went to npm, the owner installed it from the registry and the agent paid 0.1 USDC again with `npx baret limits pay 0.1`: [tx](https://stellar.expert/explorer/public/tx/7fe158017966c815cdceeeb3881d5355a756f23e37ace0ff43b96f891e3a03bd) (ledger 64879787, fee charged 0.0029 XLM; the dry run quoted 0.0049). Checked against Horizon and RPC: source account and the only signature are the agent's, USDC `transfer(wallet → merchant, 0.1)`, merchant balance 0.2 USDC, `available_today` 1.9.
+
 The three accounts and the two USDC trustlines were opened with `packages/agent-guard/scripts/mainnet-accounts.mjs` ([tx](https://stellar.expert/explorer/public/tx/3f71c54c80ed158188675ffd2fac1753dc691e6a2a17c2186d45add069fffd75)).
 
 ### Runbook (testnet or mainnet)

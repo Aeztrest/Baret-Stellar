@@ -12,22 +12,16 @@ Başka bir bilgisayardan ya da yeni bir oturumdan devam ederken önce burayı ok
 |---|---|---|
 | D1: mainnet kontratı ve limitler | ✅ | Kontrat sayfasının ekran görüntüsü (sahip) |
 | D2: npm paketi | ✅ npm'de (2026-10-11) | Yok |
-| D3: mainnet agent ödemesi | 🟡 ödeme yapıldı, açıklama yazıldı | npm'den kurulan paketle bir ödeme daha; hash'i açıklamaya eklenecek |
+| D3: mainnet agent ödemesi | ✅ (2026-10-07; npm paketiyle 2026-10-11) | Yok |
 
 **Sıradaki adımlar, sırayla:**
 
 1. ~~npm hesabı ve `stellar-thorn` organizasyonu~~ ✅ 2026-10-11 (npm kullanıcısı `buildonbaret`, organizasyonun sahibi).
 2. ~~Yayın~~ ✅ 2026-10-11: `@stellar-thorn/agent-guard@0.1.0`, güncel `main`'den (`42db031`), sahip kendi terminalinden `npm publish` ile yayımladı. Hesapta 2FA açık olmalı; yayın tarayıcıda onay ister, bu yüzden etkileşimli bir terminalde çalıştırılır.
 3. ~~Doğrulama~~ ✅ 2026-10-11: [`npmjs.com/package/@stellar-thorn/agent-guard`](https://www.npmjs.com/package/@stellar-thorn/agent-guard) açık; boş bir klasörde `npm install @stellar-thorn/agent-guard && npx baret --help` çalıştı. Bu link D2'nin kanıtıdır (SOW 6.1).
-4. **D3'ü birebir karşılamak (sahip çalıştırır, mainnet, 0.1 USDC):** yayımlanan paketin kurulu olduğu klasörde
-   ```bash
-   BARET_NETWORK=pubnet BARET_AGENT_SECRET=$(stellar keys show baret-agent) \
-   BARET_WALLET=CC5RDVZPOKYVEMTWS3VBZSMGQ5QLUVZ7JZHPFVF6YUPPW7AB5FQZ2SGN \
-   BARET_MERCHANT=GDEQU656DRS7X6AEZPIFQFYTEV6PT4RLZI6JCQNWKJH46VKTLTSAD3OU \
-   npx baret limits pay 0.1
-   ```
-   Önce başına `BARET_DRY_RUN=1` koyup ücrete bak. Kontrat ve USDC adresleri pakette gömülüdür. Cüzdanda 4.9 USDC, günlük tavanda yer var; yetki 2026-11-06'da doluyor (sonrası için sahip `baret limits setup` ile yeniler).
-5. **Yazılı kanıt:** D3'ün bir sayfalık açıklaması yazıldı: [`instawards-payment-proof.md`](./instawards-payment-proof.md) (2026-10-11). 4. adımdaki ödemenin hash'i oraya ("What this does not show" altındaki ilgili madde kaldırılarak) ve `DEPLOYMENT.md`'ye eklenir; bu dosyadaki durumlar güncellenir.
+4. ~~D3'ü birebir karşılamak~~ ✅ 2026-10-11: sahip, agent anahtarının bulunduğu bilgisayarda `npm install @stellar-thorn/agent-guard` ve `npx baret limits pay 0.1` ile ödedi (önce `BARET_DRY_RUN=1`: ücret 0.0049 XLM): [`7fe15801…1e3a03bd`](https://stellar.expert/explorer/public/tx/7fe158017966c815cdceeeb3881d5355a756f23e37ace0ff43b96f891e3a03bd). Cüzdanda 4.8 USDC kaldı; yetki 2026-11-06'da doluyor (sonrası için sahip `baret limits setup` ile yeniler).
+5. ~~Yazılı kanıt~~ ✅: [`instawards-payment-proof.md`](./instawards-payment-proof.md) iki ödemeyi de içeriyor.
+6. **Teslim (sahip):** kanıtları chapter lead'e gönder: kontrat linki ve ekran görüntüsü (D1), npm linki (D2), işlem hash'leri ve açıklama (D3).
 
 **Mainnet'teki adresler** (hepsi zincirde herkese açık):
 
@@ -168,17 +162,17 @@ Bilinen küçük not: yayın sırasında npm `bin` yolundaki `./` önekini kendi
 
 ## Deliverable 3: uçtan uca mainnet ödemesi
 
-**Durum: 🟡 ödeme yapıldı (2026-10-07); SOW'un istediği "npm'den kurulan agent-guard ile" kısmı için paket artık npm'de; ödemenin tekrarı agent anahtarının bulunduğu bilgisayarda yapılacak.**
+**Durum: ✅ ödeme yapıldı (2026-10-07) ve npm'den kurulan paketle tekrarlandı (2026-10-11).**
 
 - İşlem: [`4d3d6490…54868d60`](https://stellar.expert/explorer/public/tx/4d3d6490ff815fd5f942e9960d93d128c396b92e649de998d0122d7554868d60) (ledger 64823727). Agent, akıllı cüzdandan merchant'a 0.1 USDC ödedi.
 - Zincirden doğrulandı: işlemin kaynak hesabı agent, zarfta tek imza var ve agent'a ait (sahip anahtarı imzalamadı), işlem USDC `transfer(cüzdan → merchant, 0.1)`, bakiyeler 5 / 0 → 4.9 / 0.1 USDC. Aynı koşuda 0.5000001 USDC'lik ödeme kontrat tarafından `#5 ExceedsPerTx` ile reddedildi.
 - Ödeme repodaki `agent-guard` aracıyla (`spend-policy prove`) yapıldı. Paket 2026-10-11'de yayımlandı; aynı ödeme npm'den kurulan paketle bir kez daha yapılırsa SOW'un cümlesi birebir karşılanır ("Sıradaki adımlar" 4).
 - Bir sayfalık açıklama (SOW 6.1): [`instawards-payment-proof.md`](./instawards-payment-proof.md). 2026-10-11'de zincire karşı yeniden doğrulandı: Horizon'da işlem başarılı, kaynak ve tek imza agent'a ait, `transfer(cüzdan → merchant, 0.1 USDC)`, merchant bakiyesi 0.1 USDC; kontrattan okunan yetki `Active`, 0.5 / 2 USDC, bitiş 2026-11-06.
-- Kalan: yayımlanan paketle ikinci ödeme ve hash'inin açıklamaya eklenmesi.
+- **npm paketiyle ödeme (2026-10-11):** [`7fe15801…1e3a03bd`](https://stellar.expert/explorer/public/tx/7fe158017966c815cdceeeb3881d5355a756f23e37ace0ff43b96f891e3a03bd) (ledger 64879787). Sahibin terminal çıktısına göre `npm install @stellar-thorn/agent-guard` ardından `npx baret limits pay 0.1`; komut boş bir klasörde değil, bu reponun bir kopyasının içinde çalıştırıldı. Zincirden doğrulandı: işlem başarılı, kaynak ve tek imza agent'a ait, `transfer(cüzdan → merchant, 0.1 USDC)`, merchant bakiyesi 0.2 USDC, kontrattaki kullanılabilir günlük tavan 1.9 USDC.
 
 ## Sahipten gerekenler
 
 - Deliverable 1 için stellar.expert kontrat sayfasının ekran görüntüsü.
-- Deliverable 3 için npm'den kurulan paketle ikinci mainnet ödemesi (agent anahtarı ilk bilgisayarda).
+- Kanıtların chapter lead'e gönderilmesi.
 - npm hesabının (`buildonbaret`) 2FA kurtarma kodlarının şifre yöneticisinde saklanması; hesap kaybedilirse pakete yeni sürüm yayımlanamaz.
 - Mainnet hesapları sahibin `stellar` CLI deposunda (`baret-owner`, `baret-agent`, `baret-merchant`); gizli anahtarlar repoda ya da herhangi bir dosyada değil. Mainnet işlemlerini sahip kendi terminalinden çalıştırır.
