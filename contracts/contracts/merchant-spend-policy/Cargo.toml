@@ -15,7 +15,7 @@ doctest = false
 # is built against soroban-sdk 27 — see src/smart_wallet_interface.rs's
 # provenance note. Different workspace members are free to pin different
 # major versions; each compiles to its own independent wasm.
-soroban-sdk = "27"
+soroban-sdk = "28"
 
 [dev-dependencies]
-soroban-sdk = { version = "27", features = ["testutils"] }
+soroban-sdk = { version = "28", features = ["testutils"] }
